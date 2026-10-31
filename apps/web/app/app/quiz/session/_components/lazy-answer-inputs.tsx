@@ -5,7 +5,7 @@ import { type ComponentType, useState } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AnswerInputBoundary } from './answer-input-boundary'
 
-const renderSkeleton = () => <Skeleton className="h-40 w-full" />
+const renderSkeleton = () => <Skeleton className="h-skeleton-chart w-full" />
 
 // Inline import() lets next/dynamic emit the SSR chunk preload for each input.
 const OrderingDynamic = dynamic(() => import('./ordering-input').then((m) => m.OrderingInput), {

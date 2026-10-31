@@ -11,14 +11,14 @@ function LoaderSkeleton() {
     <div className="mx-auto max-w-reading space-y-6">
       <Skeleton className="h-1.5 w-full rounded-pill" />
       <div className="space-y-4">
-        <Skeleton className="h-4 w-32" />
-        <Skeleton className="h-20 w-full rounded-card" />
+        <Skeleton className="h-skeleton-line w-skeleton-w" />
+        <Skeleton className="h-skeleton-card w-full rounded-card" />
       </div>
       <div className="space-y-2">
-        <Skeleton className="h-12 w-full rounded-control" />
-        <Skeleton className="h-12 w-full rounded-control" />
-        <Skeleton className="h-12 w-full rounded-control" />
-        <Skeleton className="h-12 w-full rounded-control" />
+        <Skeleton className="h-skeleton-row w-full rounded-control" />
+        <Skeleton className="h-skeleton-row w-full rounded-control" />
+        <Skeleton className="h-skeleton-row w-full rounded-control" />
+        <Skeleton className="h-skeleton-row w-full rounded-control" />
       </div>
     </div>
   )

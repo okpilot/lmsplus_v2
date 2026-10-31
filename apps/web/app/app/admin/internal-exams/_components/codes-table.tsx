@@ -58,7 +58,7 @@ export function CodesTable({ rows, status, totalCount, pageSize }: Readonly<Prop
   return (
     <div className="space-y-3">
       <Select value={status ?? '__all__'} onValueChange={onStatusChange} items={STATUS_ITEMS}>
-        <SelectTrigger className="w-40" aria-label="Status filter">
+        <SelectTrigger className="w-col-md" aria-label="Status filter">
           <SelectValue placeholder="All" />
         </SelectTrigger>
         <SelectContent>
@@ -73,14 +73,14 @@ export function CodesTable({ rows, status, totalCount, pageSize }: Readonly<Prop
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-24">Status</TableHead>
+            <TableHead className="w-col-code">Status</TableHead>
             <TableHead className="min-w-col-sm">Code</TableHead>
             <TableHead className="min-w-col-md">Student</TableHead>
             <TableHead className="min-w-col-sm">Subject</TableHead>
-            <TableHead className="w-40">Issued</TableHead>
-            <TableHead className="w-40">Expires</TableHead>
-            <TableHead className="w-32">Email</TableHead>
-            <TableHead className="w-24">Action</TableHead>
+            <TableHead className="w-col-md">Issued</TableHead>
+            <TableHead className="w-col-md">Expires</TableHead>
+            <TableHead className="w-col-sm">Email</TableHead>
+            <TableHead className="w-col-code">Action</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

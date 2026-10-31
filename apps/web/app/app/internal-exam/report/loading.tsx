@@ -4,8 +4,8 @@ export default function InternalExamReportLoading() {
   return (
     <main className="space-y-section">
       <div>
-        <Skeleton className="h-8 w-24" />
-        <Skeleton className="mt-2 h-4 w-64" />
+        <Skeleton className="h-skeleton-title w-skeleton-w" />
+        <Skeleton className="mt-2 h-skeleton-line w-skeleton-w" />
       </div>
     </main>
   )

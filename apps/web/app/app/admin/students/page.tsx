@@ -35,7 +35,7 @@ export default async function StudentsPage({ searchParams }: Readonly<PageProps>
         title="Student Management"
         description="Register and manage students on the platform."
       />
-      <Suspense fallback={<Skeleton className="h-96" />}>
+      <Suspense fallback={<Skeleton className="h-skeleton-chart-lg" />}>
         <StudentsContent filters={filters} />
       </Suspense>
     </div>

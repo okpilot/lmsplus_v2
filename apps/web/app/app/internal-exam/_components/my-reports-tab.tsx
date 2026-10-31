@@ -43,11 +43,11 @@ export function MyReportsTab({ rows }: Readonly<Props>) {
         <TableRow>
           <TableHead className="min-w-col-sm">Subject</TableHead>
           <TableHead className="w-16">Attempt</TableHead>
-          <TableHead className="w-40">Started</TableHead>
-          <TableHead className="w-40">Ended</TableHead>
-          <TableHead className="w-20">Score</TableHead>
-          <TableHead className="w-24">Result</TableHead>
-          <TableHead className="w-24">Answered</TableHead>
+          <TableHead className="w-col-md">Started</TableHead>
+          <TableHead className="w-col-md">Ended</TableHead>
+          <TableHead className="w-col-xs">Score</TableHead>
+          <TableHead className="w-col-code">Result</TableHead>
+          <TableHead className="w-col-code">Answered</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>

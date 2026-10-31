@@ -24,7 +24,7 @@ export function QuizPageTabs({
       <QuizTabs
         draftCount={savedTabCount}
         newQuizContent={
-          <Suspense fallback={<Skeleton className="h-64 rounded-card" />}>
+          <Suspense fallback={<Skeleton className="h-skeleton-chart rounded-card" />}>
             <SubjectsSection userId={userId} />
           </Suspense>
         }

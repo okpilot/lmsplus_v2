@@ -71,7 +71,7 @@ export function TopicRow({ topic, subjectId }: Readonly<Props>) {
       <InsetPanel className="p-2">
         <InlineForm
           fields={[
-            { name: 'code', placeholder: 'Code', width: 'w-24', defaultValue: topic.code },
+            { name: 'code', placeholder: 'Code', width: 'w-col-code', defaultValue: topic.code },
             { name: 'name', placeholder: 'Name', width: 'flex-1', defaultValue: topic.name },
           ]}
           onSubmit={handleEdit}
@@ -100,7 +100,7 @@ export function TopicRow({ topic, subjectId }: Readonly<Props>) {
           />
         </CollapsibleTrigger>
 
-        <span className="w-16 tabular-nums text-body">{topic.code}</span>
+        <span className="w-inset-lg tabular-nums text-body">{topic.code}</span>
         <span className="flex-1 text-body">{topic.name}</span>
         <Badge variant="secondary">{topic.questionCount} Q</Badge>
         <Button
@@ -138,7 +138,7 @@ export function TopicRow({ topic, subjectId }: Readonly<Props>) {
           <div className="pt-1">
             <InlineForm
               fields={[
-                { name: 'code', placeholder: 'Subtopic code', width: 'w-28' },
+                { name: 'code', placeholder: 'Subtopic code', width: 'w-col-sm' },
                 { name: 'name', placeholder: 'Subtopic name', width: 'flex-1' },
               ]}
               onSubmit={handleAddSubtopic}

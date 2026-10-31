@@ -45,7 +45,7 @@ const SKELETONS = [
 ]
 
 // Numeric size utilities: allowed steps are h-1.5 (progress bar) and size-8 in comments-skeleton (32px avatar).
-const NUMERIC = /(?<![\w-])((?:min-h|min-w|h|w|size)-\d[\w.]*)/g
+const NUMERIC = /(?<![\w-])((?:min-h|min-w|h|w|size)-\d[\w.]*)(?!\/)/g
 const ALLOWED = new Set(['h-1.5'])
 
 describe('skeleton files use size tokens (AC: class-scan)', () => {

@@ -37,7 +37,7 @@ export function DashboardHeader({ currentRange }: Readonly<Props>) {
       description="Instructor overview of your cohort"
       actions={
         <Select value={currentRange} onValueChange={handleRangeChange} items={TIME_RANGE_OPTIONS}>
-          <SelectTrigger className="w-40" aria-label="Time range">
+          <SelectTrigger className="w-col-md" aria-label="Time range">
             <SelectValue placeholder="Select range" />
           </SelectTrigger>
           <SelectContent>

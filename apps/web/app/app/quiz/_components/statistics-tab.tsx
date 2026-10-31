@@ -36,9 +36,9 @@ function NotAnsweredMessage({ hasAnswered }: Readonly<{ hasAnswered: boolean }>)
 function LoadingSkeleton() {
   return (
     <div className="space-y-3 py-4">
-      <Skeleton className="h-4 w-32" />
-      <Skeleton className="h-4 w-48" />
-      <Skeleton className="h-4 w-40" />
+      <Skeleton className="h-skeleton-line w-skeleton-w" />
+      <Skeleton className="h-skeleton-line w-skeleton-w" />
+      <Skeleton className="h-skeleton-line w-skeleton-w" />
     </div>
   )
 }

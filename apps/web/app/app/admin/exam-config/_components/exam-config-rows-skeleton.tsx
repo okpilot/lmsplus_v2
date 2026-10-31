@@ -7,7 +7,7 @@ export function ExamConfigRowsSkeleton() {
       {Array.from({ length: 9 }).map((_, i) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton placeholders
         <div key={i} className="p-4">
-          <Skeleton className="h-5 w-full" />
+          <Skeleton className="h-skeleton-title w-full" />
         </div>
       ))}
     </CardList>

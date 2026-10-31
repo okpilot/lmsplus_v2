@@ -68,7 +68,7 @@ export function PaginationBar({
               // the same state to assistive tech, which cannot see the styling.
               aria-current={item.page === effectivePage ? 'page' : undefined}
               size="sm"
-              className="min-w-8"
+              className="min-w-control-sm"
               onClick={() => goToPage(item.page)}
             >
               {item.page}

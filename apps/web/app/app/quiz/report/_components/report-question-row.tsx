@@ -86,7 +86,7 @@ export function ReportQuestionRow({
               <ZoomableImage
                 src={question.questionImageUrl}
                 alt="Question illustration"
-                className="max-h-64"
+                className="max-h-scroll-md"
               />
             </div>
           )}
@@ -119,7 +119,7 @@ export function ReportQuestionRow({
                     <ZoomableImage
                       src={question.explanationImageUrl}
                       alt="Explanation illustration"
-                      className="max-h-48"
+                      className="max-h-scroll-sm"
                     />
                   )}
                   {question.explanationText && (

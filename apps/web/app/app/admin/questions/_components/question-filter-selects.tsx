@@ -57,7 +57,7 @@ export function QuestionFilterSelects({
         items={subjectItems}
         ariaLabel="Subject"
         placeholder="All subjects"
-        triggerClassName="w-44"
+        triggerClassName="w-col-md"
         onValueChange={(v) => onFilterChange('subjectId', v)}
       />
       <FilterSelect
@@ -65,7 +65,7 @@ export function QuestionFilterSelects({
         items={topicItems}
         ariaLabel="Topic"
         placeholder="All topics"
-        triggerClassName="w-44"
+        triggerClassName="w-col-md"
         disabled={topics.length === 0}
         onValueChange={(v) => onFilterChange('topicId', v)}
       />
@@ -74,7 +74,7 @@ export function QuestionFilterSelects({
         items={subtopicItems}
         ariaLabel="Subtopic"
         placeholder="All subtopics"
-        triggerClassName="w-44"
+        triggerClassName="w-col-md"
         disabled={subtopics.length === 0}
         onValueChange={(v) => onFilterChange('subtopicId', v)}
       />
@@ -83,7 +83,7 @@ export function QuestionFilterSelects({
         items={STATUS_ITEMS}
         ariaLabel="Status"
         placeholder="Status"
-        triggerClassName="w-28"
+        triggerClassName="w-col-sm"
         onValueChange={(v) => onFilterChange('status', v)}
       />
       <CalcFilterSelect

@@ -6,15 +6,15 @@ export function CommentsSkeleton() {
       <div className="flex gap-3">
         <Skeleton className="size-8 rounded-pill" />
         <div className="flex-1 space-y-2">
-          <Skeleton className="h-3 w-24" />
-          <Skeleton className="h-3 w-full" />
+          <Skeleton className="h-skeleton-line w-skeleton-w" />
+          <Skeleton className="h-skeleton-line w-full" />
         </div>
       </div>
       <div className="flex gap-3">
         <Skeleton className="size-8 rounded-pill" />
         <div className="flex-1 space-y-2">
-          <Skeleton className="h-3 w-20" />
-          <Skeleton className="h-3 w-3/4" />
+          <Skeleton className="h-skeleton-line w-skeleton-w" />
+          <Skeleton className="h-skeleton-line w-3/4" />
         </div>
       </div>
     </div>

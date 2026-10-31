@@ -20,7 +20,7 @@ export function SessionRangeHeader({ range, onRangeChange }: Readonly<Props>) {
     <div className="flex items-center justify-between">
       <Heading level={2}>Session History</Heading>
       <Select value={range} onValueChange={onRangeChange} items={TIME_RANGE_OPTIONS}>
-        <SelectTrigger className="w-40" aria-label="Time range">
+        <SelectTrigger className="w-col-md" aria-label="Time range">
           <SelectValue placeholder="Select range" />
         </SelectTrigger>
         <SelectContent>

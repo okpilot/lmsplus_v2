@@ -27,7 +27,7 @@ export default async function VfrRtPage() {
         savedLabel="Saved Practice Sessions"
         ariaLabel="Practice options"
         newQuizContent={
-          <Suspense fallback={<Skeleton className="h-64 rounded-card" />}>
+          <Suspense fallback={<Skeleton className="h-skeleton-chart rounded-card" />}>
             <VfrRtSetup />
           </Suspense>
         }

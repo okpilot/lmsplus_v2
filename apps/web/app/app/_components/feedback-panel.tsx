@@ -30,7 +30,7 @@ export function FeedbackPanel({
         <ZoomableImage
           src={explanationImageUrl}
           alt="Explanation illustration"
-          className="max-h-48"
+          className="max-h-scroll-sm"
         />
       )}
 

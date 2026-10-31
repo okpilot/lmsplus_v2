@@ -47,14 +47,14 @@ export function QuestionTable({
               aria-label="Select all questions"
             />
           </TableHead>
-          <TableHead className="w-20">#</TableHead>
+          <TableHead className="w-col-xs">#</TableHead>
           <TableHead className="min-w-col-xl">Question</TableHead>
-          <TableHead className="w-24">Subject</TableHead>
-          <TableHead className="w-40">Topic</TableHead>
-          <TableHead className="w-20">Calc</TableHead>
-          <TableHead className="w-20">Status</TableHead>
-          <TableHead className="w-28">Updated</TableHead>
-          <TableHead className="w-20">Actions</TableHead>
+          <TableHead className="w-col-code">Subject</TableHead>
+          <TableHead className="w-col-md">Topic</TableHead>
+          <TableHead className="w-col-xs">Calc</TableHead>
+          <TableHead className="w-col-xs">Status</TableHead>
+          <TableHead className="w-col-sm">Updated</TableHead>
+          <TableHead className="w-col-xs">Actions</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>

@@ -70,9 +70,9 @@ export function SubjectRow({ subject }: Readonly<Props>) {
       <InsetPanel>
         <InlineForm
           fields={[
-            { name: 'code', placeholder: 'Code', width: 'w-20', defaultValue: subject.code },
+            { name: 'code', placeholder: 'Code', width: 'w-col-xs', defaultValue: subject.code },
             { name: 'name', placeholder: 'Name', width: 'flex-1', defaultValue: subject.name },
-            { name: 'short', placeholder: 'Short', width: 'w-32', defaultValue: subject.short },
+            { name: 'short', placeholder: 'Short', width: 'w-col-sm', defaultValue: subject.short },
           ]}
           onSubmit={handleEdit}
           onCancel={() => setEditing(false)}
@@ -98,7 +98,7 @@ export function SubjectRow({ subject }: Readonly<Props>) {
           <ChevronRight className={`size-icon transition-transform ${open ? 'rotate-90' : ''}`} />
         </CollapsibleTrigger>
 
-        <span className="w-12 tabular-nums text-label-strong">{subject.code}</span>
+        <span className="w-inset-lg tabular-nums text-label-strong">{subject.code}</span>
         <span className="flex-1 text-body">{subject.name}</span>
         <span className="text-caption text-muted-foreground">{subject.short}</span>
         <Badge variant="secondary">{subject.questionCount} Q</Badge>
@@ -137,7 +137,7 @@ export function SubjectRow({ subject }: Readonly<Props>) {
           <div className="pt-2">
             <InlineForm
               fields={[
-                { name: 'code', placeholder: 'Topic code', width: 'w-24' },
+                { name: 'code', placeholder: 'Topic code', width: 'w-col-code' },
                 { name: 'name', placeholder: 'Topic name', width: 'flex-1' },
               ]}
               onSubmit={handleAddTopic}

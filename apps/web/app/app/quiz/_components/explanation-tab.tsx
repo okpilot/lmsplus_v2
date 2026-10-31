@@ -35,7 +35,7 @@ function ExplanationContent({
   return (
     <>
       {imageUrl && (
-        <ZoomableImage src={imageUrl} alt="Explanation illustration" className="max-h-48" />
+        <ZoomableImage src={imageUrl} alt="Explanation illustration" className="max-h-scroll-sm" />
       )}
       {text ? (
         <MarkdownText className="text-body text-muted-foreground">{text}</MarkdownText>

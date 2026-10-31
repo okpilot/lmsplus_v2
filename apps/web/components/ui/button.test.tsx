@@ -22,7 +22,7 @@ describe('Button', () => {
   })
 
   it.each([
-    ['sm', 'h-7', 'after:-inset-y-tap-y'],
+    ['sm', 'h-control-sm', 'after:-inset-y-tap-y'],
     ['icon-sm', 'size-7', 'after:-inset-y-tap-y'],
     ['segment', 'h-control-sm', 'after:-inset-y-1.5'],
   ] as const)('keeps the %s button visual size and adds a tap area', (size, visual, insetY) => {

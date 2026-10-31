@@ -24,7 +24,7 @@ export function StudentStatusFilter({ value, onChange }: Readonly<Props>) {
     <div className="flex items-center gap-2">
       <span className="text-body text-muted-foreground">Filter:</span>
       <Select value={value} onValueChange={onChange} items={STATUS_OPTIONS}>
-        <SelectTrigger className="w-40" aria-label="Student status filter">
+        <SelectTrigger className="w-col-md" aria-label="Student status filter">
           <SelectValue placeholder="All Students" />
         </SelectTrigger>
         <SelectContent>

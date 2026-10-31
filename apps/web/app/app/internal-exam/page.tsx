@@ -27,7 +27,7 @@ function InternalExamFallback() {
     <div className="grid gap-3">
       {Array.from({ length: 3 }).map((_, i) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton placeholders
-        <Skeleton key={i} className="h-20 rounded-card" />
+        <Skeleton key={i} className="h-skeleton-card rounded-card" />
       ))}
     </div>
   )

@@ -22,7 +22,7 @@ function Badge({ n, tone }: Readonly<{ n: number; tone: keyof typeof BADGE }>) {
   return (
     <span
       className={cn(
-        'grid size-6 shrink-0 place-items-center rounded-pill border text-caption font-semibold',
+        'grid size-avatar shrink-0 place-items-center rounded-pill border text-caption font-semibold',
         BADGE[tone],
       )}
     >
@@ -54,7 +54,8 @@ export function DiagramZoneMarker({
   )
 }
 
-const CHIP = 'h-8 shrink-0 rounded-inner border bg-card px-3 text-caption-strong whitespace-nowrap'
+const CHIP =
+  'h-control-sm shrink-0 rounded-inner border bg-card px-3 text-caption-strong whitespace-nowrap'
 
 function chipTone(armed: boolean, result: Result): string {
   if (result) return result === 'correct' ? 'border-success' : 'border-danger'
@@ -118,7 +119,7 @@ export function DiagramAnswerRow({
         disabled={disabled}
         onClick={() => onTap(zone.id)}
         className={cn(
-          'h-auto min-h-11 w-full justify-start gap-3 rounded-control border px-3 py-2 text-left whitespace-normal',
+          'h-auto min-h-control w-full justify-start gap-3 rounded-control border px-3 py-2 text-left whitespace-normal',
           (result || locked) && 'disabled:opacity-100',
           rowFrame(zoneArmed, target, result),
         )}
@@ -130,7 +131,7 @@ export function DiagramAnswerRow({
             <span
               className={cn(
                 CHIP,
-                'inline-flex h-auto min-h-8 items-center py-1 whitespace-normal',
+                'inline-flex h-auto min-h-control-sm items-center py-1 whitespace-normal',
                 chipTone(chipArmed, result),
               )}
             >

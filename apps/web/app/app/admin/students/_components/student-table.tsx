@@ -71,13 +71,13 @@ export function StudentTable({
         <TableRow>
           <TableHead className="min-w-col-md">Name</TableHead>
           <TableHead className="min-w-col-lg">Email</TableHead>
-          <TableHead className="w-28">Role</TableHead>
-          <TableHead className="w-40">Courses</TableHead>
-          <TableHead className="w-24">Status</TableHead>
+          <TableHead className="w-col-sm">Role</TableHead>
+          <TableHead className="w-col-md">Courses</TableHead>
+          <TableHead className="w-col-code">Status</TableHead>
           <TableHead className="w-36">Last Active</TableHead>
-          <TableHead className="w-32">Created</TableHead>
-          <TableHead className="w-48">Login</TableHead>
-          <TableHead className="w-20">Actions</TableHead>
+          <TableHead className="w-col-sm">Created</TableHead>
+          <TableHead className="w-col-lg">Login</TableHead>
+          <TableHead className="w-col-xs">Actions</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>

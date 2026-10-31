@@ -63,7 +63,7 @@ export function QuestionFiltersBar({ tree, filters }: Readonly<Props>) {
           setSearchText(val)
           if (val === '') updateFilter('search', undefined)
         }}
-        className="w-56"
+        className="w-col-lg"
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
             updateFilter('search', searchText.trim() || undefined)

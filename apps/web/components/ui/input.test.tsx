@@ -19,7 +19,7 @@ describe('Input sizes (B2b-12 AC 3)', () => {
   it('lg is 48px with px-4 py-3 and rounded-control', () => {
     render(<Input aria-label="Big" size="lg" />)
     const c = screen.getByRole('textbox').className
-    expect(c).toContain('h-12')
+    expect(c).toContain('h-control-lg')
     expect(c).toContain('px-4')
     expect(c).toContain('py-3')
     expect(c).toContain('rounded-control')

@@ -46,7 +46,7 @@ export function SubtopicRow({ subtopic, topicId }: Readonly<Props>) {
       <InsetPanel className="p-2">
         <InlineForm
           fields={[
-            { name: 'code', placeholder: 'Code', width: 'w-28', defaultValue: subtopic.code },
+            { name: 'code', placeholder: 'Code', width: 'w-col-sm', defaultValue: subtopic.code },
             { name: 'name', placeholder: 'Name', width: 'flex-1', defaultValue: subtopic.name },
           ]}
           onSubmit={handleEdit}
@@ -60,7 +60,7 @@ export function SubtopicRow({ subtopic, topicId }: Readonly<Props>) {
 
   return (
     <div className="flex items-center gap-2 rounded-small px-2 py-2.5 lg:py-1 hover:bg-muted">
-      <span className="w-20 tabular-nums text-caption">{subtopic.code}</span>
+      <span className="w-inset-lg tabular-nums text-caption">{subtopic.code}</span>
       <span className="flex-1 text-body">{subtopic.name}</span>
       <Badge variant="secondary">{subtopic.questionCount} Q</Badge>
       <Button

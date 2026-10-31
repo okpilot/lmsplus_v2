@@ -14,7 +14,7 @@ export function AuthShell({ subtitle, children }: Readonly<AuthShellProps>) {
         <CardHeader className="justify-items-center gap-2 text-center">
           <div
             aria-hidden="true"
-            className="flex size-10 items-center justify-center rounded-control bg-primary"
+            className="flex size-icon-box items-center justify-center rounded-control bg-primary"
           >
             <span className="text-heading text-primary-foreground">L</span>
           </div>

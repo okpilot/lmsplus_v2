@@ -65,7 +65,7 @@ function SubjectRow({ subject }: Readonly<{ subject: SubjectDetail }>) {
                   value={topic.masteryPercentage}
                   tone={masteryMeterTone(topic.masteryPercentage)}
                   label={`${topic.name} mastery`}
-                  className="w-20"
+                  className="w-col-xs"
                 />
                 <span className="w-8 text-right text-caption tabular-nums">
                   {topic.masteryPercentage}%

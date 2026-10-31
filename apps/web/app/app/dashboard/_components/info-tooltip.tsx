@@ -26,7 +26,7 @@ export function InfoTooltip({
       >
         ?
       </PopoverTrigger>
-      <PopoverContent align={ALIGN[align]} aria-label={title} className="w-48 md:w-56">
+      <PopoverContent align={ALIGN[align]} aria-label={title} className="w-popover-sm">
         <p className="font-medium text-foreground">{title}</p>
         <p className="mt-1 text-muted-foreground">{description}</p>
       </PopoverContent>

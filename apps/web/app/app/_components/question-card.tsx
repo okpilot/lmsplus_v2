@@ -31,7 +31,11 @@ export function QuestionCard({
         </div>
       )}
       {questionImageUrl && (
-        <ZoomableImage src={questionImageUrl} alt="Question illustration" className="max-h-64" />
+        <ZoomableImage
+          src={questionImageUrl}
+          alt="Question illustration"
+          className="max-h-scroll-md"
+        />
       )}
       <MarkdownText className="text-question">{questionText}</MarkdownText>
     </div>

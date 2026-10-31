@@ -5,8 +5,8 @@ export default function Loading() {
   return (
     <div className="space-y-section">
       <div>
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="mt-1 h-4 w-80" />
+        <Skeleton className="h-skeleton-title w-skeleton-w" />
+        <Skeleton className="mt-1 h-skeleton-line w-skeleton-w-lg" />
       </div>
       <ExamConfigRowsSkeleton />
     </div>

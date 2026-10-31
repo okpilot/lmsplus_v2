@@ -4,20 +4,20 @@ export function QuestionsContentFallback() {
   return (
     <>
       <div className="flex flex-wrap gap-3">
-        <Skeleton className="h-9 w-44" />
-        <Skeleton className="h-9 w-44" />
-        <Skeleton className="h-9 w-44" />
-        <Skeleton className="h-9 w-32" />
-        <Skeleton className="h-9 w-28" />
-        <Skeleton className="h-9 w-40" />
+        <Skeleton className="h-control w-skeleton-w" />
+        <Skeleton className="h-control w-skeleton-w" />
+        <Skeleton className="h-control w-skeleton-w" />
+        <Skeleton className="h-control w-skeleton-w" />
+        <Skeleton className="h-control w-skeleton-w" />
+        <Skeleton className="h-control w-skeleton-w" />
       </div>
       <div className="space-y-2">
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-12 w-full" />
-        <Skeleton className="h-12 w-full" />
-        <Skeleton className="h-12 w-full" />
-        <Skeleton className="h-12 w-full" />
-        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-skeleton-row w-full" />
+        <Skeleton className="h-skeleton-row w-full" />
+        <Skeleton className="h-skeleton-row w-full" />
+        <Skeleton className="h-skeleton-row w-full" />
+        <Skeleton className="h-skeleton-row w-full" />
+        <Skeleton className="h-skeleton-row w-full" />
       </div>
     </>
   )

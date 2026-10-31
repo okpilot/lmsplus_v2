@@ -94,7 +94,7 @@ describe('LoadingButton', () => {
     // 'h-7' only for size="sm" — together they prove both props reached the
     // underlying Button rather than being swallowed.
     expect(button.className).toContain('border-border')
-    expect(button.className).toContain('h-7')
+    expect(button.className).toContain('h-control-sm')
   })
 
   it('starts loading on a translated page', () => {

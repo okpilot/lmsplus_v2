@@ -39,10 +39,10 @@ export function HeatmapHeader({
         >
           ‹
         </Button>
-        <span className="min-w-17.5 text-center text-caption-strong md:hidden">
+        <span className="min-w-heatmap-label text-center text-caption-strong md:hidden">
           {monthNameShort} {year}
         </span>
-        <span className="hidden min-w-30 text-center text-label md:inline">
+        <span className="hidden min-w-heatmap-label-md text-center text-label md:inline">
           {monthName} {year}
         </span>
         <Button

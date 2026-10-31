@@ -11,19 +11,19 @@ export default function QuizSessionLoading() {
         <QuizSessionLayout
           tabs={
             <div className="lg:hidden">
-              <Skeleton className="h-10 w-full rounded-control" />
+              <Skeleton className="h-skeleton-row w-full rounded-control" />
             </div>
           }
           question={
             <>
-              <Skeleton className="h-24 w-full rounded-card" />
-              <Skeleton className="h-12 w-full rounded-control" />
-              <Skeleton className="h-12 w-full rounded-control" />
-              <Skeleton className="h-12 w-full rounded-control" />
-              <Skeleton className="h-12 w-full rounded-control" />
+              <Skeleton className="h-skeleton-card w-full rounded-card" />
+              <Skeleton className="h-skeleton-row w-full rounded-control" />
+              <Skeleton className="h-skeleton-row w-full rounded-control" />
+              <Skeleton className="h-skeleton-row w-full rounded-control" />
+              <Skeleton className="h-skeleton-row w-full rounded-control" />
             </>
           }
-          panel={<Skeleton className="h-48 w-full rounded-control" />}
+          panel={<Skeleton className="h-skeleton-card-lg w-full rounded-control" />}
         />
       </div>
     </main>

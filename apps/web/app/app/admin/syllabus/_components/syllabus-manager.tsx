@@ -51,9 +51,9 @@ export function SyllabusManager({ initialTree }: Readonly<Props>) {
         </Heading>
         <InlineForm
           fields={[
-            { name: 'code', placeholder: 'e.g. 010', width: 'w-20' },
+            { name: 'code', placeholder: 'e.g. 010', width: 'w-col-xs' },
             { name: 'name', placeholder: 'Subject name', width: 'flex-1' },
-            { name: 'short', placeholder: 'Short name', width: 'w-32' },
+            { name: 'short', placeholder: 'Short name', width: 'w-col-sm' },
           ]}
           onSubmit={handleAddSubject}
           isPending={isPending}
