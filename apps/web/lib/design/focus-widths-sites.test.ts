@@ -108,21 +108,49 @@ describe('PR18 focus ring and width tokens', () => {
     expect(s).toContain('focus-visible:outline-offset-focus')
   })
 
+  const rowLine = (f: string, marker: string) =>
+    read(f)
+      .split('\n')
+      .find((l) => l.includes(marker)) ?? ''
+
   it.each([
-    ['app/app/admin/exam-config/_components/subject-config-card.tsx', 47],
-    ['app/app/progress/_components/subject-breakdown.tsx', 38],
-    ['app/app/reports/_components/session-card.tsx', 17],
-  ])('%s row focuses with an inset outline (line %i)', (f, line) => {
-    const l = read(f).split('\n')[line - 1]
+    ['app/app/admin/exam-config/_components/subject-config-card.tsx', 'flex min-w-0 flex-1'],
+    ['app/app/progress/_components/subject-breakdown.tsx', 'flex w-full items-center'],
+    ['app/app/reports/_components/session-card.tsx', 'block transition-colors'],
+  ])('%s row focuses with an inset outline', (f, marker) => {
+    const l = rowLine(f, marker)
+    expect(l).toMatch(/(?<![\w-])focus-visible:outline(?![\w-])/)
     expect(l).toContain('focus-visible:outline-focus')
     expect(l).toContain('focus-visible:-outline-offset-focus')
     expect(l).not.toContain('ring-offset-background')
   })
 
   it('subject-config-card pill toggle keeps the outside ring', () => {
-    const l = read('app/app/admin/exam-config/_components/subject-config-card.tsx').split('\n')[68]
+    const l = rowLine(
+      'app/app/admin/exam-config/_components/subject-config-card.tsx',
+      'rounded-pill',
+    )
     expect(l).toContain('focus-visible:ring-focus')
     expect(l).toContain('focus-visible:ring-offset-focus')
+  })
+
+  it('every outline-none element with a focus outline width also sets the outline style', () => {
+    const hits: string[] = []
+    for (const dir of ['app', 'components']) {
+      for (const f of walk(path.join(ROOT, dir))) {
+        readFileSync(f, 'utf8')
+          .split('\n')
+          .forEach((l, i) => {
+            if (
+              /(?<![\w-])outline-none(?![\w-])/.test(l) &&
+              /focus-visible:outline-focus/.test(l) &&
+              !/(?<![\w-])focus-visible:outline(?![\w-])/.test(l)
+            )
+              hits.push(`${path.relative(ROOT, f)}:${i + 1}`)
+          })
+      }
+    }
+    expect(hits).toEqual([])
   })
 
   it('width tokens replace ring-1, ring-2, border-2 and z-10', () => {
