@@ -19,8 +19,7 @@ describe('SyllabusManager', () => {
   it('renders the add-subject title as a level-3 heading', () => {
     render(<SyllabusManager initialTree={[]} />)
     expect(screen.getByRole('heading', { level: 3, name: 'Add Subject' })).toHaveClass(
-      'text-label',
-      'font-semibold',
+      'text-label-strong',
     )
   })
 })
