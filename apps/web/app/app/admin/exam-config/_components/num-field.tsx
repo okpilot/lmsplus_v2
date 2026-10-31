@@ -21,8 +21,8 @@ export function NumField({
   const id = useId()
   return (
     <div>
-      <label htmlFor={id} className={labelCls}>
-        {label}
+      <label htmlFor={id} className="block">
+        <span className={labelCls}>{label}</span>
         <Input
           id={id}
           type="number"

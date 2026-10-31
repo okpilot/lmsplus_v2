@@ -37,8 +37,8 @@ describe('S3 AC 3 underline links use ui/link', () => {
   ])('%s: %i Links, tone %s x%i', (f, total, tone, n) => {
     const s = src(f)
     expect(s).toMatch(/from '@\/components\/ui\/link'/)
-    expect(count(s, /<Link\b/g)).toBeGreaterThanOrEqual(total)
-    expect(count(s, new RegExp(`tone="${tone}"`, 'g'))).toBeGreaterThanOrEqual(n)
+    expect(count(s, /<Link\b/g)).toBe(total)
+    expect(count(s, new RegExp(`tone="${tone}"`, 'g'))).toBe(n)
   })
   it('consent link keeps new-tab attributes', () => {
     const s = src(CONSENT)
@@ -107,14 +107,16 @@ describe('S3 AC 5 biome forbids raw input and headings', () => {
     for (const h of ['h1', 'h2', 'h3'])
       expect(els[h]).toBe('Use Heading from @/components/ui/heading.')
   })
-  it('off override covers components/ui and question-table', () => {
+  it('off override covers components/ui, not question-table', () => {
     const off = cfg.overrides.find(
       (o) =>
         o.linter?.rules?.correctness?.noRestrictedElements === 'off' &&
         o.includes.includes('apps/web/components/ui/**'),
     )
-    expect(off?.includes).toContain(
+    expect(off?.includes).not.toContain(
       'apps/web/app/app/admin/questions/_components/question-table.tsx',
     )
+    const table = src('app/app/admin/questions/_components/question-table.tsx')
+    expect(count(table, /biome-ignore lint\/correctness\/noRestrictedElements: .*#1678/g)).toBe(2)
   })
 })

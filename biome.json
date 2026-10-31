@@ -147,7 +147,6 @@
     {
       "includes": [
         "apps/web/components/ui/**",
-        "apps/web/app/app/admin/questions/_components/question-table.tsx",
         "apps/web/app/app/admin/exam-config/_components/subject-config-card.tsx",
         "apps/web/app/app/_components/answer-options.tsx",
         "apps/web/app/app/progress/_components/subject-breakdown.tsx",

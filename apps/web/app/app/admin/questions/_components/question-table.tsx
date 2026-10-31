@@ -40,6 +40,7 @@ export function QuestionTable({
       <TableHeader>
         <TableRow>
           <TableHead className="w-10">
+            {/* biome-ignore lint/correctness/noRestrictedElements: raw checkbox until #1678 */}
             <input
               type="checkbox"
               checked={allSelected}
@@ -61,6 +62,7 @@ export function QuestionTable({
         {questions.map((q) => (
           <TableRow key={q.id} data-selected={selectedIds.includes(q.id) || undefined}>
             <TableCell>
+              {/* biome-ignore lint/correctness/noRestrictedElements: raw checkbox until #1678 */}
               <input
                 type="checkbox"
                 checked={selectedIds.includes(q.id)}

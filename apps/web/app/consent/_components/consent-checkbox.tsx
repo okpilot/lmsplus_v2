@@ -38,6 +38,7 @@ export function ConsentCheckbox({
         {label}{' '}
         <Link
           href={linkHref}
+          prefetch={false}
           target="_blank"
           rel="noopener noreferrer"
           tone="inherit"

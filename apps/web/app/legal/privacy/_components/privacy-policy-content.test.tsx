@@ -40,6 +40,7 @@ describe('PrivacyPolicyContent', () => {
     render(<PrivacyPolicyContent />)
     for (const a of screen.getAllByRole('link', { name: /@lmsplus\.eu$/ })) {
       expect(a.getAttribute('href')).toMatch(/^mailto:/)
+      expect(a).not.toHaveAttribute('data-slot', 'link')
     }
   })
 })
