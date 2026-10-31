@@ -6,7 +6,7 @@ export function HeatmapSkeleton() {
 
 export function StatCardsSkeleton() {
   return (
-    <div className="grid grid-cols-3 gap-2 md:gap-4">
+    <div className="grid grid-cols-3 gap-2 sm:gap-4">
       <Skeleton className="h-skeleton-card rounded-card" />
       <Skeleton className="h-skeleton-card rounded-card" />
       <Skeleton className="h-skeleton-card rounded-card" />

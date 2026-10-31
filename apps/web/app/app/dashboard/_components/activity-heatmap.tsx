@@ -86,7 +86,7 @@ export function ActivityHeatmap({ data }: Readonly<ActivityHeatmapProps>) {
         />
         <div
           ref={scrollRef}
-          className="flex cursor-grab select-none gap-1 overflow-x-auto overflow-y-hidden py-1 scrollbar-hide active:cursor-grabbing md:gap-1.5"
+          className="flex cursor-grab select-none gap-1 overflow-x-auto overflow-y-hidden py-1 scrollbar-hide active:cursor-grabbing sm:gap-1.5"
         >
           {days.map((day) => {
             const activity = activityByDay.get(day)

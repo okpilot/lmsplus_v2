@@ -48,7 +48,7 @@ type StatsProps = Readonly<{
 
 export function DesktopStats({ summary, correctFraction, skipped, dateStr }: Readonly<StatsProps>) {
   return (
-    <div className="hidden md:flex flex-row gap-6 items-center">
+    <div className="hidden sm:flex flex-row gap-6 items-center">
       <div className="shrink-0">
         <ScoreRing percentage={summary.scorePercentage} size={120} />
       </div>
@@ -65,7 +65,7 @@ export function DesktopStats({ summary, correctFraction, skipped, dateStr }: Rea
 
 export function MobileStats({ summary, correctFraction, skipped }: Readonly<StatsProps>) {
   return (
-    <div className="flex flex-col items-center gap-4 md:hidden">
+    <div className="flex flex-col items-center gap-4 sm:hidden">
       <ScoreRing percentage={summary.scorePercentage} size={90} />
       <div className="grid grid-cols-2 gap-4 w-full text-center">
         <SummaryStat label="Subject" value={summary.subjectName ?? 'Mixed'} />

@@ -7,7 +7,7 @@ export default function DashboardLoading() {
         <Skeleton className="h-skeleton-title w-skeleton-w" />
         <Skeleton className="h-skeleton-line w-skeleton-w-lg" />
       </div>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3 2xl:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {['kpi-1', 'kpi-2', 'kpi-3', 'kpi-4', 'kpi-5'].map((id) => (
           <Skeleton key={id} className="h-skeleton-card rounded-card" />
         ))}

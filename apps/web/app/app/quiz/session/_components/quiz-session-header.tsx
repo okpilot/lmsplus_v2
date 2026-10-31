@@ -35,11 +35,11 @@ export function QuizSessionHeader({
   const { isExam, examMode } = rest
   return (
     // Pins from md so the header stays visible while the question scrolls beneath it.
-    // `md:sticky` is a positioned value, so the `absolute inset-0` desktop tab overlay
-    // still anchors to this element. NOTE: md:sticky relies on no
+    // `sm:sticky` is a positioned value, so the `absolute inset-0` desktop tab overlay
+    // still anchors to this element. NOTE: sm:sticky relies on no
     // `overflow: hidden/auto/clip` on any scroll-container ancestor — if a parent
     // gains an overflow value, the header will silently stop pinning.
-    <div className="relative flex items-center justify-between gap-3 border-b border-border bg-background px-gutter py-2 md:sticky md:top-0 md:z-nav">
+    <div className="relative flex items-center justify-between gap-3 border-b border-border bg-background px-gutter py-2 sm:sticky sm:top-0 sm:z-nav">
       <ModeHeading isExam={isExam} examMode={examMode} mode={mode} subjectName={subjectName} />
       {!isExam && <DesktopTabs activeTab={activeTab} onTabChange={onTabChange} />}
       <HeaderControls {...rest} />

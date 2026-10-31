@@ -69,7 +69,7 @@ export function IssueCodeForm({ students, subjects, onIssued }: Readonly<Props>)
       <CardContent>
         <form
           onSubmit={handleSubmit}
-          className="grid gap-4 md:grid-cols-(--layout-issue-code) md:items-end"
+          className="grid gap-4 lg:grid-cols-(--layout-issue-code) lg:items-end"
           data-testid="issue-code-form"
         >
           <PickField

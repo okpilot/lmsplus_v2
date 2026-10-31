@@ -69,14 +69,14 @@ export function ReportsList({ sessions, page, totalCount, pageSize, sort, dir }:
 
   return (
     <div>
-      <p className="mb-2 hidden text-caption text-muted-foreground md:block">
+      <p className="mb-2 hidden text-caption text-muted-foreground sm:block">
         Click a column header to sort
       </p>
-      <div className="hidden md:block">
+      <div className="hidden sm:block">
         <SessionTable sessions={sessions} sort={sort} dir={dir} onSort={handleSort} />
       </div>
 
-      <div className="md:hidden">
+      <div className="sm:hidden">
         <div className="mb-3 flex items-center gap-2">
           <span className="text-caption text-muted-foreground">Sort by</span>
           <Select value={`${sort}-${dir}`} onValueChange={handleMobileSort} items={SORT_OPTIONS}>

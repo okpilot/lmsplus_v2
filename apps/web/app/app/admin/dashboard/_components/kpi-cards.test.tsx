@@ -93,13 +93,14 @@ describe('KpiCards', () => {
     expect(screen.getByText('90%').className).toContain('text-success')
   })
 
-  it('keeps one column on a phone and steps to three then five columns on wider screens', () => {
+  it('keeps one column on a phone and steps to two then three columns on wider screens', () => {
     render(<KpiCards data={buildKpis()} range="30d" />)
     const grid = screen.getByText('Active Students').closest('.grid') as HTMLElement
     expect(grid.className).toContain('grid-cols-1')
     expect(grid.className).toContain('sm:grid-cols-2')
     expect(grid.className).toContain('lg:grid-cols-3')
-    expect(grid.className).not.toContain('sm:grid-cols-2')
+    expect(grid.className).not.toContain('md:grid-cols-3')
+    expect(grid.className).not.toContain('2xl:grid-cols-5')
   })
 
   // -------------------------------------------------------------------------

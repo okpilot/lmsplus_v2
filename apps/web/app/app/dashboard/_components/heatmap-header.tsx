@@ -22,12 +22,12 @@ export function HeatmapHeader({
   onForward,
 }: Readonly<HeaderProps>) {
   return (
-    <div className="mb-2 flex items-center justify-between md:mb-3">
+    <div className="mb-2 flex items-center justify-between sm:mb-3">
       <div className="flex items-center gap-1.5">
         <Heading level={3}>Daily Progress</Heading>
         <HeatmapInfo />
       </div>
-      <div className="flex items-center gap-1.5 md:gap-2">
+      <div className="flex items-center gap-1.5 sm:gap-2">
         <Button
           variant="ghost"
           size="icon-sm"
@@ -39,10 +39,10 @@ export function HeatmapHeader({
         >
           ‹
         </Button>
-        <span className="min-w-heatmap-label text-center text-caption-strong md:hidden">
+        <span className="min-w-heatmap-label text-center text-caption-strong sm:hidden">
           {monthNameShort} {year}
         </span>
-        <span className="hidden min-w-heatmap-label-md text-center text-label md:inline">
+        <span className="hidden min-w-heatmap-label-md text-center text-label sm:inline">
           {monthName} {year}
         </span>
         <Button

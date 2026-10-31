@@ -12,9 +12,9 @@ export function TileLabel({
   align?: 'left' | 'center' | 'right'
 }>) {
   return (
-    <div className="flex items-center gap-1 text-caption md:text-label">
-      <span className="md:hidden">{short}</span>
-      <span className="hidden md:inline">{full}</span>
+    <div className="flex items-center gap-1 text-caption sm:text-label">
+      <span className="sm:hidden">{short}</span>
+      <span className="hidden sm:inline">{full}</span>
       <InfoTooltip
         label={`What is ${full}?`}
         title={full}

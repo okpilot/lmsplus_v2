@@ -21,8 +21,8 @@ type StatCardsProps = {
 const READINESS_TIP = `Percentage of subjects where your mastery is ${MASTERY_GOAL}% or above. Green: ${MASTERY_GOAL}%+.`
 const TODAY_TIP = `Questions answered today towards your daily goal of ${DAILY_GOAL}. Green: goal reached.`
 const STREAK_TIP = `Consecutive days with at least one question answered. Green: ${STREAK_TARGET}+ days.`
-const TILE_PADDING = 'px-3 md:px-card'
-const HINT_CLASS = 'hidden md:flex md:flex-col'
+const TILE_PADDING = 'px-3 sm:px-card'
+const HINT_CLASS = 'hidden sm:flex sm:flex-col'
 
 export function StatCards({
   examReadiness,
@@ -31,7 +31,7 @@ export function StatCards({
   bestStreak,
 }: Readonly<StatCardsProps>) {
   return (
-    <StatGroup columns={3} className="gap-2 md:gap-4">
+    <StatGroup columns={3} className="gap-2 sm:gap-4">
       <ReadinessTile {...examReadiness} />
       <TodayTile questionsToday={questionsToday} />
       <StreakTile currentStreak={currentStreak} bestStreak={bestStreak} />
