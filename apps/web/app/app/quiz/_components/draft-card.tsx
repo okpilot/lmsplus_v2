@@ -88,9 +88,9 @@ export function DraftCard({ draft }: Readonly<{ draft: DraftData }>) {
       resumeTestId="resume-draft"
       deleteTestId="delete-draft"
       resuming={resuming}
-      resumeDisabled={resuming}
+      resumeDisabled={resuming || deleting}
       deleting={deleting}
-      deleteDisabled={deleting}
+      deleteDisabled={deleting || resuming}
       onResume={handleResume}
       onDelete={handleDelete}
     />

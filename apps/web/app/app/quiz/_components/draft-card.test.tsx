@@ -167,6 +167,23 @@ describe('DraftCard — Resume', () => {
     expect(mockResumeQuizSession).toHaveBeenCalledTimes(1)
   })
 
+  it('disables Delete while a resume is in flight', () => {
+    mockResumeQuizSession.mockReturnValue(new Promise(() => {}))
+    render(<DraftCard draft={DRAFT} />)
+    fireEvent.click(screen.getByTestId('resume-draft'))
+
+    expect(screen.getByTestId('delete-draft')).toBeDisabled()
+  })
+
+  it('disables Resume while a delete is in flight', async () => {
+    mockDeleteDraft.mockReturnValue(new Promise(() => {}))
+    render(<DraftCard draft={DRAFT} />)
+    fireEvent.click(screen.getByTestId('delete-draft'))
+    await confirmDelete()
+
+    expect(screen.getByTestId('resume-draft')).toBeDisabled()
+  })
+
   it('does not start a second resume while one is already in flight', () => {
     // Never-resolving resume keeps the first call in flight; the synchronous one-shot
     // ref (not the async disabled state) must block the second click in the same tick.
