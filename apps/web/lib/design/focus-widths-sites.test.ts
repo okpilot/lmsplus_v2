@@ -119,7 +119,7 @@ describe('PR18 focus ring and width tokens', () => {
     ['app/app/reports/_components/session-card.tsx', 'block transition-colors'],
   ])('%s row focuses with an inset outline', (f, marker) => {
     const l = rowLine(f, marker)
-    expect(l).toMatch(/(?<![\w-])focus-visible:outline(?![\w-])/)
+    expect(l).toMatch(/(?<![\w-])focus-visible:outline-solid(?![\w-])/)
     expect(l).toContain('focus-visible:outline-focus')
     expect(l).toContain('focus-visible:-outline-offset-focus')
     expect(l).not.toContain('ring-offset-background')
@@ -134,7 +134,7 @@ describe('PR18 focus ring and width tokens', () => {
     expect(l).toContain('focus-visible:ring-offset-focus')
   })
 
-  it('every outline-none element with a focus outline width also sets the outline style', () => {
+  it('every outline-none element with a focus outline width resets the style with outline-solid', () => {
     const hits: string[] = []
     for (const dir of ['app', 'components']) {
       for (const f of walk(path.join(ROOT, dir))) {
@@ -144,7 +144,7 @@ describe('PR18 focus ring and width tokens', () => {
             if (
               /(?<![\w-])outline-none(?![\w-])/.test(l) &&
               /focus-visible:outline-focus/.test(l) &&
-              !/(?<![\w-])focus-visible:outline(?![\w-])/.test(l)
+              !/(?<![\w-])focus-visible:outline-solid(?![\w-])/.test(l)
             )
               hits.push(`${path.relative(ROOT, f)}:${i + 1}`)
           })

@@ -13,7 +13,7 @@ describe('SidebarItem', () => {
     expect(link.className).toContain('text-primary-text')
     expect(link.className).toContain('font-medium')
     expect(link.className).not.toContain('bg-card')
-    expect(link.className).not.toContain('ring-1')
+    expect(link.className).not.toMatch(/(?<![\w-])ring-(surface|select|focus)(?![\w-])/)
   })
 
   it('renders an inactive item grey without current-page state or opacity', () => {
