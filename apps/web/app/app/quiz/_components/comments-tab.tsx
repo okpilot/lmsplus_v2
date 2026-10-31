@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { BusyLabel } from '@/components/ui/busy-label'
 import { Button } from '@/components/ui/button'
@@ -8,8 +9,8 @@ import { EmptyNote } from '@/components/ui/empty'
 import { FieldError } from '@/components/ui/field-error'
 import { Heading } from '@/components/ui/heading'
 import { Input } from '@/components/ui/input'
+import { initials } from '@/lib/utils/initials'
 import { useComments } from '../session/_hooks/use-comments'
-import { getInitials } from './comment-helpers'
 import { CommentsSkeleton } from './comments-skeleton'
 
 type CommentsTabProps = {
@@ -74,9 +75,9 @@ export function CommentsTab({ questionId, currentUserId }: Readonly<CommentsTabP
               key={c.id}
               className={`flex gap-3 ${isAdmin ? 'rounded-card bg-primary-soft p-3' : ''}`}
             >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-pill text-chip font-semibold bg-muted text-muted-foreground">
-                {getInitials(name)}
-              </div>
+              <Avatar size="md">
+                <AvatarFallback>{initials(name)}</AvatarFallback>
+              </Avatar>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="text-label">{name}</span>

@@ -44,14 +44,13 @@ const SKELETONS = [
   'settings/settings-content-skeleton.tsx',
 ]
 
-// Numeric size utilities: allowed steps are h-1.5 (progress bar) and size-8 in comments-skeleton (32px avatar).
+// Numeric size utilities: allowed steps are h-1.5 (progress bar).
 const NUMERIC = /(?<![\w-])((?:min-h|min-w|h|w|size)-\d[\w.]*)(?!\/)/g
 const ALLOWED = new Set(['h-1.5'])
 
 describe('skeleton files use size tokens (AC: class-scan)', () => {
   it.each(SKELETONS)('%s has no numeric h-/w-/size-/min-h-/min-w- above the allowed steps', (f) => {
     const allowed = new Set(ALLOWED)
-    if (f === 'quiz/comments-skeleton.tsx') allowed.add('size-8')
     const found = [...app(f).matchAll(NUMERIC)]
       .map((m) => m[1] ?? '')
       .filter((c) => !allowed.has(c))
@@ -91,15 +90,15 @@ describe('skeleton files use size tokens (AC: class-scan)', () => {
 })
 
 describe('comments avatar stays 32px (OD8)', () => {
-  it('comments-tab avatar is h-8 w-8', () => {
+  it('comments-tab avatar is Avatar size md with no h-8 w-8', () => {
     const s = app('quiz/comments-tab.tsx')
-    expect(s).toContain('h-8 w-8')
-    expect(s).not.toMatch(/(?<![\w-])(h|w)-avatar/)
+    expect(s).toMatch(/<Avatar\s+size="md"/)
+    expect(s).not.toContain('h-8 w-8')
   })
-  it('comments-skeleton avatar stays size-8', () => {
+  it('comments-skeleton avatar is size-avatar-md', () => {
     const s = app('quiz/comments-skeleton.tsx')
-    expect(s).toContain('size-8')
-    expect(s).not.toContain('size-avatar')
+    expect(s).toContain('size-avatar-md')
+    expect(s).not.toMatch(/(?<![\w-])size-8(?![\w-])/)
   })
 })
 

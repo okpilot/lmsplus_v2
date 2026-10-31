@@ -73,21 +73,17 @@ describe('chip sites use text-chip', () => {
   it.each([
     'components/ui/badge.tsx',
     'components/kit/code-chip.tsx',
-    'app/app/_components/user-chip.tsx',
-    'app/app/quiz/_components/comments-tab.tsx',
-    'app/app/quiz/session/_components/keyboard-legend.tsx',
+    'components/ui/avatar.tsx',
+    'components/kit/kbd.tsx',
   ])('%s has text-chip and no base text-overline', (f) => {
     const s = src(f)
     expect(s).toMatch(CLASS('text-chip'))
     expect(s).not.toMatch(CLASS('text-overline'))
   })
 
-  it.each(['app/app/_components/user-chip.tsx', 'app/app/quiz/_components/comments-tab.tsx'])(
-    '%s keeps font-semibold',
-    (f) => {
-      expect(src(f)).toMatch(CLASS('font-semibold'))
-    },
-  )
+  it.each(['components/ui/avatar.tsx'])('%s keeps font-semibold', (f) => {
+    expect(src(f)).toMatch(CLASS('font-semibold'))
+  })
 
   it('heatmap-cell dash is sm:text-chip', () => {
     const s = src('app/app/dashboard/_components/heatmap-cell.tsx')

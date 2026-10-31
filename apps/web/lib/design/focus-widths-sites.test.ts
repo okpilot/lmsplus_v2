@@ -180,9 +180,7 @@ describe('PR18 focus ring and width tokens', () => {
       'border-emphasis',
     )
     expect(read('app/app/quiz/_components/subject-select.tsx')).toContain('border-l-emphasis')
-    expect(read('app/app/quiz/session/_components/keyboard-legend.tsx')).toContain(
-      'border-b-emphasis',
-    )
+    expect(read('components/kit/kbd.tsx')).toContain('border-b-emphasis')
     expect(read('app/app/_components/answer-options.tsx')).toContain('outline-focus')
   })
 

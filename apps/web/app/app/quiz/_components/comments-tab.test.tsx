@@ -72,7 +72,11 @@ describe('CommentsTab', () => {
       defaultHookState({ comments: [makeComment('c-1', { full_name: 'Bob' })] }),
     )
     const { container } = render(<CommentsTab questionId="q-1" currentUserId={CURRENT_USER_ID} />)
-    const avatar = screen.getByText('B')
+    const avatar =
+      screen.getByText('B').closest<HTMLElement>('[data-slot="avatar"]') ??
+      document.createElement('i')
+    expect(avatar.dataset.slot).toBe('avatar')
+    expect(avatar.className.split(/\s+/)).toContain('size-avatar-md')
     expect(avatar.className).toContain('bg-muted')
     expect(avatar.className).not.toContain('text-white')
     expect(container.innerHTML).not.toMatch(/bg-(blue|amber|purple|green|pink|cyan)-500/)
@@ -265,7 +269,7 @@ describe('CommentsTab', () => {
     render(<CommentsTab questionId="q-1" currentUserId={CURRENT_USER_ID} />)
     // Production code falls back to 'Unknown' when full_name is null
     expect(screen.getByText('Unknown')).toBeInTheDocument()
-    // getInitials('Unknown') = 'U'
+    // initials('Unknown') = 'U'
     expect(screen.getByText('U')).toBeInTheDocument()
   })
 

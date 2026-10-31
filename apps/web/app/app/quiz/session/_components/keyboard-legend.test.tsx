@@ -108,4 +108,12 @@ describe('KeyboardLegend surfaces', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Keyboard shortcuts' }))
     expect(screen.getByText('Enter')).toHaveClass('border-b-emphasis')
   })
+
+  it('renders every shortcut as a kbd with the key edge', () => {
+    const { baseElement } = render(<KeyboardLegend />)
+    fireEvent.click(screen.getByRole('button', { name: 'Keyboard shortcuts' }))
+    const keys = [...baseElement.querySelectorAll('kbd')]
+    expect(keys.map((k) => k.textContent)).toEqual(['← / →', '↑ / ↓', 'Enter', 'Q', 'E', 'C', 'S'])
+    for (const k of keys) expect(k).toHaveClass('border-b-emphasis')
+  })
 })

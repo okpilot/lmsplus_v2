@@ -1,6 +1,7 @@
 'use client'
 
 import { Keyboard } from 'lucide-react'
+import { Kbd } from '@/components/kit/kbd'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
@@ -41,9 +42,7 @@ export function KeyboardLegend({ isExam = false }: Readonly<{ isExam?: boolean }
           {shortcuts.map((s) => (
             <li key={s.action} className="flex items-center justify-between gap-3 text-caption">
               <span className="text-muted-foreground">{s.action}</span>
-              <kbd className="rounded-inner border-b-emphasis border-border bg-muted px-1.5 py-0.5 text-chip">
-                {s.keys}
-              </kbd>
+              <Kbd>{s.keys}</Kbd>
             </li>
           ))}
         </ul>

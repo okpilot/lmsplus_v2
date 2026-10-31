@@ -105,9 +105,8 @@ describe('chip-sized chips (AC 12)', () => {
   it.each([
     `${U}badge.tsx`,
     'components/kit/code-chip.tsx',
-    `${SESS}keyboard-legend.tsx`,
-    'app/app/_components/user-chip.tsx',
-    `${Q}_components/comments-tab.tsx`,
+    `${U}avatar.tsx`,
+    'components/kit/kbd.tsx',
   ])('%s', (f) => {
     const s = src(f)
     expect(s).toMatch(/(^|[\s"'`:])text-chip(?![\w-])/)
