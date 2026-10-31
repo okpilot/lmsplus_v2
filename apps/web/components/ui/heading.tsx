@@ -13,13 +13,20 @@ function Eyebrow({ className, children }: Readonly<EyebrowProps>) {
 }
 
 type HeadingProps = Readonly<{
-  level: 2 | 3
+  level: 1 | 2 | 3
   className?: string
   id?: string
   children: React.ReactNode
 }>
 
 function Heading({ level, className, id, children }: Readonly<HeadingProps>) {
+  if (level === 1) {
+    return (
+      <h1 id={id} className={cn('text-title', className)}>
+        {children}
+      </h1>
+    )
+  }
   if (level === 2) {
     return (
       <h2 id={id} className={cn('text-heading', className)}>

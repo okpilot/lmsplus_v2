@@ -8,13 +8,19 @@ const src = (rel: string) => readFileSync(path.join(ROOT, rel), 'utf8')
 
 const RAISED = [
   'app/_components/new-version-banner.tsx',
-  'components/ui/popover.tsx',
+  'components/ui/floating-surface.ts',
   'components/ui/select.tsx',
   'app/app/admin/questions/_components/bulk-actions-bar.tsx',
 ]
 const OVERLAY = ['components/ui/dialog.tsx', 'components/ui/alert-dialog.tsx']
 
 describe('elevation sites use shadow tokens', () => {
+  it('popover.tsx takes its shadow from FLOATING_SURFACE', () => {
+    const s = src('components/ui/popover.tsx')
+    expect(s).toContain('FLOATING_SURFACE')
+    expect(s).not.toMatch(/\bshadow-raised\b/)
+  })
+
   it.each(RAISED)('%s uses shadow-raised', (f) => {
     const s = src(f)
     expect(s).toMatch(/\bshadow-raised\b/)

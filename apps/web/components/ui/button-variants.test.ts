@@ -82,3 +82,31 @@ describe('button control padding (#1674)', () => {
     expect(buttonVariants({ size: 'sm' }).split(' ')).toContain('px-pad-control-sm')
   })
 })
+
+describe('bareButtonVariants (#1676)', () => {
+  const BASE_ONLY = [
+    'text-label',
+    'justify-center',
+    'whitespace-nowrap',
+    'active:translate-y-px',
+    'disabled:opacity-disabled',
+    'px-pad-control',
+  ]
+
+  it('carries the focus ring tokens', async () => {
+    const mod = (await import('./button-variants')) as Record<string, unknown>
+    const bare = mod.bareButtonVariants as () => string
+    expect(typeof bare).toBe('function')
+    const tokens = bare().split(/\s+/)
+    expect(tokens).toContain('focus-visible:outline-focus')
+    expect(tokens).toContain('focus-visible:outline-ring')
+    expect(tokens).toContain('focus-visible:outline-offset-focus')
+  })
+
+  it('carries none of the base-only tokens', async () => {
+    const mod = (await import('./button-variants')) as Record<string, unknown>
+    const bare = mod.bareButtonVariants as () => string
+    const tokens = bare().split(/\s+/)
+    for (const t of BASE_ONLY) expect(tokens, t).not.toContain(t)
+  })
+})

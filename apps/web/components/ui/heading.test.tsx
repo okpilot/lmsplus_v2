@@ -82,3 +82,18 @@ describe('Eyebrow', () => {
     expect(el.className).not.toMatch(/(^|\s)uppercase(\s|$)/)
   })
 })
+
+describe('Heading level 1', () => {
+  it('renders exactly one h1 with text-title, id and className', () => {
+    const { container } = render(
+      <Heading level={1} id="x" className="mt-2">
+        Title
+      </Heading>,
+    )
+    const h1s = container.querySelectorAll('h1')
+    expect(h1s).toHaveLength(1)
+    expect(h1s[0]?.id).toBe('x')
+    expect(h1s[0]?.className).toContain('text-title')
+    expect(h1s[0]?.className).toContain('mt-2')
+  })
+})

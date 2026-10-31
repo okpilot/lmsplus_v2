@@ -31,6 +31,7 @@ const SIZES = {
   'control-lg': '3rem',
   chip: '1.25rem',
   avatar: '1.75rem',
+  'avatar-md': '2rem',
   'icon-box': '2.5rem',
   'icon-box-lg': '3rem',
   'skeleton-line': '1rem',

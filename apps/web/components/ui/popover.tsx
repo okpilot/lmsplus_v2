@@ -2,6 +2,7 @@
 
 import { Popover as PopoverPrimitive } from '@base-ui/react/popover'
 import { cn } from '@/lib/utils'
+import { FLOATING_SURFACE } from './floating-surface'
 
 function Popover({ ...props }: Readonly<PopoverPrimitive.Root.Props>) {
   return <PopoverPrimitive.Root data-slot="popover" {...props} />
@@ -33,7 +34,8 @@ function PopoverContent({
         <PopoverPrimitive.Popup
           data-slot="popover-content"
           className={cn(
-            'w-popover rounded-control bg-popover p-3 text-caption text-popover-foreground ring-surface ring-border shadow-raised outline-none duration-fast data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0',
+            FLOATING_SURFACE,
+            'w-popover rounded-control p-3 text-caption outline-none duration-fast data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0',
             className,
           )}
           {...props}

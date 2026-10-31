@@ -40,3 +40,7 @@ export const buttonVariants = cva(
     },
   },
 )
+
+export const bareButtonVariants = cva(
+  'outline-none select-none focus-visible:outline-solid focus-visible:outline-focus focus-visible:outline-ring focus-visible:outline-offset-focus',
+)

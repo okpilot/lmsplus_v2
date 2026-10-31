@@ -1,9 +1,11 @@
 'use client'
 
 import { AlertDialog as AlertDialogPrimitive } from '@base-ui/react/alert-dialog'
+import type { VariantProps } from 'class-variance-authority'
 import type * as React from 'react'
 
 import { Button } from '@/components/ui/button'
+import type { buttonVariants } from '@/components/ui/button-variants'
 import { cn } from '@/lib/utils'
 
 function AlertDialog({ ...props }: Readonly<AlertDialogPrimitive.Root.Props>) {
@@ -139,9 +141,7 @@ function AlertDialogCancel({
   variant = 'outline',
   size = 'default',
   ...props
-}: Readonly<
-  AlertDialogPrimitive.Close.Props & Pick<React.ComponentProps<typeof Button>, 'variant' | 'size'>
->) {
+}: Readonly<AlertDialogPrimitive.Close.Props & VariantProps<typeof buttonVariants>>) {
   return (
     <AlertDialogPrimitive.Close
       data-slot="alert-dialog-cancel"

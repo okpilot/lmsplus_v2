@@ -101,9 +101,11 @@ describe('B2b-12 AC 8 popover consumers', () => {
   it('popover primitive exists and carries the overlay look', () => {
     const s = src('components/ui/popover.tsx')
     expect(s).toContain('@base-ui/react/popover')
-    expect(s).toContain('ring-surface ring-border')
-    expect(s).toContain('shadow-raised')
-    expect(s).toContain('bg-popover')
+    expect(s).toContain('FLOATING_SURFACE')
+    const f = src('components/ui/floating-surface.ts')
+    expect(f).toContain('ring-surface ring-border')
+    expect(f).toContain('shadow-raised')
+    expect(f).toContain('bg-popover')
   })
   it('keyboard legend, filter hint and info tooltip use Popover', () => {
     for (const f of [
