@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { contrastRatio } from './contrast'
+import { contrastRatio, oklchToHex } from './contrast'
 
 describe('contrastRatio', () => {
   it('is 21 for black on white', () => {
@@ -31,5 +31,11 @@ describe('contrastRatio', () => {
     const overBlack = contrastRatio('oklch(1 0 0)', 'oklch(0 0 0 / 50%)', 'oklch(0 0 0)')
     expect(overBlack).toBeCloseTo(21, 1)
     expect(overWhite).toBeLessThan(overBlack)
+  })
+})
+
+describe('oklchToHex', () => {
+  it('throws on a translucent colour', () => {
+    expect(() => oklchToHex('oklch(0.5 0.1 200 / 50%)')).toThrow()
   })
 })

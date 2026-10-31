@@ -24,7 +24,7 @@ export function QuizSessionGrid({
       pinnedIds={s.pinnedQuestions}
       flaggedIds={flaggedIds}
       questionIds={s.questionIds}
-      // Discovery's navigator is driven by `seenIds` (visited = green), not its pre-marked feedback.
+      // Discovery's navigator is driven by `seenIds` (visited = grey "answered"), not its pre-marked feedback.
       feedbackMap={s.isExam || isDiscovery ? new Map() : feedbackMap}
       answeredIds={isDiscovery ? undefined : s.answeredIds}
       seenIds={isDiscovery ? s.seenIndices : undefined}
