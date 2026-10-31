@@ -39,6 +39,8 @@ describe('question grid squares (Button variant bare)', () => {
     squares()
     const tokens = screen.getByTestId('grid-btn-0').className.split(/\s+/)
     expect(tokens).toContain('focus-visible:outline-focus')
+    expect(tokens).toContain('focus-visible:-outline-offset-focus')
+    expect(tokens).not.toContain('focus-visible:outline-offset-focus')
     expect(tokens).toContain('select-none')
     expect(tokens).not.toContain('active:translate-y-px')
   })
