@@ -31,5 +31,6 @@ describe('Button', () => {
     expect(className).toContain(visual)
     expect(className).toContain('after:absolute')
     expect(className).toContain('after:-inset-x-0.5')
+    expect(className).toContain('after:-inset-y-tap-y')
   })
 })

@@ -13,6 +13,7 @@ describe('SelectTrigger', () => {
       </Select>,
     )
     expect(screen.getByRole('combobox').className).toContain('data-[size=sm]:after:-inset-x-0.5')
+    expect(screen.getByRole('combobox').className).toContain('data-[size=sm]:after:-inset-y-tap-y')
   })
 })
 

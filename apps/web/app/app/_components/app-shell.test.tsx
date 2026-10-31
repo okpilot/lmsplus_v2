@@ -96,6 +96,6 @@ describe('AppShell', () => {
     render(<AppShell>Content</AppShell>)
 
     const contentArea = screen.getByText('Content').parentElement
-    expect(contentArea?.className).toContain('pb-24')
+    expect(contentArea?.className).toContain('pb-tab-clear')
   })
 })
