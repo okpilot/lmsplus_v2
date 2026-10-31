@@ -65,10 +65,7 @@ export function IssuedCodePanel({ codeId, code, expiresAt, onDismiss }: Readonly
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-2">
           <Eyebrow>New code issued</Eyebrow>
-          <p
-            className="tabular-nums text-stat font-semibold tracking-code"
-            data-testid="issued-code-value"
-          >
+          <p className="tabular-nums text-stat tracking-code" data-testid="issued-code-value">
             {code}
           </p>
           <p className="text-body text-muted-foreground">Expires {formatExpiry(expiresAt)}</p>

@@ -61,14 +61,28 @@ describe('weight roles', () => {
     const s = src(`${A}_components/question-card.tsx`)
     expect(s).toContain('text-question')
     expect(s).not.toMatch(/leading-relaxed/)
+    expect(s).not.toContain('font-medium')
   })
 
-  it.each([`${A}_components/sidebar-item.tsx`, `${A}dashboard/_components/heatmap-cell.tsx`])(
-    '%s drops font-normal',
-    (f) => {
-      expect(src(f)).not.toContain('font-normal')
-    },
-  )
+  it('sidebar item drops font-normal', () => {
+    expect(src(`${A}_components/sidebar-item.tsx`)).not.toContain('font-normal')
+  })
+
+  it('heatmap empty-day dash keeps font-normal', () => {
+    expect(src(`${A}dashboard/_components/heatmap-cell.tsx`)).toContain('font-normal')
+  })
+
+  it('question tabs narrow viewport uses text-caption-strong', () => {
+    expect(src(`${A}quiz/_components/question-tabs.tsx`)).toContain(
+      'max-[374.98px]:text-caption-strong',
+    )
+  })
+
+  it('issued code has no font-semibold beside text-stat', () => {
+    expect(src(`${A}admin/internal-exams/_components/issued-code-panel.tsx`)).not.toContain(
+      'font-semibold',
+    )
+  })
 
   it.each([
     `${A}admin/internal-exams/_components/issued-code-panel.tsx`,
@@ -106,7 +120,7 @@ describe('tracking roles', () => {
     expect(s).not.toMatch(/tracking-(wider|widest)/)
   })
 
-  it('session table header drops tracking-wide', () => {
+  it('session table ExamBadge drops tracking-wide', () => {
     expect(src(`${A}reports/_components/session-table.tsx`)).not.toMatch(/tracking-wide/)
   })
 })
@@ -114,13 +128,18 @@ describe('tracking roles', () => {
 describe('leading roles', () => {
   it.each([
     [`${A}_components/wordmark.tsx`, 'leading-none'],
-    [`${A}dashboard/_components/heatmap-cell.tsx`, 'leading-none'],
     [`${A}admin/dashboard/_components/weak-topics-list.tsx`, 'leading-tight'],
-    [`${A}quiz/session/[id]/loading.tsx`, 'leading-8'],
-    [`${A}quiz/session/_components/dialog-line.tsx`, 'leading-7'],
     ['app/consent/_components/consent-checkbox.tsx', 'leading-snug'],
   ])('%s drops %s', (f, cls) => {
     expect(src(f)).not.toContain(cls)
+  })
+
+  it.each([
+    [`${A}dashboard/_components/heatmap-cell.tsx`, 'leading-none'],
+    [`${A}quiz/session/[id]/loading.tsx`, 'leading-8'],
+    [`${A}quiz/session/_components/dialog-line.tsx`, 'leading-7'],
+  ])('%s keeps %s', (f, cls) => {
+    expect(src(f)).toContain(cls)
   })
 })
 

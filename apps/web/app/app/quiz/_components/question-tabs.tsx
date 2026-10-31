@@ -33,7 +33,7 @@ export function QuestionTabs({ activeTab, onTabChange }: Readonly<QuestionTabsPr
             type="button"
             variant="segment"
             size="segment"
-            className="max-[374.98px]:text-caption"
+            className="max-[374.98px]:text-caption-strong"
             aria-pressed={activeTab === tab.value}
             onClick={() => onTabChange(tab.value)}
           >
