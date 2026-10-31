@@ -79,7 +79,7 @@ export function QuestionTable({
               </div>
             </TableCell>
             <TableCell>
-              <span className="text-caption font-medium">{q.subject?.code ?? '\u2014'}</span>
+              <span className="text-caption-strong">{q.subject?.code ?? '\u2014'}</span>
             </TableCell>
             <TableCell>
               <span className="text-caption text-muted-foreground">

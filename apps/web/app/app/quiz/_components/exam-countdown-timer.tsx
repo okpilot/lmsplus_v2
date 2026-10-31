@@ -19,7 +19,7 @@ function formatCountdown(totalSeconds: number): string {
 }
 
 function getTimerClass(remaining: number): string {
-  if (remaining <= 60) return 'text-danger font-bold'
+  if (remaining <= 60) return 'text-danger font-semibold'
   if (remaining <= 300) return 'text-caution font-semibold'
   return 'text-muted-foreground'
 }

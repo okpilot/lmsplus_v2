@@ -49,7 +49,7 @@ export function ReportQuestionRow({
 
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
-            <span className="text-caption font-medium text-muted-foreground">{label}</span>
+            <span className="text-caption-strong text-muted-foreground">{label}</span>
             <span className="text-body">{question.questionText}</span>
             <div className="ml-auto flex shrink-0 items-center gap-2">
               <span className="text-caption text-muted-foreground">

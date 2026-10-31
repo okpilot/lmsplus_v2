@@ -51,11 +51,7 @@ function AlertTitle({ className, ...props }: Readonly<React.ComponentProps<'div'
   return (
     <div
       data-slot="alert-title"
-      className={cn(
-        'text-label font-semibold group-has-[>svg]/alert:col-start-2',
-        toneText,
-        className,
-      )}
+      className={cn('text-label-strong group-has-[>svg]/alert:col-start-2', toneText, className)}
       {...props}
     />
   )

@@ -47,7 +47,7 @@ function RingText({ size, geometry }: Readonly<{ size: number; geometry: Geometr
       dominantBaseline="middle"
       textAnchor="middle"
       fontSize={size * 0.22}
-      fontWeight="700"
+      fontWeight="600"
       fill={scoreColor(clamped)}
     >
       {percent}%

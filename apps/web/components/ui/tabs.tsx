@@ -41,7 +41,7 @@ function TabCount({ className, ...props }: Readonly<React.ComponentProps<'span'>
     <span
       data-slot="tab-count"
       className={cn(
-        'inline-flex h-5 min-w-5 items-center justify-center rounded-pill bg-card px-1 text-caption font-medium text-muted-foreground tabular-nums group-data-active:bg-primary-soft group-data-active:text-primary-text',
+        'inline-flex h-5 min-w-5 items-center justify-center rounded-pill bg-card px-1 text-caption-strong text-muted-foreground tabular-nums group-data-active:bg-primary-soft group-data-active:text-primary-text',
         className,
       )}
       {...props}

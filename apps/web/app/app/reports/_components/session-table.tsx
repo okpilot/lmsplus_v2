@@ -119,7 +119,7 @@ function SessionRow({ session: s }: Readonly<{ session: SessionReport }>) {
 
 function ExamBadge({ mode }: Readonly<{ mode: ExamMode }>) {
   return (
-    <Badge tone="caution" className="uppercase tracking-wide">
+    <Badge tone="caution" className="uppercase">
       {MODE_LABELS[mode]}
     </Badge>
   )

@@ -78,7 +78,7 @@ export function OrderingInputItem({
       {result === 'incorrect' && canonical && (
         <span
           data-testid={`ordering-canonical-${id}`}
-          className="text-caption font-medium text-muted-foreground"
+          className="text-caption-strong text-muted-foreground"
         >
           {canonical}
         </span>

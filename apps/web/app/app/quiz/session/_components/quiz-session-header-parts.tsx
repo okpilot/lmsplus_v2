@@ -21,7 +21,7 @@ export function ModeHeading({ isExam, examMode, mode, subjectName }: Readonly<Mo
   const label = MODE_LABELS[examMode ?? (isExam ? 'mock_exam' : modeKey(mode))]
   return (
     <div className="min-w-0">
-      <p className="truncate text-label font-semibold">{label}</p>
+      <p className="truncate text-label-strong">{label}</p>
       {subjectName && <p className="truncate text-caption text-muted-foreground">{subjectName}</p>}
     </div>
   )

@@ -28,7 +28,7 @@ export function QuizCardHeader({
   return (
     <div className="flex items-center justify-between gap-3">
       <div className="flex flex-wrap items-baseline gap-x-3">
-        <p className="text-label font-semibold">
+        <p className="text-label-strong">
           Question {currentIndex + 1} of {totalQuestions}
         </p>
         {questionNumber && (

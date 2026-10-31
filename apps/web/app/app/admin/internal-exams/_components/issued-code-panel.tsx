@@ -66,7 +66,7 @@ export function IssuedCodePanel({ codeId, code, expiresAt, onDismiss }: Readonly
         <div className="space-y-2">
           <Eyebrow>New code issued</Eyebrow>
           <p
-            className="tabular-nums text-stat font-bold tracking-widest"
+            className="tabular-nums text-stat font-semibold tracking-code"
             data-testid="issued-code-value"
           >
             {code}

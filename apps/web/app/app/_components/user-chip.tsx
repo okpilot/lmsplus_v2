@@ -26,7 +26,7 @@ export function UserChip({ displayName }: Readonly<{ displayName: string | null 
       >
         {initials(displayName)}
       </span>
-      <span className="min-w-0 truncate text-caption font-medium">{displayName}</span>
+      <span className="min-w-0 truncate text-caption-strong">{displayName}</span>
     </div>
   )
 }

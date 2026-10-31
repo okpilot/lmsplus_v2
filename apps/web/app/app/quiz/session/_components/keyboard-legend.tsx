@@ -36,7 +36,7 @@ export function KeyboardLegend({ isExam = false }: Readonly<{ isExam?: boolean }
         <Keyboard className="size-icon" aria-hidden />
       </PopoverTrigger>
       <PopoverContent align="end" aria-label="Keyboard shortcuts">
-        <p className="mb-2 text-caption font-medium">Keyboard shortcuts</p>
+        <p className="mb-2 text-caption-strong">Keyboard shortcuts</p>
         <ul className="space-y-1.5">
           {shortcuts.map((s) => (
             <li key={s.action} className="flex items-center justify-between gap-3 text-caption">

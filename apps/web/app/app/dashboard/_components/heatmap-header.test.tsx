@@ -68,7 +68,7 @@ describe('HeatmapHeader', () => {
   it('styles the Daily Progress heading as a level-3 label', () => {
     render(<HeatmapHeader {...BASE_PROPS} />)
     expect(screen.getByRole('heading', { level: 3, name: 'Daily Progress' })).toHaveClass(
-      'text-label',
+      'text-label-strong',
     )
   })
 })
