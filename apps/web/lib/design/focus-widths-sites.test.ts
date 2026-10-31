@@ -73,9 +73,11 @@ describe('PR18 focus ring and width tokens', () => {
       'focus-visible:outline-solid',
       'focus-visible:outline-focus',
       'focus-visible:outline-offset-focus',
+      'focus-visible:outline-ring',
     ]) {
       expect(s).toContain(c)
     }
+    expect(s).not.toContain('focus-visible:outline-hidden')
     expect(s).not.toContain('focus-visible:ring-focus')
     expect(s).not.toContain('focus-visible:ring-offset-background')
   })
@@ -207,5 +209,11 @@ describe('PR18 focus ring and width tokens', () => {
     const d = read('../../docs/decisions.md')
     expect(d).toMatch(/^## 194 — 2026-10-31 — One focus style/m)
     expect(d).toMatch(/^## 178 .*Amended by 179, 194\.\s*$/m)
+  })
+
+  it('destructive badge focus outline is solid destructive, and tabs reset the outline style', () => {
+    expect(read('components/ui/badge.tsx')).toContain('focus-visible:outline-destructive')
+    expect(read('components/ui/badge.tsx')).not.toContain('focus-visible:outline-invalid-ring')
+    expect(read('components/ui/tabs.tsx')).toContain('focus-visible:outline-solid')
   })
 })
