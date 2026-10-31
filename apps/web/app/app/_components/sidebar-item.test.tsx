@@ -37,7 +37,7 @@ describe('SidebarItem', () => {
   it('renders a 36px caption row with an 18px icon', () => {
     render(<SidebarItem item={ITEM} active={false} />)
     const link = screen.getByRole('link', { name: 'Quiz' })
-    expect(link.className).toContain('h-9')
+    expect(link.className).toContain('h-control')
     expect(link.className).toMatch(/(?<![\w-])text-caption(?![\w-])/)
     expect(link.className).not.toContain('text-[13px]')
     expect(link.querySelector('svg')?.getAttribute('class')).toContain('size-icon-nav')
@@ -46,7 +46,7 @@ describe('SidebarItem', () => {
 
 describe('ROW_CLASS', () => {
   it('is a 36px grey caption row', () => {
-    expect(ROW_CLASS).toContain('h-9')
+    expect(ROW_CLASS).toContain('h-control')
     expect(ROW_CLASS).toContain('text-muted-foreground')
     expect(ROW_CLASS).toMatch(/(?<![\w-])text-caption(?![\w-])/)
     expect(ROW_CLASS).toContain('dark:hover:bg-muted')

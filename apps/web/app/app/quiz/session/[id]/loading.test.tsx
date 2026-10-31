@@ -27,6 +27,6 @@ describe('QuizSessionLoading', () => {
   it('hides the tabs skeleton from lg, like the live tabs', () => {
     const { container } = render(<QuizSessionLoading />)
 
-    expect(container.querySelector('.lg\\:hidden [class*="h-10"]')).not.toBeNull()
+    expect(container.querySelector('.lg\\:hidden [class*="h-skeleton-row"]')).not.toBeNull()
   })
 })

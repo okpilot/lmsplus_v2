@@ -72,7 +72,7 @@ describe('QuestionTabs', () => {
   it('keeps label-size text with tight phone padding so four tabs fit a 360px screen', () => {
     render(<QuestionTabs activeTab="question" onTabChange={vi.fn()} />)
     for (const tab of screen.getAllByRole('button')) {
-      expect(tab).toHaveClass('text-label', 'h-8', 'px-1', 'md:px-3')
+      expect(tab).toHaveClass('text-label', 'h-control-sm', 'px-1', 'md:px-3')
       expect(tab).not.toHaveClass('text-caption')
     }
   })

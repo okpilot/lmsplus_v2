@@ -41,7 +41,7 @@ describe('ThemeRow', () => {
   it('keeps the 36px row height over the Button size class', () => {
     renderRow('light')
     const cls = screen.getByRole('button', { name: 'Dark mode' }).className
-    expect(cls).toContain('h-9')
+    expect(cls).toContain('h-control')
     expect(cls).not.toContain('h-(--control-h)')
   })
 })

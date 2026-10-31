@@ -37,7 +37,7 @@ describe('SignOutButton', () => {
   it('keeps the 36px row height over the Button size class', () => {
     render(<SignOutButton variant="row" />)
     const cls = screen.getByRole('button', { name: /sign out/i }).className
-    expect(cls).toContain('h-9')
+    expect(cls).toContain('h-control')
     expect(cls).not.toContain('h-(--control-h)')
   })
 

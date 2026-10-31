@@ -8,8 +8,8 @@ describe('Badge', () => {
     render(<Badge>New</Badge>)
     const el = screen.getByText('New')
     expect(el.className).toContain('bg-primary')
-    expect(el.className).toContain('h-5')
-    expect(el.className).not.toContain('size-6')
+    expect(el.className).toContain('h-chip')
+    expect(el.className).not.toContain('size-avatar')
   })
 
   it.each([
@@ -50,7 +50,7 @@ describe('Badge', () => {
   it('renders a circle shape at a fixed square size', () => {
     render(<Badge shape="circle">3</Badge>)
     const el = screen.getByText('3')
-    expect(el.className).toContain('size-6')
+    expect(el.className).toContain('size-avatar')
     expect(el.className).toContain('rounded-pill')
   })
 })
