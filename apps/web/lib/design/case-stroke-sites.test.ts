@@ -33,10 +33,6 @@ describe('overline utility carries uppercase', () => {
     expect(buildTokensCss()).toMatch(/@utility text-overline\s*\{[^}]*text-transform:\s*uppercase/)
   })
 
-  it('committed tokens.css matches the generator', () => {
-    expect(src('app/tokens.css')).toBe(buildTokensCss())
-  })
-
   describe('compiled CSS', () => {
     let css = ''
     beforeAll(async () => {

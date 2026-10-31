@@ -85,7 +85,7 @@ export function NavIcon({ name, className = 'size-icon-lg' }: Readonly<NavIconPr
   if (!paths) return null
   return (
     <svg
-      className={cn(className, 'stroke-icon')}
+      className={cn('stroke-icon', className)}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
