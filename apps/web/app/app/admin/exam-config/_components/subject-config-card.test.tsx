@@ -242,7 +242,7 @@ describe('SubjectConfigCard', () => {
       const cls = screen.getByRole('button', { name: 'Enabled' }).className
       expect(cls).not.toContain('enabled:hover:opacity-80')
       expect(cls).not.toContain('transition-opacity')
-      expect(cls).toContain('disabled:opacity-50')
+      expect(cls).toContain('disabled:opacity-disabled')
     })
   })
 })
