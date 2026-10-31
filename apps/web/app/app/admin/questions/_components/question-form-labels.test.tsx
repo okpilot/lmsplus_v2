@@ -75,7 +75,7 @@ describe('QuestionFormFields labels', () => {
     renderForm()
     for (const t of ['Subject', 'Options', 'Question # (optional)']) {
       const cls = screen.getByText(t).className
-      expect(cls).toContain('text-label')
+      expect(cls).toMatch(/(?<![\w-])text-label(?![\w-])/)
       expect(cls).toContain('text-muted-foreground')
     }
   })

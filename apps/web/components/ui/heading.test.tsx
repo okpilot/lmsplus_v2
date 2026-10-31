@@ -67,7 +67,7 @@ describe('Heading', () => {
       </Heading>,
     )
     const h = screen.getByRole('heading', { level: 3, name: 'Sub' })
-    expect(h.className).toContain('text-label')
+    expect(h.className).toMatch(/(?<![\w-])text-label-strong(?![\w-])/)
     expect(h.className).toContain('extra')
     expect(h).toHaveAttribute('id', 'h')
   })

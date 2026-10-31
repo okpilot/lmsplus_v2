@@ -32,7 +32,7 @@ describe('buttons and tabs (AC 6, 7)', () => {
 
   it('tab trigger is label without text-sm or font-medium', () => {
     const w = win(`${U}tabs.tsx`, 'data-slot="tabs-tab"', 6)
-    expect(w).toContain('text-label')
+    expect(w).toMatch(/(?<![\w-])text-label(?![\w-])/)
     expect(w).not.toMatch(/text-sm\b|font-medium/)
   })
 
@@ -157,7 +157,7 @@ describe('tab bar and heatmap (AC 16)', () => {
   it('more-sheet tab base is text-micro; rows label; no text-[', () => {
     const s = src('app/app/_components/more-sheet.tsx')
     expect(s).toContain('text-micro')
-    expect(s).toContain('text-label')
+    expect(s).toMatch(/(?<![\w-])text-label(?![\w-])/)
     expect(s).not.toContain('text-[')
   })
 
