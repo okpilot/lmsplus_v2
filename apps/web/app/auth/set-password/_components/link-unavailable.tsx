@@ -18,7 +18,7 @@ export function LinkUnavailable({ reason }: Readonly<{ reason: 'invalid' | 'miss
 
       <div className="space-y-2 text-body">
         <p className="font-medium">To get in:</p>
-        <ol className="list-decimal space-y-1 pl-5 text-muted-foreground">
+        <ol className="list-decimal space-y-1 pl-prose-indent text-muted-foreground">
           {forgotPasswordSteps().map((step) => (
             <li key={step}>{step}</li>
           ))}

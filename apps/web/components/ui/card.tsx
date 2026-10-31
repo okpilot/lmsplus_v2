@@ -14,7 +14,7 @@ function Card({
       data-slot="card"
       data-size={size}
       className={cn(
-        'group/card flex flex-col gap-4 overflow-visible rounded-card bg-card py-card text-body text-card-foreground ring-1 ring-border has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:gap-3 data-[size=sm]:py-3 data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-card *:[img:last-child]:rounded-b-card',
+        'group/card flex flex-col gap-4 overflow-visible rounded-card bg-card py-card text-body text-card-foreground ring-1 ring-border has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:gap-card-sm data-[size=sm]:py-card-sm data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-card *:[img:last-child]:rounded-b-card',
         className,
       )}
       {...props}
@@ -50,7 +50,7 @@ function CardHeader({ className, ...props }: Readonly<React.ComponentProps<'div'
     <div
       data-slot="card-header"
       className={cn(
-        'group/card-header @container/card-header grid auto-rows-min items-start gap-1 rounded-t-card px-card group-data-[size=sm]/card:px-3 has-data-[slot=card-action]:grid-cols-(--layout-cols-fill-auto) has-data-[slot=card-description]:grid-rows-(--layout-rows-pair) [.border-b]:pb-card group-data-[size=sm]/card:[.border-b]:pb-3',
+        'group/card-header @container/card-header grid auto-rows-min items-start gap-1 rounded-t-card px-card group-data-[size=sm]/card:px-card-sm has-data-[slot=card-action]:grid-cols-(--layout-cols-fill-auto) has-data-[slot=card-description]:grid-rows-(--layout-rows-pair) [.border-b]:pb-card group-data-[size=sm]/card:[.border-b]:pb-card-sm',
         className,
       )}
       {...props}
@@ -92,7 +92,7 @@ function CardContent({ className, ...props }: Readonly<React.ComponentProps<'div
   return (
     <div
       data-slot="card-content"
-      className={cn('px-card group-data-[size=sm]/card:px-3', className)}
+      className={cn('px-card group-data-[size=sm]/card:px-card-sm', className)}
       {...props}
     />
   )

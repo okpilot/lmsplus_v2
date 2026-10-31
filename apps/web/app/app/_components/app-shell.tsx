@@ -20,7 +20,7 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
       <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 self-start sm:flex border-r border-border bg-card">
         <SidebarNav />
       </aside>
-      <div className="min-w-0 flex-1 px-gutter py-section pb-24 sm:pb-section">
+      <div className="min-w-0 flex-1 px-gutter py-section pb-tab-clear sm:pb-section">
         <div className="mx-auto max-w-content">{children}</div>
       </div>
       <MobileNav />

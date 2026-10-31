@@ -59,13 +59,13 @@ export function SidebarNav() {
   const pathname = usePathname()
 
   return (
-    <div className="flex h-full w-full flex-col gap-7 px-3 py-6">
+    <div className="flex h-full w-full flex-col gap-nav-gap px-3 py-6">
       <span className="px-2.5">
         <Wordmark />
       </span>
       <nav
         aria-label="Main navigation"
-        className="flex min-h-0 flex-1 flex-col gap-7 overflow-y-auto"
+        className="flex min-h-0 flex-1 flex-col gap-nav-gap overflow-y-auto"
       >
         {SIDEBAR_GROUPS.map((group) => (
           <NavGroup key={group.label} {...group} pathname={pathname} />

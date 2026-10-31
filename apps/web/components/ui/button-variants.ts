@@ -26,12 +26,12 @@ export const buttonVariants = cva(
       size: {
         default:
           'h-(--control-h) gap-1.5 rounded-control px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2',
-        sm: "relative h-7 gap-1 rounded-control px-2.5 text-caption after:absolute after:-inset-x-0.5 after:-inset-y-2 lg:after:hidden in-data-[slot=button-group]:rounded-control has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-icon-sm",
+        sm: "relative h-7 gap-1 rounded-control px-2.5 text-caption after:absolute after:-inset-x-0.5 after:-inset-y-tap-y lg:after:hidden in-data-[slot=button-group]:rounded-control has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-icon-sm",
         icon: 'size-(--control-h) rounded-pill',
         segment:
           'relative h-8 rounded-inner px-1 after:absolute after:-inset-x-0.5 after:-inset-y-1.5 md:px-3 lg:after:hidden',
         'icon-sm':
-          'relative size-7 rounded-pill after:absolute after:-inset-x-0.5 after:-inset-y-2 lg:after:hidden in-data-[slot=button-group]:rounded-control',
+          'relative size-7 rounded-pill after:absolute after:-inset-x-0.5 after:-inset-y-tap-y lg:after:hidden in-data-[slot=button-group]:rounded-control',
       },
     },
     defaultVariants: {
