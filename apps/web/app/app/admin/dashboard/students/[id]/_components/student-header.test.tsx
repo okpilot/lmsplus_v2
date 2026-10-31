@@ -72,14 +72,15 @@ describe('StudentHeader', () => {
     expect(screen.getByText('student')).toBeInTheDocument()
   })
 
-  it('shows a student role as an outlined neutral label chip', () => {
+  it('shows a student role as a filled neutral chip, as in the students list', () => {
     render(<StudentHeader student={makeStudent({ role: 'student' })} />)
     const cls = screen.getByText('student').className.split(/\s+/)
-    expect(cls).toContain('border-border')
+    expect(cls).toContain('bg-muted')
+    expect(cls).not.toContain('border-border')
     expect(cls).not.toContain('bg-info-soft')
   })
 
-  it('shows the admin role in the info tone, as in the students list', () => {
+  it('shows the admin role in the info tone', () => {
     render(<StudentHeader student={makeStudent({ role: 'admin' })} />)
     const cls = screen.getByText('admin').className.split(/\s+/)
     expect(cls).toContain('bg-info-soft')

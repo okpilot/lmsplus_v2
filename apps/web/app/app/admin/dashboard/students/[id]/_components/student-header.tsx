@@ -28,16 +28,9 @@ export function StudentHeader({ student }: Readonly<Props>) {
                 {short}
               </Badge>
             ))}
-            {/* Admin is info, as in the students list; other roles are outlined label chips. */}
-            {student.role === 'admin' ? (
-              <Badge tone="info" className="capitalize">
-                {student.role}
-              </Badge>
-            ) : (
-              <Badge tone="neutral" outline className="capitalize">
-                {student.role}
-              </Badge>
-            )}
+            <Badge tone={student.role === 'admin' ? 'info' : 'neutral'} className="capitalize">
+              {student.role}
+            </Badge>
           </>
         }
       />
