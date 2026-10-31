@@ -73,9 +73,7 @@ describe('weight roles', () => {
   })
 
   it('question tabs narrow viewport uses text-caption-strong', () => {
-    expect(src(`${A}quiz/_components/question-tabs.tsx`)).toContain(
-      'max-[374.98px]:text-caption-strong',
-    )
+    expect(src(`${A}quiz/_components/question-tabs.tsx`)).toContain('max-tiny:text-caption-strong')
   })
 
   it('issued code has no font-semibold beside text-stat', () => {

@@ -165,10 +165,10 @@ describe('tab bar and heatmap (AC 16)', () => {
     expect(s).not.toContain('text-[')
   })
 
-  it('heatmap digits use text-chart and md:text-micro; no arbitrary sizes', () => {
+  it('heatmap digits use text-chart and sm:text-micro; no arbitrary sizes', () => {
     const cell = src('app/app/dashboard/_components/heatmap-cell.tsx')
     expect(cell).toContain('text-chart')
-    expect(cell).toContain('md:text-micro')
+    expect(cell).toContain('sm:text-micro')
     expect(cell).not.toContain('text-[')
     expect(src('app/app/dashboard/_components/heatmap-header.tsx')).not.toContain('text-[')
   })

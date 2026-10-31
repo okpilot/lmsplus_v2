@@ -97,8 +97,8 @@ describe('KpiCards', () => {
     render(<KpiCards data={buildKpis()} range="30d" />)
     const grid = screen.getByText('Active Students').closest('.grid') as HTMLElement
     expect(grid.className).toContain('grid-cols-1')
-    expect(grid.className).toContain('md:grid-cols-3')
-    expect(grid.className).toContain('2xl:grid-cols-5')
+    expect(grid.className).toContain('sm:grid-cols-2')
+    expect(grid.className).toContain('lg:grid-cols-3')
     expect(grid.className).not.toContain('sm:grid-cols-2')
   })
 

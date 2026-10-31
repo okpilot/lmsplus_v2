@@ -82,12 +82,12 @@ describe('StatGroup', () => {
 
   it('lets a caller className override the column count at a breakpoint', () => {
     render(
-      <StatGroup columns={1} className="md:grid-cols-3" data-testid="g">
+      <StatGroup columns={1} className="sm:grid-cols-3" data-testid="g">
         x
       </StatGroup>,
     )
     expect(screen.getByTestId('g').className).toContain('grid-cols-1')
-    expect(screen.getByTestId('g').className).toContain('md:grid-cols-3')
+    expect(screen.getByTestId('g').className).toContain('sm:grid-cols-3')
   })
 })
 
@@ -100,10 +100,10 @@ describe('Stat label row', () => {
   })
 
   it('applies hintClassName to the hint wrapper', () => {
-    render(<Stat label="L" value="1" hint="vs last week" hintClassName="hidden md:flex" />)
+    render(<Stat label="L" value="1" hint="vs last week" hintClassName="hidden sm:flex" />)
     const cls = screen.getByText('vs last week').className
     expect(cls).toContain('hidden')
-    expect(cls).toContain('md:flex')
+    expect(cls).toContain('sm:flex')
   })
 })
 

@@ -127,7 +127,7 @@ describe('StatCards', () => {
     const grid = container.querySelector('.grid') as HTMLElement
     expect(grid.className).toContain('grid-cols-3')
     expect(grid.className).toContain('gap-2')
-    expect(grid.className).toContain('md:gap-4')
+    expect(grid.className).toContain('sm:gap-4')
     expect(grid.className).not.toMatch(/(sm|md|lg):grid-cols/)
   })
 
@@ -137,7 +137,7 @@ describe('StatCards', () => {
     expect(hints).toHaveLength(3)
     for (const h of hints) {
       expect(h.className).toContain('hidden')
-      expect(h.className).toContain('md:flex')
+      expect(h.className).toContain('sm:flex')
     }
   })
 

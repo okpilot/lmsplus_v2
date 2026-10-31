@@ -71,8 +71,8 @@ describe('B2b-12 AC 5 phone diagram', () => {
 describe('B2b-12 AC 6 tabs at 320', () => {
   it('tightens gap and text below 375px', () => {
     const s = src(`${Q}_components/question-tabs.tsx`)
-    expect(s).toContain('max-[374.98px]:gap-0')
-    expect(s).toContain('max-[374.98px]:text-caption')
+    expect(s).toContain('max-tiny:gap-0')
+    expect(s).toContain('max-tiny:text-caption')
   })
 })
 

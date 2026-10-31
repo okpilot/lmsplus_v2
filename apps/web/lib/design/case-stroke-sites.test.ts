@@ -89,10 +89,10 @@ describe('chip sites use text-chip', () => {
     },
   )
 
-  it('heatmap-cell dash is md:text-chip', () => {
+  it('heatmap-cell dash is sm:text-chip', () => {
     const s = src('app/app/dashboard/_components/heatmap-cell.tsx')
-    expect(s).toMatch(CLASS('md:text-chip'))
-    expect(s).not.toMatch(CLASS('md:text-overline'))
+    expect(s).toMatch(CLASS('sm:text-chip'))
+    expect(s).not.toMatch(CLASS('sm:text-overline'))
   })
 
   it('info-tooltip stays text-overline', () => {

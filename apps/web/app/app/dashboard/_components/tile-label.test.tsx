@@ -5,8 +5,8 @@ import { TileLabel } from './tile-label'
 describe('TileLabel', () => {
   it('shows the short and full names and a tooltip trigger named after the full name', () => {
     render(<TileLabel short="Today" full="Questions Today" description="Goal progress" />)
-    expect(screen.getByText('Today').className).toContain('md:hidden')
-    expect(screen.getAllByText('Questions Today')[0]?.className).toContain('hidden md:inline')
+    expect(screen.getByText('Today').className).toContain('sm:hidden')
+    expect(screen.getAllByText('Questions Today')[0]?.className).toContain('hidden sm:inline')
     expect(screen.getByRole('button', { name: /^What is Questions Today\?/ })).toBeInTheDocument()
   })
 
@@ -14,6 +14,6 @@ describe('TileLabel', () => {
     const { container } = render(<TileLabel short="S" full="Full" description="d" />)
     const root = container.firstElementChild as HTMLElement
     expect(root.className).toMatch(/(?<![\w-])text-caption(?![\w-])/)
-    expect(root.className).toContain('md:text-label')
+    expect(root.className).toContain('sm:text-label')
   })
 })

@@ -51,7 +51,7 @@ describe('ReportsList surfaces', () => {
       ?.parentElement as HTMLElement
     expect(wrap.className.split(/\s+/)).not.toContain('border')
     expect(wrap.className).toContain('hidden')
-    expect(wrap.className).toContain('md:block')
+    expect(wrap.className).toContain('sm:block')
   })
 
   it('mobile SessionCards sit inside one card-list', () => {
