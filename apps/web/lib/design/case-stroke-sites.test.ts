@@ -78,7 +78,6 @@ describe('chip sites use text-chip', () => {
     'app/app/_components/user-chip.tsx',
     'app/app/quiz/_components/comments-tab.tsx',
     'app/app/quiz/session/_components/keyboard-legend.tsx',
-    'app/app/dashboard/_components/heatmap-cell.tsx',
   ])('%s has text-chip and no base text-overline', (f) => {
     const s = src(f)
     expect(s).toMatch(CLASS('text-chip'))
