@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
@@ -22,15 +22,18 @@ export function DeleteSavedQuizButton({
 }: Readonly<DeleteSavedQuizButtonProps>) {
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
+  const lockRef = useRef(false)
 
   async function confirm() {
-    if (busy) return
+    if (lockRef.current) return
+    lockRef.current = true
     setBusy(true)
     try {
       await onConfirm()
     } catch {
       // the caller surfaces its own error
     } finally {
+      lockRef.current = false
       setBusy(false)
       setOpen(false)
     }

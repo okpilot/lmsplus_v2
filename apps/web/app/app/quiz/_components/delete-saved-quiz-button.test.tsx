@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { DeleteSavedQuizButton } from './delete-saved-quiz-button'
 
@@ -76,6 +76,20 @@ describe('DeleteSavedQuizButton', () => {
       expect(within(dialog).getByRole('button', { name: 'Cancel' })).toBeDisabled(),
     )
     expect(screen.getByRole('alertdialog', { name: NAME })).toBeInTheDocument()
+  })
+
+  it('runs onConfirm once when Confirm fires twice before React commits', async () => {
+    const onConfirm = vi.fn().mockReturnValue(new Promise(() => {}))
+    setup(onConfirm)
+    fireEvent.click(screen.getByTestId('del'))
+    const dialog = await screen.findByRole('alertdialog', { name: NAME })
+    const confirm = within(dialog).getByRole('button', { name: 'Delete' })
+    act(() => {
+      confirm.click()
+      confirm.click()
+    })
+
+    expect(onConfirm).toHaveBeenCalledTimes(1)
   })
 
   it('disables both dialog buttons when pending is true', async () => {
