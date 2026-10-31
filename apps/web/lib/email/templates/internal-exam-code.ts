@@ -1,3 +1,4 @@
+import { EMAIL_COLOURS } from '@/lib/design/email-colours'
 import { formatExpiry } from '@/lib/email/format-expiry'
 
 type InternalExamCodeEmailArgs = {
@@ -38,16 +39,16 @@ export function internalExamCodeEmail({
 
   const html = `<!doctype html>
 <html lang="en">
-  <body style="font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; line-height: 1.5;">
+  <body style="font-family: Arial, Helvetica, sans-serif; color: ${EMAIL_COLOURS.text}; line-height: 1.5;">
     <p>${studentName ? `Hello ${esc(studentName)},` : 'Hello,'}</p>
     <p>You have been issued an access code for your <strong>${esc(subjectName)}</strong> internal exam.</p>
     <p>Enter this code at the exam page to begin:</p>
-    <p style="font-size: 28px; font-weight: bold; letter-spacing: 4px; background: #f4f4f5; padding: 16px 24px; border-radius: 8px; display: inline-block;">${esc(code)}</p>
+    <p style="font-size: 28px; font-weight: 600; letter-spacing: 4px; background: ${EMAIL_COLOURS.surface}; padding: 16px 24px; border-radius: 8px; display: inline-block;">${esc(code)}</p>
     <p>This code expires on <strong>${esc(expiry)} (UTC)</strong>.</p>
     <p>
-      <a href="${esc(examUrl)}" style="display: inline-block; background: #2563eb; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: bold;">Go to exam</a>
+      <a href="${esc(examUrl)}" style="display: inline-block; background: ${EMAIL_COLOURS.accent}; color: ${EMAIL_COLOURS['on-accent']}; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 600;">Go to exam</a>
     </p>
-    <p style="color: #6b7280; font-size: 13px;">If the button does not work, copy and paste this link into your browser:<br />${esc(examUrl)}</p>
+    <p style="color: ${EMAIL_COLOURS.muted}; font-size: 13px;">If the button does not work, copy and paste this link into your browser:<br />${esc(examUrl)}</p>
   </body>
 </html>`
 

@@ -1,5 +1,6 @@
 import { formatOtpLifetime } from '@/lib/auth/email-otp-config'
 import { forgotPasswordSteps } from '@/lib/auth/set-password-link'
+import { EMAIL_COLOURS } from '@/lib/design/email-colours'
 
 type LoginInstructionsEmailArgs = {
   fullName: string | null
@@ -33,19 +34,19 @@ type BodyContent = {
 function buildHtml(c: BodyContent): string {
   return `<!doctype html>
 <html lang="en">
-  <body style="font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; line-height: 1.5;">
+  <body style="font-family: Arial, Helvetica, sans-serif; color: ${EMAIL_COLOURS.text}; line-height: 1.5;">
     <p>${c.fullName ? `Hello ${esc(c.fullName)},` : 'Hello,'}</p>
     <p>Use the link below to set the password for your LMS Plus account <strong>${esc(c.email)}</strong>.</p>
     <p>
-      <a href="${esc(c.setPasswordUrl)}" style="display: inline-block; background: #2563eb; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: bold;">Set my password</a>
+      <a href="${esc(c.setPasswordUrl)}" style="display: inline-block; background: ${EMAIL_COLOURS.accent}; color: ${EMAIL_COLOURS['on-accent']}; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 600;">Set my password</a>
     </p>
-    <p style="color: #6b7280; font-size: 13px; word-wrap: break-word; overflow-wrap: break-word;">If the button does not work, copy and paste this link into your browser:<br />${esc(c.setPasswordUrl)}</p>
+    <p style="color: ${EMAIL_COLOURS.muted}; font-size: 13px; word-wrap: break-word; overflow-wrap: break-word;">If the button does not work, copy and paste this link into your browser:<br />${esc(c.setPasswordUrl)}</p>
     <p>${esc(c.validity)}</p>
     <p><strong>If the link has expired:</strong></p>
     <ol>
 ${c.steps.map((step) => `      <li>${esc(step)}</li>`).join('\n')}
     </ol>
-    <p style="color: #6b7280; font-size: 13px;">Login page: ${esc(c.loginUrl)}</p>
+    <p style="color: ${EMAIL_COLOURS.muted}; font-size: 13px;">Login page: ${esc(c.loginUrl)}</p>
   </body>
 </html>`
 }
