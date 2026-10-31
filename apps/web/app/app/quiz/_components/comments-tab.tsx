@@ -72,7 +72,7 @@ export function CommentsTab({ questionId, currentUserId }: Readonly<CommentsTabP
           return (
             <div
               key={c.id}
-              className={`flex gap-3 ${isAdmin ? 'rounded-card bg-primary/5 p-3' : ''}`}
+              className={`flex gap-3 ${isAdmin ? 'rounded-card bg-primary-soft p-3' : ''}`}
             >
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-pill text-chip font-semibold bg-muted text-muted-foreground">
                 {getInitials(name)}

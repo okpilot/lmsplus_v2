@@ -34,7 +34,7 @@ export function RunwayBody() {
         width={runway.x2 - runway.x1}
         height={runway.height}
         rx={1}
-        className="fill-foreground/85"
+        className="fill-diagram-fill"
       />
       <line
         x1={runway.x1 + stripeLen + 3}

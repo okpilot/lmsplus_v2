@@ -51,7 +51,10 @@ function getOptionStyle(opts: {
     }
   // Exam mode: confirmed answer — same look as a selection, no correctness signal
   if (opts.isExamLocked || (opts.isSelected && !opts.showResult)) return SELECTED_STYLE
-  return { card: 'border-border hover:border-primary/40', circle: 'border border-current' }
+  return {
+    card: 'border-border hover:border-primary-border-hover',
+    circle: 'border border-current',
+  }
 }
 
 function ResultMark({

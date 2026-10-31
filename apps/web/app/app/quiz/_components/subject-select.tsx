@@ -53,7 +53,7 @@ export function SubjectSelect({ subjects, value, onValueChange }: Readonly<Subje
                   setOpen(false)
                 }}
                 className={`flex w-full items-center gap-2.5 border-l-2 px-3 py-2.5 text-body transition-colors hover:bg-muted ${
-                  s.id === value ? 'border-l-primary bg-primary/5' : 'border-l-transparent'
+                  s.id === value ? 'border-l-primary bg-primary-soft' : 'border-l-transparent'
                 }`}
               >
                 <CodeChip className="shrink-0">{s.code}</CodeChip>
