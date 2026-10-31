@@ -31,7 +31,7 @@ describe('loginInstructionsEmail', () => {
     const { html, text } = loginInstructionsEmail(BASE)
 
     expect(html).toContain(
-      'Use the link below to set the password for your LMS Plus account <strong>alice@example.com</strong>.',
+      'Use the link below to set the password for your LMS Plus account <strong style="font-weight: 600;">alice@example.com</strong>.',
     )
     expect(text).toContain(
       'Use the link below to set the password for your LMS Plus account alice@example.com.',
