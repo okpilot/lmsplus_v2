@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import { Link } from '@/components/ui/link'
 
 export function ResetSuccess() {
   return (
@@ -6,10 +6,7 @@ export function ResetSuccess() {
       <p className="text-body text-muted-foreground">
         Your password has been updated successfully.
       </p>
-      <Link
-        href="/auth/reset-password/done"
-        className="inline-block text-label text-primary-text underline underline-offset-4"
-      >
+      <Link href="/auth/reset-password/done" tone="primary" className="inline-block text-label">
         Sign in with your new password
       </Link>
     </div>

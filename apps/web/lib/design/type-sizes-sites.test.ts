@@ -60,7 +60,6 @@ describe('fields are body (AC 8)', () => {
   it.each([
     `${Q}_components/comments-tab.tsx`,
     'app/app/admin/exam-config/_components/distribution-editor.tsx',
-    'app/app/admin/exam-config/_components/num-field.tsx',
     `${Q}_components/subject-select.tsx`,
   ])('hand-built field %s uses text-body', (f) => {
     expect(src(f)).toContain('text-body')
@@ -252,7 +251,7 @@ describe('missed sites (AC 21)', () => {
     const a = src('app/app/admin/internal-exams/_components/issued-code-panel.tsx')
     const b = src('app/global-error.tsx')
     expect(a).toContain('text-stat')
-    expect(b).toContain('text-title')
+    expect(b).toContain('<Heading level={1}')
     expect(a + b).not.toMatch(/text-[2-9]xl/)
   })
 })

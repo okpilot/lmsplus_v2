@@ -1,4 +1,5 @@
 import { Checkbox } from '@/components/ui/checkbox'
+import { Link } from '@/components/ui/link'
 
 type ConsentCheckboxProps = {
   id: string
@@ -35,15 +36,15 @@ export function ConsentCheckbox({
       />
       <label htmlFor={id} className="text-body cursor-pointer">
         {label}{' '}
-        <a
+        <Link
           href={linkHref}
           target="_blank"
           rel="noopener noreferrer"
-          className="underline underline-offset-4 hover:text-primary-text"
+          tone="inherit"
           onClick={(e) => e.stopPropagation()}
         >
           {linkText}
-        </a>
+        </Link>
         {description && (
           <span className="mt-0.5 block text-caption text-muted-foreground">{description}</span>
         )}

@@ -21,4 +21,9 @@ describe('TermsPage', () => {
       'mailto:support@lmsplus.eu',
     )
   })
+
+  it('every h2 keeps pt-stack', () => {
+    render(<TermsPage />)
+    for (const h of screen.getAllByRole('heading', { level: 2 })) expect(h).toHaveClass('pt-stack')
+  })
 })

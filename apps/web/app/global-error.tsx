@@ -2,6 +2,7 @@
 
 import { useBoundaryError } from '@/app/_hooks/use-boundary-error'
 import { Button } from '@/components/ui/button'
+import { Heading } from '@/components/ui/heading'
 
 export default function GlobalError({
   error,
@@ -17,7 +18,7 @@ export default function GlobalError({
       <body>
         <div className="flex min-h-screen items-center justify-center">
           <div className="text-center">
-            <h1 className="text-title">Something went wrong</h1>
+            <Heading level={1}>Something went wrong</Heading>
             <p className="mt-2 text-muted-foreground">
               An unexpected error occurred. Please try refreshing the page.
             </p>

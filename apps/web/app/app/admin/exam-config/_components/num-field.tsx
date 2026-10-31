@@ -1,6 +1,8 @@
 'use client'
 
-const inputCls = 'w-full rounded-control border border-border bg-background px-3 py-2 text-body'
+import { useId } from 'react'
+import { Input } from '@/components/ui/input'
+
 const labelCls = 'mb-1 block text-label text-muted-foreground'
 
 export function NumField({
@@ -16,12 +18,15 @@ export function NumField({
   max: number
   onChange: (v: number) => void
 }>) {
+  const id = useId()
   return (
     <div>
-      <label className={labelCls}>
+      <label htmlFor={id} className={labelCls}>
         {label}
-        <input
+        <Input
+          id={id}
           type="number"
+          size="default"
           min={min}
           max={max}
           value={value}
@@ -30,7 +35,6 @@ export function NumField({
             if (Number.isNaN(v)) return
             onChange(Math.max(min, Math.min(max, v)))
           }}
-          className={inputCls}
         />
       </label>
     </div>

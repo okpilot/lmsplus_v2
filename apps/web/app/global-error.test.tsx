@@ -24,6 +24,11 @@ describe('GlobalError', () => {
     expect(screen.getByRole('heading', { name: /something went wrong/i })).toBeInTheDocument()
   })
 
+  it('renders a level 1 heading with text-title', () => {
+    render(<GlobalError error={testError} retry={mockRetry} />)
+    expect(screen.getByRole('heading', { level: 1 })).toHaveClass('text-title')
+  })
+
   it('renders a descriptive error message', () => {
     render(<GlobalError error={testError} retry={mockRetry} />)
     expect(screen.getByText(/please try refreshing the page/i)).toBeInTheDocument()

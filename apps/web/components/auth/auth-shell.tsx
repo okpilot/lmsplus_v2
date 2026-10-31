@@ -1,6 +1,7 @@
 import type * as React from 'react'
 
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Heading } from '@/components/ui/heading'
 
 type AuthShellProps = Readonly<{
   subtitle?: string
@@ -18,7 +19,7 @@ export function AuthShell({ subtitle, children }: Readonly<AuthShellProps>) {
           >
             <span className="text-heading text-primary-foreground">L</span>
           </div>
-          <h1 className="text-title">LMS Plus</h1>
+          <Heading level={1}>LMS Plus</Heading>
           {subtitle ? <p className="text-body text-muted-foreground">{subtitle}</p> : null}
         </CardHeader>
         <CardContent>{children}</CardContent>

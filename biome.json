@@ -37,7 +37,11 @@
           "level": "error",
           "options": {
             "elements": {
-              "button": "Use Button from @/components/ui/button."
+              "button": "Use Button from @/components/ui/button.",
+              "input": "Use Input from @/components/ui/input.",
+              "h1": "Use Heading from @/components/ui/heading.",
+              "h2": "Use Heading from @/components/ui/heading.",
+              "h3": "Use Heading from @/components/ui/heading."
             }
           }
         }
@@ -143,6 +147,7 @@
     {
       "includes": [
         "apps/web/components/ui/**",
+        "apps/web/app/app/admin/questions/_components/question-table.tsx",
         "apps/web/app/app/admin/exam-config/_components/subject-config-card.tsx",
         "apps/web/app/app/_components/answer-options.tsx",
         "apps/web/app/app/progress/_components/subject-breakdown.tsx",

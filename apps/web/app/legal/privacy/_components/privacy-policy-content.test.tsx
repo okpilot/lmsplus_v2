@@ -20,4 +20,26 @@ describe('PrivacyPolicyContent', () => {
     expect(dpoLinks.length).toBeGreaterThanOrEqual(1)
     expect(dpoLinks[0]).toHaveAttribute('href', 'mailto:dpo@lmsplus.eu')
   })
+
+  it('every h2 keeps pt-stack', () => {
+    render(<PrivacyPolicyContent />)
+    for (const h of screen.getAllByRole('heading', { level: 2 })) expect(h).toHaveClass('pt-stack')
+  })
+
+  it('h3s are level 3 with text-label and not text-label-strong', () => {
+    render(<PrivacyPolicyContent />)
+    const h3s = screen.getAllByRole('heading', { level: 3 })
+    expect(h3s).toHaveLength(5)
+    for (const h of h3s) {
+      expect(h).toHaveClass('text-label')
+      expect(h).not.toHaveClass('text-label-strong')
+    }
+  })
+
+  it('mailto anchors stay plain anchors', () => {
+    render(<PrivacyPolicyContent />)
+    for (const a of screen.getAllByRole('link', { name: /@lmsplus\.eu$/ })) {
+      expect(a.getAttribute('href')).toMatch(/^mailto:/)
+    }
+  })
 })

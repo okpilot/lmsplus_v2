@@ -1,13 +1,13 @@
 'use client'
 
 import { createClient } from '@repo/db/client'
-import Link from 'next/link'
 import { useState } from 'react'
 import { z } from 'zod'
 import { PasswordToggle } from '@/components/auth/password-toggle'
 import { FieldError } from '@/components/ui/field-error'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Link } from '@/components/ui/link'
 import { LoadingButton } from '@/components/ui/loading-button'
 
 const LoginSchema = z.object({
@@ -38,7 +38,6 @@ async function signIn(credentials: { email: string; password: string }): Promise
   }
 }
 
-// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function LoginForm({ initialError, nextPath }: Readonly<LoginFormProps>) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -102,10 +101,7 @@ export function LoginForm({ initialError, nextPath }: Readonly<LoginFormProps>) 
       </div>
 
       <div className="flex justify-end">
-        <Link
-          href="/auth/forgot-password"
-          className="text-label text-muted-foreground underline underline-offset-4 hover:text-primary-text"
-        >
+        <Link href="/auth/forgot-password" tone="muted" className="text-label">
           Forgot password?
         </Link>
       </div>
@@ -121,14 +117,11 @@ export function LoginForm({ initialError, nextPath }: Readonly<LoginFormProps>) 
       </p>
 
       <p className="text-center text-caption text-muted-foreground">
-        <Link href="/legal/terms" className="underline underline-offset-4 hover:text-primary-text">
+        <Link href="/legal/terms" tone="inherit">
           Terms of Service
         </Link>
         {' · '}
-        <Link
-          href="/legal/privacy"
-          className="underline underline-offset-4 hover:text-primary-text"
-        >
+        <Link href="/legal/privacy" tone="inherit">
           Privacy Policy
         </Link>
       </p>

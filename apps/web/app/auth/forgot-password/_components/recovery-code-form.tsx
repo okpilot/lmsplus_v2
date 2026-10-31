@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { z } from 'zod'
@@ -8,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { FieldError } from '@/components/ui/field-error'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Link } from '@/components/ui/link'
 import { LoadingButton } from '@/components/ui/loading-button'
 import { verifyRecoveryCode } from '../actions'
 
@@ -90,10 +90,7 @@ export function RecoveryCodeForm({ email, onRequestNewCode }: Readonly<RecoveryC
         <Button type="button" variant="link" onClick={onRequestNewCode} className="h-auto px-0">
           Send a new code
         </Button>
-        <Link
-          href="/"
-          className="text-muted-foreground underline underline-offset-4 hover:text-primary-text"
-        >
+        <Link href="/" tone="muted">
           Back to login
         </Link>
       </div>

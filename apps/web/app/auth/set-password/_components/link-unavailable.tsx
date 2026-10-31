@@ -1,5 +1,5 @@
-import Link from 'next/link'
 import { Heading } from '@/components/ui/heading'
+import { Link } from '@/components/ui/link'
 import {
   forgotPasswordSteps,
   LINK_INVALID_MESSAGE,
@@ -26,13 +26,10 @@ export function LinkUnavailable({ reason }: Readonly<{ reason: 'invalid' | 'miss
       </div>
 
       <div className="flex flex-col gap-2 text-center text-body">
-        <Link
-          href="/auth/forgot-password"
-          className="text-primary-text underline underline-offset-4"
-        >
+        <Link href="/auth/forgot-password" tone="primary">
           Forgot password
         </Link>
-        <Link href="/" className="text-muted-foreground underline underline-offset-4">
+        <Link href="/" tone="muted">
           Go to the login page
         </Link>
       </div>

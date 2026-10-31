@@ -1,5 +1,6 @@
 'use client'
 
+import { Input } from '@/components/ui/input'
 import type { TopicInfo } from '../types'
 import { topicRemaining } from './topic-remaining'
 
@@ -108,14 +109,15 @@ function DistributionRow({
         {name}
         {note && <span className="ml-2 text-caption text-muted-foreground">{note}</span>}
       </span>
-      <input
+      <Input
         type="number"
+        size="sm"
         min={0}
         max={available}
         value={value}
         aria-label={`${code} questions`}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full rounded-control border border-border bg-background px-2 py-1 text-right text-body"
+        className="text-right"
       />
       <span className="text-right text-body text-muted-foreground">{available}</span>
     </div>
