@@ -75,12 +75,12 @@ describe('spacing roles (#1673)', () => {
     expect(has(t, cls('after:-inset-y-2'))).toBe(false)
   })
 
-  it('button-variants swaps only -inset-y-2 for -inset-y-tap-y, keeping -inset-x-0.5 and -inset-y-1.5', () => {
+  it('button-variants small, icon-sm and segment taps reach 44px with -inset-y-tap-y, keeping -inset-x-0.5', () => {
     const t = src('components/ui/button-variants.ts')
-    expect(count(t, 'after:-inset-y-tap-y')).toBe(2)
+    expect(count(t, 'after:-inset-y-tap-y')).toBe(3)
     expect(has(t, cls('after:-inset-y-2'))).toBe(false)
     expect(count(t, 'after:-inset-x-0.5')).toBe(3)
-    expect(t).toContain('after:-inset-y-1.5')
+    expect(t).not.toContain('after:-inset-y-1.5')
   })
 
   it('select small trigger uses -inset-y-tap-y and keeps -inset-x-0.5', () => {

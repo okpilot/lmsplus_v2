@@ -65,7 +65,12 @@ describe('QuestionTabs', () => {
   it('gives each tab a 44px phone tap area that ends at desktop width', () => {
     render(<QuestionTabs activeTab="question" onTabChange={vi.fn()} />)
     for (const tab of screen.getAllByRole('button')) {
-      expect(tab).toHaveClass('relative', 'after:absolute', 'after:-inset-y-1.5', 'lg:after:hidden')
+      expect(tab).toHaveClass(
+        'relative',
+        'after:absolute',
+        'after:-inset-y-tap-y',
+        'lg:after:hidden',
+      )
     }
   })
 

@@ -132,12 +132,13 @@ describe('control, avatar and column sizes', () => {
     expect(s).not.toMatch(/(?<![\w-])w-(48|56)\b/)
   })
   it('syllabus code columns are w-inset-lg', () => {
-    for (const f of [
-      'admin/syllabus/subject-row.tsx',
-      'admin/syllabus/subtopic-row.tsx',
-      'admin/syllabus/topic-row.tsx',
-    ])
+    for (const f of ['admin/syllabus/subject-row.tsx', 'admin/syllabus/topic-row.tsx'])
       expect(app(f)).toContain('w-inset-lg')
+  })
+  it('subtopic code column fits a 9-character code (050-01-01 is 65.5px at caption size)', () => {
+    const s = app('admin/syllabus/subtopic-row.tsx')
+    expect(s).toContain('w-col-xs shrink-0')
+    expect(s).not.toContain('w-inset-lg')
   })
   it.each([
     ['admin/internal-exams/codes-table.tsx', ['w-col-md', 'w-col-code', 'w-col-sm']],
