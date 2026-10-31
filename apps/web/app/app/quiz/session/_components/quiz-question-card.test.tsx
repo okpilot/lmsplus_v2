@@ -60,6 +60,14 @@ describe('QuizQuestionCard action slot', () => {
     expect(screen.getByRole('button', { name: 'Submit Answer' })).toBeDisabled()
   })
 
+  it('keeps a busy Submit in the slot while checking on the explanation tab', () => {
+    renderCard(makeState({ answering: true, existingAnswer: { selected: 'a' } }), {
+      activeTab: 'explanation',
+    })
+    expect(screen.getByRole('button', { name: 'Submit Answer' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /next/i })).not.toHaveClass('bg-primary')
+  })
+
   it('shows a primary Next and no Submit once answered', () => {
     renderCard(makeState({ existingAnswer: { selected: 'a' } }))
     expect(screen.getByRole('button', { name: /next/i })).toHaveClass('bg-primary')

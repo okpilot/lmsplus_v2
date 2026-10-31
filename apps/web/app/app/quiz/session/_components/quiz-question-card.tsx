@@ -25,7 +25,7 @@ type QuizQuestionCardProps = {
 // mounted while `answering` — else it unmounts before its spinner paints.
 function slotAction(s: QuizState, activeTab: QuestionTab): QuizSlotAction {
   const isMc = s.question?.question_type === 'multiple_choice'
-  if (isMc && activeTab === 'question' && s.answering) return 'submit'
+  if (isMc && s.answering) return 'submit'
   if (s.existingAnswer) return 'next'
   if (isMc && activeTab === 'question') return 'submit'
   return 'none'

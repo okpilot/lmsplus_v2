@@ -149,3 +149,20 @@ describe('useQuizUI — result', () => {
     expect(result.current).not.toHaveProperty('canSubmitAnswer')
   })
 })
+
+describe('useQuizUI — tab change (#1676)', () => {
+  it('clears pendingOptionId after the tab leaves Question and returns', () => {
+    const base = { feedback: new Map<string, AnswerFeedback>(), currentIndex: 0 }
+    const { result, rerender } = renderHook(
+      (props: Record<string, unknown>) => useQuizUI(props as Parameters<typeof useQuizUI>[0]),
+      { initialProps: { ...base, activeTab: 'question' } },
+    )
+    act(() => {
+      result.current.handleSelectionChange(OPT_A)
+    })
+    expect(result.current.pendingOptionId).toBe(OPT_A)
+    rerender({ ...base, activeTab: 'explanation' })
+    rerender({ ...base, activeTab: 'question' })
+    expect(result.current.pendingOptionId).toBeNull()
+  })
+})

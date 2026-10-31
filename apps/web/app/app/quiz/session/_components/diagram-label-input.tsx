@@ -158,8 +158,8 @@ function useDiagramTap(initial: () => Map<string, string>) {
     setFocusId(null)
   }, [focusId])
 
-  function applyTap(next: TapState) {
-    setFocusId(focusTarget(armed, placement, next.placement))
+  function applyTap(next: TapState, liveArmed: Armed) {
+    setFocusId(focusTarget(liveArmed, placement, next.placement))
     setPlacement(next.placement)
     setArmed(next.armed)
   }
@@ -215,7 +215,7 @@ export function DiagramLabelInput({
         disabled={itemsDisabled}
         locked={submitted}
         correctMapping={graded ? correctMapping : undefined}
-        onTapRow={(zoneId) => applyTap(tapRow({ placement, armed }, zoneId))}
+        onTapRow={(zoneId) => applyTap(tapRow({ placement, armed: liveArmed }, zoneId), liveArmed)}
       />
       {!submitted && (
         <DiagramTapPool
@@ -225,8 +225,8 @@ export function DiagramLabelInput({
             liveArmed?.kind === 'label' && [...placement.values()].includes(liveArmed.id)
           }
           disabled={itemsDisabled}
-          onTapLabel={(id) => applyTap(tapLabel({ placement, armed }, id))}
-          onTapPool={() => applyTap(tapPool({ placement, armed }))}
+          onTapLabel={(id) => applyTap(tapLabel({ placement, armed: liveArmed }, id), liveArmed)}
+          onTapPool={() => applyTap(tapPool({ placement, armed: liveArmed }), liveArmed)}
         />
       )}
 

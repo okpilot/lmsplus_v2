@@ -173,8 +173,8 @@ export function DiagramTapPool({
 }>) {
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: background tap returns an armed placed label to the pool for pointer users
-    // biome-ignore lint/a11y/useKeyWithClickEvents: the keyboard path is the Return to pool button
     <div
+      role="presentation"
       data-testid="diagram-tap-pool"
       onClick={disabled ? undefined : onTapPool}
       className="sticky bottom-(--pool-bottom) z-sticky flex min-h-12 flex-nowrap items-center gap-2 overflow-x-auto sm:flex-wrap rounded-card border border-input bg-card p-2 shadow-raised [scrollbar-width:none]"
