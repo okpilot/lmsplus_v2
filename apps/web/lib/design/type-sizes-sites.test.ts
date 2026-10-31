@@ -96,7 +96,7 @@ describe('card (AC 11)', () => {
   })
 })
 
-describe('overline-sized chips (AC 12)', () => {
+describe('chip-sized chips (AC 12)', () => {
   it.each([
     `${U}badge.tsx`,
     'components/kit/code-chip.tsx',
@@ -105,8 +105,7 @@ describe('overline-sized chips (AC 12)', () => {
     `${Q}_components/comments-tab.tsx`,
   ])('%s', (f) => {
     const s = src(f)
-    expect(s).toContain('text-overline')
-    expect(s).toContain('tracking-normal')
+    expect(s).toMatch(/(^|[\s"'`:])text-chip(?![\w-])/)
     expect(s).not.toMatch(/text-xs|text-\[/)
   })
 
