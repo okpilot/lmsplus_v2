@@ -3,11 +3,11 @@ import { describe, expect, it } from 'vitest'
 import { AuthShell } from './auth-shell'
 
 describe('AuthShell', () => {
-  it('renders main > card with no md-only border/ring classes', () => {
+  it('renders main > card with no breakpoint-only border/ring classes', () => {
     const { container } = render(<AuthShell>child</AuthShell>)
     const card = container.querySelector('main [data-slot=card]')
     expect(card).not.toBeNull()
-    expect(card?.className).not.toMatch(/md:(border|ring)/)
+    expect(card?.className).not.toMatch(/(sm|md|lg|xl|2xl):(border|ring)/)
   })
 
   it('renders the LMS Plus h1 with text-title', () => {

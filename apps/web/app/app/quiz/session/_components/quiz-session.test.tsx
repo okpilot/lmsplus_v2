@@ -847,7 +847,7 @@ describe('QuizSession', () => {
     const timers = screen.getAllByTestId('exam-countdown-timer')
     expect(timers).toHaveLength(1)
     expect(timers[0]!.getAttribute('data-classname')).toMatch(/(?<![\w-])text-caption(?![\w-])/)
-    expect(timers[0]!.getAttribute('data-classname')).not.toMatch(/hidden|md:/)
+    expect(timers[0]!.getAttribute('data-classname')).not.toMatch(/hidden|(sm|md|lg|xl|2xl):/)
   })
 
   // ---- Discovery (browse-only) mode ----------------------------------------

@@ -94,7 +94,7 @@ export function HeaderControls({
     : 'Finish Test'
   return (
     <div className="z-sticky flex items-center gap-2">
-      {/* Keyboard shortcuts are pointer-with-keyboard only → desktop. */}
+      {/* Keyboard shortcuts need a keyboard → hidden on phones (from sm). */}
       <div className="hidden sm:block">
         <KeyboardLegend isExam={timer.isExam} />
       </div>
