@@ -11,7 +11,7 @@ describe('Input', () => {
 
   it('fills the field white', () => {
     render(<Input aria-label="Name" />)
-    expect(screen.getByRole('textbox').className).toContain('bg-card')
+    expect(screen.getByRole('textbox').className).toMatch(/(^|\s)bg-field-fill(\s|$)/)
   })
 })
 

@@ -39,7 +39,7 @@ describe('RadioGroup', () => {
     expect(c).toContain('size-4')
     expect(c).toContain('rounded-pill')
     expect(c).toContain('border-input')
-    expect(c).toContain('bg-card')
+    expect(c).toContain('bg-field-fill')
   })
 
   it('checked is primary border and fill', () => {
