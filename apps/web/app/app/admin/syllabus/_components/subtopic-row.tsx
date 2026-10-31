@@ -62,7 +62,7 @@ export function SubtopicRow({ subtopic, topicId }: Readonly<Props>) {
     <div className="flex items-center gap-2 rounded-small px-2 py-2.5 lg:py-1 hover:bg-muted">
       <span className="w-col-xs shrink-0 tabular-nums text-caption">{subtopic.code}</span>
       <span className="flex-1 text-body">{subtopic.name}</span>
-      <Badge variant="secondary">{subtopic.questionCount} Q</Badge>
+      <Badge tone="neutral">{subtopic.questionCount} Q</Badge>
       <Button
         variant="ghost"
         size="icon-sm"

@@ -212,8 +212,9 @@ describe('PR18 focus ring and width tokens', () => {
     expect(d).toMatch(/^## 178 .*Amended by 179, 194\.\s*$/m)
   })
 
-  it('destructive badge focus outline is solid destructive, and tabs reset the outline style', () => {
-    expect(read('components/ui/badge.tsx')).toContain('focus-visible:outline-destructive')
+  it('badge focus outline is focus-visible:outline-ring, not invalid-ring, and tabs reset the outline style', () => {
+    expect(read('components/ui/badge.tsx')).toContain('focus-visible:outline-ring')
+    expect(read('components/ui/badge.tsx')).not.toContain('focus-visible:outline-destructive')
     expect(read('components/ui/badge.tsx')).not.toContain('focus-visible:outline-invalid-ring')
     expect(read('components/ui/tabs.tsx')).toContain('focus-visible:outline-solid')
   })

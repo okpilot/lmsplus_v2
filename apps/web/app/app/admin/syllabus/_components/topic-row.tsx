@@ -102,7 +102,7 @@ export function TopicRow({ topic, subjectId }: Readonly<Props>) {
 
         <span className="w-inset-lg shrink-0 tabular-nums text-body">{topic.code}</span>
         <span className="flex-1 text-body">{topic.name}</span>
-        <Badge variant="secondary">{topic.questionCount} Q</Badge>
+        <Badge tone="neutral">{topic.questionCount} Q</Badge>
         <Button
           variant="ghost"
           size="icon-sm"

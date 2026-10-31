@@ -93,12 +93,14 @@ describe('AttemptsTable', () => {
     render(<AttemptsTable rows={[baseRow]} totalCount={0} pageSize={25} />)
     expect(screen.getByLabelText('Passed')).toBeInTheDocument()
     expect(screen.getByText('Pass')).toBeInTheDocument()
+    expect(screen.getByLabelText('Passed').className).toContain('bg-success-soft')
   })
 
   it('renders Fail badge when passed is false', () => {
     render(<AttemptsTable rows={[{ ...baseRow, passed: false }]} totalCount={0} pageSize={25} />)
     expect(screen.getByLabelText('Failed')).toBeInTheDocument()
     expect(screen.getByText('Fail')).toBeInTheDocument()
+    expect(screen.getByLabelText('Failed').className).toContain('bg-danger-soft')
   })
 
   it('renders dash for passed when null', () => {

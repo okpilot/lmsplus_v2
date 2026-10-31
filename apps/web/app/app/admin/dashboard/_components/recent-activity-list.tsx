@@ -45,7 +45,7 @@ function ActivityRow({ session }: Readonly<{ session: RecentSession }>) {
         </p>
       </div>
       <div className="shrink-0 flex items-center gap-2">
-        <Badge variant="outline" className="capitalize">
+        <Badge tone="neutral" outline className="capitalize">
           {session.mode}
         </Badge>
         <ActivityScore score={session.scorePercentage} />

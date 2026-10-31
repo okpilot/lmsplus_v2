@@ -181,6 +181,8 @@ describe('StudentRow', () => {
       </table>,
     )
     expect(screen.getByText('Inactive')).toBeInTheDocument()
+    expect(screen.getByText('Inactive').className).toContain('bg-muted')
+    expect(screen.getByText('Inactive').className).not.toContain('bg-danger-soft')
   })
 
   it('greys an inactive row with text colour, not opacity', () => {

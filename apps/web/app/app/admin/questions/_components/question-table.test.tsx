@@ -112,6 +112,12 @@ describe('QuestionTable', () => {
     render(<QuestionTable questions={[question]} {...DEFAULT_PROPS} />)
 
     expect(screen.getByText('draft')).toBeInTheDocument()
+    expect(screen.getByText('draft').className).toContain('bg-muted')
+  })
+
+  it('shows the active status with the success tone', () => {
+    render(<QuestionTable questions={[makeQuestion({ status: 'active' })]} {...DEFAULT_PROPS} />)
+    expect(screen.getByText('active').className).toContain('bg-success-soft')
   })
 
   it('shows a calc badge when the question involves calculations', () => {

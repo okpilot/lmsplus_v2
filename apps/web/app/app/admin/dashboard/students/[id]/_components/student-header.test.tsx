@@ -80,6 +80,8 @@ describe('StudentHeader', () => {
   it('renders the Inactive badge when deletedAt is set', () => {
     render(<StudentHeader student={makeStudent({ deletedAt: '2026-03-15T12:00:00Z' })} />)
     expect(screen.getByText('Inactive')).toBeInTheDocument()
+    expect(screen.getByText('Inactive').className).toContain('bg-muted')
+    expect(screen.getByText('Inactive').className).not.toContain('bg-danger-soft')
   })
 
   it('shows both Inactive and role badges together for a deleted student', () => {

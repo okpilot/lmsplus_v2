@@ -80,7 +80,7 @@ export function CommentsTab({ questionId, currentUserId }: Readonly<CommentsTabP
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="text-label">{name}</span>
-                  {isAdmin && <Badge>LMS Plus</Badge>}
+                  {isAdmin && <Badge tone="info">LMS Plus</Badge>}
                   <span className="text-caption text-muted-foreground">
                     {new Date(c.created_at).toLocaleDateString('en-GB', {
                       day: 'numeric',

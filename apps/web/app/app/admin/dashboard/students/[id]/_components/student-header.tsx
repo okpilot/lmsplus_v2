@@ -22,13 +22,13 @@ export function StudentHeader({ student }: Readonly<Props>) {
         description={student.email}
         actions={
           <>
-            {student.deletedAt && <Badge variant="destructive">Inactive</Badge>}
+            {student.deletedAt && <Badge tone="neutral">Inactive</Badge>}
             {student.courses.map((short) => (
-              <Badge key={short} variant="outline">
+              <Badge key={short} tone="neutral">
                 {short}
               </Badge>
             ))}
-            <Badge variant="outline" className="capitalize">
+            <Badge tone="neutral" outline className="capitalize">
               {student.role}
             </Badge>
           </>

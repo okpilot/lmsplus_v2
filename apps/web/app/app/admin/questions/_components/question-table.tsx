@@ -94,7 +94,7 @@ export function QuestionTable({
               )}
             </TableCell>
             <TableCell>
-              <Badge variant={q.status === 'active' ? 'default' : 'outline'}>{q.status}</Badge>
+              <Badge tone={q.status === 'active' ? 'success' : 'neutral'}>{q.status}</Badge>
             </TableCell>
             <TableCell className="text-caption tabular-nums text-muted-foreground">
               {formatDate(q.updated_at)}

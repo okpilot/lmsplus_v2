@@ -119,11 +119,11 @@ function AttemptRow({ row: r }: Readonly<{ row: InternalExamAttemptRow }>) {
         {passed === null ? (
           <span className="text-muted-foreground">—</span>
         ) : passed ? (
-          <Badge variant="default" aria-label="Passed">
+          <Badge tone="success" aria-label="Passed">
             Pass
           </Badge>
         ) : (
-          <Badge variant="destructive" aria-label="Failed">
+          <Badge tone="danger" aria-label="Failed">
             Fail
           </Badge>
         )}

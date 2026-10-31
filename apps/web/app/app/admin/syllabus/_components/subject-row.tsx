@@ -101,7 +101,7 @@ export function SubjectRow({ subject }: Readonly<Props>) {
         <span className="w-inset-lg shrink-0 tabular-nums text-label-strong">{subject.code}</span>
         <span className="flex-1 text-body">{subject.name}</span>
         <span className="text-caption text-muted-foreground">{subject.short}</span>
-        <Badge variant="secondary">{subject.questionCount} Q</Badge>
+        <Badge tone="neutral">{subject.questionCount} Q</Badge>
         <Button
           variant="ghost"
           size="icon-sm"

@@ -8,23 +8,16 @@ const badgeVariants = cva(
   'group/badge inline-flex h-chip w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-pill border border-transparent px-2 py-0.5 text-chip whitespace-nowrap transition-all focus-visible:border-ring focus-visible:outline-solid focus-visible:outline-focus focus-visible:outline-ring focus-visible:outline-offset-focus has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 aria-invalid:border-destructive aria-invalid:ring-invalid-ring [&>svg]:pointer-events-none [&>svg]:size-icon-sm',
   {
     variants: {
-      variant: {
-        default: 'bg-primary text-primary-foreground [a]:hover:bg-primary-hover',
-        secondary: 'bg-secondary text-secondary-foreground [a]:hover:bg-secondary-hover',
-        destructive:
-          'bg-danger-soft text-destructive focus-visible:outline-destructive [a]:hover:bg-danger-soft-hover',
-        outline: 'border-border text-foreground [a]:hover:bg-muted [a]:hover:text-muted-foreground',
-        ghost:
-          'hover:bg-muted hover:text-muted-foreground dark:hover:bg-foreground/(--state-hover)',
-        link: 'text-primary-text underline-offset-4 hover:underline',
-        soft: 'bg-muted text-muted-foreground',
-      },
       tone: {
         neutral: '',
-        info: '',
-        success: '',
-        caution: '',
-        danger: '',
+        info: 'bg-info-soft text-info',
+        success: 'bg-success-soft text-success',
+        caution: 'bg-caution-soft text-caution',
+        danger: 'bg-danger-soft text-danger',
+      },
+      outline: {
+        true: '',
+        false: '',
       },
       shape: {
         default: '',
@@ -32,40 +25,50 @@ const badgeVariants = cva(
       },
     },
     compoundVariants: [
-      { variant: 'soft', tone: 'info', className: 'bg-info-soft text-info' },
-      { variant: 'soft', tone: 'success', className: 'bg-success-soft text-success' },
-      { variant: 'soft', tone: 'caution', className: 'bg-caution-soft text-caution' },
-      { variant: 'soft', tone: 'danger', className: 'bg-danger-soft text-danger' },
+      { tone: 'neutral', outline: false, className: 'bg-muted text-muted-foreground' },
+      {
+        tone: 'neutral',
+        outline: true,
+        className: 'border-border bg-transparent text-muted-foreground',
+      },
     ],
     defaultVariants: {
-      variant: 'default',
+      tone: 'neutral',
+      outline: false,
       shape: 'default',
     },
   },
 )
 
 type BadgeVariants = VariantProps<typeof badgeVariants>
-type BadgeLook =
-  | { tone?: undefined; variant?: BadgeVariants['variant'] }
-  | { tone: NonNullable<BadgeVariants['tone']>; variant?: 'soft' }
 type BadgeProps = Readonly<
-  useRender.ComponentProps<'span'> & Pick<BadgeVariants, 'shape'> & BadgeLook
+  useRender.ComponentProps<'span'> &
+    Pick<BadgeVariants, 'shape'> & {
+      tone?: NonNullable<BadgeVariants['tone']>
+      outline?: boolean
+    }
 >
 
-function Badge({ className, variant, tone, shape, render, ...props }: Readonly<BadgeProps>) {
-  const resolvedVariant = variant ?? (tone ? 'soft' : 'default')
+function Badge({
+  className,
+  tone = 'neutral',
+  outline = false,
+  shape,
+  render,
+  ...props
+}: Readonly<BadgeProps>) {
   return useRender({
     defaultTagName: 'span',
     props: mergeProps<'span'>(
       {
-        className: cn(badgeVariants({ variant: resolvedVariant, tone, shape }), className),
+        className: cn(badgeVariants({ tone, outline, shape }), className),
       },
       props,
     ),
     render,
     state: {
       slot: 'badge',
-      variant: resolvedVariant,
+      tone,
     },
   })
 }

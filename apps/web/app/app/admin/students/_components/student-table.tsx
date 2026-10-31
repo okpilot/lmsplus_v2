@@ -22,15 +22,8 @@ type Props = {
   onExport: (student: StudentRow) => void
 }
 
-function roleVariant(role: StudentRow['role']) {
-  switch (role) {
-    case 'admin':
-      return 'default' as const
-    case 'instructor':
-      return 'secondary' as const
-    default:
-      return 'outline' as const
-  }
+function roleTone(role: StudentRow['role']) {
+  return role === 'admin' ? ('info' as const) : ('neutral' as const)
 }
 
 function formatDate(iso: string) {
@@ -50,7 +43,7 @@ function CourseBadges({
   return (
     <div className="flex flex-wrap gap-1">
       {active.map((c) => (
-        <Badge key={c.id} variant="outline">
+        <Badge key={c.id} tone="neutral">
           {c.short}
         </Badge>
       ))}
@@ -86,7 +79,7 @@ export function StudentTable({
             <TableCell className="font-medium">{s.full_name ?? '—'}</TableCell>
             <TableCell className="text-caption text-muted-foreground">{s.email}</TableCell>
             <TableCell>
-              <Badge variant={roleVariant(s.role)} className="capitalize">
+              <Badge tone={roleTone(s.role)} className="capitalize">
                 {s.role}
               </Badge>
             </TableCell>
@@ -97,7 +90,7 @@ export function StudentTable({
               {s.deleted_at === null ? (
                 <Badge tone="success">Active</Badge>
               ) : (
-                <Badge variant="destructive">Inactive</Badge>
+                <Badge tone="neutral">Inactive</Badge>
               )}
             </TableCell>
             <TableCell className="text-caption tabular-nums text-muted-foreground">

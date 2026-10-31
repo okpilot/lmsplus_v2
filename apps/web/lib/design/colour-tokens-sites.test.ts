@@ -71,12 +71,12 @@ describe('PR17 colour tokens', () => {
     )
   })
 
-  it('badge destructive uses danger-soft and invalid-ring', () => {
+  it('badge danger tone uses bg-danger-soft text-danger and aria-invalid:ring-invalid-ring', () => {
     const s = read('components/ui/badge.tsx')
-    expect(s).toContain('bg-danger-soft')
-    expect(s).toContain('[a]:hover:bg-danger-soft-hover')
-    expect(s).toContain('ring-invalid-ring')
-    expect(s).toContain('dark:hover:bg-foreground/(--state-hover)')
+    expect(s).toContain('bg-danger-soft text-danger')
+    expect(s).toContain('aria-invalid:ring-invalid-ring')
+    expect(s).not.toContain('[a]:hover')
+    expect(s).not.toContain('dark:hover:bg-foreground/(--state-hover)')
   })
 
   it('button-variants uses field-fill, invalid tokens and state-hover', () => {

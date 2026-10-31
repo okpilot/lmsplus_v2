@@ -56,7 +56,7 @@ export function StudentRow({ student, onClick }: Readonly<StudentRowProps>) {
         {student.isActive ? (
           <Badge tone="success">Active</Badge>
         ) : (
-          <Badge variant="destructive">Inactive</Badge>
+          <Badge tone="neutral">Inactive</Badge>
         )}
       </TableCell>
     </TableRow>

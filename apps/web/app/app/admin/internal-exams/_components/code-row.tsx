@@ -11,12 +11,12 @@ function displayStatus(row: InternalExamCodeRow): string {
   return row.status
 }
 
-const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-  active: 'default',
-  consumed: 'secondary',
-  finished: 'default',
-  voided: 'destructive',
-  expired: 'outline',
+const STATUS_TONE: Record<string, 'success' | 'neutral' | 'danger'> = {
+  active: 'success',
+  consumed: 'neutral',
+  finished: 'success',
+  voided: 'danger',
+  expired: 'neutral',
 }
 
 function formatAbsolute(iso: string | null): string {
@@ -37,7 +37,7 @@ export function CodeRow({
   return (
     <TableRow>
       <TableCell>
-        <Badge variant={STATUS_VARIANT[ds] ?? 'outline'} className="capitalize">
+        <Badge tone={STATUS_TONE[ds] ?? 'neutral'} className="capitalize">
           {ds}
         </Badge>
       </TableCell>

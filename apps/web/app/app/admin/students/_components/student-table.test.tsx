@@ -71,6 +71,18 @@ describe('StudentTable — courses column', () => {
   })
 })
 
+describe('StudentTable — role tone', () => {
+  it('shows the admin role with the info tone', () => {
+    renderTable([row({ role: 'admin' })])
+    expect(screen.getByText('admin').className).toContain('bg-info-soft')
+  })
+
+  it.each(['student', 'instructor'] as const)('shows the %s role with the neutral tone', (role) => {
+    renderTable([row({ role })])
+    expect(screen.getByText(role).className).toContain('bg-muted')
+  })
+})
+
 describe('StudentTable — status and actions', () => {
   it('shows an active student with the success badge tone', () => {
     renderTable([row({})])
@@ -79,9 +91,11 @@ describe('StudentTable — status and actions', () => {
     expect(badge.className).not.toContain('bg-green-600')
   })
 
-  it('shows a deactivated student with the destructive badge', () => {
+  it('shows Inactive with the neutral tone (bg-muted), not bg-danger-soft', () => {
     renderTable([row({ deleted_at: '2026-02-01T00:00:00.000Z' })])
-    expect(screen.getByText('Inactive')).toBeInTheDocument()
+    const badge = screen.getByText('Inactive')
+    expect(badge.className).toContain('bg-muted')
+    expect(badge.className).not.toContain('bg-danger-soft')
     expect(screen.queryByText('Active')).toBeNull()
   })
 

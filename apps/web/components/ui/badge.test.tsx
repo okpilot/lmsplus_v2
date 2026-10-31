@@ -4,11 +4,13 @@ import { describe, expect, it } from 'vitest'
 import { Badge } from './badge'
 
 describe('Badge', () => {
-  it('keeps the primary look for a plain badge', () => {
+  it('renders the neutral tone for a bare badge', () => {
     render(<Badge>New</Badge>)
     const el = screen.getByText('New')
-    expect(el.className).toContain('bg-primary')
+    expect(el.className).toContain('bg-muted')
+    expect(el.className).toContain('text-muted-foreground')
     expect(el.className).toContain('h-chip')
+    expect(el.className).not.toContain('bg-primary')
     expect(el.className).not.toContain('size-avatar')
   })
 
@@ -25,26 +27,17 @@ describe('Badge', () => {
     expect(el.className).not.toContain('bg-primary')
   })
 
-  it('lets an explicit variant win over tone', () => {
+  it('renders the outline flag with border and transparent fill', () => {
     render(
-      // @ts-expect-error tone is only valid on the soft variant
-      <Badge variant="destructive" tone="success">
+      <Badge tone="neutral" outline>
         x
       </Badge>,
     )
-    const el = screen.getByText('x')
-    expect(el.className).toContain('text-destructive')
-    expect(el.className).not.toContain('bg-success-soft')
-  })
-
-  it('ignores tone classes on non-soft variants', () => {
-    render(
-      // @ts-expect-error tone is only valid on the soft variant
-      <Badge variant="outline" tone="danger">
-        x
-      </Badge>,
-    )
-    expect(screen.getByText('x').className).not.toContain('bg-danger-soft')
+    const cls = screen.getByText('x').className.split(/\s+/)
+    expect(cls).toContain('border-border')
+    expect(cls).toContain('bg-transparent')
+    expect(cls).toContain('text-muted-foreground')
+    expect(cls).not.toContain('bg-muted')
   })
 
   it('renders a circle shape at a fixed square size', () => {
@@ -53,23 +46,6 @@ describe('Badge', () => {
     expect(el.className).toContain('size-avatar')
     expect(el.className).toContain('rounded-pill')
   })
-})
-
-describe('Badge soft variant without a tone', () => {
-  it('matches the neutral tone look', () => {
-    render(<Badge variant="soft">x</Badge>)
-    render(
-      <Badge variant="soft" tone="neutral">
-        y
-      </Badge>,
-    )
-    const bare = screen.getByText('x').className.split(/\s+/)
-    const neutral = screen.getByText('y').className.split(/\s+/)
-    expect(bare).toContain('bg-muted')
-    expect(bare).toContain('text-muted-foreground')
-    expect(bare).not.toContain('text-foreground')
-    expect(neutral).toContain('text-muted-foreground')
-  })
 
   it('sizes the icon inside a circle badge with the small icon token and no important', () => {
     render(<Badge shape="circle">3</Badge>)
@@ -77,16 +53,12 @@ describe('Badge soft variant without a tone', () => {
     expect(cls).toContain('[&>svg]:size-icon-sm')
     expect(cls).not.toMatch(/size-[\w.-]+!/)
   })
-})
 
-describe('Badge link hover', () => {
-  it.each([
-    ['default', 'primary'],
-    ['secondary', 'secondary'],
-  ] as const)('%s hovers to the derived state colour', (variant, fill) => {
-    render(<Badge variant={variant}>x</Badge>)
-    const el = screen.getByText('x')
-    expect(el.className).toContain(`[a]:hover:bg-${fill}-hover`)
-    expect(el.className).not.toContain(`[a]:hover:bg-${fill}/80`)
+  it('has no variant axis, hover states or solid fills', () => {
+    render(<Badge>x</Badge>)
+    const cls = screen.getByText('x').className
+    expect(cls).not.toContain('[a]:hover')
+    expect(cls).not.toContain('bg-secondary')
+    expect(cls).not.toContain('bg-destructive')
   })
 })

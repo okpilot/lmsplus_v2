@@ -112,6 +112,7 @@ describe('CommentsTab', () => {
     render(<CommentsTab questionId="q-1" currentUserId={CURRENT_USER_ID} />)
     expect(screen.getByText('LMS Plus')).toBeInTheDocument()
     expect(screen.getByText('LMS Plus')).toHaveAttribute('data-slot', 'badge')
+    expect(screen.getByText('LMS Plus').className).toContain('bg-info-soft')
   })
 
   it('does not show LMS Plus badge for student comments', () => {
