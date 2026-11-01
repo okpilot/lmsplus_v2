@@ -18,7 +18,7 @@ function ran(r) {
   return r
 }
 
-/** Spawn the real guard (staged-mode argv) on one fixture at `apps/web/<rel>`. */
+/** Spawn the real guard (path-mode argv) on one fixture at `apps/web/<rel>`. */
 function runGuardOn(source, rel = 'components/fixture.tsx') {
   const dir = mkdtempSync(join(tmpdir(), 'design-tokens-guard-'))
   try {
@@ -472,4 +472,51 @@ test('P7: --staged with no paths exits 0', () => {
   } finally {
     rmSync(repo, { recursive: true, force: true })
   }
+})
+
+// Round 5 (#1677)
+test('Q1: a template literal holding a ternary of off-scale classes blocks naming R1 and R3', () => {
+  const r = runGuardOn(
+    "export const f = (open) => { const cls = `flex ${open ? 'p-7 z-10' : 'p-2'}`; return cls }\n",
+  )
+  assert.equal(r.status, 1, r.stdout + r.stderr)
+  assert.ok(named(r, 'R1'), r.stdout + r.stderr)
+  assert.ok(named(r, 'R3'), r.stdout + r.stderr)
+})
+
+test('Q2: prose in a quoted call argument still passes', () => {
+  const src = "toast('Scores are rounded to the nearest percent.')\n"
+  assert.equal(runGuardOn(src).status, 0)
+})
+
+for (const t of ['space-inline', '-space-row', 'space-y-row']) {
+  test(`Q3: ${t} blocks naming R2`, () => {
+    const r = runGuardOn(cls(t))
+    assert.equal(r.status, 1, r.stdout + r.stderr)
+    assert.ok(named(r, 'R2'), r.stdout + r.stderr)
+  })
+}
+
+test('Q3: space-y-2 passes', () => {
+  assert.equal(runGuardOn(cls('space-y-2')).status, 0)
+})
+
+test('Q4: a prose template literal passes', () => {
+  const src = 'export const g = (name: string) => `Hello ${name}.`\n'
+  assert.equal(runGuardOn(src).status, 0)
+})
+
+for (const src of [
+  'export const s = `<p style="box-shadow:0 0 0 1px #cccccc">x</p>`\n',
+  "export const s = 'linear-gradient(#fff, #000)'\n",
+]) {
+  test(`Q5: hex in a shadow or gradient list blocks naming R12: ${src.trim()}`, () => {
+    const r = runGuardOn(src, 'lib/email/x.ts')
+    assert.equal(r.status, 1, r.stdout + r.stderr)
+    assert.ok(named(r, 'R12'), r.stdout + r.stderr)
+  })
+}
+
+test('Q5: prose "Ticket #1677" in lib/email still passes', () => {
+  assert.equal(runGuardOn('export const s = "Ticket #1677"\n', 'lib/email/x.ts').status, 0)
 })

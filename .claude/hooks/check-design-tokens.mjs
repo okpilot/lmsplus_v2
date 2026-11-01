@@ -24,12 +24,13 @@
 // does (every `--color-<hue>-50` in Tailwind's resolved theme stylesheet): that module is TypeScript with
 // extensionless imports and cannot be imported by plain node.
 //
-// Quoted literals that read as prose (a word starting uppercase or ending . , ? ; or an HTML tag) are not
-// graded as class lists; className attributes and @apply lists always are.
+// Quoted ('' and "") literals that read as prose (a word starting uppercase or ending . , ? ; or an HTML
+// tag) are not graded as class lists; template literals, className attributes and @apply lists always are.
 //
 // Known limits: untyped `-(--var)` references are not checked; allowlist entries are file+class without a
 // count; `--staged` reads tokens.css from the working tree (CI's whole-tree run grades committed content);
-// a stray backtick in a comment or a nested template literal may hide literals.
+// a stray backtick in a comment or a nested template literal may hide literals; an apostrophe in JSX text
+// may pair with a later quote on the same line and hide literals.
 //
 // Usage:
 //   node .claude/hooks/check-design-tokens.mjs --staged <file...>   scan the INDEX content of the given files; an unresolvable entry exits 2; no files exits 0
@@ -303,7 +304,7 @@ const STEPS = new Set(['0', '0.5', '1', '1.5', '2', '2.5', '3', '4', '5', '6', '
 const SPACING_PREFIX =
   '(?:p[xytrblse]?|m[xytrblse]?|gap(?:-[xy])?|space-[xy]|inset(?:-[xy])?|top|right|bottom|left|start|end|translate(?:-[xyz])?|w|h|size|min-[wh]|max-[wh]|basis|scroll-[mp][xytrblse]?|indent|border-spacing(?:-[xy])?)'
 const R1_RE = new RegExp(`^(${SPACING_PREFIX})-(\\d+(?:\\.\\d+)?)$`)
-const R2_RE = /^(?:p[xytrblse]?|m[xytrblse]?|gap(?:-[xy])?|space-[xy])-(?:inline|row)$/
+const R2_RE = /^(?:p[xytrblse]?|m[xytrblse]?|gap(?:-[xy])?|space(?:-[xy])?)-(?:inline|row)$/
 const R4_RE =
   /^(?:border(?:-[xytblrse])?|ring|ring-offset|inset-ring|outline|outline-offset|divide-[xy]|stroke)-(\d+)$/
 const OPACITY_OK = new Set(['0', '100', 'disabled'])
@@ -475,7 +476,8 @@ const CLASS_ATTR =
 const APPLY = /@apply\s+([^;}]*)/g
 const HEX = /(?<![\w&])#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})\b/g
 const HEX_ONLY = /^#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})$/
-const HEX_CONTEXT = /(?:[:=]\s*["']?\s*|(?:color|background|border)[\w-]*\s*:[^;]*)$/i
+const HEX_CONTEXT =
+  /(?:[:=]\s*["']?\s*|(?:color|background|border)[\w-]*\s*:[^;]*|[(,]\s*|(?:\d|px|r?em|%)\s+)$/i
 
 /** Class-list segments of a source file as `{ body, start }`: literals, class attributes, or @apply lists. */
 function* segments(text, rel) {
@@ -485,7 +487,12 @@ function* segments(text, rel) {
   }
   for (const lit of text.matchAll(QUOTED)) {
     const body = lit[2] ?? lit[3] ?? ''
-    yield { body, start: lit.index + lit[0].indexOf(body), literal: true }
+    yield {
+      body,
+      start: lit.index + lit[0].indexOf(body),
+      literal: true,
+      quoted: lit[1] !== undefined,
+    }
   }
   for (const attr of text.matchAll(CLASS_ATTR)) {
     const body = attr.slice(1).find((g) => g !== undefined) ?? ''
@@ -516,8 +523,8 @@ export function analyze(source, rel, m) {
     hits.push({ line: lineAt(text, index), rule, cls, why })
   }
 
-  for (const { body, start, literal } of segments(text, rel)) {
-    const prose = literal === true && isProse(body)
+  for (const { body, start, literal, quoted } of segments(text, rel)) {
+    const prose = quoted === true && isProse(body)
     for (const tok of prose ? [] : body.matchAll(/\S+/g)) {
       const cls = tok[0].replace(TRIM, '')
       if (cls === '' || cls === '!important') continue

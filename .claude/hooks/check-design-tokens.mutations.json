@@ -637,7 +637,7 @@
     },
     {
       "id": "check-design-tokens-H1-prose-gate",
-      "find": "const prose = literal === true && isProse(body)",
+      "find": "const prose = quoted === true && isProse(body)",
       "replace": "const prose = false",
       "expectRed": [
         "P1: a prose toast literal is not graded as a class list",
@@ -646,6 +646,31 @@
         "K1: whole-tree run from a path containing /.claude/worktrees/ exits 0 (no stale entries)"
       ],
       "note": "Grades prose literals as class lists."
+    },
+    {
+      "id": "check-design-tokens-A1-quoted-prose-gate",
+      "find": "const prose = quoted === true && isProse(body)",
+      "replace": "const prose = literal === true && isProse(body)",
+      "expectRed": [
+        "Q1: a template literal holding a ternary of off-scale classes blocks naming R1 and R3"
+      ],
+      "note": "Applies the prose gate to template literals too."
+    },
+    {
+      "id": "check-design-tokens-A6-hex-context",
+      "find": "|[(,]\\s*|(?:\\d|px|r?em|%)\\s+)$/i",
+      "replace": ")$/i",
+      "expectRed": [
+        "Q5: hex in a shadow or gradient list blocks naming R12: export const s = 'linear-gradient(#fff, #000)'"
+      ],
+      "note": "Drops the hex-after-paren/comma/length contexts."
+    },
+    {
+      "id": "check-design-tokens-A7-bare-space",
+      "find": "|space(?:-[xy])?)-(?:inline|row)$/",
+      "replace": "|space-[xy])-(?:inline|row)$/",
+      "expectRed": ["Q3: space-inline blocks naming R2"],
+      "note": "Limits R2 to space-x|y."
     },
     {
       "id": "check-design-tokens-H4-inset-ring",
