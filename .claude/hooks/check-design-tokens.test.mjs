@@ -2,6 +2,7 @@
 //   node --test .claude/hooks/check-design-tokens.test.mjs
 // Fixtures live under a throwaway `apps/web/<dir>/` tree so the guard's path scope applies.
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
 import { copyFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -176,9 +177,18 @@ test('K1: whole-tree run from a path containing /.claude/worktrees/ exits 0 (no 
     const repo = join(dirname(HOOK), '../..')
     for (const n of ['apps', 'node_modules', 'package.json'])
       symlinkSync(join(repo, n), join(wt, n))
+    const gitDir = execFileSync(
+      'git',
+      ['rev-parse', '--path-format=absolute', '--git-common-dir'],
+      {
+        cwd: repo,
+        encoding: 'utf8',
+      },
+    ).trim()
     const r = ran(
       runNode('check-design-tokens.mjs', [join(wt, '.claude/hooks/check-design-tokens.mjs')], {
         timeout: 60_000,
+        env: { ...process.env, GIT_DIR: gitDir },
       }),
     )
     assert.equal(r.status, 0, r.stdout + r.stderr)
