@@ -125,7 +125,7 @@ const desktopDecls = (): Decl[] => [
   ...Object.entries(TYPE_DESKTOP).map(([r, px]): Decl => [`--text-${r}`, rem(px)]),
 ]
 
-/** The whole of apps/web/app/tokens.css. Pure and deterministic. */
+/** The whole of apps/web/app/tokens.css. Deterministic for a given Tailwind theme (STOCK_HUES is read from it at import). */
 export function buildTokensCss(): string {
   const names = Object.keys(COLOURS.light) as ColourName[]
   const root: Decl[] = [

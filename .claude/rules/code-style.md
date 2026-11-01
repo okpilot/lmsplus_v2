@@ -115,7 +115,7 @@ Enforced by prevention, not a text-matching guard (Decision 111).
 - `window.confirm|alert|prompt` and bare `confirm|alert|prompt` — use `ConfirmDialog`. Biome `noJsRestrictedProperties` / `noRestrictedGlobals` (error).
 - Reduced motion: one global `prefers-reduced-motion: reduce` rule in `apps/web/app/globals.css`. No per-class `motion-reduce:` needed.
 - Every page directory (one with `page.tsx`) has its own `error.tsx` and `loading.tsx`. `apps/web/app/segment-boundaries.test.ts` fails on a new gap and on a listed gap that is fixed.
-- Tailwind palette colour classes (e.g. `bg-red-500`) — use theme tokens. `apps/web/app/tokens.css` resets every stock hue, so a palette class compiles to nothing.
+- Tailwind palette colour classes (e.g. `bg-red-500`) — use theme tokens. `apps/web/app/tokens.css` resets every stock hue, so a hue class compiles to nothing; white and black stay.
 
 ---
 ## 3. Function Rules

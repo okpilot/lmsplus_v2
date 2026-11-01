@@ -22,7 +22,13 @@ const lint = (rel: string, code: string) => {
   const abs = path.join(dir, rel)
   mkdirSync(path.dirname(abs), { recursive: true })
   writeFileSync(abs, `${code}\n`)
-  return spawnSync(BIOME, ['lint', rel], { cwd: dir, encoding: 'utf8' })
+  return spawnSync(BIOME, ['lint', '--reporter=json', rel], { cwd: dir, encoding: 'utf8' })
+}
+const rules = (r: { stdout: string }): string[] => {
+  const json = JSON.parse(r.stdout.slice(r.stdout.indexOf('{'), r.stdout.lastIndexOf('}') + 1)) as {
+    diagnostics: { category: string }[]
+  }
+  return json.diagnostics.map((d) => d.category)
 }
 
 beforeAll(() => {
@@ -61,29 +67,45 @@ describe('biome lock-in (#1677 PR A)', () => {
     ).toBe(2)
   })
 
-  it('rejects a raw <button> in components/ui', () => {
+  it('rejects a raw <button> in components/ui via noRestrictedElements', () => {
     const r = lint(
       'apps/web/components/ui/x.tsx',
       'export const X = () => <button type="button">a</button>',
     )
     expect(r.status).not.toBe(0)
+    expect(rules(r)).toEqual(['lint/correctness/noRestrictedElements'])
   })
 
-  it('rejects window.confirm', () => {
-    const r = lint('apps/web/lib/x.ts', "export const f = () => window.confirm('x')")
-    expect(r.status).not.toBe(0)
-  })
-
-  it('rejects bare confirm', () => {
-    const r = lint('apps/web/lib/y.ts', "export const f = () => confirm('x')")
-    expect(r.status).not.toBe(0)
-  })
-
-  it('rejects window.alert and window.prompt', () => {
-    expect(lint('apps/web/lib/a.ts', "export const f = () => window.alert('x')").status).not.toBe(0)
-    expect(lint('apps/web/lib/p.ts', "export const f = () => window.prompt('x')").status).not.toBe(
-      0,
+  it('accepts a Button-based component in components/ui (control)', () => {
+    const r = lint(
+      'apps/web/components/ui/ok.tsx',
+      "import { Button } from '@/components/ui/button'\nexport const Ok = () => <Button>a</Button>",
     )
+    expect(r.status).toBe(0)
+    expect(rules(r)).toEqual([])
+  })
+
+  it('rejects window.confirm via noJsRestrictedProperties', () => {
+    const r = lint('apps/web/lib/x.ts', "export const f = () => window.confirm('x')")
+    expect(rules(r)).toEqual(['lint/nursery/noJsRestrictedProperties'])
+  })
+
+  it('rejects bare confirm via noRestrictedGlobals', () => {
+    const r = lint('apps/web/lib/y.ts', "export const f = () => confirm('x')")
+    expect(rules(r)).toEqual(['lint/style/noRestrictedGlobals'])
+  })
+
+  it('rejects window.alert and window.prompt via noJsRestrictedProperties', () => {
+    const a = lint('apps/web/lib/a.ts', "export const f = () => window.alert('x')")
+    const p = lint('apps/web/lib/p.ts', "export const f = () => window.prompt('x')")
+    expect(rules(a)).toEqual(['lint/nursery/noJsRestrictedProperties'])
+    expect(rules(p)).toEqual(['lint/nursery/noJsRestrictedProperties'])
+  })
+
+  it('names ConfirmDialog in every native-dialog message in biome.json', () => {
+    const text = read('biome.json')
+    expect(text).not.toContain('use a Dialog')
+    expect(text.match(/use ConfirmDialog/g) ?? []).toHaveLength(6)
   })
 
   it('accepts clean code (control)', () => {
