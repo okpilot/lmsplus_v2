@@ -70,7 +70,15 @@
         "M8: \"text-label/13\" blocks naming R6",
         "M8: \"text-label/6\" blocks naming R6",
         "M8: \"text-label/[13px]\" blocks naming R6",
-        "M8: \"text-label/1.5\" blocks naming R6"
+        "M8: \"text-label/1.5\" blocks naming R6",
+        "N1: \"bg-primary/(--spacing-card)\" (non-percentage variable) blocks naming R6",
+        "N2: typed paren \"text-(length:--x)\" blocks naming R7",
+        "N2: typed paren \"bg-(color:--x)\" blocks naming R7",
+        "N3: \"translate-7\" blocks naming R1",
+        "N3: \"-translate-7\" blocks naming R1",
+        "N3: \"translate-z-7\" blocks naming R1",
+        "N5: \"text-label/relaxed\" blocks naming R6",
+        "N6: --staged with an absolute path to a staged file resolves and grades it (exit 1 on p-7)"
       ],
       "note": "Forces the offender branch to exit 0 \u2014 violations print but never block."
     },
@@ -103,7 +111,9 @@
         "M5: --staged reads the index: clean index, bad working tree exits 0",
         "M6: a lib/design test file is not scanned",
         "M7: inside diagrams/ passes: export const X = () => <svg strokeWidth='2' />",
-        "M7: inside diagrams/ passes: export const X = () => <svg strokeWidth={big ? 2.5 : 1.5} />"
+        "M7: inside diagrams/ passes: export const X = () => <svg strokeWidth={big ? 2.5 : 1.5} />",
+        "N2: untyped \"w-(--sidebar-w)\" passes",
+        "N3: \"translate-2\" passes"
       ],
       "note": "Forces the offender branch regardless of findings \u2014 a clean run also blocks."
     },
@@ -124,7 +134,11 @@
         "K8: two identical bad tokens on one line are both reported",
         "K8: one bad className token is reported once, not once per scan pass",
         "M3: an apostrophe in JSX text does not hide className={cn(...)} (R1 and R8)",
-        "M5: --staged reads the index: bad index, clean working tree exits 1"
+        "M5: --staged reads the index: bad index, clean working tree exits 1",
+        "N3: \"translate-7\" blocks naming R1",
+        "N3: \"-translate-7\" blocks naming R1",
+        "N3: \"translate-z-7\" blocks naming R1",
+        "N6: --staged with an absolute path to a staged file resolves and grades it (exit 1 on p-7)"
       ],
       "note": "Disables the off-allowlist spacing/sizing step rule."
     },
@@ -188,7 +202,8 @@
       "replace": "      void 0",
       "expectRed": [
         "R6: \"bg-primary/50\" blocks with exit 1 naming R6",
-        "M8: \"bg-primary/(--alpha)\" blocks naming R6"
+        "M8: \"bg-primary/(--alpha)\" blocks naming R6",
+        "N1: \"bg-primary/(--spacing-card)\" (non-percentage variable) blocks naming R6"
       ],
       "note": "Disables the colour opacity modifier rule."
     },
@@ -475,7 +490,7 @@
     },
     {
       "id": "check-design-tokens-C5-index-read",
-      "find": "staged ? readIndexBlob(path) : readFileSync(path, 'utf8')",
+      "find": "staged ? readIndexBlob(rel) : readFileSync(path, 'utf8')",
       "replace": "readFileSync(path, 'utf8')",
       "expectRed": [
         "M5: --staged reads the index: bad index, clean working tree exits 1",
@@ -513,7 +528,10 @@
       "id": "check-design-tokens-C9-variable-modifier",
       "find": "|\\[[^\\]]*\\]|\\([^)]*\\))$/",
       "replace": "|\\[[^\\]]*\\])$/",
-      "expectRed": ["M8: \"bg-primary/(--alpha)\" blocks naming R6"],
+      "expectRed": [
+        "M8: \"bg-primary/(--alpha)\" blocks naming R6",
+        "N1: \"bg-primary/(--spacing-card)\" (non-percentage variable) blocks naming R6"
+      ],
       "note": "Drops the (--var) modifier form from the modifier matcher."
     },
     {
@@ -522,7 +540,8 @@
       "replace": "true",
       "expectRed": [
         "B1: whole-tree run exits 0 on the repo",
-        "K1: whole-tree run from a path containing /.claude/worktrees/ exits 0 (no stale entries)"
+        "K1: whole-tree run from a path containing /.claude/worktrees/ exits 0 (no stale entries)",
+        "N1: \"bg-foreground/(--state-hover)\" (percentage variable) is not flagged by R6"
       ],
       "note": "Stops accepting a /(--var) modifier whose variable tokens.css declares as a percentage."
     },
@@ -534,7 +553,8 @@
         "M8: \"text-label/13\" blocks naming R6",
         "M8: \"text-label/6\" blocks naming R6",
         "M8: \"text-label/[13px]\" blocks naming R6",
-        "M8: \"text-label/1.5\" blocks naming R6"
+        "M8: \"text-label/1.5\" blocks naming R6",
+        "N5: \"text-label/relaxed\" blocks naming R6"
       ],
       "note": "Lets a text role keep a / modifier."
     },
@@ -543,6 +563,8 @@
       "find": "!m.alphaVars.has(base.slice(base.indexOf('/(--') + 4, -1))",
       "replace": "!m.alphaVars.has(base.slice(base.indexOf('/(--') + 4, -1)) && false",
       "expectRed": [
+        "R6: \"bg-primary/50\" blocks with exit 1 naming R6",
+        "M8: \"bg-primary/(--alpha)\" blocks naming R6",
         "N1: \"bg-primary/(--spacing-card)\" (non-percentage variable) blocks naming R6"
       ],
       "note": "Never flags a /(--var) modifier."
