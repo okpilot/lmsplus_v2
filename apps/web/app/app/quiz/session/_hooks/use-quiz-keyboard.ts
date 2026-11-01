@@ -15,7 +15,7 @@ type UseQuizKeyboardOpts = {
   onNavigate: (delta: number) => void
   onConfirm: (optionId: string) => void
   onTab: (tab: QuestionTab) => void
-  /** Visible tab; Enter confirms only on the question tab. Resets the highlight when it changes. */
+  /** Visible tab; ↑ / ↓ and Enter act only on the question tab. Resets the highlight when it changes. */
   activeTab?: QuestionTab
 }
 
@@ -43,17 +43,19 @@ export function useQuizKeyboard(opts: UseQuizKeyboardOpts) {
     if (e.altKey || e.ctrlKey || e.metaKey) return
     const action = quizKeyAction(e.key, { isExam: opts.isExam })
     if (!action) return
+    const onQuestionTab = opts.activeTab === undefined || opts.activeTab === 'question'
     switch (action.type) {
       case 'navigate':
         e.preventDefault()
         opts.onNavigate(action.delta)
         break
       case 'highlight':
+        if (!onQuestionTab) break
         e.preventDefault()
         setHighlightedIndex((i) => nextHighlight(i, action.delta, opts.optionIds.length))
         break
       case 'confirm': {
-        if (opts.activeTab !== undefined && opts.activeTab !== 'question') break
+        if (!onQuestionTab) break
         const id = opts.optionIds[highlightedIndex]
         if (id) {
           e.preventDefault()

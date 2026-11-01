@@ -391,3 +391,29 @@ describe('useQuizKeyboard — activeTab', () => {
     expect(opts.onConfirm).toHaveBeenCalledWith('opt-a')
   })
 })
+
+describe('useQuizKeyboard — arrow keys off the question tab', () => {
+  it('ignores ArrowDown without preventDefault or highlight while the explanation tab is active', () => {
+    const opts = defaultOpts({ activeTab: 'explanation' })
+    const { result } = renderHook(() => useQuizKeyboard(opts))
+    const event = new KeyboardEvent('keydown', {
+      key: 'ArrowDown',
+      bubbles: true,
+      cancelable: true,
+    })
+    act(() => {
+      window.dispatchEvent(event)
+    })
+    expect(result.current.highlightedOptionId).toBeNull()
+    expect(event.defaultPrevented).toBe(false)
+  })
+
+  it('highlights the first option on ArrowDown while the question tab is active', () => {
+    const opts = defaultOpts({ activeTab: 'question' })
+    const { result } = renderHook(() => useQuizKeyboard(opts))
+    act(() => {
+      fireKey('ArrowDown')
+    })
+    expect(result.current.highlightedOptionId).toBe('opt-a')
+  })
+})
