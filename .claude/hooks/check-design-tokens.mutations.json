@@ -55,7 +55,22 @@
         "K6: title= on <div> still blocks naming R10",
         "K7: hex colour context blocks naming R12: export const s = `<p style=\"color:\\#123\">x</p>`",
         "K7: hex colour context blocks naming R12: const BRAND = '\\#1a2b3c'",
-        "K7: hex colour context blocks naming R12: export const o = { color: '\\#fff' }"
+        "K7: hex colour context blocks naming R12: export const o = { color: '\\#fff' }",
+        "M1: \"max-w-2xs\" blocks naming R9",
+        "M1: \"max-w-3xs\" blocks naming R9",
+        "M2: title= on <abbr> after word text blocks naming R10",
+        "M3: an apostrophe in JSX text does not hide className={cn(...)} (R1 and R8)",
+        "M4: arbitrary property \"[z-index:50]\" blocks naming R7",
+        "M4: arbitrary property \"md:[border-width:3px]\" blocks naming R7",
+        "M5: --staged reads the index: bad index, clean working tree exits 1",
+        "M6: a non-test lib/design file with rounded-lg blocks naming R9",
+        "M7: outside diagrams blocks naming R11: export const X = () => <svg strokeWidth='2' />",
+        "M7: outside diagrams blocks naming R11: export const X = () => <svg strokeWidth={big ? 2.5 : 1.5} />",
+        "M8: \"bg-primary/(--alpha)\" blocks naming R6",
+        "M8: \"text-label/13\" blocks naming R6",
+        "M8: \"text-label/6\" blocks naming R6",
+        "M8: \"text-label/[13px]\" blocks naming R6",
+        "M8: \"text-label/1.5\" blocks naming R6"
       ],
       "note": "Forces the offender branch to exit 0 — violations print but never block."
     },
@@ -77,13 +92,18 @@
         "green: \"data-[size=sm]:p-2 has-[>svg]:gap-2 lg:grid-cols-(--layout-setup)\" passes with exit 0",
         "green: \"shadow-raised\" passes with exit 0",
         "scope: a .test.tsx file is not scanned",
-        "scope: a file under lib/design is not scanned",
         "B1: whole-tree run exits 0 on the repo",
         "K1: whole-tree run from a path containing /.claude/worktrees/ exits 0 (no stale entries)",
         "K2: a staged .css with @apply p-2 passes",
         "K4: \"stroke-none\" passes",
         "K6: title= on an iframe passes",
-        "K7: prose \"Ticket \\#1677\" in lib/email passes"
+        "K7: prose \"Ticket \\#1677\" in lib/email passes",
+        "M2: title= on <iframe> after text passes",
+        "M2: a comparison followed by a title assignment is not a tag",
+        "M5: --staged reads the index: clean index, bad working tree exits 0",
+        "M6: a lib/design test file is not scanned",
+        "M7: inside diagrams/ passes: export const X = () => <svg strokeWidth='2' />",
+        "M7: inside diagrams/ passes: export const X = () => <svg strokeWidth={big ? 2.5 : 1.5} />"
       ],
       "note": "Forces the offender branch regardless of findings — a clean run also blocks."
     },
@@ -102,7 +122,9 @@
         "K4: \"scroll-mt-7\" blocks naming R1",
         "K4: \"indent-7\" blocks naming R1",
         "K8: two identical bad tokens on one line are both reported",
-        "K8: one bad className token is reported once, not once per scan pass"
+        "K8: one bad className token is reported once, not once per scan pass",
+        "M3: an apostrophe in JSX text does not hide className={cn(...)} (R1 and R8)",
+        "M5: --staged reads the index: bad index, clean working tree exits 1"
       ],
       "note": "Disables the off-allowlist spacing/sizing step rule."
     },
@@ -162,9 +184,14 @@
     },
     {
       "id": "check-design-tokens-R6",
-      "find": "if (!/^\\d+(?:\\.\\d+)?$/.test(rest) && !(isText && m.textRoles.has(rest))) {",
-      "replace": "if (false) {",
-      "expectRed": ["R6: \"bg-primary/50\" blocks with exit 1 naming R6"],
+      "find": "else if (!/^\\d+(?:\\.\\d+)?$/.test(rest)) flag('R6'",
+      "replace": "else if (false) flag('R6'",
+      "expectRed": [
+        "R6: \"bg-primary/50\" blocks with exit 1 naming R6",
+        "M8: \"bg-primary/(--alpha)\" blocks naming R6",
+        "B1: whole-tree run exits 0 on the repo",
+        "K1: whole-tree run from a path containing /.claude/worktrees/ exits 0 (no stale entries)"
+      ],
       "note": "Disables the colour opacity modifier rule."
     },
     {
@@ -225,7 +252,8 @@
       "replace": "if (false)",
       "expectRed": [
         "R8: \"md:flex\" blocks with exit 1 naming R8",
-        "K3: an apostrophe in JSX text does not hide a className (R1 and R8)"
+        "K3: an apostrophe in JSX text does not hide a className (R1 and R8)",
+        "M3: an apostrophe in JSX text does not hide className={cn(...)} (R1 and R8)"
       ],
       "note": "Disables stock breakpoint variant detection."
     },
@@ -240,7 +268,10 @@
         "R9: \"text-sm\" blocks with exit 1 naming R9",
         "R9: \"size-3.5!\" blocks with exit 1 naming R9",
         "B1: whole-tree run exits 0 on the repo",
-        "K1: whole-tree run from a path containing /.claude/worktrees/ exits 0 (no stale entries)"
+        "K1: whole-tree run from a path containing /.claude/worktrees/ exits 0 (no stale entries)",
+        "M1: \"max-w-2xs\" blocks naming R9",
+        "M1: \"max-w-3xs\" blocks naming R9",
+        "M6: a non-test lib/design file with rounded-lg blocks naming R9"
       ],
       "note": "Disables the ported layout and type-size rules."
     },
@@ -251,7 +282,8 @@
       "expectRed": [
         "R10: native title= blocks naming R10",
         "K6: title= on <abbr> still blocks naming R10",
-        "K6: title= on <div> still blocks naming R10"
+        "K6: title= on <div> still blocks naming R10",
+        "M2: title= on <abbr> after word text blocks naming R10"
       ],
       "note": "Disables the native title= rule."
     },
@@ -259,7 +291,11 @@
       "id": "check-design-tokens-R11",
       "find": "if (!/\\/diagrams\\/|score-ring\\.tsx$/.test(rel)) {",
       "replace": "if (false) {",
-      "expectRed": ["R11: numeric strokeWidth blocks naming R11"],
+      "expectRed": [
+        "R11: numeric strokeWidth blocks naming R11",
+        "M7: outside diagrams blocks naming R11: export const X = () => <svg strokeWidth='2' />",
+        "M7: outside diagrams blocks naming R11: export const X = () => <svg strokeWidth={big ? 2.5 : 1.5} />"
+      ],
       "note": "Disables the numeric strokeWidth rule."
     },
     {
@@ -269,7 +305,9 @@
       "expectRed": [
         "R11: numeric strokeWidth passes under components/diagrams",
         "B1: whole-tree run exits 0 on the repo",
-        "K1: whole-tree run from a path containing /.claude/worktrees/ exits 0 (no stale entries)"
+        "K1: whole-tree run from a path containing /.claude/worktrees/ exits 0 (no stale entries)",
+        "M7: inside diagrams/ passes: export const X = () => <svg strokeWidth='2' />",
+        "M7: inside diagrams/ passes: export const X = () => <svg strokeWidth={big ? 2.5 : 1.5} />"
       ],
       "note": "Drops the diagrams/score-ring exemption."
     },
@@ -294,10 +332,10 @@
     },
     {
       "id": "check-design-tokens-scope-lib-design",
-      "find": "|| rel.startsWith('apps/web/lib/design/')",
-      "replace": "",
-      "expectRed": ["scope: a file under lib/design is not scanned"],
-      "note": "Scans lib/design."
+      "find": "if (/\\/e2e\\/|\\/scripts\\//.test(rel)) return null",
+      "replace": "if (/\\/e2e\\/|\\/scripts\\//.test(rel) || rel.startsWith('apps/web/lib/design/')) return null",
+      "expectRed": ["M6: a non-test lib/design file with rounded-lg blocks naming R9"],
+      "note": "Excludes lib/design from the scan."
     },
     {
       "id": "check-design-tokens-scope-tests",
@@ -306,7 +344,8 @@
       "expectRed": [
         "scope: a .test.tsx file is not scanned",
         "B1: whole-tree run exits 0 on the repo",
-        "K1: whole-tree run from a path containing /.claude/worktrees/ exits 0 (no stale entries)"
+        "K1: whole-tree run from a path containing /.claude/worktrees/ exits 0 (no stale entries)",
+        "M6: a lib/design test file is not scanned"
       ],
       "note": "Scans test files."
     },
@@ -382,7 +421,7 @@
       "id": "check-design-tokens-G8-iframe",
       "find": "if (open[1] === 'iframe') continue",
       "replace": "if (false) continue",
-      "expectRed": ["K6: title= on an iframe passes"],
+      "expectRed": ["K6: title= on an iframe passes", "M2: title= on <iframe> after text passes"],
       "note": "Stops exempting iframe from the native title rule."
     },
     {
@@ -402,6 +441,98 @@
         "K7: hex colour context blocks naming R12: export const o = { color: '\\#fff' }"
       ],
       "note": "Drops the whole-literal hex clause."
+    },
+    {
+      "id": "check-design-tokens-C1-max-w-container",
+      "find": "max-w-(?:3xs|2xs|xs|",
+      "replace": "max-w-(?:xs|",
+      "expectRed": ["M1: \"max-w-2xs\" blocks naming R9", "M1: \"max-w-3xs\" blocks naming R9"],
+      "note": "Drops 3xs and 2xs from the named max-w list."
+    },
+    {
+      "id": "check-design-tokens-C2-title-after-word",
+      "find": "(!spaced && /\\w/.test(prev))",
+      "replace": "/\\w/.test(prev)",
+      "expectRed": ["M2: title= on <abbr> after word text blocks naming R10"],
+      "note": "Skips any tag preceded by a word character, whitespace or not."
+    },
+    {
+      "id": "check-design-tokens-C3-classname-expression",
+      "find": "for (const open of text.matchAll(CLASS_EXPR))",
+      "replace": "for (const open of [])",
+      "expectRed": ["M3: an apostrophe in JSX text does not hide className={cn(...)} (R1 and R8)"],
+      "note": "Drops the className={...} expression pass."
+    },
+    {
+      "id": "check-design-tokens-C4-arbitrary-property",
+      "find": "if (/^\\[[a-z-]+:[^\\]]+\\]$/.test(base)) flag('R7'",
+      "replace": "if (false) flag('R7'",
+      "expectRed": [
+        "M4: arbitrary property \"[z-index:50]\" blocks naming R7",
+        "M4: arbitrary property \"md:[border-width:3px]\" blocks naming R7",
+        "B1: whole-tree run exits 0 on the repo",
+        "K1: whole-tree run from a path containing /.claude/worktrees/ exits 0 (no stale entries)"
+      ],
+      "note": "Disables the arbitrary-property rule."
+    },
+    {
+      "id": "check-design-tokens-C5-index-read",
+      "find": "staged ? readIndexBlob(path) : readFileSync(path, 'utf8')",
+      "replace": "readFileSync(path, 'utf8')",
+      "expectRed": [
+        "M5: --staged reads the index: bad index, clean working tree exits 1",
+        "M5: --staged reads the index: clean index, bad working tree exits 0",
+        "M5: --staged on a path with no index entry exits 2 (fail closed)"
+      ],
+      "note": "Reads the working tree in --staged mode."
+    },
+    {
+      "id": "check-design-tokens-C5-fail-closed",
+      "find": "if (!blob) throw new Error(`no staged blob: ${header}`)",
+      "replace": "if (!blob) return ''",
+      "expectRed": ["M5: --staged on a path with no index entry exits 2 (fail closed)"],
+      "note": "An unresolvable index entry reads as empty instead of failing closed."
+    },
+    {
+      "id": "check-design-tokens-C8-stroke-quoted",
+      "find": "|([\"'])-?\\d[\\d.]*\\1)",
+      "replace": ")",
+      "expectRed": [
+        "M7: outside diagrams blocks naming R11: export const X = () => <svg strokeWidth='2' />"
+      ],
+      "note": "Drops quoted strokeWidth values."
+    },
+    {
+      "id": "check-design-tokens-C8-stroke-expression",
+      "find": "\\{[^}]*(?<![\\w$.])\\d[^}]*\\}",
+      "replace": "\\{\\s*-?\\d[\\d.]*\\s*\\}",
+      "expectRed": [
+        "M7: outside diagrams blocks naming R11: export const X = () => <svg strokeWidth={big ? 2.5 : 1.5} />"
+      ],
+      "note": "Narrows strokeWidth={...} to a bare number."
+    },
+    {
+      "id": "check-design-tokens-C9-variable-modifier",
+      "find": "|\\[[^\\]]*\\]|\\([^)]*\\))$/",
+      "replace": "|\\[[^\\]]*\\])$/",
+      "expectRed": [
+        "M8: \"bg-primary/(--alpha)\" blocks naming R6",
+        "B1: whole-tree run exits 0 on the repo",
+        "K1: whole-tree run from a path containing /.claude/worktrees/ exits 0 (no stale entries)"
+      ],
+      "note": "Drops the (--var) modifier form from the modifier matcher."
+    },
+    {
+      "id": "check-design-tokens-C9-text-role-modifier",
+      "find": "if (textRole) flag('R6', 'line-height modifier on a text role')",
+      "replace": "if (textRole) {}",
+      "expectRed": [
+        "M8: \"text-label/13\" blocks naming R6",
+        "M8: \"text-label/6\" blocks naming R6",
+        "M8: \"text-label/[13px]\" blocks naming R6",
+        "M8: \"text-label/1.5\" blocks naming R6"
+      ],
+      "note": "Lets a text role keep a / modifier."
     }
   ]
 }

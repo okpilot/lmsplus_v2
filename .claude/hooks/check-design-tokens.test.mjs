@@ -149,10 +149,6 @@ test('scope: a .test.tsx file is not scanned', () => {
   assert.equal(runGuardOn(cls('p-7'), 'components/x.test.tsx').status, 0)
 })
 
-test('scope: a file under lib/design is not scanned', () => {
-  assert.equal(runGuardOn(cls('p-7'), 'lib/design/x.ts').status, 0)
-})
-
 test('B1: whole-tree run exits 0 on the repo', () => {
   const r = ran(runNode('check-design-tokens.mjs', [HOOK], { timeout: 60_000 }))
   assert.equal(r.status, 0, r.stdout + r.stderr)
@@ -275,4 +271,106 @@ test('K8: two identical bad tokens on one line are both reported', () => {
 test('K8: one bad className token is reported once, not once per scan pass', () => {
   const r = runGuardOn('export const X = () => <div className="p-7" />\n')
   assert.equal(hits(r, 'R1', 'p-7'), 1, r.stdout + r.stderr)
+})
+
+// ---- lock-2 round 2 (C1-C10) ----
+const blocks = (src, rule, rel) => {
+  const r = runGuardOn(src, rel)
+  assert.equal(r.status, 1, r.stdout + r.stderr)
+  assert.ok(named(r, rule), r.stdout + r.stderr)
+}
+const passes = (src, rel) => {
+  const r = runGuardOn(src, rel)
+  assert.equal(r.status, 0, r.stdout + r.stderr)
+}
+
+for (const c of ['max-w-2xs', 'max-w-3xs']) {
+  test(`M1: "${c}" blocks naming R9`, () => blocks(cls(c), 'R9'))
+}
+
+test('M2: title= on <abbr> after word text blocks naming R10', () =>
+  blocks('export const X = () => <p>Click here <abbr title="Air Law">AL</abbr></p>\n', 'R10'))
+test('M2: title= on <iframe> after text passes', () =>
+  passes('export const X = () => <p>text <iframe title="x" /></p>\n'))
+test('M2: a comparison followed by a title assignment is not a tag', () =>
+  passes(
+    'export function f(a) {\n  if (a <b) { title = 1 }\n  const f = () => 1\n  return f\n}\n',
+    'lib/x.ts',
+  ))
+
+test('M3: an apostrophe in JSX text does not hide className={cn(...)} (R1 and R8)', () => {
+  const r = runGuardOn(
+    "export const X = () => <p>Don't <span className={cn('md:p-7', a)}>it's</span></p>\n",
+  )
+  assert.equal(r.status, 1, r.stdout + r.stderr)
+  assert.ok(named(r, 'R1'), r.stdout + r.stderr)
+  assert.ok(named(r, 'R8'), r.stdout + r.stderr)
+})
+
+for (const c of ['[z-index:50]', 'md:[border-width:3px]']) {
+  test(`M4: arbitrary property "${c}" blocks naming R7`, () => blocks(cls(c), 'R7'))
+}
+for (const c of ['[&>svg]:size-4', '[&_p]:p-2']) {
+  test(`M4: arbitrary variant "${c}" is not flagged by R7`, () => {
+    const r = runGuardOn(cls(c))
+    assert.ok(!named(r, 'R7'), r.stdout + r.stderr)
+  })
+}
+
+function runStaged({ indexSrc, workSrc, stage = true, rel = 'apps/web/components/x.tsx' }) {
+  const repo = mkdtempSync(join(tmpdir(), 'design-tokens-staged-'))
+  try {
+    const git = (...a) => execFileSync('git', a, { cwd: repo, encoding: 'utf8', stdio: 'pipe' })
+    git('init', '-q')
+    const file = join(repo, rel)
+    mkdirSync(dirname(file), { recursive: true })
+    writeFileSync(file, indexSrc, 'utf8')
+    if (stage) git('add', rel)
+    writeFileSync(file, workSrc, 'utf8')
+    return ran(
+      runNode('check-design-tokens.mjs', [HOOK, '--staged', rel], { cwd: repo, timeout: 20_000 }),
+    )
+  } finally {
+    rmSync(repo, { recursive: true, force: true })
+  }
+}
+test('M5: --staged reads the index: bad index, clean working tree exits 1', () => {
+  const r = runStaged({ indexSrc: cls('p-7'), workSrc: cls('p-2') })
+  assert.equal(r.status, 1, r.stdout + r.stderr)
+})
+test('M5: --staged reads the index: clean index, bad working tree exits 0', () => {
+  const r = runStaged({ indexSrc: cls('p-2'), workSrc: cls('p-7') })
+  assert.equal(r.status, 0, r.stdout + r.stderr)
+})
+test('M5: --staged on a path with no index entry exits 2 (fail closed)', () => {
+  const r = runStaged({ indexSrc: cls('p-2'), workSrc: cls('p-2'), stage: false })
+  assert.equal(r.status, 2, r.stdout + r.stderr)
+})
+
+test('M6: a non-test lib/design file with rounded-lg blocks naming R9', () =>
+  blocks("export const c = 'rounded-lg'\n", 'R9', 'lib/design/x.ts'))
+test('M6: a lib/design test file is not scanned', () =>
+  passes("export const c = 'rounded-lg'\n", 'lib/design/x.test.ts'))
+
+for (const src of [
+  "export const X = () => <svg strokeWidth='2' />\n",
+  'export const X = () => <svg strokeWidth={big ? 2.5 : 1.5} />\n',
+]) {
+  test(`M7: outside diagrams blocks naming R11: ${src.trim()}`, () => blocks(src, 'R11'))
+  test(`M7: inside diagrams/ passes: ${src.trim()}`, () =>
+    passes(src, 'components/diagrams/fixture.tsx'))
+}
+
+for (const c of [
+  'bg-primary/(--alpha)',
+  'text-label/13',
+  'text-label/6',
+  'text-label/[13px]',
+  'text-label/1.5',
+]) {
+  test(`M8: "${c}" blocks naming R6`, () => blocks(cls(c), 'R6'))
+}
+test('M8: "text-label" without a modifier is not flagged by R6', () => {
+  const r = runGuardOn(cls('text-label'))
+  assert.ok(!named(r, 'R6'), r.stdout + r.stderr)
 })

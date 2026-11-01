@@ -23,12 +23,13 @@
 // extensionless imports and cannot be imported by plain node.
 //
 // Usage:
-//   node .claude/hooks/check-design-tokens.mjs <file...>   staged mode: scan the given files in scope
+//   node .claude/hooks/check-design-tokens.mjs --staged <file...>   scan the INDEX content of the given files; an unresolvable entry exits 2
+//   node .claude/hooks/check-design-tokens.mjs <file...>   scan the given files from the working tree
 //   node .claude/hooks/check-design-tokens.mjs             whole tree; also fails on a stale allowlist entry
 //   node .claude/hooks/check-design-tokens.mjs --report    per-family counts outside the allowlist, exit 0
 // Exit: 0 clean, 1 violations, 2 cannot run (fail closed).
 
-import { spawnSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
@@ -197,6 +198,19 @@ export const ALLOWLIST = [
     reason: 'raw step with a token equivalent; migrated by PR C',
     owner: '#1677 lock-3',
   },
+  {
+    file: 'apps/web/app/app/loading.tsx',
+    class:
+      '[animation:look-appear_var(--transition-duration-base)_var(--ease-enter)_400ms_forwards]',
+    reason: 'no Tailwind animation utility takes token duration + easing + delay',
+    owner: 'permanent',
+  },
+  {
+    file: 'apps/web/app/app/quiz/session/_components/diagram-tap-list.tsx',
+    class: '[scrollbar-width:none]',
+    reason: 'no Tailwind utility for scrollbar-width',
+    owner: 'permanent',
+  },
 ]
 
 // ------------------------------------------------------------------ derived vocabulary
@@ -245,6 +259,7 @@ export function loadVocabulary() {
     dropShadow: stock('drop-shadow'),
     textShadow: stock('text-shadow'),
     textRoles: names(tokens, /--text-([a-z0-9]+(?:-[a-z0-9]+)*):/g),
+    tokenVars: names(tokens, /^\s*--([a-z0-9]+(?:-[a-z0-9]+)*)\s*:/gm),
   }
   for (const [k, v] of Object.entries(vocab)) {
     if (v.length === 0 || v.size === 0) throw new FailClosed(`derived vocabulary "${k}" is empty`)
@@ -265,6 +280,7 @@ function buildMatchers(v) {
     textShadow: new RegExp(`^text-shadow-${alt(v.textShadow)}$`),
     breakpoint: new RegExp(`^(?:max-|min-)?${alt(v.breakpoints)}$`),
     textRoles: v.textRoles,
+    tokenVars: v.tokenVars,
   }
 }
 
@@ -280,14 +296,14 @@ const R4_RE =
 const OPACITY_OK = new Set(['0', '100', 'disabled'])
 const COLOUR_PREFIX =
   /^(?:bg|text|border(?:-[xytblrse])?|ring|ring-offset|outline|fill|stroke|from|via|to|shadow|inset-shadow|drop-shadow|text-shadow|divide|decoration|accent|caret|placeholder)-/
-const MODIFIER_RE = /^([a-z][\w-]*)\/(?:\d+(?:\.\d+)?|\[[^\]]*\])$/
+const MODIFIER_RE = /^([a-z][\w-]*)\/(?:\d+(?:\.\d+)?|\[[^\]]*\]|\([^)]*\))$/
 
 // R9: ported from the retired layout-guard and type-size-guard tests. Their arbitrary-value rule is R7.
 const R9_RULES = [
   /(?<![\w-])(?:[a-z-]+:)*rounded(?:-[trblse]{1,2})?-(?:xs|sm|md|lg|xl|2xl|3xl|4xl|full)(?![\w-])/,
   /(?<![\w-])(?:[a-z-]+:)*rounded(?![\w-])/,
   /(?<![\w-])(?:[a-z-]+:)*rounded(?:-[trblse]{1,2})?-\[/,
-  /(?<![\w-])(?:[a-z-]+:)*max-w-(?:xs|sm|md|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl|prose)(?![\w-])/,
+  /(?<![\w-])(?:[a-z-]+:)*max-w-(?:3xs|2xs|xs|sm|md|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl|prose)(?![\w-])/,
   /(?<![\w-])(?:[a-z-]+:)*size-\[/,
   /(?<!\w)[a-z][\w-]*-[\w./()%-]+!(?=[\s"'`]|$)/,
   /(?<![\w-])(?:[a-z-]+:)*text-(?:xs|sm|base|lg|xl|[2-9]xl)(?![\w-])/,
@@ -334,13 +350,18 @@ export function classifyToken(token, m) {
   const mod = MODIFIER_RE.exec(base)
   if (mod && COLOUR_PREFIX.test(mod[1])) {
     const rest = mod[1].replace(COLOUR_PREFIX, '')
-    const isText = mod[1].startsWith('text-')
-    if (!/^\d+(?:\.\d+)?$/.test(rest) && !(isText && m.textRoles.has(rest))) {
+    const textRole = mod[1].startsWith('text-') && m.textRoles.has(rest)
+    // A text role carries its own line height; any `/` modifier on it is redundant.
+    if (textRole) flag('R6', 'line-height modifier on a text role')
+    else if (
+      !/^\d+(?:\.\d+)?$/.test(rest) &&
+      !m.tokenVars.has(base.slice(base.indexOf('/(--') + 4, -1))
+    )
       flag('R6', 'colour opacity modifier')
-    }
   }
 
   if (/^[a-z][\w-]*-\[/.test(base)) flag('R7', 'arbitrary value')
+  if (/^\[[a-z-]+:[^\]]+\]$/.test(base)) flag('R7', 'arbitrary property')
   if (variants.some((v) => /^(?:min|max)-\[/.test(v))) flag('R7', 'arbitrary breakpoint variant')
 
   const bare = base.replace(/\/.+$/, '')
@@ -375,10 +396,13 @@ function lineAt(text, index) {
 function nativeTitleSites(text) {
   const sites = []
   for (const open of text.matchAll(/<([a-z][a-z0-9]*)(?=[\s/>])/g)) {
-    const before = text.slice(0, open.index).trimEnd()
     if (open[1] === 'iframe') continue
-    const prev = before.at(-1) ?? ''
-    if (/[\w)\]]/.test(prev) && !/\breturn$/.test(before)) continue
+    // `a<b` and `f<T>(x)` are not tags; `text <abbr` is, so a word before whitespace does not skip.
+    let k = open.index - 1
+    while (k >= 0 && /\s/.test(text[k])) k--
+    const spaced = k < open.index - 1
+    const prev = k >= 0 ? text[k] : ''
+    if (/[)\]]/.test(prev) || (!spaced && /\w/.test(prev))) continue
     let depth = 0
     let quote = ''
     let attrs = ''
@@ -393,11 +417,35 @@ function nativeTitleSites(text) {
       else if (c === '}') depth--
       else if (depth === 0 && (c === '"' || c === "'")) quote = c
       else if (depth === 0 && c === '>') break
-      else if (depth === 0) attrs += c
+      else if (
+        depth === 0 &&
+        (c === ';' || c === ')' || c + text[i + 1] === '&&' || c + text[i + 1] === '||')
+      ) {
+        attrs = ''
+        break
+      } else if (depth === 0) attrs += c
     }
     if (/\stitle\s*=/.test(attrs)) sites.push(open.index)
   }
   return sites
+}
+
+const CLASS_EXPR = /\b(?:className|class)\s*=\s*\{/g
+
+/** Index of the `}` closing a `{` whose body starts at `i`, or -1. Braces inside quotes are ignored. */
+function balancedEnd(text, i) {
+  let depth = 1
+  let quote = ''
+  for (; i < text.length; i++) {
+    const c = text[i]
+    if (quote) {
+      if (c === '\\') i++
+      else if (c === quote) quote = ''
+    } else if (c === '"' || c === "'" || c === '`') quote = c
+    else if (c === '{') depth++
+    else if (c === '}' && --depth === 0) return i
+  }
+  return -1
 }
 
 const CLASS_ATTR =
@@ -420,6 +468,17 @@ function* segments(text, rel) {
   for (const attr of text.matchAll(CLASS_ATTR)) {
     const body = attr.slice(1).find((g) => g !== undefined) ?? ''
     yield { body, start: attr.index + attr[0].indexOf(body) }
+  }
+  // Literals inside a `className={…}` expression, read from the balanced expression alone so that
+  // an apostrophe in surrounding JSX text cannot pair with a quote inside it.
+  for (const open of text.matchAll(CLASS_EXPR)) {
+    const from = open.index + open[0].length
+    const end = balancedEnd(text, from)
+    if (end === -1) continue
+    for (const lit of text.slice(from, end).matchAll(QUOTED)) {
+      const body = lit[2] ?? lit[3] ?? ''
+      yield { body, start: from + lit.index + lit[0].indexOf(body) }
+    }
   }
 }
 
@@ -454,7 +513,8 @@ export function analyze(source, rel, m) {
   for (const index of nativeTitleSites(text)) add(index, 'R10', 'title=', 'native title tooltip')
 
   if (!/\/diagrams\/|score-ring\.tsx$/.test(rel)) {
-    const re = /\bstrokeWidth\s*(?:=\s*(?:\{\s*-?\d[\d.]*\s*\}|"-?\d[\d.]*")|:\s*-?\d)/g
+    const re =
+      /\bstrokeWidth\s*(?:=\s*(?:\{[^}]*(?<![\w$.])\d[^}]*\}|(["'])-?\d[\d.]*\1)|:\s*-?\d)/g
     for (const s of text.matchAll(re))
       add(s.index, 'R11', s[0].replace(/\s+/g, ''), 'numeric strokeWidth')
   }
@@ -473,8 +533,26 @@ export function scopedRel(path) {
   const rel = hit[1]
   if (!/\.(?:ts|tsx|css)$/.test(rel) || rel === 'apps/web/app/tokens.css') return null
   if (/\.(?:test|spec)\.(?:ts|tsx)$/.test(rel)) return null
-  if (/\/e2e\/|\/scripts\//.test(rel) || rel.startsWith('apps/web/lib/design/')) return null
+  if (/\/e2e\/|\/scripts\//.test(rel)) return null
   return rel
+}
+
+/**
+ * Read a path's INDEX content, the way the file-size guard does: `cat-file --batch` takes the
+ * spec on stdin and exits 0 with `<spec> missing` for an absent entry, so the header is checked.
+ * Throws when the entry does not resolve to a blob — the caller fails closed.
+ */
+function readIndexBlob(path) {
+  const out = execFileSync('git', ['cat-file', '--batch'], {
+    input: Buffer.concat([Buffer.from(':'), Buffer.from(path), Buffer.from([0x0a])]),
+    maxBuffer: 64 * 1024 * 1024,
+    stdio: ['pipe', 'pipe', 'pipe'],
+  })
+  const nl = out.indexOf(0x0a)
+  const header = nl === -1 ? out.toString('utf8') : out.subarray(0, nl).toString('utf8')
+  const blob = header.match(/ blob (\d+)$/)
+  if (!blob) throw new Error(`no staged blob: ${header}`)
+  return out.subarray(nl + 1, nl + 1 + Number(blob[1])).toString('utf8')
 }
 
 function walk(dir, acc) {
@@ -487,9 +565,10 @@ function walk(dir, acc) {
   }
 }
 
-function collect(args) {
+function collect(args, staged) {
   const paths = []
-  if (args.length > 0) paths.push(...args.filter((p) => existsSync(p)))
+  // Staged paths are index entries, so a missing working-tree file is not a reason to drop one.
+  if (args.length > 0) paths.push(...(staged ? args : args.filter((p) => existsSync(p))))
   else for (const root of SCAN_ROOTS) walk(root, paths)
   return paths.flatMap((p) => {
     const rel = scopedRel(p)
@@ -502,8 +581,10 @@ const allowed = (rel, cls) => ALLOWLIST.some((e) => e.file === rel && e.class ==
 function main() {
   const args = argv.slice(2)
   const report = args.includes('--report')
-  const files = collect(args.filter((a) => a !== '--report'))
-  const wholeTree = args.filter((a) => a !== '--report').length === 0
+  const staged = args.includes('--staged')
+  const pathArgs = args.filter((a) => !a.startsWith('--'))
+  const files = collect(pathArgs, staged)
+  const wholeTree = pathArgs.length === 0 && !staged
 
   let matchers
   try {
@@ -517,7 +598,14 @@ function main() {
   const offenders = []
   const seen = new Set()
   for (const { path, rel } of files) {
-    for (const h of analyze(readFileSync(path, 'utf8'), rel, matchers)) {
+    let source
+    try {
+      source = staged ? readIndexBlob(path) : readFileSync(path, 'utf8')
+    } catch (e) {
+      console.error(`design-token guard: cannot read ${path} (${e.message}). Failing closed.`)
+      exit(2)
+    }
+    for (const h of analyze(source, rel, matchers)) {
       seen.add(`${rel}\0${h.cls}`)
       if (!allowed(rel, h.cls)) offenders.push({ rel, ...h })
     }
