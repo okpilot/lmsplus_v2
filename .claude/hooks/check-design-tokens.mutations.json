@@ -518,13 +518,13 @@
     },
     {
       "id": "check-design-tokens-C9-token-var",
-      "find": "      !m.tokenVars.has(base.slice(base.indexOf('/(--') + 4, -1))",
-      "replace": "      true",
+      "find": "!m.alphaVars.has(base.slice(base.indexOf('/(--') + 4, -1))",
+      "replace": "true",
       "expectRed": [
         "B1: whole-tree run exits 0 on the repo",
         "K1: whole-tree run from a path containing /.claude/worktrees/ exits 0 (no stale entries)"
       ],
-      "note": "Stops accepting a /(--var) modifier whose variable tokens.css declares."
+      "note": "Stops accepting a /(--var) modifier whose variable tokens.css declares as a percentage."
     },
     {
       "id": "check-design-tokens-C9-text-role-modifier",
@@ -537,6 +537,52 @@
         "M8: \"text-label/1.5\" blocks naming R6"
       ],
       "note": "Lets a text role keep a / modifier."
+    },
+    {
+      "id": "check-design-tokens-N1-alpha-vars",
+      "find": "!m.alphaVars.has(base.slice(base.indexOf('/(--') + 4, -1))",
+      "replace": "!m.alphaVars.has(base.slice(base.indexOf('/(--') + 4, -1)) && false",
+      "expectRed": [
+        "N1: \"bg-primary/(--spacing-card)\" (non-percentage variable) blocks naming R6"
+      ],
+      "note": "Never flags a /(--var) modifier."
+    },
+    {
+      "id": "check-design-tokens-N2-typed-paren",
+      "find": "if (/^[a-z][\\w-]*-\\([a-z-]+:--/.test(base))",
+      "replace": "if (false)",
+      "expectRed": [
+        "N2: typed paren \"text-(length:--x)\" blocks naming R7",
+        "N2: typed paren \"bg-(color:--x)\" blocks naming R7"
+      ],
+      "note": "Disables the typed paren-shorthand rule."
+    },
+    {
+      "id": "check-design-tokens-N3-translate",
+      "find": "translate(?:-[xyz])?|w|",
+      "replace": "translate-[xy]|w|",
+      "expectRed": [
+        "N3: \"translate-7\" blocks naming R1",
+        "N3: \"-translate-7\" blocks naming R1",
+        "N3: \"translate-z-7\" blocks naming R1"
+      ],
+      "note": "Drops bare translate and translate-z from the spacing prefixes."
+    },
+    {
+      "id": "check-design-tokens-N5-word-modifier",
+      "find": "(?:[\\w.-]+|\\[[^\\]]*\\]|\\([^)]*\\))$/",
+      "replace": "(?:\\d+(?:\\.\\d+)?|\\[[^\\]]*\\]|\\([^)]*\\))$/",
+      "expectRed": ["N5: \"text-label/relaxed\" blocks naming R6"],
+      "note": "Drops word modifiers from the modifier matcher."
+    },
+    {
+      "id": "check-design-tokens-N6-staged-rel",
+      "find": "staged ? readIndexBlob(rel)",
+      "replace": "staged ? readIndexBlob(path)",
+      "expectRed": [
+        "N6: --staged with an absolute path to a staged file resolves and grades it (exit 1 on p-7)"
+      ],
+      "note": "Reads the index with the raw argument instead of the repo-relative path."
     }
   ]
 }

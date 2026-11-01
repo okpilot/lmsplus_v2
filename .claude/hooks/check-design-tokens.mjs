@@ -22,6 +22,9 @@
 // does (every `--color-<hue>-50` in Tailwind's resolved theme stylesheet): that module is TypeScript with
 // extensionless imports and cannot be imported by plain node.
 //
+// Known limits: untyped `-(--var)` references are not checked; allowlist entries are file+class without a
+// count; `--staged` reads tokens.css from the working tree (CI's whole-tree run grades committed content).
+//
 // Usage:
 //   node .claude/hooks/check-design-tokens.mjs --staged <file...>   scan the INDEX content of the given files; an unresolvable entry exits 2
 //   node .claude/hooks/check-design-tokens.mjs <file...>   scan the given files from the working tree
@@ -259,7 +262,11 @@ export function loadVocabulary() {
     dropShadow: stock('drop-shadow'),
     textShadow: stock('text-shadow'),
     textRoles: names(tokens, /--text-([a-z0-9]+(?:-[a-z0-9]+)*):/g),
-    tokenVars: names(tokens, /^\s*--([a-z0-9]+(?:-[a-z0-9]+)*)\s*:/gm),
+    alphaVars: new Set(
+      [...tokens.matchAll(/^\s*--([a-z0-9]+(?:-[a-z0-9]+)*)\s*:([^;]*);/gm)]
+        .filter((d) => /^\d+(?:\.\d+)?%$/.test(d[2].trim()))
+        .map((d) => d[1]),
+    ),
   }
   for (const [k, v] of Object.entries(vocab)) {
     if (v.length === 0 || v.size === 0) throw new FailClosed(`derived vocabulary "${k}" is empty`)
@@ -280,7 +287,7 @@ function buildMatchers(v) {
     textShadow: new RegExp(`^text-shadow-${alt(v.textShadow)}$`),
     breakpoint: new RegExp(`^(?:max-|min-)?${alt(v.breakpoints)}$`),
     textRoles: v.textRoles,
-    tokenVars: v.tokenVars,
+    alphaVars: v.alphaVars,
   }
 }
 
@@ -288,7 +295,7 @@ function buildMatchers(v) {
 
 const STEPS = new Set(['0', '0.5', '1', '1.5', '2', '2.5', '3', '4', '5', '6', '8', '10'])
 const SPACING_PREFIX =
-  '(?:p[xytrblse]?|m[xytrblse]?|gap(?:-[xy])?|space-[xy]|inset(?:-[xy])?|top|right|bottom|left|start|end|translate-[xy]|w|h|size|min-[wh]|max-[wh]|basis|scroll-[mp][xytrblse]?|indent|border-spacing(?:-[xy])?)'
+  '(?:p[xytrblse]?|m[xytrblse]?|gap(?:-[xy])?|space-[xy]|inset(?:-[xy])?|top|right|bottom|left|start|end|translate(?:-[xyz])?|w|h|size|min-[wh]|max-[wh]|basis|scroll-[mp][xytrblse]?|indent|border-spacing(?:-[xy])?)'
 const R1_RE = new RegExp(`^(${SPACING_PREFIX})-(\\d+(?:\\.\\d+)?)$`)
 const R2_RE = /^(?:p[xytrblse]?|m[xytrblse]?|gap(?:-[xy])?|space-[xy])-(?:inline|row)$/
 const R4_RE =
@@ -296,7 +303,7 @@ const R4_RE =
 const OPACITY_OK = new Set(['0', '100', 'disabled'])
 const COLOUR_PREFIX =
   /^(?:bg|text|border(?:-[xytblrse])?|ring|ring-offset|outline|fill|stroke|from|via|to|shadow|inset-shadow|drop-shadow|text-shadow|divide|decoration|accent|caret|placeholder)-/
-const MODIFIER_RE = /^([a-z][\w-]*)\/(?:\d+(?:\.\d+)?|\[[^\]]*\]|\([^)]*\))$/
+const MODIFIER_RE = /^([a-z][\w-]*)\/(?:[\w.-]+|\[[^\]]*\]|\([^)]*\))$/
 
 // R9: ported from the retired layout-guard and type-size-guard tests. Their arbitrary-value rule is R7.
 const R9_RULES = [
@@ -355,12 +362,13 @@ export function classifyToken(token, m) {
     if (textRole) flag('R6', 'line-height modifier on a text role')
     else if (
       !/^\d+(?:\.\d+)?$/.test(rest) &&
-      !m.tokenVars.has(base.slice(base.indexOf('/(--') + 4, -1))
+      !m.alphaVars.has(base.slice(base.indexOf('/(--') + 4, -1))
     )
       flag('R6', 'colour opacity modifier')
   }
 
   if (/^[a-z][\w-]*-\[/.test(base)) flag('R7', 'arbitrary value')
+  if (/^[a-z][\w-]*-\([a-z-]+:--/.test(base)) flag('R7', 'typed arbitrary value')
   if (/^\[[a-z-]+:[^\]]+\]$/.test(base)) flag('R7', 'arbitrary property')
   if (variants.some((v) => /^(?:min|max)-\[/.test(v))) flag('R7', 'arbitrary breakpoint variant')
 
@@ -600,7 +608,7 @@ function main() {
   for (const { path, rel } of files) {
     let source
     try {
-      source = staged ? readIndexBlob(path) : readFileSync(path, 'utf8')
+      source = staged ? readIndexBlob(rel) : readFileSync(path, 'utf8')
     } catch (e) {
       console.error(`design-token guard: cannot read ${path} (${e.message}). Failing closed.`)
       exit(2)

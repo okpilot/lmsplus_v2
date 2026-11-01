@@ -374,3 +374,49 @@ test('M8: "text-label" without a modifier is not flagged by R6', () => {
   const r = runGuardOn(cls('text-label'))
   assert.ok(!named(r, 'R6'), r.stdout + r.stderr)
 })
+
+// ---- lock-2 round 3 (E1-E8) ----
+test('N1: "bg-primary/(--spacing-card)" (non-percentage variable) blocks naming R6', () =>
+  blocks(cls('bg-primary/(--spacing-card)'), 'R6'))
+test('N1: "bg-foreground/(--state-hover)" (percentage variable) is not flagged by R6', () => {
+  const r = runGuardOn(cls('bg-foreground/(--state-hover)'))
+  assert.ok(!named(r, 'R6'), r.stdout + r.stderr)
+})
+
+for (const c of ['text-(length:--x)', 'bg-(color:--x)']) {
+  test(`N2: typed paren "${c}" blocks naming R7`, () => blocks(cls(c), 'R7'))
+}
+test('N2: untyped "w-(--sidebar-w)" passes', () => passes(cls('w-(--sidebar-w)')))
+
+for (const c of ['translate-7', '-translate-7', 'translate-z-7']) {
+  test(`N3: "${c}" blocks naming R1`, () => blocks(cls(c), 'R1'))
+}
+test('N3: "translate-2" passes', () => passes(cls('translate-2')))
+
+test('N5: "text-label/relaxed" blocks naming R6', () => blocks(cls('text-label/relaxed'), 'R6'))
+for (const c of ['w-1/2', 'basis-1/3']) {
+  test(`N5: fraction "${c}" is not flagged by R6`, () => {
+    const r = runGuardOn(cls(c))
+    assert.ok(!named(r, 'R6'), r.stdout + r.stderr)
+  })
+}
+
+test('N6: --staged with an absolute path to a staged file resolves and grades it (exit 1 on p-7)', () => {
+  const repo = mkdtempSync(join(tmpdir(), 'design-tokens-abs-'))
+  try {
+    const git = (...a) => execFileSync('git', a, { cwd: repo, encoding: 'utf8', stdio: 'pipe' })
+    git('init', '-q')
+    const rel = 'apps/web/components/x.tsx'
+    const abs = join(repo, rel)
+    mkdirSync(dirname(abs), { recursive: true })
+    writeFileSync(abs, cls('p-7'), 'utf8')
+    git('add', rel)
+    const r = ran(
+      runNode('check-design-tokens.mjs', [HOOK, '--staged', abs], { cwd: repo, timeout: 20_000 }),
+    )
+    assert.equal(r.status, 1, r.stdout + r.stderr)
+    assert.ok(named(r, 'R1'), r.stdout + r.stderr)
+  } finally {
+    rmSync(repo, { recursive: true, force: true })
+  }
+})
