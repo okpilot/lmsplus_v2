@@ -78,7 +78,17 @@
         "N3: \"-translate-7\" blocks naming R1",
         "N3: \"translate-z-7\" blocks naming R1",
         "N5: \"text-label/relaxed\" blocks naming R6",
-        "N6: --staged with an absolute path to a staged file resolves and grades it (exit 1 on p-7)"
+        "N6: --staged with an absolute path to a staged file resolves and grades it (exit 1 on p-7)",
+        "P1: a plain literal of lowercase class tokens blocks naming R9",
+        "P1: className=\"rounded\" blocks naming R9",
+        "P1: plain literal \"[&>svg]:size-7\" blocks naming R1",
+        "P1: plain literal \"*:p-7\" blocks naming R1",
+        "P3: important \"flex!\" blocks naming R9",
+        "P3: important \"!hidden\" blocks naming R9",
+        "P4: \"inset-ring-primary/50\" blocks naming R6",
+        "P5: non-gradient word modifier \"bg-primary/oklch\" blocks naming R6",
+        "P6: \"bg-primary/50\" blocks naming R6",
+        "P6: \"bg-primary/(--spacing-card)\" blocks naming R6"
       ],
       "note": "Forces the offender branch to exit 0 \u2014 violations print but never block."
     },
@@ -113,7 +123,9 @@
         "M7: inside diagrams/ passes: export const X = () => <svg strokeWidth='2' />",
         "M7: inside diagrams/ passes: export const X = () => <svg strokeWidth={big ? 2.5 : 1.5} />",
         "N2: untyped \"w-(--sidebar-w)\" passes",
-        "N3: \"translate-2\" passes"
+        "N3: \"translate-2\" passes",
+        "P1: a prose toast literal is not graded as a class list",
+        "P2: apostrophes across two <p> elements on one line pass"
       ],
       "note": "Forces the offender branch regardless of findings \u2014 a clean run also blocks."
     },
@@ -138,7 +150,9 @@
         "N3: \"translate-7\" blocks naming R1",
         "N3: \"-translate-7\" blocks naming R1",
         "N3: \"translate-z-7\" blocks naming R1",
-        "N6: --staged with an absolute path to a staged file resolves and grades it (exit 1 on p-7)"
+        "N6: --staged with an absolute path to a staged file resolves and grades it (exit 1 on p-7)",
+        "P1: plain literal \"[&>svg]:size-7\" blocks naming R1",
+        "P1: plain literal \"*:p-7\" blocks naming R1"
       ],
       "note": "Disables the off-allowlist spacing/sizing step rule."
     },
@@ -203,7 +217,11 @@
       "expectRed": [
         "R6: \"bg-primary/50\" blocks with exit 1 naming R6",
         "M8: \"bg-primary/(--alpha)\" blocks naming R6",
-        "N1: \"bg-primary/(--spacing-card)\" (non-percentage variable) blocks naming R6"
+        "N1: \"bg-primary/(--spacing-card)\" (non-percentage variable) blocks naming R6",
+        "P4: \"inset-ring-primary/50\" blocks naming R6",
+        "P5: non-gradient word modifier \"bg-primary/oklch\" blocks naming R6",
+        "P6: \"bg-primary/50\" blocks naming R6",
+        "P6: \"bg-primary/(--spacing-card)\" blocks naming R6"
       ],
       "note": "Disables the colour opacity modifier rule."
     },
@@ -211,11 +229,7 @@
       "id": "check-design-tokens-R7-value",
       "find": "if (/^[a-z][\\w-]*-\\[/.test(base)) flag('R7'",
       "replace": "if (false) flag('R7'",
-      "expectRed": [
-        "B3: made-up value \"mt-[3px]\" blocks",
-        "B1: whole-tree run exits 0 on the repo",
-        "K1: whole-tree run from a path containing /.claude/worktrees/ exits 0 (no stale entries)"
-      ],
+      "expectRed": ["B3: made-up value \"mt-[3px]\" blocks"],
       "note": "Disables the arbitrary-value rule."
     },
     {
