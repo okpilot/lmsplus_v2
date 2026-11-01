@@ -37,7 +37,7 @@ pre-commit:
     # Every Tailwind class is a design token (#1433). Rules and allowlist live in the guard.
     # Staged mode skips the stale-allowlist check; CI runs the whole tree.
     design-tokens-guard:
-      glob: "apps/web/{app,components,lib}/**/*.{ts,tsx}"
+      glob: "*.{ts,tsx,css}"
       run: node .claude/hooks/check-design-tokens.mjs {staged_files}
     # File-size limits — data in .claude/limits.json.
     # RATCHET, not a gate: it fails on a REGRESSION, and the failure modes are enumerated

@@ -2,7 +2,7 @@
 //   node --test .claude/hooks/check-design-tokens.test.mjs
 // Fixtures live under a throwaway `apps/web/<dir>/` tree so the guard's path scope applies.
 import assert from 'node:assert/strict'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { test } from 'node:test'
@@ -161,4 +161,108 @@ test('--report exits 0 and prints per-family counts', () => {
   const r = ran(runNode('check-design-tokens.mjs', [HOOK, '--report'], { timeout: 60_000 }))
   assert.equal(r.status, 0, r.stdout + r.stderr)
   assert.ok(r.stdout.trim().length > 0)
+})
+
+// ---- lock-2 round 1 (G1-G9) ----
+const hits = (r, rule, tok) =>
+  (r.stdout + r.stderr).split('\n').filter((l) => l.includes(`${rule}  ${tok}`)).length
+
+test('K1: whole-tree run from a path containing /.claude/worktrees/ exits 0 (no stale entries)', () => {
+  const root = mkdtempSync(join(tmpdir(), 'design-tokens-wt-'))
+  try {
+    const wt = join(root, '.claude/worktrees/x')
+    mkdirSync(join(wt, '.claude/hooks'), { recursive: true })
+    copyFileSync(HOOK, join(wt, '.claude/hooks/check-design-tokens.mjs'))
+    const repo = join(dirname(HOOK), '../..')
+    for (const n of ['apps', 'node_modules', 'package.json'])
+      symlinkSync(join(repo, n), join(wt, n))
+    const r = ran(
+      runNode('check-design-tokens.mjs', [join(wt, '.claude/hooks/check-design-tokens.mjs')], {
+        timeout: 60_000,
+      }),
+    )
+    assert.equal(r.status, 0, r.stdout + r.stderr)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('K2: a staged .css with @apply px-inline blocks naming R2', () => {
+  const r = runGuardOn('.a {\n  @apply flex px-inline;\n}\n', 'app/fixture.css')
+  assert.equal(r.status, 1, r.stdout + r.stderr)
+  assert.ok(named(r, 'R2'))
+})
+
+test('K2: a staged .css with @apply p-2 passes', () => {
+  assert.equal(runGuardOn('.a {\n  @apply flex p-2;\n}\n', 'app/fixture.css').status, 0)
+})
+
+test('K3: an apostrophe in JSX text does not hide a className (R1 and R8)', () => {
+  const r = runGuardOn(
+    `export const X = () => <p>It's <strong className="md:p-7">x</strong> you've</p>\n`,
+  )
+  assert.equal(r.status, 1, r.stdout + r.stderr)
+  assert.ok(named(r, 'R1'))
+  assert.ok(named(r, 'R8'))
+})
+
+for (const [rule, c] of [
+  ['R1', 'scroll-mt-7'],
+  ['R1', 'indent-7'],
+  ['R4', 'inset-ring-2'],
+  ['R4', 'stroke-2'],
+]) {
+  test(`K4: "${c}" blocks naming ${rule}`, () => {
+    const r = runGuardOn(cls(c))
+    assert.equal(r.status, 1, r.stdout + r.stderr)
+    assert.ok(named(r, rule), r.stdout + r.stderr)
+  })
+}
+
+test('K4: "stroke-none" passes', () => {
+  assert.equal(runGuardOn(cls('stroke-none')).status, 0)
+})
+
+test('K5: a leading-! important "!p-2" blocks naming R9', () => {
+  const r = runGuardOn(cls('!p-2'))
+  assert.equal(r.status, 1, r.stdout + r.stderr)
+  assert.ok(named(r, 'R9'))
+})
+
+test('K6: title= on an iframe passes', () => {
+  assert.equal(runGuardOn('export const X = () => <iframe title="Video" />\n').status, 0)
+})
+
+for (const tag of ['abbr', 'div']) {
+  test(`K6: title= on <${tag}> still blocks naming R10`, () => {
+    const r = runGuardOn(`export const X = () => <${tag} title="x">y</${tag}>\n`)
+    assert.equal(r.status, 1, r.stdout + r.stderr)
+    assert.ok(named(r, 'R10'))
+  })
+}
+
+test('K7: prose "Ticket #1677" in lib/email passes', () => {
+  assert.equal(runGuardOn('export const s = "Ticket #1677"\n', 'lib/email/x.ts').status, 0)
+})
+
+for (const src of [
+  'export const s = `<p style="color:#123">x</p>`\n',
+  "const BRAND = '#1a2b3c'\n",
+  "export const o = { color: '#fff' }\n",
+]) {
+  test(`K7: hex colour context blocks naming R12: ${src.trim()}`, () => {
+    const r = runGuardOn(src, 'lib/email/x.ts')
+    assert.equal(r.status, 1, r.stdout + r.stderr)
+    assert.ok(named(r, 'R12'))
+  })
+}
+
+test('K8: two identical bad tokens on one line are both reported', () => {
+  const r = runGuardOn('export const X = () => <div className="p-7"><i className="p-7" /></div>\n')
+  assert.equal(hits(r, 'R1', 'p-7'), 2, r.stdout + r.stderr)
+})
+
+test('K8: one bad className token is reported once, not once per scan pass', () => {
+  const r = runGuardOn('export const X = () => <div className="p-7" />\n')
+  assert.equal(hits(r, 'R1', 'p-7'), 1, r.stdout + r.stderr)
 })

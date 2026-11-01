@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Mechanical guard (#1433 / #1677 PR B): every Tailwind class in apps/web source is a design token.
-// Scans string and template literals for class tokens and reports rules R1..R12:
+// Scans string and template literals, className attributes and CSS @apply lists for class tokens and reports rules R1..R12:
 //   R1  numeric spacing/sizing step outside the step allowlist (p m gap space inset top right
 //       bottom left translate w h size min- max- basis)
 //   R2  `inline` / `row` role name on a spacing utility
@@ -272,11 +272,11 @@ function buildMatchers(v) {
 
 const STEPS = new Set(['0', '0.5', '1', '1.5', '2', '2.5', '3', '4', '5', '6', '8', '10'])
 const SPACING_PREFIX =
-  '(?:p[xytrblse]?|m[xytrblse]?|gap(?:-[xy])?|space-[xy]|inset(?:-[xy])?|top|right|bottom|left|start|end|translate-[xy]|w|h|size|min-[wh]|max-[wh]|basis)'
+  '(?:p[xytrblse]?|m[xytrblse]?|gap(?:-[xy])?|space-[xy]|inset(?:-[xy])?|top|right|bottom|left|start|end|translate-[xy]|w|h|size|min-[wh]|max-[wh]|basis|scroll-[mp][xytrblse]?|indent|border-spacing(?:-[xy])?)'
 const R1_RE = new RegExp(`^(${SPACING_PREFIX})-(\\d+(?:\\.\\d+)?)$`)
 const R2_RE = /^(?:p[xytrblse]?|m[xytrblse]?|gap(?:-[xy])?|space-[xy])-(?:inline|row)$/
 const R4_RE =
-  /^(?:border(?:-[xytblrse])?|ring|ring-offset|outline|outline-offset|divide-[xy])-(\d+)$/
+  /^(?:border(?:-[xytblrse])?|ring|ring-offset|inset-ring|outline|outline-offset|divide-[xy]|stroke)-(\d+)$/
 const OPACITY_OK = new Set(['0', '100', 'disabled'])
 const COLOUR_PREFIX =
   /^(?:bg|text|border(?:-[xytblrse])?|ring|ring-offset|outline|fill|stroke|from|via|to|shadow|inset-shadow|drop-shadow|text-shadow|divide|decoration|accent|caret|placeholder)-/
@@ -319,6 +319,7 @@ export function classifyToken(token, m) {
   const base = rawBase.replace(/^!/, '').replace(/!$/, '').replace(/^-/, '')
 
   for (const re of R9_RULES) if (re.test(token)) flag('R9', 'raw scale value or default size')
+  if (/^![a-z][\w-]*-/.test(rawBase)) flag('R9', 'leading ! important')
 
   const r1 = R1_RE.exec(base)
   if (r1 && !STEPS.has(r1[2])) flag('R1', `step ${r1[2]} is outside the allowlist`)
@@ -375,6 +376,7 @@ function nativeTitleSites(text) {
   const sites = []
   for (const open of text.matchAll(/<([a-z][a-z0-9]*)(?=[\s/>])/g)) {
     const before = text.slice(0, open.index).trimEnd()
+    if (open[1] === 'iframe') continue
     const prev = before.at(-1) ?? ''
     if (/[\w)\]]/.test(prev) && !/\breturn$/.test(before)) continue
     let depth = 0
@@ -398,25 +400,53 @@ function nativeTitleSites(text) {
   return sites
 }
 
+const CLASS_ATTR =
+  /\b(?:className|class)\s*=\s*(?:"([^"]*)"|'([^']*)'|\{\s*(?:'([^']*)'|"([^"]*)"|`([^`]*)`)\s*\})/g
+const APPLY = /@apply\s+([^;}]*)/g
+const HEX = /(?<![\w&])#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})\b/g
+const HEX_ONLY = /^#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})$/
+const HEX_CONTEXT = /(?:[:=]\s*["']?\s*|(?:color|background|border)[\w-]*\s*:[^;]*)$/i
+
+/** Class-list segments of a source file as `{ body, start }`: literals, class attributes, or @apply lists. */
+function* segments(text, rel) {
+  if (rel.endsWith('.css')) {
+    for (const a of text.matchAll(APPLY)) yield { body: a[1], start: a.index + a[0].indexOf(a[1]) }
+    return
+  }
+  for (const lit of text.matchAll(QUOTED)) {
+    const body = lit[2] ?? lit[3] ?? ''
+    yield { body, start: lit.index + lit[0].indexOf(body), literal: true }
+  }
+  for (const attr of text.matchAll(CLASS_ATTR)) {
+    const body = attr.slice(1).find((g) => g !== undefined) ?? ''
+    yield { body, start: attr.index + attr[0].indexOf(body) }
+  }
+}
+
 /** @returns {{ line: number, rule: string, cls: string, why: string }[]} (allowlist NOT applied) */
 export function analyze(source, rel, m) {
   const text = source.replace(/\r/g, '')
   const hits = []
-  const add = (index, rule, cls, why) => hits.push({ line: lineAt(text, index), rule, cls, why })
+  const seenAt = new Set()
+  const add = (index, rule, cls, why) => {
+    const key = `${rule}:${index}`
+    if (seenAt.has(key)) return
+    seenAt.add(key)
+    hits.push({ line: lineAt(text, index), rule, cls, why })
+  }
 
-  for (const lit of text.matchAll(QUOTED)) {
-    const body = lit[2] ?? lit[3] ?? ''
-    const bodyStart = lit.index + lit[0].indexOf(body)
+  for (const { body, start, literal } of segments(text, rel)) {
     for (const tok of body.matchAll(/\S+/g)) {
       const cls = tok[0].replace(TRIM, '')
-      if (cls === '') continue
-      for (const { rule, why } of classifyToken(cls, m)) add(bodyStart + tok.index, rule, cls, why)
+      if (cls === '' || cls === '!important') continue
+      for (const { rule, why } of classifyToken(cls, m)) add(start + tok.index, rule, cls, why)
     }
-    if (rel.startsWith('apps/web/lib/email/')) {
-      for (const hex of body.matchAll(
-        /(?<![\w&])#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})\b/g,
-      )) {
-        add(bodyStart + hex.index, 'R12', hex[0], 'hex colour in email code')
+    if (literal && rel.startsWith('apps/web/lib/email/')) {
+      for (const hex of body.matchAll(HEX)) {
+        const before = body.slice(0, hex.index)
+        if (HEX_ONLY.test(body.trim()) || HEX_CONTEXT.test(before)) {
+          add(start + hex.index, 'R12', hex[0], 'hex colour in email code')
+        }
       }
     }
   }
@@ -434,11 +464,14 @@ export function analyze(source, rel, m) {
 /** Repo-relative `apps/web/...` path when `path` is a scanned source file, else null. */
 export function scopedRel(path) {
   const p = path.replace(/\\/g, '/')
-  if (/(?:^|\/)(?:node_modules|\.next)\//.test(p) || p.includes('.claude/worktrees/')) return null
+  const root = `${REPO.replace(/\\/g, '/')}/`
+  const sub = p.startsWith(root) ? p.slice(root.length) : p
+  if (/(?:^|\/)(?:node_modules|\.next)\//.test(sub) || sub.startsWith('.claude/worktrees/'))
+    return null
   const hit = /(?:^|\/)(apps\/web\/(?:app|components|lib)\/.+)$/.exec(p)
   if (!hit) return null
   const rel = hit[1]
-  if (!/\.(?:ts|tsx)$/.test(rel)) return null
+  if (!/\.(?:ts|tsx|css)$/.test(rel) || rel === 'apps/web/app/tokens.css') return null
   if (/\.(?:test|spec)\.(?:ts|tsx)$/.test(rel)) return null
   if (/\/e2e\/|\/scripts\//.test(rel) || rel.startsWith('apps/web/lib/design/')) return null
   return rel
