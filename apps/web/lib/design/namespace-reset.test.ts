@@ -42,7 +42,7 @@ const GREEN = [
 ]
 
 const escapeSel = (c: string) =>
-  c.replace(/^(\d)/, (_, d: string) => `\\3${d} `).replace(/[:/.[\]()%]/g, '\\$&')
+  c.replace(/[\\:/.[\]()%]/g, '\\$&').replace(/^(\d)/, (_, d: string) => `\\3${d} `)
 const hasRule = (css: string, cls: string) => css.includes(`.${escapeSel(cls)}`)
 
 const compile = async (tokens: 'file' | string): Promise<string> => {
