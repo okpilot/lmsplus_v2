@@ -279,12 +279,11 @@
         "R9: \"max-w-2xl\" blocks with exit 1 naming R9",
         "R9: \"size-[18px]\" blocks with exit 1 naming R9",
         "R9: \"text-sm\" blocks with exit 1 naming R9",
-        "R9: \"size-3.5!\" blocks with exit 1 naming R9",
-        "B1: whole-tree run exits 0 on the repo",
-        "K1: whole-tree run from a path containing /.claude/worktrees/ exits 0 (no stale entries)",
         "M1: \"max-w-2xs\" blocks naming R9",
         "M1: \"max-w-3xs\" blocks naming R9",
-        "M6: a non-test lib/design file with rounded-lg blocks naming R9"
+        "M6: a non-test lib/design file with rounded-lg blocks naming R9",
+        "P1: a plain literal of lowercase class tokens blocks naming R9",
+        "P1: className=\"rounded\" blocks naming R9"
       ],
       "note": "Disables the ported layout and type-size rules."
     },
@@ -425,10 +424,17 @@
     },
     {
       "id": "check-design-tokens-G7-leading-important",
-      "find": "if (/^![a-z][\\w-]*-/.test(rawBase)) flag",
+      "find": "if (/^![a-z[(]|[\\w\\])%]!$/.test(rawBase)) flag",
       "replace": "if (false) flag",
-      "expectRed": ["K5: a leading-! important \"!p-2\" blocks naming R9"],
-      "note": "Disables the leading ! important check."
+      "expectRed": [
+        "K5: a leading-! important \"!p-2\" blocks naming R9",
+        "P3: important \"flex!\" blocks naming R9",
+        "P3: important \"!hidden\" blocks naming R9",
+        "R9: \"size-3.5!\" blocks with exit 1 naming R9",
+        "B1: whole-tree run exits 0 on the repo",
+        "K1: whole-tree run from a path containing /.claude/worktrees/ exits 0 (no stale entries)"
+      ],
+      "note": "Disables the leading or trailing ! important check."
     },
     {
       "id": "check-design-tokens-G8-iframe",
@@ -530,18 +536,20 @@
       "replace": "|\\[[^\\]]*\\])$/",
       "expectRed": [
         "M8: \"bg-primary/(--alpha)\" blocks naming R6",
-        "N1: \"bg-primary/(--spacing-card)\" (non-percentage variable) blocks naming R6"
+        "N1: \"bg-primary/(--spacing-card)\" (non-percentage variable) blocks naming R6",
+        "P6: \"bg-primary/(--spacing-card)\" blocks naming R6"
       ],
       "note": "Drops the (--var) modifier form from the modifier matcher."
     },
     {
       "id": "check-design-tokens-C9-token-var",
-      "find": "!m.alphaVars.has(base.slice(base.indexOf('/(--') + 4, -1))",
+      "find": "!m.alphaVars.has(/^\\(--(.+)\\)$/.exec(mod[2])?.[1] ?? '')",
       "replace": "true",
       "expectRed": [
         "B1: whole-tree run exits 0 on the repo",
         "K1: whole-tree run from a path containing /.claude/worktrees/ exits 0 (no stale entries)",
-        "N1: \"bg-foreground/(--state-hover)\" (percentage variable) is not flagged by R6"
+        "N1: \"bg-foreground/(--state-hover)\" (percentage variable) is not flagged by R6",
+        "P6: \"bg-foreground/(--state-hover)\" is not flagged by R6"
       ],
       "note": "Stops accepting a /(--var) modifier whose variable tokens.css declares as a percentage."
     },
@@ -560,12 +568,16 @@
     },
     {
       "id": "check-design-tokens-N1-alpha-vars",
-      "find": "!m.alphaVars.has(base.slice(base.indexOf('/(--') + 4, -1))",
-      "replace": "!m.alphaVars.has(base.slice(base.indexOf('/(--') + 4, -1)) && false",
+      "find": "!m.alphaVars.has(/^\\(--(.+)\\)$/.exec(mod[2])?.[1] ?? '')",
+      "replace": "!m.alphaVars.has(/^\\(--(.+)\\)$/.exec(mod[2])?.[1] ?? '') && false",
       "expectRed": [
         "R6: \"bg-primary/50\" blocks with exit 1 naming R6",
         "M8: \"bg-primary/(--alpha)\" blocks naming R6",
-        "N1: \"bg-primary/(--spacing-card)\" (non-percentage variable) blocks naming R6"
+        "N1: \"bg-primary/(--spacing-card)\" (non-percentage variable) blocks naming R6",
+        "P4: \"inset-ring-primary/50\" blocks naming R6",
+        "P5: non-gradient word modifier \"bg-primary/oklch\" blocks naming R6",
+        "P6: \"bg-primary/(--spacing-card)\" blocks naming R6",
+        "P6: \"bg-primary/50\" blocks naming R6"
       ],
       "note": "Never flags a /(--var) modifier."
     },
@@ -592,9 +604,12 @@
     },
     {
       "id": "check-design-tokens-N5-word-modifier",
-      "find": "(?:[\\w.-]+|\\[[^\\]]*\\]|\\([^)]*\\))$/",
-      "replace": "(?:\\d+(?:\\.\\d+)?|\\[[^\\]]*\\]|\\([^)]*\\))$/",
-      "expectRed": ["N5: \"text-label/relaxed\" blocks naming R6"],
+      "find": "\\/([\\w.-]+|",
+      "replace": "\\/(\\d+(?:\\.\\d+)?|",
+      "expectRed": [
+        "N5: \"text-label/relaxed\" blocks naming R6",
+        "P5: non-gradient word modifier \"bg-primary/oklch\" blocks naming R6"
+      ],
       "note": "Drops word modifiers from the modifier matcher."
     },
     {
@@ -605,6 +620,48 @@
         "N6: --staged with an absolute path to a staged file resolves and grades it (exit 1 on p-7)"
       ],
       "note": "Reads the index with the raw argument instead of the repo-relative path."
+    },
+    {
+      "id": "check-design-tokens-H1-prose-gate",
+      "find": "const prose = literal === true && isProse(body)",
+      "replace": "const prose = false",
+      "expectRed": [
+        "P1: a prose toast literal is not graded as a class list",
+        "P2: apostrophes across two <p> elements on one line pass",
+        "B1: whole-tree run exits 0 on the repo",
+        "K1: whole-tree run from a path containing /.claude/worktrees/ exits 0 (no stale entries)"
+      ],
+      "note": "Grades prose literals as class lists."
+    },
+    {
+      "id": "check-design-tokens-H4-inset-ring",
+      "find": "|inset-shadow|inset-ring|drop-shadow",
+      "replace": "|inset-shadow|drop-shadow",
+      "expectRed": ["P4: \"inset-ring-primary/50\" blocks naming R6"],
+      "note": "Drops inset-ring from the colour prefixes."
+    },
+    {
+      "id": "check-design-tokens-H5-gradient-modifier",
+      "find": "!(GRADIENT_PREFIX.test(mod[1]) && GRADIENT_INTERP.test(mod[2]))",
+      "replace": "!(false && GRADIENT_PREFIX.test(mod[1]))",
+      "expectRed": [
+        "P5: gradient interpolation modifier \"bg-linear-to-r/oklch\" is not flagged by R6"
+      ],
+      "note": "Stops exempting gradient interpolation modifiers."
+    },
+    {
+      "id": "check-design-tokens-H5-gradient-any-word",
+      "find": "GRADIENT_PREFIX.test(mod[1]) && GRADIENT_INTERP.test(mod[2])",
+      "replace": "GRADIENT_INTERP.test(mod[2])",
+      "expectRed": ["P5: non-gradient word modifier \"bg-primary/oklch\" blocks naming R6"],
+      "note": "Exempts an interpolation word on any colour utility."
+    },
+    {
+      "id": "check-design-tokens-H9-staged-no-paths",
+      "find": "if (staged && pathArgs.length === 0) {",
+      "replace": "if (false) {",
+      "expectRed": ["P7: --staged with no paths exits 0"],
+      "note": "Lets --staged with no paths scan the whole tree."
     }
   ]
 }

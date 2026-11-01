@@ -2,18 +2,20 @@
 // Mechanical guard (#1433 / #1677 PR B): every Tailwind class in apps/web source is a design token.
 // Scans string and template literals, className attributes and CSS @apply lists for class tokens and reports rules R1..R12:
 //   R1  numeric spacing/sizing step outside the step allowlist (p m gap space inset top right
-//       bottom left translate w h size min- max- basis)
+//       bottom left start end translate w h size min-w|h max-w|h basis scroll-m|p indent border-spacing)
 //   R2  `inline` / `row` role name on a spacing utility
 //   R3  `z-<n>`
-//   R4  border / ring / ring-offset / outline / outline-offset / divide-x|y width >= 1, `ring-inset`
+//   R4  border / ring / ring-offset / inset-ring / outline / outline-offset / divide-x|y / stroke
+//       width >= 1, `ring-inset`
 //   R5  `opacity-<n>` other than 0, 100, disabled
-//   R6  `/NN` colour opacity modifier
+//   R6  `/modifier` on a colour utility, except a numeric name fraction, a `/(--var)` whose variable
+//       tokens.css declares as a percentage, and a gradient interpolation word on bg-linear|radial|conic
 //   R7  arbitrary `[...]` values and `min-[...]` / `max-[...]` variants
 //   R8  stock names of cleared namespaces (colour hues, font-weight, tracking, breakpoints md/xl/2xl,
 //       shadow / inset-shadow / drop-shadow / text-shadow), derived from Tailwind's theme stylesheet minus
 //       apps/web/app/tokens.css. Fails closed (exit 2) when either file is missing.
-//   R9  named radius, bare rounded, named max-w, arbitrary size/value, `!` important,
-//       Tailwind default text sizes, arbitrary text sizes
+//   R9  named radius, bare rounded, arbitrary rounded-[ and size-[ values, named max-w, leading or
+//       trailing `!` important, Tailwind default text sizes, arbitrary text sizes
 //   R10 native `title=` on a lowercase DOM element
 //   R11 numeric `strokeWidth` outside diagrams/** and score-ring.tsx
 //   R12 hex colour in lib/email/**
@@ -22,11 +24,15 @@
 // does (every `--color-<hue>-50` in Tailwind's resolved theme stylesheet): that module is TypeScript with
 // extensionless imports and cannot be imported by plain node.
 //
+// Quoted literals that read as prose (a word starting uppercase or ending . , ? ; or an HTML tag) are not
+// graded as class lists; className attributes and @apply lists always are.
+//
 // Known limits: untyped `-(--var)` references are not checked; allowlist entries are file+class without a
-// count; `--staged` reads tokens.css from the working tree (CI's whole-tree run grades committed content).
+// count; `--staged` reads tokens.css from the working tree (CI's whole-tree run grades committed content);
+// a stray backtick in a comment or a nested template literal may hide literals.
 //
 // Usage:
-//   node .claude/hooks/check-design-tokens.mjs --staged <file...>   scan the INDEX content of the given files; an unresolvable entry exits 2
+//   node .claude/hooks/check-design-tokens.mjs --staged <file...>   scan the INDEX content of the given files; an unresolvable entry exits 2; no files exits 0
 //   node .claude/hooks/check-design-tokens.mjs <file...>   scan the given files from the working tree
 //   node .claude/hooks/check-design-tokens.mjs             whole tree; also fails on a stale allowlist entry
 //   node .claude/hooks/check-design-tokens.mjs --report    per-family counts outside the allowlist, exit 0
@@ -302,8 +308,10 @@ const R4_RE =
   /^(?:border(?:-[xytblrse])?|ring|ring-offset|inset-ring|outline|outline-offset|divide-[xy]|stroke)-(\d+)$/
 const OPACITY_OK = new Set(['0', '100', 'disabled'])
 const COLOUR_PREFIX =
-  /^(?:bg|text|border(?:-[xytblrse])?|ring|ring-offset|outline|fill|stroke|from|via|to|shadow|inset-shadow|drop-shadow|text-shadow|divide|decoration|accent|caret|placeholder)-/
-const MODIFIER_RE = /^([a-z][\w-]*)\/(?:[\w.-]+|\[[^\]]*\]|\([^)]*\))$/
+  /^(?:bg|text|border(?:-[xytblrse])?|ring|ring-offset|outline|fill|stroke|from|via|to|shadow|inset-shadow|inset-ring|drop-shadow|text-shadow|divide|decoration|accent|caret|placeholder)-/
+const MODIFIER_RE = /^([a-z][\w-]*)\/([\w.-]+|\[[^\]]*\]|\([^)]*\))$/
+const GRADIENT_PREFIX = /^bg-(?:linear|radial|conic)(?:-|$)/
+const GRADIENT_INTERP = /^(?:srgb|hsl|oklab|oklch|longer|shorter|increasing|decreasing)$/
 
 // R9: ported from the retired layout-guard and type-size-guard tests. Their arbitrary-value rule is R7.
 const R9_RULES = [
@@ -312,7 +320,6 @@ const R9_RULES = [
   /(?<![\w-])(?:[a-z-]+:)*rounded(?:-[trblse]{1,2})?-\[/,
   /(?<![\w-])(?:[a-z-]+:)*max-w-(?:3xs|2xs|xs|sm|md|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl|prose)(?![\w-])/,
   /(?<![\w-])(?:[a-z-]+:)*size-\[/,
-  /(?<!\w)[a-z][\w-]*-[\w./()%-]+!(?=[\s"'`]|$)/,
   /(?<![\w-])(?:[a-z-]+:)*text-(?:xs|sm|base|lg|xl|[2-9]xl)(?![\w-])/,
   /(?<![\w-])(?:[a-z-]+:)*text-\[(?:\d|\.|length:)/,
 ]
@@ -342,7 +349,7 @@ export function classifyToken(token, m) {
   const base = rawBase.replace(/^!/, '').replace(/!$/, '').replace(/^-/, '')
 
   for (const re of R9_RULES) if (re.test(token)) flag('R9', 'raw scale value or default size')
-  if (/^![a-z][\w-]*-/.test(rawBase)) flag('R9', 'leading ! important')
+  if (/^![a-z[(]|[\w\])%]!$/.test(rawBase)) flag('R9', 'important modifier')
 
   const r1 = R1_RE.exec(base)
   if (r1 && !STEPS.has(r1[2])) flag('R1', `step ${r1[2]} is outside the allowlist`)
@@ -362,7 +369,8 @@ export function classifyToken(token, m) {
     if (textRole) flag('R6', 'line-height modifier on a text role')
     else if (
       !/^\d+(?:\.\d+)?$/.test(rest) &&
-      !m.alphaVars.has(base.slice(base.indexOf('/(--') + 4, -1))
+      !m.alphaVars.has(/^\(--(.+)\)$/.exec(mod[2])?.[1] ?? '') &&
+      !(GRADIENT_PREFIX.test(mod[1]) && GRADIENT_INTERP.test(mod[2]))
     )
       flag('R6', 'colour opacity modifier')
   }
@@ -392,6 +400,12 @@ export function classifyToken(token, m) {
 
 // Template literals may span lines; '' and "" strings may not.
 const QUOTED = /(["'])((?:(?!\1)[^\n])*)\1|`([^`]*)`/g
+/** A quoted literal that reads as English or markup rather than a class list. */
+function isProse(body) {
+  if (/<[A-Za-z/]/.test(body)) return true
+  return body.split(/\s+/).some((w) => /^[A-Z]/.test(w) || /[.,?;]$/.test(w))
+}
+
 const TRIM = /^[\s'"`${},;?]+|[\s'"`${},;?:]+$/g
 
 function lineAt(text, index) {
@@ -503,7 +517,8 @@ export function analyze(source, rel, m) {
   }
 
   for (const { body, start, literal } of segments(text, rel)) {
-    for (const tok of body.matchAll(/\S+/g)) {
+    const prose = literal === true && isProse(body)
+    for (const tok of prose ? [] : body.matchAll(/\S+/g)) {
       const cls = tok[0].replace(TRIM, '')
       if (cls === '' || cls === '!important') continue
       for (const { rule, why } of classifyToken(cls, m)) add(start + tok.index, rule, cls, why)
@@ -591,6 +606,10 @@ function main() {
   const report = args.includes('--report')
   const staged = args.includes('--staged')
   const pathArgs = args.filter((a) => !a.startsWith('--'))
+  if (staged && pathArgs.length === 0) {
+    console.log('✓ design-token guard: no staged files')
+    exit(0)
+  }
   const files = collect(pathArgs, staged)
   const wholeTree = pathArgs.length === 0 && !staged
 

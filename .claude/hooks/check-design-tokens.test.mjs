@@ -420,3 +420,56 @@ test('N6: --staged with an absolute path to a staged file resolves and grades it
     rmSync(repo, { recursive: true, force: true })
   }
 })
+
+// Round 4 (#1677)
+test('P1: a prose toast literal is not graded as a class list', () =>
+  passes("export const f = () => toast('Scores are rounded to the nearest percent.')\n"))
+test('P1: a plain literal of lowercase class tokens blocks naming R9', () =>
+  blocks("export const c = 'rounded-lg p-2'\n", 'R9'))
+test('P1: className="rounded" blocks naming R9', () => blocks(cls('rounded'), 'R9'))
+test('P1: plain literal "[&>svg]:size-7" blocks naming R1', () =>
+  blocks("export const c = '[&>svg]:size-7'\n", 'R1'))
+test('P1: plain literal "*:p-7" blocks naming R1', () => blocks("export const c = '*:p-7'\n", 'R1'))
+test('P2: apostrophes across two <p> elements on one line pass', () =>
+  passes("export const X = () => <div><p>Don't use rounded corners</p><p>It's</p></div>\n"))
+for (const c of ['flex!', '!hidden']) {
+  test(`P3: important "${c}" blocks naming R9`, () => blocks(cls(c), 'R9'))
+}
+test('P4: "inset-ring-primary/50" blocks naming R6', () =>
+  blocks(cls('inset-ring-primary/50'), 'R6'))
+test('P5: gradient interpolation modifier "bg-linear-to-r/oklch" is not flagged by R6', () => {
+  const r = runGuardOn(cls('bg-linear-to-r/oklch'))
+  assert.ok(!named(r, 'R6'), r.stdout + r.stderr)
+})
+test('P5: non-gradient word modifier "bg-primary/oklch" blocks naming R6', () =>
+  blocks(cls('bg-primary/oklch'), 'R6'))
+test('P6: "bg-primary/50" blocks naming R6', () => blocks(cls('bg-primary/50'), 'R6'))
+test('P6: "bg-primary/(--spacing-card)" blocks naming R6', () =>
+  blocks(cls('bg-primary/(--spacing-card)'), 'R6'))
+test('P6: "bg-foreground/(--state-hover)" is not flagged by R6', () => {
+  const r = runGuardOn(cls('bg-foreground/(--state-hover)'))
+  assert.ok(!named(r, 'R6'), r.stdout + r.stderr)
+})
+for (const c of ['w-1/2', 'basis-1/3']) {
+  test(`P6: fraction "${c}" is not flagged by R6`, () => {
+    const r = runGuardOn(cls(c))
+    assert.ok(!named(r, 'R6'), r.stdout + r.stderr)
+  })
+}
+test('P7: --staged with no paths exits 0', () => {
+  const repo = mkdtempSync(join(tmpdir(), 'design-tokens-nopaths-'))
+  try {
+    const git = (...a) => execFileSync('git', a, { cwd: repo, encoding: 'utf8', stdio: 'pipe' })
+    git('init', '-q')
+    const rel = 'apps/web/components/x.tsx'
+    mkdirSync(dirname(join(repo, rel)), { recursive: true })
+    writeFileSync(join(repo, rel), cls('p-7'), 'utf8')
+    git('add', rel)
+    const r = ran(
+      runNode('check-design-tokens.mjs', [HOOK, '--staged'], { cwd: repo, timeout: 20_000 }),
+    )
+    assert.equal(r.status, 0, r.stdout + r.stderr)
+  } finally {
+    rmSync(repo, { recursive: true, force: true })
+  }
+})
