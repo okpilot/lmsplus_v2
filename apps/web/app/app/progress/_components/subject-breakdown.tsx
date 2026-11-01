@@ -59,7 +59,9 @@ function SubjectRow({ subject }: Readonly<{ subject: SubjectDetail }>) {
         <div className="border-t border-border px-4 py-2">
           {subject.topics.map((topic) => (
             <div key={topic.id} className="flex items-center gap-3 py-1.5">
-              <span className="w-16 shrink-0 text-caption text-muted-foreground">{topic.code}</span>
+              <span className="w-inset-lg shrink-0 text-caption text-muted-foreground">
+                {topic.code}
+              </span>
               <span className="min-w-0 flex-1 truncate text-caption">{topic.name}</span>
               <div className="flex items-center gap-2">
                 <Meter

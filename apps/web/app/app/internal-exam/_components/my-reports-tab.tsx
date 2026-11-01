@@ -42,7 +42,7 @@ export function MyReportsTab({ rows }: Readonly<Props>) {
       <TableHeader>
         <TableRow>
           <TableHead className="min-w-col-sm">Subject</TableHead>
-          <TableHead className="w-16">Attempt</TableHead>
+          <TableHead className="w-inset-lg">Attempt</TableHead>
           <TableHead className="w-col-md">Started</TableHead>
           <TableHead className="w-col-md">Ended</TableHead>
           <TableHead className="w-col-xs">Score</TableHead>

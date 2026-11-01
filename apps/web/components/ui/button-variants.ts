@@ -31,7 +31,7 @@ export const buttonVariants = cva(
         segment:
           'relative h-control-sm rounded-inner px-1 after:absolute after:-inset-x-0.5 after:-inset-y-tap-y sm:px-3 lg:after:hidden',
         'icon-sm':
-          'relative size-7 rounded-pill after:absolute after:-inset-x-0.5 after:-inset-y-tap-y lg:after:hidden in-data-[slot=button-group]:rounded-control',
+          'relative size-control-sm rounded-pill after:absolute after:-inset-x-0.5 after:-inset-y-tap-y lg:after:hidden in-data-[slot=button-group]:rounded-control',
       },
     },
     defaultVariants: {

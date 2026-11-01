@@ -137,7 +137,7 @@ export function AnswerOptions({
             )}
           >
             <span
-              className={`flex size-7 shrink-0 items-center justify-center rounded-pill text-caption font-semibold ${circle}`}
+              className={`flex size-avatar shrink-0 items-center justify-center rounded-pill text-caption font-semibold ${circle}`}
             >
               {LETTERS[index] ?? String(index + 1)}
             </span>

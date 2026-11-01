@@ -411,9 +411,11 @@ describe('AnswerOptions', () => {
       }
     })
 
-    it('sizes the letter circle size-7', () => {
+    it('sizes the letter circle size-avatar', () => {
       render(<AnswerOptions options={OPTIONS} disabled={false} />)
-      expect(screen.getByTestId('option-a').querySelector('span')?.className).toContain('size-7')
+      expect(screen.getByTestId('option-a').querySelector('span')?.className).toContain(
+        'size-avatar',
+      )
     })
   })
 

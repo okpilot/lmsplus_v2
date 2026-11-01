@@ -68,7 +68,7 @@ export function StudentTable({
           <TableHead className="w-col-sm">Role</TableHead>
           <TableHead className="w-col-md">Courses</TableHead>
           <TableHead className="w-col-code">Status</TableHead>
-          <TableHead className="w-36">Last Active</TableHead>
+          <TableHead className="w-menu-min">Last Active</TableHead>
           <TableHead className="w-col-sm">Created</TableHead>
           <TableHead className="w-col-lg">Login</TableHead>
           <TableHead className="w-col-xs">Actions</TableHead>

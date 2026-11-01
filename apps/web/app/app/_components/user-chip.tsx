@@ -5,7 +5,7 @@ function UserChipPlaceholder() {
   return (
     <div className="flex items-center gap-1 rounded-card px-1 py-2">
       <Avatar size="sm" aria-hidden="true" />
-      <span aria-hidden="true" className="h-3 w-20 rounded-control bg-muted" />
+      <span aria-hidden="true" className="h-3 w-col-xs rounded-control bg-muted" />
       <span className="sr-only">Loading account</span>
     </div>
   )

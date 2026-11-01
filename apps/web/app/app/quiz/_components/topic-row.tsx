@@ -51,7 +51,7 @@ export function TopicRow({
           )}
         </Button>
       ) : (
-        !indented && <span className="w-7" />
+        !indented && <span className="w-control-sm" />
       )}
       <Label
         className={`flex-1 gap-2 text-body ${checked ? 'text-foreground' : 'text-muted-foreground'}`}

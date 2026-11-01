@@ -61,7 +61,7 @@ export function MoreSheet({ hidden, activeHref, onClose }: Readonly<SheetProps>)
               href={item.href}
               aria-current={item.href === activeHref ? 'page' : undefined}
               onClick={onClose}
-              className={`flex h-11 items-center gap-3 rounded-control px-3 text-label ${sheetTone(item.href === activeHref)}`}
+              className={`flex h-control items-center gap-3 rounded-control px-3 text-label ${sheetTone(item.href === activeHref)}`}
             >
               {item.icon && <NavIcon name={item.icon} className="size-icon-lg" />}
               <span className="truncate">{item.label}</span>

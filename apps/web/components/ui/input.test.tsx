@@ -28,7 +28,7 @@ describe('Input sizes (B2b-12 AC 3)', () => {
   it('sm is 28px with px-pad-control-sm py-0, text-body and rounded-inner', () => {
     render(<Input aria-label="Small" size="sm" />)
     const c = screen.getByRole('textbox').className
-    expect(c).toContain('h-7')
+    expect(c).toContain('h-control-sm')
     expect(c).toContain('px-pad-control-sm')
     expect(c).toContain('py-0')
     expect(c.split(' ')).toContain('text-body')

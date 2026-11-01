@@ -91,7 +91,7 @@ describe('LoadingButton', () => {
     )
     const button = screen.getByRole('button', { name: 'Cancel' })
     // 'border-border' is the cva class emitted only for variant="outline", and
-    // 'h-7' only for size="sm" — together they prove both props reached the
+    // 'h-control-sm' only for size="sm" — together they prove both props reached the
     // underlying Button rather than being swallowed.
     expect(button.className).toContain('border-border')
     expect(button.className).toContain('h-control-sm')

@@ -34,13 +34,13 @@ describe('Empty', () => {
   it('styles the icon media variant as a round muted badge', () => {
     render(<EmptyMedia variant="icon" data-testid="m" />)
     const cls = screen.getByTestId('m').className
-    expect(cls).toContain('size-12')
+    expect(cls).toContain('size-icon-box-lg')
     expect(cls).toContain('rounded-pill')
   })
 
   it('leaves the default media unstyled by the icon look', () => {
     render(<EmptyMedia data-testid="m" />)
-    expect(screen.getByTestId('m').className).not.toContain('size-12')
+    expect(screen.getByTestId('m').className).not.toContain('size-icon-box-lg')
   })
 
   it('marks every part with its data-slot', () => {
