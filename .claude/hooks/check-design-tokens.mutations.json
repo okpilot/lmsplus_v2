@@ -5,8 +5,8 @@
   "mutations": [
     {
       "id": "check-design-tokens-always-passes",
-      "find": "    exit(1)\n  }\n  console.log(`✓ design-token guard:",
-      "replace": "    exit(0)\n  }\n  console.log(`✓ design-token guard:",
+      "find": "    exit(1)\n  }\n  console.log(`\u2713 design-token guard:",
+      "replace": "    exit(0)\n  }\n  console.log(`\u2713 design-token guard:",
       "expectRed": [
         "control: a staged file with an off-scale spacing step blocks with exit 1",
         "R1: \"p-7\" blocks with exit 1 naming R1",
@@ -72,7 +72,7 @@
         "M8: \"text-label/[13px]\" blocks naming R6",
         "M8: \"text-label/1.5\" blocks naming R6"
       ],
-      "note": "Forces the offender branch to exit 0 — violations print but never block."
+      "note": "Forces the offender branch to exit 0 \u2014 violations print but never block."
     },
     {
       "id": "check-design-tokens-always-blocks",
@@ -105,7 +105,7 @@
         "M7: inside diagrams/ passes: export const X = () => <svg strokeWidth='2' />",
         "M7: inside diagrams/ passes: export const X = () => <svg strokeWidth={big ? 2.5 : 1.5} />"
       ],
-      "note": "Forces the offender branch regardless of findings — a clean run also blocks."
+      "note": "Forces the offender branch regardless of findings \u2014 a clean run also blocks."
     },
     {
       "id": "check-design-tokens-R1",
@@ -184,8 +184,8 @@
     },
     {
       "id": "check-design-tokens-R6",
-      "find": "else if (!/^\\d+(?:\\.\\d+)?$/.test(rest)) flag('R6'",
-      "replace": "else if (false) flag('R6'",
+      "find": "      flag('R6', 'colour opacity modifier')",
+      "replace": "      void 0",
       "expectRed": [
         "R6: \"bg-primary/50\" blocks with exit 1 naming R6",
         "M8: \"bg-primary/(--alpha)\" blocks naming R6",
@@ -515,12 +515,18 @@
       "id": "check-design-tokens-C9-variable-modifier",
       "find": "|\\[[^\\]]*\\]|\\([^)]*\\))$/",
       "replace": "|\\[[^\\]]*\\])$/",
+      "expectRed": ["M8: \"bg-primary/(--alpha)\" blocks naming R6"],
+      "note": "Drops the (--var) modifier form from the modifier matcher."
+    },
+    {
+      "id": "check-design-tokens-C9-token-var",
+      "find": "      !m.tokenVars.has(base.slice(base.indexOf('/(--') + 4, -1))",
+      "replace": "      true",
       "expectRed": [
-        "M8: \"bg-primary/(--alpha)\" blocks naming R6",
         "B1: whole-tree run exits 0 on the repo",
         "K1: whole-tree run from a path containing /.claude/worktrees/ exits 0 (no stale entries)"
       ],
-      "note": "Drops the (--var) modifier form from the modifier matcher."
+      "note": "Stops accepting a /(--var) modifier whose variable tokens.css declares."
     },
     {
       "id": "check-design-tokens-C9-text-role-modifier",
