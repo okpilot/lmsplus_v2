@@ -88,7 +88,13 @@
         "P4: \"inset-ring-primary/50\" blocks naming R6",
         "P5: non-gradient word modifier \"bg-primary/oklch\" blocks naming R6",
         "P6: \"bg-primary/50\" blocks naming R6",
-        "P6: \"bg-primary/(--spacing-card)\" blocks naming R6"
+        "P6: \"bg-primary/(--spacing-card)\" blocks naming R6",
+        "Q1: a template literal holding a ternary of off-scale classes blocks naming R1 and R3",
+        "Q3: space-inline blocks naming R2",
+        "Q3: -space-row blocks naming R2",
+        "Q3: space-y-row blocks naming R2",
+        "Q5: hex in a shadow or gradient list blocks naming R12: export const s = `<p style=\"box-shadow:0 0 0 1px \\#cccccc\">x</p>`",
+        "Q5: hex in a shadow or gradient list blocks naming R12: export const s = 'linear-gradient(\\#fff, \\#000)'"
       ],
       "note": "Forces the offender branch to exit 0 \u2014 violations print but never block."
     },
@@ -125,7 +131,11 @@
         "N2: untyped \"w-(--sidebar-w)\" passes",
         "N3: \"translate-2\" passes",
         "P1: a prose toast literal is not graded as a class list",
-        "P2: apostrophes across two <p> elements on one line pass"
+        "P2: apostrophes across two <p> elements on one line pass",
+        "Q2: prose in a quoted call argument still passes",
+        "Q3: space-y-2 passes",
+        "Q4: a prose template literal passes",
+        "Q5: prose \"Ticket \\#1677\" in lib/email still passes"
       ],
       "note": "Forces the offender branch regardless of findings \u2014 a clean run also blocks."
     },
@@ -152,7 +162,8 @@
         "N3: \"translate-z-7\" blocks naming R1",
         "N6: --staged with an absolute path to a staged file resolves and grades it (exit 1 on p-7)",
         "P1: plain literal \"[&>svg]:size-7\" blocks naming R1",
-        "P1: plain literal \"*:p-7\" blocks naming R1"
+        "P1: plain literal \"*:p-7\" blocks naming R1",
+        "Q1: a template literal holding a ternary of off-scale classes blocks naming R1 and R3"
       ],
       "note": "Disables the off-allowlist spacing/sizing step rule."
     },
@@ -163,7 +174,10 @@
       "expectRed": [
         "R2: \"gap-row\" blocks with exit 1 naming R2",
         "R2: \"px-inline\" blocks with exit 1 naming R2",
-        "K2: a staged .css with @apply px-inline blocks naming R2"
+        "K2: a staged .css with @apply px-inline blocks naming R2",
+        "Q3: space-inline blocks naming R2",
+        "Q3: -space-row blocks naming R2",
+        "Q3: space-y-row blocks naming R2"
       ],
       "note": "Disables the inline/row role-name rule."
     },
@@ -174,7 +188,8 @@
       "expectRed": [
         "R3: \"z-10\" blocks with exit 1 naming R3",
         "R3: \"-z-10\" blocks with exit 1 naming R3",
-        "B3: made-up value \"z-10\" blocks"
+        "B3: made-up value \"z-10\" blocks",
+        "Q1: a template literal holding a ternary of off-scale classes blocks naming R1 and R3"
       ],
       "note": "Disables the numeric z-index rule."
     },
@@ -345,7 +360,9 @@
         "R12: hex colour in lib/email blocks naming R12",
         "K7: hex colour context blocks naming R12: export const s = `<p style=\"color:\\#123\">x</p>`",
         "K7: hex colour context blocks naming R12: const BRAND = '\\#1a2b3c'",
-        "K7: hex colour context blocks naming R12: export const o = { color: '\\#fff' }"
+        "K7: hex colour context blocks naming R12: export const o = { color: '\\#fff' }",
+        "Q5: hex in a shadow or gradient list blocks naming R12: export const s = `<p style=\"box-shadow:0 0 0 1px \\#cccccc\">x</p>`",
+        "Q5: hex in a shadow or gradient list blocks naming R12: export const s = 'linear-gradient(\\#fff, \\#000)'"
       ],
       "note": "Disables the email hex rule."
     },
@@ -461,7 +478,10 @@
       "id": "check-design-tokens-G9-hex-context",
       "find": "HEX_ONLY.test(body.trim()) || HEX_CONTEXT.test(before)",
       "replace": "true",
-      "expectRed": ["K7: prose \"Ticket \\#1677\" in lib/email passes"],
+      "expectRed": [
+        "K7: prose \"Ticket \\#1677\" in lib/email passes",
+        "Q5: prose \"Ticket \\#1677\" in lib/email still passes"
+      ],
       "note": "Flags every hex-shaped substring in lib/email, prose included."
     },
     {
@@ -640,10 +660,11 @@
       "find": "const prose = quoted === true && isProse(body)",
       "replace": "const prose = false",
       "expectRed": [
+        "B1: whole-tree run exits 0 on the repo",
+        "K1: whole-tree run from a path containing /.claude/worktrees/ exits 0 (no stale entries)",
         "P1: a prose toast literal is not graded as a class list",
         "P2: apostrophes across two <p> elements on one line pass",
-        "B1: whole-tree run exits 0 on the repo",
-        "K1: whole-tree run from a path containing /.claude/worktrees/ exits 0 (no stale entries)"
+        "Q2: prose in a quoted call argument still passes"
       ],
       "note": "Grades prose literals as class lists."
     },
@@ -661,7 +682,8 @@
       "find": "|[(,]\\s*|(?:\\d|px|r?em|%)\\s+)$/i",
       "replace": ")$/i",
       "expectRed": [
-        "Q5: hex in a shadow or gradient list blocks naming R12: export const s = 'linear-gradient(#fff, #000)'"
+        "Q5: hex in a shadow or gradient list blocks naming R12: export const s = `<p style=\"box-shadow:0 0 0 1px \\#cccccc\">x</p>`",
+        "Q5: hex in a shadow or gradient list blocks naming R12: export const s = 'linear-gradient(\\#fff, \\#000)'"
       ],
       "note": "Drops the hex-after-paren/comma/length contexts."
     },
@@ -669,7 +691,7 @@
       "id": "check-design-tokens-A7-bare-space",
       "find": "|space(?:-[xy])?)-(?:inline|row)$/",
       "replace": "|space-[xy])-(?:inline|row)$/",
-      "expectRed": ["Q3: space-inline blocks naming R2"],
+      "expectRed": ["Q3: space-inline blocks naming R2", "Q3: -space-row blocks naming R2"],
       "note": "Limits R2 to space-x|y."
     },
     {
