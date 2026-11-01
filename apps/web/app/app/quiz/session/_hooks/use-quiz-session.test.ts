@@ -104,4 +104,15 @@ describe('useQuizSession', () => {
     run(state(), props({ startedAt: 'X' }))
     expect(m.timer).toHaveBeenCalledWith('X', setShowFinishDialog)
   })
+
+  it('passes the effective tab to the keyboard', () => {
+    m.state.mockReturnValue(state())
+    m.ui.mockReturnValue({
+      leave: { discoveryConfirmOpen: false },
+      setActiveTab,
+      effectiveTab: 'explanation',
+    })
+    renderHook(() => useQuizSession(props()))
+    expect(kbArgs().activeTab).toBe('explanation')
+  })
 })

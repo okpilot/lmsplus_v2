@@ -24,6 +24,7 @@ export function useQuizSession(props: Readonly<QuizSessionProps>) {
     onNavigate: s.navigate,
     onConfirm: s.handleSelectAnswer,
     onTab: ui.setActiveTab,
+    activeTab: ui.effectiveTab,
   })
 
   return { s, isDiscovery, ui, flags, timer, highlightedOptionId }
