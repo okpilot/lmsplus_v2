@@ -28,9 +28,10 @@
 //   node .claude/hooks/check-design-tokens.mjs --report    per-family counts outside the allowlist, exit 0
 // Exit: 0 clean, 1 violations, 2 cannot run (fail closed).
 
+import { spawnSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { argv, exit } from 'node:process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
@@ -211,13 +212,24 @@ const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const names = (css, re) => new Set([...css.matchAll(re)].map((m) => m[1]))
 const minus = (a, b) => [...a].filter((x) => !b.has(x))
 
-export function loadVocabulary() {
-  let themePath
-  try {
-    themePath = createRequire(join(REPO, 'apps/web/package.json')).resolve('tailwindcss/theme.css')
-  } catch {
-    throw new FailClosed('tailwindcss/theme.css could not be resolved from apps/web')
+/** A detached worktree has no node_modules: fall back to the main checkout that owns this repo. */
+function resolveThemePath() {
+  const roots = [REPO]
+  const common = spawnSync('git', ['rev-parse', '--path-format=absolute', '--git-common-dir'], {
+    cwd: REPO,
+    encoding: 'utf8',
+  })
+  if (common.status === 0 && common.stdout.trim()) roots.push(dirname(common.stdout.trim()))
+  for (const root of roots) {
+    try {
+      return createRequire(join(root, 'apps/web/package.json')).resolve('tailwindcss/theme.css')
+    } catch {}
   }
+  throw new FailClosed('tailwindcss/theme.css could not be resolved from apps/web')
+}
+
+export function loadVocabulary() {
+  const themePath = resolveThemePath()
   const theme = readRequired(themePath, 'tailwindcss/theme.css')
   const tokens = readRequired(TOKENS_CSS, 'apps/web/app/tokens.css')
   const decl = (prefix) => new RegExp(`^\\s*--${prefix}-([a-z0-9]+):`, 'gm')
