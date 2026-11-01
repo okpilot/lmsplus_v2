@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { ALPHA_COLOURS, COLOURS, type ColourName } from './colour'
 import { rem } from './fluid'
 import {
@@ -30,6 +32,15 @@ import {
   WIDTHS,
   Z_INDEX,
 } from './scale'
+
+/** Every stock colour hue (`--color-<hue>-50`) in Tailwind's theme.css. */
+export function stockColourHues(themeCss: string): string[] {
+  return [...new Set([...themeCss.matchAll(/--color-([a-z]+)-50\s*:/g)].map((m) => m[1] as string))]
+}
+
+const STOCK_HUES = stockColourHues(
+  readFileSync(createRequire(import.meta.url).resolve('tailwindcss/theme.css'), 'utf8'),
+)
 
 type Decl = readonly [name: string, value: string | number]
 
@@ -80,6 +91,7 @@ const widthDecls = (): Decl[] => {
   for (const [k, v] of Object.entries(WIDTHS.border)) out.push([`--border-width-${k}`, v])
   for (const [k, v] of Object.entries(OPACITY)) out.push([`--opacity-${k}`, v])
   for (const [k, v] of Object.entries(STROKE)) out.push([`--stroke-width-${k}`, v])
+  out.push(['--breakpoint-*', 'initial'])
   for (const [k, v] of Object.entries(BREAKPOINTS)) out.push([`--breakpoint-${k}`, v])
   return out
 }
@@ -92,6 +104,7 @@ function themeDecls(): Decl[] {
     out.push([`--text-${role}--letter-spacing`, `${r.tracking}em`])
     out.push([`--text-${role}--font-weight`, r.weight])
   }
+  out.push(['--tracking-*', 'initial'], ['--font-weight-*', 'initial'])
   for (const [k, v] of Object.entries(TRACKING)) out.push([`--tracking-${k}`, v])
   for (const [k, v] of Object.entries(FONT_WEIGHTS)) out.push([`--font-weight-${k}`, v])
   out.push(...spacingDecls())
@@ -132,6 +145,11 @@ export function buildTokensCss(): string {
     ...block(':root', desktopDecls(), '  '),
     '}',
     ...block('@theme inline', [
+      ...STOCK_HUES.map((h): Decl => [`--color-${h}-*`, 'initial']),
+      ['--shadow-*', 'initial'],
+      ['--inset-shadow-*', 'initial'],
+      ['--drop-shadow-*', 'initial'],
+      ['--text-shadow-*', 'initial'],
       ...names.map((n): Decl => [`--color-${n}`, `var(--${n})`]),
       ...Object.keys(ALPHA_COLOURS).map((n): Decl => [`--color-${n}`, `var(--${n})`]),
       ['--color-scrim', 'var(--scrim)'],

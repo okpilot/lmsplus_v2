@@ -84,6 +84,7 @@ pnpm test # run all tests (Vitest)
 pnpm lint # biome lint check
 pnpm check # biome lint + format
 pnpm check-types # tsc --noEmit all packages
+pnpm tokens:css # regenerate apps/web/app/tokens.css
 ```
 
 Dep-bump commit: run `pnpm check-types --force` (bypasses turbo cache). Next.js bump: also run

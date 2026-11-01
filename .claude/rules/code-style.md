@@ -111,10 +111,11 @@ Default to Server Components. Add `'use client'` only at the lowest component th
 ### UI Rules — Redesign (#1416)
 Enforced by prevention, not a text-matching guard (Decision 111).
 - Font is Geist only. `apps/web/app/globals.css` maps `--font-mono` to `--font-sans` and sets `code`/`kbd`/`samp`/`pre` to `font-family: inherit`. Use `tabular-nums` where digits must align.
-- Raw `<button>`, `<input>`, `<h1>`, `<h2>`, `<h3>` outside `apps/web/components/ui/**` and test files — use `Button`, `Input`, `Heading`. Biome `noRestrictedElements` (error); a deliberate exception is a per-line `biome-ignore` naming its issue.
+- Raw `<button>`, `<input>`, `<h1>`, `<h2>`, `<h3>` outside test files — use `Button`, `Input`, `Heading`. Biome `noRestrictedElements` (error); a deliberate exception, `components/ui/**` included, is a per-line `biome-ignore` naming its reason or issue.
+- `window.confirm|alert|prompt` and bare `confirm|alert|prompt` — use `ConfirmDialog`. Biome `noJsRestrictedProperties` / `noRestrictedGlobals` (error).
 - Reduced motion: one global `prefers-reduced-motion: reduce` rule in `apps/web/app/globals.css`. No per-class `motion-reduce:` needed.
 - Every page directory (one with `page.tsx`) has its own `error.tsx` and `loading.tsx`. `apps/web/app/segment-boundaries.test.ts` fails on a new gap and on a listed gap that is fixed.
-- Tailwind palette colour classes (e.g. `bg-red-500`) — use theme tokens. Phase 2 removes the palette from the theme.
+- Tailwind palette colour classes (e.g. `bg-red-500`) — use theme tokens. `apps/web/app/tokens.css` resets every stock hue, so a palette class compiles to nothing.
 
 ---
 ## 3. Function Rules

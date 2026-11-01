@@ -55,8 +55,4 @@ describe('breakpoints: md and 2xl removed (AC scan)', () => {
     expect(s).toContain('lg:grid-cols-(--layout-issue-code')
     expect(s).toContain('lg:items-end')
   })
-
-  it('scale.ts comment points at the enforcement PR (#1677)', () => {
-    expect(src('lib/design/scale.ts')).toContain('until the enforcement PR (#1677)')
-  })
 })

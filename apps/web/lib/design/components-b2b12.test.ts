@@ -66,27 +66,6 @@ describe('B2b-12 AC 5 phone diagram', () => {
   ])('biome.json keeps no raw-button exemption for %s', (f) => {
     expect(readFileSync(path.join(REPO, 'biome.json'), 'utf8')).not.toContain(`"${f}"`)
   })
-  it('noRestrictedElements is relaxed only for test files and components/ui', () => {
-    const cfg = JSON.parse(readFileSync(path.join(REPO, 'biome.json'), 'utf8')) as {
-      overrides: {
-        includes?: string[]
-        linter?: { rules?: Record<string, Record<string, unknown>> }
-      }[]
-    }
-    const level = (v: unknown) =>
-      typeof v === 'object' && v !== null && 'level' in v ? (v as { level: unknown }).level : v
-    const relaxed = cfg.overrides.filter((o) => {
-      const v = o.linter?.rules?.correctness?.noRestrictedElements
-      return v !== undefined && level(v) !== 'error'
-    })
-    expect(relaxed.map((o) => o.includes)).toEqual([
-      ['**/*.test.ts', '**/*.test.tsx', '**/*.spec.ts', '**/*.spec.tsx'],
-      ['apps/web/components/ui/**'],
-    ])
-  })
-  it('tap UI uses no raw button', () => {
-    expect(src(`${S}diagram-tap-list.tsx`)).not.toMatch(/<button[\s>]/)
-  })
 })
 
 describe('B2b-12 AC 6 tabs at 320', () => {

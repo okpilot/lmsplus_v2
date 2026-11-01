@@ -22,6 +22,7 @@ type HeadingProps = Readonly<{
 function Heading({ level, className, id, children }: Readonly<HeadingProps>) {
   if (level === 1) {
     return (
+      // biome-ignore lint/correctness/noRestrictedElements: Heading primitive
       <h1 id={id} className={cn('text-title', className)}>
         {children}
       </h1>
@@ -29,12 +30,14 @@ function Heading({ level, className, id, children }: Readonly<HeadingProps>) {
   }
   if (level === 2) {
     return (
+      // biome-ignore lint/correctness/noRestrictedElements: Heading primitive
       <h2 id={id} className={cn('text-heading', className)}>
         {children}
       </h2>
     )
   }
   return (
+    // biome-ignore lint/correctness/noRestrictedElements: Heading primitive
     <h3 id={id} className={cn('text-label-strong', className)}>
       {children}
     </h3>

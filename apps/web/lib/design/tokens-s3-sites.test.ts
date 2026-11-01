@@ -107,16 +107,4 @@ describe('S3 AC 5 biome forbids raw input and headings', () => {
     for (const h of ['h1', 'h2', 'h3'])
       expect(els[h]).toBe('Use Heading from @/components/ui/heading.')
   })
-  it('off override covers components/ui, not question-table', () => {
-    const off = cfg.overrides.find(
-      (o) =>
-        o.linter?.rules?.correctness?.noRestrictedElements === 'off' &&
-        o.includes.includes('apps/web/components/ui/**'),
-    )
-    expect(off?.includes).not.toContain(
-      'apps/web/app/app/admin/questions/_components/question-table.tsx',
-    )
-    const table = src('app/app/admin/questions/_components/question-table.tsx')
-    expect(count(table, /biome-ignore lint\/correctness\/noRestrictedElements: .*#1678/g)).toBe(2)
-  })
 })

@@ -161,6 +161,36 @@
   }
 }
 @theme inline {
+  --color-red-*: initial;
+  --color-orange-*: initial;
+  --color-amber-*: initial;
+  --color-yellow-*: initial;
+  --color-lime-*: initial;
+  --color-green-*: initial;
+  --color-emerald-*: initial;
+  --color-teal-*: initial;
+  --color-cyan-*: initial;
+  --color-sky-*: initial;
+  --color-blue-*: initial;
+  --color-indigo-*: initial;
+  --color-violet-*: initial;
+  --color-purple-*: initial;
+  --color-fuchsia-*: initial;
+  --color-pink-*: initial;
+  --color-rose-*: initial;
+  --color-slate-*: initial;
+  --color-gray-*: initial;
+  --color-zinc-*: initial;
+  --color-neutral-*: initial;
+  --color-stone-*: initial;
+  --color-mauve-*: initial;
+  --color-olive-*: initial;
+  --color-mist-*: initial;
+  --color-taupe-*: initial;
+  --shadow-*: initial;
+  --inset-shadow-*: initial;
+  --drop-shadow-*: initial;
+  --text-shadow-*: initial;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -290,6 +320,8 @@
   --text-chart--line-height: 1;
   --text-chart--letter-spacing: 0em;
   --text-chart--font-weight: 400;
+  --tracking-*: initial;
+  --font-weight-*: initial;
   --tracking-logo: -0.055em;
   --tracking-code: 0.1em;
   --tracking-normal: 0em;
@@ -413,6 +445,7 @@
   --opacity-disabled: 50%;
   --stroke-width-icon: 2;
   --stroke-width-icon-bold: 2.5;
+  --breakpoint-*: initial;
   --breakpoint-sm: 40rem;
   --breakpoint-lg: 64rem;
   --breakpoint-tiny: 23.4375rem;

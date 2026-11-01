@@ -53,8 +53,42 @@
       "performance": {
         "noBarrelFile": "error"
       },
+      "nursery": {
+        "noJsRestrictedProperties": {
+          "level": "error",
+          "options": {
+            "entries": [
+              {
+                "object": "window",
+                "property": "confirm",
+                "message": "No native dialogs; use a Dialog."
+              },
+              {
+                "object": "window",
+                "property": "alert",
+                "message": "No native dialogs; use a Dialog."
+              },
+              {
+                "object": "window",
+                "property": "prompt",
+                "message": "No native dialogs; use a Dialog."
+              }
+            ]
+          }
+        }
+      },
       "style": {
         "useConst": "error",
+        "noRestrictedGlobals": {
+          "level": "error",
+          "options": {
+            "deniedGlobals": {
+              "confirm": "No native dialogs; use a Dialog.",
+              "alert": "No native dialogs; use a Dialog.",
+              "prompt": "No native dialogs; use a Dialog."
+            }
+          }
+        },
         "noRestrictedImports": {
           "level": "error",
           "options": {
@@ -140,16 +174,6 @@
                 ]
               }
             }
-          }
-        }
-      }
-    },
-    {
-      "includes": ["apps/web/components/ui/**"],
-      "linter": {
-        "rules": {
-          "correctness": {
-            "noRestrictedElements": "off"
           }
         }
       }

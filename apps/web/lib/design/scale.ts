@@ -233,7 +233,7 @@ export const STATE = { hover: '8%', pressed: '12%' }
 export const DESKTOP_FROM = '64rem'
 export const CONTROL_HEIGHT = { phone: '44px', desktop: '36px' }
 
-// `md`, `xl` and `2xl` stay stock until the enforcement PR (#1677).
+// Breakpoints are sm, lg, tiny only; tokens.css resets the stock namespace, so md/xl/2xl compile to nothing.
 export const BREAKPOINTS = { sm: '40rem', lg: DESKTOP_FROM, tiny: '23.4375rem' } as const
 
 export const typeSize = (role: TypeRole) => fluid(role.min, role.max)
