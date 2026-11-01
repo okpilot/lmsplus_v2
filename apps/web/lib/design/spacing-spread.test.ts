@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
@@ -83,22 +83,6 @@ describe('spacing spread (#1674 D12 D13 D16)', () => {
     const r = src(`${A}quiz/session/_components/saved-session-resume.tsx`)
     expect(cls('py-6').test(r)).toBe(true)
     expect(cls('py-10').test(r)).toBe(false)
-  })
-
-  it('no inline or row spacing utility remains in app or components', () => {
-    const re = /(?<![\w-])-?(p|m|gap|space)-?[xytblr]?-(inline|row)(?![\w-])/
-    const out: string[] = []
-    const walk = (d: string) => {
-      for (const e of readdirSync(path.join(ROOT, d), { withFileTypes: true })) {
-        const p = `${d}/${e.name}`
-        if (e.isDirectory()) walk(p)
-        else if (/\.(tsx?|css)$/.test(e.name) && !/\.test\./.test(e.name) && re.test(src(p)))
-          out.push(p)
-      }
-    }
-    walk('app')
-    walk('components')
-    expect(out).toEqual([])
   })
 
   it('docs/decisions.md ends with decision 197 on spacing', () => {

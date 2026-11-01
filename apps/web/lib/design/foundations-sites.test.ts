@@ -82,14 +82,6 @@ describe('scrim sites use the scrim token', () => {
 
 describe('opacity-as-colour is replaced by tokens', () => {
   it.each([
-    'app/app/_components/question-card.tsx',
-    'app/app/internal-exam/_components/available-tab.tsx',
-    'app/app/quiz/_components/question-filter-toggles.tsx',
-  ])('%s has no translucent muted-foreground text', (f) => {
-    expect(src(f)).not.toContain('text-muted-foreground/')
-  })
-
-  it.each([
     'components/ui/table.tsx',
     'app/app/quiz/_components/subject-select.tsx',
     'app/app/admin/syllabus/_components/subtopic-row.tsx',

@@ -6,39 +6,7 @@ import { describe, expect, it } from 'vitest'
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const read = (f: string) => readFileSync(path.join(ROOT, f), 'utf8')
 
-const PATCHED = [
-  'app/app/_components/answer-options.tsx',
-  'app/app/_components/bottom-tab-bar.tsx',
-  'app/app/admin/questions/_components/bulk-actions-bar.tsx',
-  'app/app/admin/internal-exams/_components/issued-code-panel.tsx',
-  'app/app/quiz/_components/comments-tab.tsx',
-  'app/app/quiz/_components/subject-select.tsx',
-  'app/app/dashboard/_components/heatmap-cell.tsx',
-  'app/app/quiz/session/_components/diagram-tap-list.tsx',
-  'app/app/quiz/session/_components/diagrams/rwy-2709-runway-body.tsx',
-  'components/ui/badge.tsx',
-  'components/ui/button-variants.ts',
-  'components/ui/checkbox.tsx',
-  'components/ui/input.tsx',
-  'components/ui/radio-group.tsx',
-  'components/ui/select.tsx',
-  'components/ui/switch.tsx',
-  'components/ui/textarea.tsx',
-]
-
-const COLOUR =
-  '(?:bg|text|border|ring|fill|stroke|outline|from|to|via|divide|shadow)-(?:[a-z][a-z0-9-]*)'
-const SLASH_NN = new RegExp(`${COLOUR}/\\d+(?![\\w-])`, 'g')
-
 describe('PR17 colour tokens', () => {
-  it.each(PATCHED)('%s has no /NN colour class', (f) => {
-    expect(read(f).match(SLASH_NN) ?? []).toEqual([])
-  })
-
-  it.each(PATCHED)('%s has no dark:*-destructive/NN class', (f) => {
-    expect(read(f)).not.toMatch(/dark:[\w:[\]-]*destructive\/\d+/)
-  })
-
   it('answer-options hovers with primary-border-hover', () => {
     expect(read('app/app/_components/answer-options.tsx')).toContain(
       'hover:border-primary-border-hover',

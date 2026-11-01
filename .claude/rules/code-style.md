@@ -116,6 +116,7 @@ Enforced by prevention, not a text-matching guard (Decision 111).
 - Reduced motion: one global `prefers-reduced-motion: reduce` rule in `apps/web/app/globals.css`. No per-class `motion-reduce:` needed.
 - Every page directory (one with `page.tsx`) has its own `error.tsx` and `loading.tsx`. `apps/web/app/segment-boundaries.test.ts` fails on a new gap and on a listed gap that is fixed.
 - Tailwind palette colour classes (e.g. `bg-red-500`) — use theme tokens. `apps/web/app/tokens.css` resets every stock hue, so a hue class compiles to nothing; white and black stay.
+- Class tokens (spacing steps, z-index, border/ring widths, `/NN` colour modifiers, arbitrary values, stock names of reset namespaces, raw radius and text sizes, native `title=`, numeric `strokeWidth`, email hex) — `.claude/hooks/check-design-tokens.mjs` at pre-commit and CI (Decision 212); exceptions go in its allowlist with a reason and owner.
 
 ---
 ## 3. Function Rules

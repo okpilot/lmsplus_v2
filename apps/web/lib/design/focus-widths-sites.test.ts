@@ -16,25 +16,7 @@ function walk(dir: string): string[] {
   return out
 }
 
-const RAW_WIDTH =
-  /(?<![\w-])(?:ring-[123]|ring-inset|outline-2|-outline-offset-2|outline-offset-2|border-2|border-[lrtb]-2)(?![\w-])/g
-
 describe('PR18 focus ring and width tokens', () => {
-  it('no ring-1|2|3, ring-inset, outline-2, -outline-offset-2 or border-2 in components/app', () => {
-    const hits: string[] = []
-    for (const dir of ['app', 'components']) {
-      for (const f of walk(path.join(ROOT, dir))) {
-        const text = readFileSync(f, 'utf8')
-        for (const m of text.matchAll(RAW_WIDTH)) {
-          hits.push(
-            `${path.relative(ROOT, f)}:${text.slice(0, m.index).split('\n').length} ${m[0]}`,
-          )
-        }
-      }
-    }
-    expect(hits).toEqual([])
-  })
-
   it.each([
     'components/ui/button-variants.ts',
     'components/ui/badge.tsx',

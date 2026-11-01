@@ -82,14 +82,6 @@ describe('weight roles', () => {
     )
   })
 
-  it.each([
-    `${A}admin/internal-exams/_components/issued-code-panel.tsx`,
-    `${A}quiz/_components/exam-countdown-timer.tsx`,
-    `${A}dashboard/_components/heatmap-cell.tsx`,
-  ])('%s has no font-bold', (f) => {
-    expect(src(f)).not.toContain('font-bold')
-  })
-
   it('score ring text weight is 600', () => {
     const s = src(`${A}quiz/report/_components/score-ring.tsx`)
     expect(s).not.toContain('fontWeight="700"')
@@ -116,10 +108,6 @@ describe('tracking roles', () => {
     const s = src(f)
     expect(s).toContain('tracking-code')
     expect(s).not.toMatch(/tracking-(wider|widest)/)
-  })
-
-  it('session table ExamBadge drops tracking-wide', () => {
-    expect(src(`${A}reports/_components/session-table.tsx`)).not.toMatch(/tracking-wide/)
   })
 })
 

@@ -1,0 +1,279 @@
+{
+  "_": "Planted red/green controls grade the CLI exit wiring; the per-rule entries grade the rule tests, each by disabling one rule or scope branch.",
+  "target": ".claude/hooks/check-design-tokens.mjs",
+  "suites": [".claude/hooks/check-design-tokens.test.mjs"],
+  "mutations": [
+    {
+      "id": "check-design-tokens-always-passes",
+      "find": "    exit(1)\n  }\n  console.log(`✓ design-token guard:",
+      "replace": "    exit(0)\n  }\n  console.log(`✓ design-token guard:",
+      "expectRed": [
+        "control: a staged file with an off-scale spacing step blocks with exit 1",
+        "R1: \"p-7\" blocks with exit 1 naming R1",
+        "R1: \"gap-9\" blocks with exit 1 naming R1",
+        "R1: \"md:w-72\" blocks with exit 1 naming R1",
+        "R2: \"gap-row\" blocks with exit 1 naming R2",
+        "R2: \"px-inline\" blocks with exit 1 naming R2",
+        "R3: \"z-10\" blocks with exit 1 naming R3",
+        "R3: \"-z-10\" blocks with exit 1 naming R3",
+        "R4: \"border-2\" blocks with exit 1 naming R4",
+        "R4: \"ring-1\" blocks with exit 1 naming R4",
+        "R4: \"outline-2\" blocks with exit 1 naming R4",
+        "R4: \"divide-x-2\" blocks with exit 1 naming R4",
+        "R4: \"ring-offset-2\" blocks with exit 1 naming R4",
+        "R4: \"ring-inset\" blocks with exit 1 naming R4",
+        "R5: \"opacity-40\" blocks with exit 1 naming R5",
+        "R6: \"bg-primary/50\" blocks with exit 1 naming R6",
+        "R7: \"min-[500px]:flex\" blocks with exit 1 naming R7",
+        "R7: \"max-[600px]:flex\" blocks with exit 1 naming R7",
+        "R8: \"font-bold\" blocks with exit 1 naming R8",
+        "R8: \"tracking-wide\" blocks with exit 1 naming R8",
+        "R8: \"md:flex\" blocks with exit 1 naming R8",
+        "R8: \"shadow-lg\" blocks with exit 1 naming R8",
+        "R8: \"bg-red-500\" blocks with exit 1 naming R8",
+        "R9: \"rounded-lg\" blocks with exit 1 naming R9",
+        "R9: \"max-w-2xl\" blocks with exit 1 naming R9",
+        "R9: \"size-[18px]\" blocks with exit 1 naming R9",
+        "R9: \"text-sm\" blocks with exit 1 naming R9",
+        "R9: \"size-3.5!\" blocks with exit 1 naming R9",
+        "B3: made-up value \"mt-[3px]\" blocks",
+        "B3: made-up value \"z-10\" blocks",
+        "B3: made-up value \"opacity-40\" blocks",
+        "R8: a template literal class is scanned",
+        "R8: CRLF source is scanned",
+        "R10: native title= blocks naming R10",
+        "R11: numeric strokeWidth blocks naming R11",
+        "R12: hex colour in lib/email blocks naming R12"
+      ],
+      "note": "Forces the offender branch to exit 0 — violations print but never block."
+    },
+    {
+      "id": "check-design-tokens-always-blocks",
+      "find": "if (offenders.length > 0 || stale.length > 0) {",
+      "replace": "if (true) {",
+      "expectRed": [
+        "control: a staged file with token-backed classes passes with exit 0",
+        "R11: numeric strokeWidth passes under components/diagrams",
+        "R12: hex colour outside lib/email passes",
+        "green: \"p-0 p-px p-0.5 p-1.5 p-10 w-1/2 w-full w-auto h-screen -mt-2\" passes with exit 0",
+        "green: \"p-nav-gap rounded-control max-w-content size-icon\" passes with exit 0",
+        "green: \"font-semibold tracking-code text-body\" passes with exit 0",
+        "green: \"bg-primary bg-white bg-transparent text-current\" passes with exit 0",
+        "green: \"sm:flex lg:flex max-tiny:flex\" passes with exit 0",
+        "green: \"opacity-0 opacity-100 opacity-disabled\" passes with exit 0",
+        "green: \"border border-input ring ring-ring outline-none\" passes with exit 0",
+        "green: \"data-[size=sm]:p-2 has-[>svg]:gap-2 lg:grid-cols-(--layout-setup)\" passes with exit 0",
+        "green: \"shadow-raised\" passes with exit 0",
+        "scope: a .test.tsx file is not scanned",
+        "scope: a file under lib/design is not scanned",
+        "B1: whole-tree run exits 0 on the repo"
+      ],
+      "note": "Forces the offender branch regardless of findings — a clean run also blocks."
+    },
+    {
+      "id": "check-design-tokens-R1",
+      "find": "if (r1 && !STEPS.has(r1[2]))",
+      "replace": "if (false)",
+      "expectRed": [
+        "control: a staged file with an off-scale spacing step blocks with exit 1",
+        "R1: \"p-7\" blocks with exit 1 naming R1",
+        "R1: \"gap-9\" blocks with exit 1 naming R1",
+        "R1: \"md:w-72\" blocks with exit 1 naming R1",
+        "B1: whole-tree run exits 0 on the repo"
+      ],
+      "note": "Disables the off-allowlist spacing/sizing step rule."
+    },
+    {
+      "id": "check-design-tokens-R2",
+      "find": "if (R2_RE.test(base))",
+      "replace": "if (false)",
+      "expectRed": [
+        "R2: \"gap-row\" blocks with exit 1 naming R2",
+        "R2: \"px-inline\" blocks with exit 1 naming R2"
+      ],
+      "note": "Disables the inline/row role-name rule."
+    },
+    {
+      "id": "check-design-tokens-R3",
+      "find": "if (/^z-\\d+$/.test(base))",
+      "replace": "if (false)",
+      "expectRed": [
+        "R3: \"z-10\" blocks with exit 1 naming R3",
+        "R3: \"-z-10\" blocks with exit 1 naming R3",
+        "B3: made-up value \"z-10\" blocks"
+      ],
+      "note": "Disables the numeric z-index rule."
+    },
+    {
+      "id": "check-design-tokens-R4",
+      "find": "if (r4 && Number(r4[1]) >= 1)",
+      "replace": "if (false)",
+      "expectRed": [
+        "R4: \"border-2\" blocks with exit 1 naming R4",
+        "R4: \"ring-1\" blocks with exit 1 naming R4",
+        "R4: \"outline-2\" blocks with exit 1 naming R4",
+        "R4: \"divide-x-2\" blocks with exit 1 naming R4",
+        "R4: \"ring-offset-2\" blocks with exit 1 naming R4"
+      ],
+      "note": "Disables the numeric border/ring/outline width rule."
+    },
+    {
+      "id": "check-design-tokens-R4-ring-inset",
+      "find": "if (base === 'ring-inset')",
+      "replace": "if (false)",
+      "expectRed": ["R4: \"ring-inset\" blocks with exit 1 naming R4"],
+      "note": "Disables the ring-inset rule."
+    },
+    {
+      "id": "check-design-tokens-R5",
+      "find": "if (op && !OPACITY_OK.has(op[1]))",
+      "replace": "if (false)",
+      "expectRed": [
+        "R5: \"opacity-40\" blocks with exit 1 naming R5",
+        "B3: made-up value \"opacity-40\" blocks"
+      ],
+      "note": "Disables the opacity rule."
+    },
+    {
+      "id": "check-design-tokens-R6",
+      "find": "if (!/^\\d+(?:\\.\\d+)?$/.test(rest) && !(isText && m.textRoles.has(rest))) {",
+      "replace": "if (false) {",
+      "expectRed": ["R6: \"bg-primary/50\" blocks with exit 1 naming R6"],
+      "note": "Disables the colour opacity modifier rule."
+    },
+    {
+      "id": "check-design-tokens-R7-value",
+      "find": "if (/^[a-z][\\w-]*-\\[/.test(base)) flag('R7'",
+      "replace": "if (false) flag('R7'",
+      "expectRed": [
+        "B3: made-up value \"mt-[3px]\" blocks",
+        "B1: whole-tree run exits 0 on the repo"
+      ],
+      "note": "Disables the arbitrary-value rule."
+    },
+    {
+      "id": "check-design-tokens-R7-variant",
+      "find": "if (variants.some((v) => /^(?:min|max)-\\[/.test(v))) flag('R7'",
+      "replace": "if (false) flag('R7'",
+      "expectRed": [
+        "R7: \"min-[500px]:flex\" blocks with exit 1 naming R7",
+        "R7: \"max-[600px]:flex\" blocks with exit 1 naming R7"
+      ],
+      "note": "Disables the arbitrary breakpoint variant rule."
+    },
+    {
+      "id": "check-design-tokens-R8-hue",
+      "find": "    m.hue.test(bare) ||",
+      "replace": "    false ||",
+      "expectRed": ["R8: \"bg-red-500\" blocks with exit 1 naming R8"],
+      "note": "Disables stock colour hue detection."
+    },
+    {
+      "id": "check-design-tokens-R8-weight",
+      "find": "    m.weight.test(bare) ||",
+      "replace": "    false ||",
+      "expectRed": [
+        "R8: \"font-bold\" blocks with exit 1 naming R8",
+        "R8: a template literal class is scanned"
+      ],
+      "note": "Disables stock font-weight detection."
+    },
+    {
+      "id": "check-design-tokens-R8-tracking",
+      "find": "    m.tracking.test(bare) ||",
+      "replace": "    false ||",
+      "expectRed": ["R8: \"tracking-wide\" blocks with exit 1 naming R8"],
+      "note": "Disables stock tracking detection."
+    },
+    {
+      "id": "check-design-tokens-R8-shadow",
+      "find": "    m.shadow.test(bare) ||",
+      "replace": "    false ||",
+      "expectRed": ["R8: \"shadow-lg\" blocks with exit 1 naming R8"],
+      "note": "Disables stock shadow detection."
+    },
+    {
+      "id": "check-design-tokens-R8-breakpoint",
+      "find": "if (variants.some((v) => m.breakpoint.test(v)))",
+      "replace": "if (false)",
+      "expectRed": ["R8: \"md:flex\" blocks with exit 1 naming R8"],
+      "note": "Disables stock breakpoint variant detection."
+    },
+    {
+      "id": "check-design-tokens-R9",
+      "find": "for (const re of R9_RULES)",
+      "replace": "for (const re of [])",
+      "expectRed": [
+        "R9: \"rounded-lg\" blocks with exit 1 naming R9",
+        "R9: \"max-w-2xl\" blocks with exit 1 naming R9",
+        "R9: \"size-[18px]\" blocks with exit 1 naming R9",
+        "R9: \"text-sm\" blocks with exit 1 naming R9",
+        "R9: \"size-3.5!\" blocks with exit 1 naming R9",
+        "B1: whole-tree run exits 0 on the repo"
+      ],
+      "note": "Disables the ported layout and type-size rules."
+    },
+    {
+      "id": "check-design-tokens-R10",
+      "find": "of nativeTitleSites(text)",
+      "replace": "of []",
+      "expectRed": ["R10: native title= blocks naming R10"],
+      "note": "Disables the native title= rule."
+    },
+    {
+      "id": "check-design-tokens-R11",
+      "find": "if (!/\\/diagrams\\/|score-ring\\.tsx$/.test(rel)) {",
+      "replace": "if (false) {",
+      "expectRed": ["R11: numeric strokeWidth blocks naming R11"],
+      "note": "Disables the numeric strokeWidth rule."
+    },
+    {
+      "id": "check-design-tokens-R11-exempt",
+      "find": "if (!/\\/diagrams\\/|score-ring\\.tsx$/.test(rel)) {",
+      "replace": "if (true) {",
+      "expectRed": [
+        "R11: numeric strokeWidth passes under components/diagrams",
+        "B1: whole-tree run exits 0 on the repo"
+      ],
+      "note": "Drops the diagrams/score-ring exemption."
+    },
+    {
+      "id": "check-design-tokens-R12",
+      "find": "if (rel.startsWith('apps/web/lib/email/')) {",
+      "replace": "if (false) {",
+      "expectRed": ["R12: hex colour in lib/email blocks naming R12"],
+      "note": "Disables the email hex rule."
+    },
+    {
+      "id": "check-design-tokens-R12-scope",
+      "find": "if (rel.startsWith('apps/web/lib/email/')) {",
+      "replace": "if (true) {",
+      "expectRed": ["R12: hex colour outside lib/email passes"],
+      "note": "Applies the email hex rule outside lib/email."
+    },
+    {
+      "id": "check-design-tokens-scope-lib-design",
+      "find": "|| rel.startsWith('apps/web/lib/design/')",
+      "replace": "",
+      "expectRed": ["scope: a file under lib/design is not scanned"],
+      "note": "Scans lib/design."
+    },
+    {
+      "id": "check-design-tokens-scope-tests",
+      "find": "if (/\\.(?:test|spec)\\.(?:ts|tsx)$/.test(rel)) return null",
+      "replace": "",
+      "expectRed": [
+        "scope: a .test.tsx file is not scanned",
+        "B1: whole-tree run exits 0 on the repo"
+      ],
+      "note": "Scans test files."
+    },
+    {
+      "id": "check-design-tokens-template-literal",
+      "find": "|`([^`]*)`/g",
+      "replace": "|`([^`\\n]*)`/g",
+      "expectRed": ["R8: a template literal class is scanned"],
+      "note": "Stops scanning multi-line template literals."
+    }
+  ]
+}
