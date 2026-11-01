@@ -188,9 +188,7 @@
       "replace": "      void 0",
       "expectRed": [
         "R6: \"bg-primary/50\" blocks with exit 1 naming R6",
-        "M8: \"bg-primary/(--alpha)\" blocks naming R6",
-        "B1: whole-tree run exits 0 on the repo",
-        "K1: whole-tree run from a path containing /.claude/worktrees/ exits 0 (no stale entries)"
+        "M8: \"bg-primary/(--alpha)\" blocks naming R6"
       ],
       "note": "Disables the colour opacity modifier rule."
     },
