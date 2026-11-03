@@ -16,14 +16,21 @@ type HeadingProps = Readonly<{
   level: 1 | 2 | 3
   className?: string
   id?: string
+  'aria-label'?: string
   children: React.ReactNode
 }>
 
-function Heading({ level, className, id, children }: Readonly<HeadingProps>) {
+function Heading({
+  level,
+  className,
+  id,
+  'aria-label': ariaLabel,
+  children,
+}: Readonly<HeadingProps>) {
   if (level === 1) {
     return (
       // biome-ignore lint/correctness/noRestrictedElements: Heading primitive
-      <h1 id={id} className={cn('text-title', className)}>
+      <h1 id={id} aria-label={ariaLabel} className={cn('text-title', className)}>
         {children}
       </h1>
     )
@@ -31,14 +38,14 @@ function Heading({ level, className, id, children }: Readonly<HeadingProps>) {
   if (level === 2) {
     return (
       // biome-ignore lint/correctness/noRestrictedElements: Heading primitive
-      <h2 id={id} className={cn('text-heading', className)}>
+      <h2 id={id} aria-label={ariaLabel} className={cn('text-heading', className)}>
         {children}
       </h2>
     )
   }
   return (
     // biome-ignore lint/correctness/noRestrictedElements: Heading primitive
-    <h3 id={id} className={cn('text-label-strong', className)}>
+    <h3 id={id} aria-label={ariaLabel} className={cn('text-label-strong', className)}>
       {children}
     </h3>
   )

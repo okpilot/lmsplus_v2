@@ -13,13 +13,9 @@ export function AuthShell({ subtitle, children }: Readonly<AuthShellProps>) {
     <main className="flex min-h-screen items-center justify-center px-gutter py-section">
       <Card className="w-full max-w-auth">
         <CardHeader className="justify-items-center gap-2 text-center">
-          <div
-            aria-hidden="true"
-            className="flex size-icon-box items-center justify-center rounded-control bg-primary"
-          >
-            <span className="text-heading text-primary-foreground">L</span>
-          </div>
-          <Heading level={1}>LMS Plus</Heading>
+          <Heading level={1} className="tracking-logo" aria-label="LMS Plus">
+            lms<span className="text-muted-foreground">plus</span>
+          </Heading>
           {subtitle ? <p className="text-body text-muted-foreground">{subtitle}</p> : null}
         </CardHeader>
         <CardContent>{children}</CardContent>
