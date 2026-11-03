@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { PROGRESS_ERROR_MESSAGES } from '../actions/progress-error-messages'
 
@@ -37,8 +37,18 @@ beforeEach(() => {
   mockDeviceId.mockReturnValue('device-1')
   mockResume.mockResolvedValue({ success: true })
   mockDiscard.mockResolvedValue({ success: true })
-  vi.spyOn(window, 'confirm').mockReturnValue(true)
 })
+
+const DIALOG_NAME = 'Delete this saved quiz?'
+
+async function openDialog() {
+  return screen.findByRole('alertdialog', { name: DIALOG_NAME })
+}
+
+async function confirmDelete() {
+  const dialog = await openDialog()
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+}
 
 describe('SavedSessionCard', () => {
   it('shows the subject, the mode and how many questions are answered', () => {
@@ -68,6 +78,9 @@ describe('SavedSessionCard', () => {
     expect(
       await screen.findByText(PROGRESS_ERROR_MESSAGES.another_session_active ?? ''),
     ).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      PROGRESS_ERROR_MESSAGES.another_session_active ?? '',
+    )
     expect(mockPush).not.toHaveBeenCalled()
   })
 
@@ -94,19 +107,54 @@ describe('SavedSessionCard', () => {
   it('discards the saved quiz after confirmation in one request without a router refresh', async () => {
     render(<SavedSessionCard session={SAVED} />)
     fireEvent.click(screen.getByTestId('delete-saved-session'))
+    await confirmDelete()
 
     await waitFor(() => expect(mockDiscard).toHaveBeenCalledWith({ sessionId: 'saved-1' }))
     await new Promise((r) => setTimeout(r, 0))
     expect(mockRefresh).not.toHaveBeenCalled()
   })
 
-  it('does not discard when the confirmation is cancelled', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false)
+  it('opens an alertdialog with the fixed copy when Delete is clicked', async () => {
     render(<SavedSessionCard session={SAVED} />)
     fireEvent.click(screen.getByTestId('delete-saved-session'))
 
-    await new Promise((r) => setTimeout(r, 0))
+    const dialog = await openDialog()
+    expect(within(dialog).getByText('This cannot be undone.')).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Delete' })).toBeInTheDocument()
     expect(mockDiscard).not.toHaveBeenCalled()
+  })
+
+  it('keeps the quiz and closes the dialog when Cancel is clicked', async () => {
+    render(<SavedSessionCard session={SAVED} />)
+    fireEvent.click(screen.getByTestId('delete-saved-session'))
+    const dialog = await openDialog()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
+    expect(mockDiscard).not.toHaveBeenCalled()
+  })
+
+  it('runs the delete once and closes the dialog when Delete is confirmed', async () => {
+    render(<SavedSessionCard session={SAVED} />)
+    fireEvent.click(screen.getByTestId('delete-saved-session'))
+    await confirmDelete()
+
+    await waitFor(() => expect(mockDiscard).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
+  })
+
+  it('disables both dialog buttons while the delete is in progress', async () => {
+    mockDiscard.mockReturnValue(new Promise(() => {}))
+    render(<SavedSessionCard session={SAVED} />)
+    fireEvent.click(screen.getByTestId('delete-saved-session'))
+    const dialog = await openDialog()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() =>
+      expect(within(dialog).getByRole('button', { name: 'Cancel' })).toBeDisabled(),
+    )
+    expect(within(dialog).getByRole('button', { name: /Delete/ })).toBeDisabled()
   })
 
   it('shows the mapped error and does not refresh when discard fails', async () => {
@@ -116,6 +164,7 @@ describe('SavedSessionCard', () => {
     })
     render(<SavedSessionCard session={SAVED} />)
     fireEvent.click(screen.getByTestId('delete-saved-session'))
+    await confirmDelete()
 
     expect(
       await screen.findByText(PROGRESS_ERROR_MESSAGES.session_not_saved ?? ''),
@@ -133,6 +182,7 @@ describe('SavedSessionCard', () => {
     mockDiscard.mockReturnValue(new Promise(() => {}))
     render(<SavedSessionCard session={SAVED} />)
     fireEvent.click(screen.getByTestId('delete-saved-session'))
+    await confirmDelete()
     await waitFor(() => expect(screen.getByTestId('resume-saved-session')).toBeDisabled())
   })
 })

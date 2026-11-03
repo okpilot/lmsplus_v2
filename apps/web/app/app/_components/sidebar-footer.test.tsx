@@ -71,4 +71,11 @@ describe('SidebarFooter', () => {
     expect(screen.getByText('Loading account')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Settings' })).toBeInTheDocument()
   })
+
+  it('uses the border token for its top edge', () => {
+    const { container } = renderFooter()
+    const root = container.firstElementChild as HTMLElement
+    expect(root.className).toContain('border-border')
+    expect(container.innerHTML).not.toContain('border-foreground/')
+  })
 })

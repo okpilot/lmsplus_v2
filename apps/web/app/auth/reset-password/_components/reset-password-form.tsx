@@ -1,8 +1,9 @@
 'use client'
 
-import Link from 'next/link'
 import { useState } from 'react'
 import { NewPasswordFields } from '@/components/auth/new-password-fields'
+import { FieldError } from '@/components/ui/field-error'
+import { Link } from '@/components/ui/link'
 import { LoadingButton } from '@/components/ui/loading-button'
 import { NewPasswordSchema } from '@/lib/auth/new-password-schema'
 import { resetOwnPassword } from '../actions'
@@ -56,13 +57,10 @@ export function ResetPasswordForm() {
       />
 
       {error && (
-        <div className="space-y-1">
-          <p className="text-sm text-destructive">{error}</p>
+        <div className="space-y-stack-sm">
+          <FieldError role="alert">{error}</FieldError>
           {showRequestLink && (
-            <Link
-              href="/auth/forgot-password"
-              className="text-sm font-medium text-primary hover:underline underline-offset-4"
-            >
+            <Link href="/auth/forgot-password" tone="primary" className="text-label">
               Request a new code
             </Link>
           )}
@@ -73,8 +71,8 @@ export function ResetPasswordForm() {
         Update password
       </LoadingButton>
 
-      <p className="text-center text-sm">
-        <Link href="/" className="text-muted-foreground hover:text-primary">
+      <p className="text-center text-body">
+        <Link href="/" tone="muted">
           Back to login
         </Link>
       </p>

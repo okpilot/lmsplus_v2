@@ -112,8 +112,11 @@ test.describe('Saved quizzes list', () => {
     await expect(page.getByTestId('delete-saved-session')).toBeVisible()
     const saved = await readSavedSession()
 
-    page.once('dialog', (d) => d.accept())
     await page.getByTestId('delete-saved-session').click()
+    await page
+      .getByRole('alertdialog', { name: 'Delete this saved quiz?' })
+      .getByRole('button', { name: 'Delete' })
+      .click()
     await expect(page.getByTestId('delete-saved-session')).toHaveCount(0, { timeout: 15_000 })
     await expect(page).toHaveURL(/\/app\/quiz$/)
 
@@ -124,7 +127,7 @@ test.describe('Saved quizzes list', () => {
     await expect(
       page
         .getByText(/No saved quizzes/)
-        .or(page.getByTestId('draft-progress'))
+        .or(page.getByRole('progressbar', { name: 'Answered questions' }))
         .first(),
     ).toBeVisible()
     await expect(page.getByTestId('resume-saved-session')).toHaveCount(0)

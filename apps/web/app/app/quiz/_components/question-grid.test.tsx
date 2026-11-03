@@ -1,6 +1,9 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { scrollPanelToCurrent } from '../_utils/scroll-panel-to-current'
 import { QuestionGrid } from './question-grid'
+
+vi.mock('../_utils/scroll-panel-to-current', () => ({ scrollPanelToCurrent: vi.fn() }))
 
 const IDS = ['q1', 'q2', 'q3', 'q4', 'q5']
 const MANY_IDS = Array.from({ length: 40 }, (_, i) => `q${i + 1}`)
@@ -58,23 +61,25 @@ describe('QuestionGrid — desktop', () => {
     expect(buttons[4]).toHaveTextContent('5')
   })
 
-  it('highlights current question with primary color', () => {
+  it('marks the current question with a primary ring', () => {
     renderGrid({ currentIndex: 2 })
     const btn = desktopBtn(2)
-    expect(btn.className).toContain('bg-primary')
+    expect(btn.className).toContain('ring-primary')
     expect(btn).toHaveAttribute('aria-current', 'step')
   })
 
-  it('shows correct answer with green', () => {
+  it('shows correct answer with success-soft and data-status correct', () => {
     const feedbackMap = new Map([['q2', { isCorrect: true }]])
     renderGrid({ feedbackMap })
-    expect(desktopBtn(1).className).toContain('bg-green-500')
+    expect(desktopBtn(1).className).toContain('bg-success-soft')
+    expect(desktopBtn(1)).toHaveAttribute('data-status', 'correct')
   })
 
-  it('shows incorrect answer with red', () => {
+  it('shows incorrect answer with danger-soft and data-status wrong', () => {
     const feedbackMap = new Map([['q3', { isCorrect: false }]])
     renderGrid({ feedbackMap })
-    expect(desktopBtn(2).className).toContain('bg-red-500')
+    expect(desktopBtn(2).className).toContain('bg-danger-soft')
+    expect(desktopBtn(2)).toHaveAttribute('data-status', 'wrong')
   })
 
   it('shows unanswered with border only', () => {
@@ -82,17 +87,20 @@ describe('QuestionGrid — desktop', () => {
     const btn = desktopBtn(3)
     expect(btn.className).toContain('border')
     expect(btn.className).toContain('text-muted-foreground')
+    expect(btn).toHaveAttribute('data-status', 'unseen')
   })
 
-  it('current question overrides correct/incorrect color', () => {
+  it('current question keeps its correct state and adds the ring', () => {
     const feedbackMap = new Map([['q1', { isCorrect: true }]])
     renderGrid({ currentIndex: 0, feedbackMap })
-    expect(desktopBtn(0).className).toContain('bg-primary')
+    expect(desktopBtn(0).className).toContain('bg-success-soft')
+    expect(desktopBtn(0).className).toContain('ring-primary')
   })
 
-  it('shows a visited (seen) square with green when seenIds is provided', () => {
+  it('shows a visited (seen) square as answered when seenIds is provided', () => {
     renderGrid({ currentIndex: 0, seenIds: new Set([2]) })
-    expect(desktopBtn(2).className).toContain('bg-green-500')
+    expect(desktopBtn(2).className).toContain('bg-muted')
+    expect(desktopBtn(2)).toHaveAttribute('data-status', 'answered')
   })
 
   it('leaves unvisited squares as border-only when seenIds is provided', () => {
@@ -101,10 +109,15 @@ describe('QuestionGrid — desktop', () => {
     expect(desktopBtn(3).className).toContain('text-muted-foreground')
   })
 
-  it('keeps the current square primary even when it is in seenIds', () => {
+  it('reads the current Discovery square as unseen with the ring while the student is on it', () => {
     renderGrid({ currentIndex: 1, seenIds: new Set([1, 2]) })
-    expect(desktopBtn(1).className).toContain('bg-primary')
-    expect(desktopBtn(1).className).not.toContain('bg-green-500')
+    expect(desktopBtn(1)).toHaveAttribute('data-status', 'unseen')
+    expect(desktopBtn(1).className).toContain('ring-primary')
+  })
+
+  it('reads a Discovery square as answered once the student has moved on', () => {
+    renderGrid({ currentIndex: 2, seenIds: new Set([1, 2]) })
+    expect(desktopBtn(1)).toHaveAttribute('data-status', 'answered')
   })
 
   it('calls onNavigate with correct index when clicked', () => {
@@ -123,40 +136,18 @@ describe('QuestionGrid — desktop', () => {
     expect(desktopBtn(2)).toHaveAttribute('aria-label', 'Question 3, pinned')
   })
 
-  it('collapses to a two-row window for large quizzes on desktop', () => {
-    // jsdom offsetWidth = 0 → measure is skipped → perRow stays at the default 9
-    // → twoRows = 18, so 40 questions collapse to the 18-square window.
+  it('lists every question in the desktop panel with no collapse toggle', () => {
     renderGrid({ totalQuestions: 40, questionIds: MANY_IDS })
-    const grid = screen.getByTestId('question-grid')
-    expect(grid.querySelectorAll('button')).toHaveLength(18)
-    expect(screen.getByTestId('grid-toggle-desktop')).toHaveTextContent(/Show all.*40/)
-  })
-
-  it('expands to show all questions on desktop when toggled', () => {
-    renderGrid({ totalQuestions: 40, questionIds: MANY_IDS })
-    fireEvent.click(screen.getByTestId('grid-toggle-desktop'))
-    const grid = screen.getByTestId('question-grid')
-    expect(grid.querySelectorAll('button')).toHaveLength(40)
-    expect(screen.getByTestId('grid-toggle-desktop')).toHaveTextContent('Hide')
-  })
-
-  it('does not collapse small quizzes that fit in two rows on desktop', () => {
-    renderGrid({ totalQuestions: 5 })
-    expect(screen.getByTestId('question-grid').querySelectorAll('button')).toHaveLength(5)
-    expect(screen.queryByTestId('grid-toggle-desktop')).not.toBeInTheDocument()
-  })
-
-  it('restores the collapsed default after expanding then round-tripping through a filter', () => {
-    renderGrid({ totalQuestions: 40, questionIds: MANY_IDS, flaggedIds: new Set(['q1']) })
-    // Expand the desktop grid.
-    fireEvent.click(screen.getByTestId('grid-toggle-desktop'))
     expect(screen.getByTestId('question-grid').querySelectorAll('button')).toHaveLength(40)
-    // Switch to the flagged filter and back to All.
+    expect(screen.queryByTestId('grid-toggle-desktop')).not.toBeInTheDocument()
+    expect(screen.queryByText(/show all/i)).not.toBeInTheDocument()
+  })
+
+  it('keeps every desktop square after a filter round trip', () => {
+    renderGrid({ totalQuestions: 40, questionIds: MANY_IDS, flaggedIds: new Set(['q1']) })
     fireEvent.click(screen.getByTestId('filter-flagged'))
     fireEvent.click(screen.getByText('All'))
-    // Back on All, the grid should be collapsed again (two-row window), not expanded.
-    expect(screen.getByTestId('question-grid').querySelectorAll('button')).toHaveLength(18)
-    expect(screen.getByTestId('grid-toggle-desktop')).toHaveTextContent(/Show all/)
+    expect(screen.getByTestId('question-grid').querySelectorAll('button')).toHaveLength(40)
   })
 })
 
@@ -292,7 +283,6 @@ describe('QuestionGrid — effectiveFilter fallback', () => {
 
     fireEvent.click(screen.getByTestId('filter-flagged'))
 
-    // Neither breakpoint's toggle should appear when the filter is not 'all'.
     expect(screen.queryByTestId('grid-toggle-desktop')).not.toBeInTheDocument()
     expect(screen.queryByTestId('grid-toggle-mobile')).not.toBeInTheDocument()
   })
@@ -340,7 +330,7 @@ describe('QuestionGrid — mobile collapse', () => {
   it('shows toggle button for large quizzes', () => {
     renderGrid({ totalQuestions: 40, questionIds: MANY_IDS })
     expect(screen.getByTestId('grid-toggle-mobile')).toBeInTheDocument()
-    expect(screen.getByTestId('grid-toggle-mobile')).toHaveTextContent(/Show all.*40/)
+    expect(screen.getByTestId('grid-toggle-mobile')).toHaveTextContent(/See all.*40/)
   })
 
   it('shows all squares when expanded', () => {
@@ -366,11 +356,11 @@ describe('QuestionGrid — mobile collapse', () => {
 })
 
 describe('QuestionGrid — practice answer awaiting feedback', () => {
-  it('shows an answered practice question without feedback as answered, not green or red', () => {
+  it('shows an answered practice question without feedback as answered, not correct or wrong', () => {
     renderGrid({ answeredIds: new Set(['q2']) })
 
-    expect(desktopBtn(1).className).toContain('bg-muted-foreground/60')
-    expect(desktopBtn(1).className).not.toContain('bg-green-500')
+    expect(desktopBtn(1)).toHaveAttribute('data-status', 'answered')
+    expect(desktopBtn(1).className).not.toContain('bg-success-soft')
   })
 
   it('colours an answered practice question by its feedback once it arrives', () => {
@@ -379,7 +369,7 @@ describe('QuestionGrid — practice answer awaiting feedback', () => {
       feedbackMap: new Map([['q2', { isCorrect: true }]]),
     })
 
-    expect(desktopBtn(1).className).toContain('bg-green-500')
+    expect(desktopBtn(1)).toHaveAttribute('data-status', 'correct')
   })
 
   it('leaves an unanswered practice question outlined', () => {
@@ -388,9 +378,38 @@ describe('QuestionGrid — practice answer awaiting feedback', () => {
     expect(desktopBtn(2).className).toContain('border-border')
   })
 
-  it('keeps the current question highlighted even when it is answered', () => {
-    renderGrid({ currentIndex: 1, answeredIds: new Set(['q2']) })
+  it('keeps the current question ringed and reads an answered current exam square as answered', () => {
+    renderGrid({ currentIndex: 1, answeredIds: new Set(['q2']), isExamMode: true })
 
-    expect(desktopBtn(1).className).toContain('bg-primary')
+    expect(desktopBtn(1).className).toContain('ring-primary')
+    expect(desktopBtn(1)).toHaveAttribute('data-status', 'answered')
+  })
+})
+
+describe('QuestionGrid — panel scroll sync', () => {
+  const baseProps = {
+    totalQuestions: 5,
+    currentIndex: 0,
+    pinnedIds: new Set<string>(),
+    flaggedIds: new Set<string>(['q1']),
+    questionIds: IDS,
+    feedbackMap: new Map<string, { isCorrect: boolean }>(),
+    onNavigate: vi.fn(),
+  }
+
+  it('scrolls the desktop grid panel when currentIndex changes', () => {
+    const { rerender } = render(<QuestionGrid {...baseProps} />)
+    const grid = screen.getByTestId('question-grid')
+    vi.mocked(scrollPanelToCurrent).mockClear()
+    rerender(<QuestionGrid {...baseProps} currentIndex={3} />)
+    expect(scrollPanelToCurrent).toHaveBeenCalledWith(grid)
+  })
+
+  it('scrolls the desktop grid panel when the filter changes', () => {
+    render(<QuestionGrid {...baseProps} />)
+    const grid = screen.getByTestId('question-grid')
+    vi.mocked(scrollPanelToCurrent).mockClear()
+    fireEvent.click(screen.getByTestId('filter-flagged'))
+    expect(scrollPanelToCurrent).toHaveBeenCalledWith(grid)
   })
 })

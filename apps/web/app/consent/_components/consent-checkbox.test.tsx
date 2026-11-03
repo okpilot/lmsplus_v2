@@ -65,12 +65,12 @@ describe('ConsentCheckbox', () => {
   })
 
   describe('required indicator', () => {
-    it('renders the required asterisk when required is true', () => {
+    it('renders no asterisk when required is true', () => {
       renderCheckbox({ required: true })
-      expect(screen.getByText('*', { exact: false })).toBeInTheDocument()
+      expect(screen.queryByText('*', { exact: false })).not.toBeInTheDocument()
     })
 
-    it('does not render the required asterisk when required is not set', () => {
+    it('renders no asterisk when required is not set', () => {
       renderCheckbox({ required: false })
       expect(screen.queryByText('*', { exact: false })).not.toBeInTheDocument()
     })

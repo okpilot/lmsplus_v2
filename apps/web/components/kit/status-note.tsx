@@ -11,15 +11,15 @@ type StatusNoteProps = {
 }
 
 const PANEL_CLASS = {
-  caution: 'bg-caution-soft ring-1 ring-caution-ring',
-  ok: 'bg-ok-soft',
-  bad: 'bg-bad-soft',
+  caution: 'bg-caution-soft',
+  ok: 'bg-success-soft',
+  bad: 'bg-danger-soft',
 } as const satisfies Record<Tone, string>
 
 const ICON_CLASS = {
   caution: 'text-caution',
-  ok: 'text-ok',
-  bad: 'text-bad',
+  ok: 'text-success',
+  bad: 'text-danger',
 } as const satisfies Record<Tone, string>
 
 const ICON = {
@@ -39,9 +39,9 @@ export function StatusNote({ tone, title, children }: Readonly<StatusNoteProps>)
   return (
     <div
       role={ROLE[tone]}
-      className={cn('flex gap-3 rounded-2xl px-4 py-3 text-sm', PANEL_CLASS[tone])}
+      className={cn('flex gap-3 rounded-card px-4 py-3 text-body', PANEL_CLASS[tone])}
     >
-      <Icon aria-hidden="true" className={cn('mt-0.5 size-4 shrink-0', ICON_CLASS[tone])} />
+      <Icon aria-hidden="true" className={cn('mt-0.5 size-icon shrink-0', ICON_CLASS[tone])} />
       <div>
         {title ? <p className="font-medium">{title}</p> : null}
         <div>{children}</div>

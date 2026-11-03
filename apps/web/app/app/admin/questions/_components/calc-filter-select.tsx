@@ -22,7 +22,7 @@ export function CalcFilterSelect({ value, onValueChange }: Readonly<Props>) {
       items={CALCULATIONS_ITEMS}
       ariaLabel="Calculations"
       placeholder="Calculations"
-      triggerClassName="w-40"
+      triggerClassName="w-col-md"
       onValueChange={onValueChange}
     />
   )

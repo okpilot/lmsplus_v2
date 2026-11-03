@@ -49,6 +49,21 @@ const baseRow: InternalExamCodeRow = {
   sessionEndedAt: null,
 }
 
+describe('CodeRow status tone', () => {
+  it.each([
+    ['voided', { status: 'voided' }, 'bg-danger-soft'],
+    ['active', { status: 'active' }, 'bg-success-soft'],
+    ['finished', { status: 'consumed', sessionEndedAt: '2026-10-31T10:00:00Z' }, 'bg-success-soft'],
+    ['consumed', { status: 'consumed' }, 'bg-muted'],
+    ['expired', { status: 'expired' }, 'bg-muted'],
+  ] as const)('shows status %s with its tone', (label, patch, cls) => {
+    const { container } = renderRow({ ...baseRow, ...patch })
+    const badge = container.querySelector('[data-slot="badge"]') as HTMLElement
+    expect(badge).toHaveTextContent(label)
+    expect(badge.className).toContain(cls)
+  })
+})
+
 describe('CodeRow', () => {
   describe('student cell display fallback chain', () => {
     it('shows studentEmail when studentName is empty and email is set', () => {

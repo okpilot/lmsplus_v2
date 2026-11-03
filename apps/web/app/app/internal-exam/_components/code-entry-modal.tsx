@@ -76,7 +76,7 @@ export function CodeEntryModal({ open, onOpenChange, subjectName, subjectShort }
         </DialogHeader>
         <form
           onSubmit={handleSubmit}
-          className="space-y-3"
+          className="space-y-stack"
           data-testid="code-entry-form"
           noValidate
         >
@@ -97,7 +97,7 @@ export function CodeEntryModal({ open, onOpenChange, subjectName, subjectShort }
               inputMode="text"
               maxLength={CODE_LENGTH}
               placeholder="ABC23XYZ"
-              className="tabular-nums tracking-widest uppercase"
+              className="tabular-nums tracking-code uppercase"
               aria-invalid={error !== null}
             />
             <BlockedStartAlert message={error} blocked={blocked} startLabel="exam" />

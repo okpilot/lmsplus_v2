@@ -1,4 +1,12 @@
 import Link from 'next/link'
+import { buttonVariants } from '@/components/ui/button-variants'
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from '@/components/ui/empty'
 
 /**
  * 404 boundary for the admin segment.
@@ -14,19 +22,20 @@ import Link from 'next/link'
  */
 export default function AdminNotFound() {
   return (
-    <div className="flex min-h-[50vh] items-center justify-center">
-      <div className="text-center">
-        <h2 className="text-2xl font-bold">Not found</h2>
-        <p className="mt-2 text-muted-foreground">
-          That admin record does not exist, or it has been removed.
-        </p>
-        <Link
-          href="/app/admin/dashboard"
-          className="mt-4 inline-block rounded-md border px-4 py-2 hover:bg-muted"
-        >
-          Back to admin dashboard
-        </Link>
-      </div>
+    <div className="grid min-h-(--half-screen) place-items-center px-gutter">
+      <Empty>
+        <EmptyHeader>
+          <EmptyTitle as="h2">Not found</EmptyTitle>
+          <EmptyDescription>
+            That admin record does not exist, or it has been removed.
+          </EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <Link href="/app/admin/dashboard" className={buttonVariants({ variant: 'outline' })}>
+            Back to admin dashboard
+          </Link>
+        </EmptyContent>
+      </Empty>
     </div>
   )
 }

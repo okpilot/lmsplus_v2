@@ -112,8 +112,11 @@ test.describe('Quiz session opened by id', () => {
 
     await page.goto(`/app/quiz/session/${sessionId}`)
     await expect(page.getByRole('heading', { name: 'Saved quiz' })).toBeVisible()
-    page.once('dialog', (d) => d.accept())
     await page.getByRole('button', { name: 'Delete' }).click()
+    await page
+      .getByRole('alertdialog', { name: 'Delete this saved quiz?' })
+      .getByRole('button', { name: 'Delete' })
+      .click()
     await expect(page).toHaveURL(/\/app\/quiz$/, { timeout: 15_000 })
 
     const state = await readSessionState(sessionId)

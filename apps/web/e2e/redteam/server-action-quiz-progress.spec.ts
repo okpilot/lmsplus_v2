@@ -61,12 +61,13 @@ async function startQuizCapturing(page: Page): Promise<Captured> {
   await page.getByRole('button', { name: 'Start Quiz' }).click()
   await page.waitForURL(new RegExp(`${SESSION_PATH}/[0-9a-f-]{36}$`), { timeout: 15_000 })
   await expect(page.getByText(/Question 1 of \d+/)).toBeVisible({ timeout: 15_000 })
-  const answers = page.locator('button:has(span.rounded-full)')
+  const answers = page.locator('button[data-testid^="option-"]')
   await answers.first().click()
   await page.getByRole('button', { name: 'Submit Answer' }).first().click()
-  const next = page.getByRole('button', { name: 'Next ›' })
-  await next.waitFor({ state: 'visible', timeout: 10_000 })
-  await next.click()
+  await expect(page.getByRole('button', { name: 'Submit Answer' })).toHaveCount(0, {
+    timeout: 10_000,
+  })
+  await page.getByRole('button', { name: 'Next ›' }).click()
   await expect(page.getByText(/Question 2 of \d+/)).toBeVisible()
   const ids = await watch.settle()
   const headers = watch.headers()

@@ -19,7 +19,7 @@ export default async function AdminInternalExamReportPage({
   })
 
   return (
-    <main className="space-y-6">
+    <main className="space-y-section">
       <AdminInternalExamReportHeader studentName={summary.studentName} />
       <ResultSummary summary={summary} />
       <QuestionBreakdown

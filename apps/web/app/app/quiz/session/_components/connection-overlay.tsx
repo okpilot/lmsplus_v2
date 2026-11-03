@@ -101,7 +101,7 @@ function ReloadEscape() {
   if (!stalled) return null
   return (
     <>
-      <p className="text-sm text-muted-foreground">
+      <p className="text-body text-muted-foreground">
         Still waiting? Reloading loses answers not yet sent.
       </p>
       <Button variant="outline" onClick={() => window.location.reload()}>

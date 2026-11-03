@@ -111,6 +111,9 @@ describe('QuizReportView', () => {
       })
       render(jsx)
       expect(screen.getByRole('heading', { name: 'Quiz Results' })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { level: 1, name: 'Quiz Results' })).toHaveClass(
+        'text-title',
+      )
       expect(mockRedirect).not.toHaveBeenCalled()
     })
   })

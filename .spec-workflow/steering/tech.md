@@ -19,12 +19,12 @@ Multi-tenant SaaS web application for EASA PPL aviation training. Serves Approve
 
 - **Next.js (App Router)**: Full-stack React framework. Server Components for data fetching, Server Actions for mutations, `proxy.ts` for route protection (Next.js 16 convention).
 - **Tailwind CSS v4**: Utility-first CSS with oklch color space. `@theme inline` in `globals.css`.
-- **shadcn/ui v4**: Component library built on Base UI (not Radix). Official "Blue" theme on neutral base.
+- **shadcn/ui v4**: Component library built on Base UI (not Radix). Colour, radius and type tokens generated from `apps/web/lib/design` into `apps/web/app/tokens.css` (Slate neutrals, one blue accent, Decisions 171 and 172).
 - **Supabase JS (`@supabase/supabase-js`, `@supabase/ssr`)**: Typed Postgres client, auth helpers, storage SDK.
 - **Zod**: Runtime input validation on every Server Action input and Route Handler body/query/path param.
 - **next-themes**: Dark mode via `attribute="class"`, system preference default.
 - **@sentry/nextjs v11**: Error tracking with source maps, trace sampling (rates: `apps/web/sentry-traces-sampler.ts`), tunnel route.
-- **@dnd-kit** (`@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities`): Accessible, touch-capable drag-and-drop for the VFR RT Part-3 `ordering`/`diagram_label` question types. Sensors: PointerSensor, TouchSensor (delay 250ms / tolerance 5px, iPad), KeyboardSensor.
+- **@dnd-kit** (`@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities`): Accessible, touch-capable drag-and-drop for the VFR RT Part-3 `ordering` question type. Sensors: PointerSensor, TouchSensor (delay 250ms / tolerance 5px, iPad), KeyboardSensor.
 - **Turborepo**: Monorepo orchestration with task caching and dependency graphs.
 
 ### Application Architecture

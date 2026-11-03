@@ -18,9 +18,16 @@ describe('PhoneTopBar', () => {
     expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument()
   })
 
-  it('is hidden from the md breakpoint up and adds no landmark', () => {
+  it('is hidden from the sm breakpoint up and adds no landmark', () => {
     const { container } = render(<PhoneTopBar />)
-    expect((container.firstElementChild as HTMLElement).className).toContain('md:hidden')
+    expect((container.firstElementChild as HTMLElement).className).toContain('sm:hidden')
     expect(screen.queryByRole('banner')).not.toBeInTheDocument()
+  })
+
+  it('uses the border token for its bottom edge', () => {
+    const { container } = render(<PhoneTopBar />)
+    const cls = (container.firstElementChild as HTMLElement).className
+    expect(cls).toContain('border-border')
+    expect(cls).not.toContain('border-foreground/')
   })
 })

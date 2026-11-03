@@ -24,7 +24,7 @@ The primary competitive baseline is Aviationexam. LMS Plus differentiates by off
 
 1. **Authentication**: Email + password login with pre-created accounts (no self-registration). Password reset flow. Session recovery across deployments.
 
-2. **Student Dashboard**: Per-subject progress cards with colour-coded mastery bars (red/amber/green), 31-day activity heatmap, exam readiness score (X/N subjects of the selected course at 90%+), daily question goal tracker, study streak counter.
+2. **Student Dashboard**: Per-subject progress cards with mastery bars (grey until 90%, then green), 31-day activity heatmap, exam readiness score (X/N subjects of the selected course at 90%+), daily question goal tracker, study streak counter.
 
 3. **Quiz System**: Multi-select topic tree for question selection, combinable filters (All/Unseen/Incorrect/Flagged), configurable question count (10 to All), randomised delivery, immediate per-question feedback with explanations, session reports with score breakdown.
 
@@ -38,7 +38,7 @@ The primary competitive baseline is Aviationexam. LMS Plus differentiates by off
 
 8. **Admin Student Manager**: Create/edit/deactivate students and instructors, password reset with must-change flag, role assignment, status filtering, name/email search. All operations org-scoped.
 
-9. **Student Settings**: Profile view, display name editing, password change, quiz statistics.
+9. **Student Settings**: Profile view, display name editing, password change.
 
 10. **GDPR Compliance**: First-login consent gate with versioned TOS/privacy acceptance, immutable consent audit trail (`user_consents` table), self-service JSON data export, admin data export per student, EASA Part ORA retention exemption documented in privacy policy.
 

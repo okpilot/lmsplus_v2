@@ -1,5 +1,7 @@
 'use client'
 
+import { useId } from 'react'
+import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -34,17 +36,21 @@ export function DifficultyStatusSelect({
   onDifficultyChange,
   onStatusChange,
 }: Readonly<Props>) {
+  const difficultyId = useId()
+  const statusId = useId()
   return (
-    <div className="grid grid-cols-2 gap-3 [&>div]:min-w-0 [&_[data-slot=select-trigger]]:w-full">
+    <div className="grid grid-cols-2 gap-stack-lg [&>div]:min-w-0 [&_[data-slot=select-trigger]]:w-full">
       <div>
-        <span className="mb-1 block text-xs font-medium text-muted-foreground">Difficulty</span>
+        <Label htmlFor={difficultyId} className="mb-1 block">
+          Difficulty
+        </Label>
         <Select
           value={difficulty}
           onValueChange={onDifficultyChange}
           disabled={isPending}
           items={DIFFICULTY_ITEMS}
         >
-          <SelectTrigger aria-label="Difficulty">
+          <SelectTrigger id={difficultyId} aria-label="Difficulty">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -61,14 +67,16 @@ export function DifficultyStatusSelect({
         </Select>
       </div>
       <div>
-        <span className="mb-1 block text-xs font-medium text-muted-foreground">Status</span>
+        <Label htmlFor={statusId} className="mb-1 block">
+          Status
+        </Label>
         <Select
           value={status}
           onValueChange={onStatusChange}
           disabled={isPending}
           items={STATUS_ITEMS}
         >
-          <SelectTrigger aria-label="Status">
+          <SelectTrigger id={statusId} aria-label="Status">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

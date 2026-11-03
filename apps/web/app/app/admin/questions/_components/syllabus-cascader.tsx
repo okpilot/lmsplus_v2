@@ -1,5 +1,7 @@
 'use client'
 
+import { useId } from 'react'
+import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -30,6 +32,9 @@ export function SyllabusCascader({
   onSubtopicChange,
   disabled,
 }: Readonly<Props>) {
+  const subjectId_ = useId()
+  const topicId_ = useId()
+  const subtopicId_ = useId()
   const selectedSubject = tree.find((s) => s.id === subjectId)
   const topics = selectedSubject?.topics ?? []
   const selectedTopic = topics.find((t) => t.id === topicId)
@@ -43,16 +48,18 @@ export function SyllabusCascader({
   ]
 
   return (
-    <div className="grid grid-cols-3 gap-3 [&>div]:min-w-0 [&_[data-slot=select-trigger]]:w-full">
+    <div className="grid grid-cols-3 items-end gap-stack-lg [&>div]:min-w-0 [&_[data-slot=select-trigger]]:w-full">
       <div>
-        <span className="mb-1 block text-xs font-medium text-muted-foreground">Subject *</span>
+        <Label htmlFor={subjectId_} className="mb-1 block">
+          Subject
+        </Label>
         <Select
           value={subjectId ?? ''}
           onValueChange={(v) => v && onSubjectChange(v)}
           disabled={disabled}
           items={subjectItems}
         >
-          <SelectTrigger>
+          <SelectTrigger id={subjectId_}>
             <SelectValue placeholder="Select subject" />
           </SelectTrigger>
           <SelectContent>
@@ -66,14 +73,16 @@ export function SyllabusCascader({
       </div>
 
       <div>
-        <span className="mb-1 block text-xs font-medium text-muted-foreground">Topic *</span>
+        <Label htmlFor={topicId_} className="mb-1 block">
+          Topic
+        </Label>
         <Select
           value={topicId ?? ''}
           onValueChange={(v) => v && onTopicChange(v)}
           disabled={disabled || topics.length === 0}
           items={topicItems}
         >
-          <SelectTrigger>
+          <SelectTrigger id={topicId_}>
             <SelectValue placeholder="Select topic" />
           </SelectTrigger>
           <SelectContent>
@@ -87,14 +96,16 @@ export function SyllabusCascader({
       </div>
 
       <div>
-        <span className="mb-1 block text-xs font-medium text-muted-foreground">Subtopic</span>
+        <Label htmlFor={subtopicId_} className="mb-1 block">
+          Subtopic (optional)
+        </Label>
         <Select
           value={subtopicId ?? '__none__'}
           onValueChange={(v) => onSubtopicChange(v === '__none__' || v === null ? null : v)}
           disabled={disabled || subtopics.length === 0}
           items={subtopicItems}
         >
-          <SelectTrigger>
+          <SelectTrigger id={subtopicId_}>
             <SelectValue placeholder="None" />
           </SelectTrigger>
           <SelectContent>

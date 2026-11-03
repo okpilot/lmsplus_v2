@@ -1,6 +1,8 @@
 'use client'
 
 import { useBoundaryError } from '@/app/_hooks/use-boundary-error'
+import { Button } from '@/components/ui/button'
+import { Heading } from '@/components/ui/heading'
 
 export default function GlobalError({
   error,
@@ -16,17 +18,13 @@ export default function GlobalError({
       <body>
         <div className="flex min-h-screen items-center justify-center">
           <div className="text-center">
-            <h1 className="text-2xl font-bold">Something went wrong</h1>
+            <Heading level={1}>Something went wrong</Heading>
             <p className="mt-2 text-muted-foreground">
               An unexpected error occurred. Please try refreshing the page.
             </p>
-            <button
-              type="button"
-              onClick={() => retry()}
-              className="mt-4 rounded-md bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
-            >
+            <Button type="button" onClick={() => retry()} className="mt-4">
               Try again
-            </button>
+            </Button>
           </div>
         </div>
       </body>

@@ -1,7 +1,10 @@
 'use client'
 
 import Link from 'next/link'
+import { ErrorScreen } from '@/app/_components/error-screen'
 import { useBoundaryError } from '@/app/_hooks/use-boundary-error'
+import { Button } from '@/components/ui/button'
+import { buttonVariants } from '@/components/ui/button-variants'
 
 export default function AdminErrorPage({
   error,
@@ -13,23 +16,20 @@ export default function AdminErrorPage({
   useBoundaryError(error)
 
   return (
-    <div className="flex min-h-[50vh] items-center justify-center">
-      <div className="text-center space-y-4">
-        <h2 className="text-2xl font-bold">Something went wrong</h2>
-        <p className="text-muted-foreground">An unexpected error occurred in the admin area.</p>
-        <div className="flex gap-3 justify-center">
-          <button
-            type="button"
-            onClick={() => retry()}
-            className="rounded-md bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
-          >
+    <ErrorScreen
+      actionClassName="sm:flex-row"
+      action={
+        <>
+          <Button type="button" onClick={() => retry()}>
             Try again
-          </button>
-          <Link href="/app/dashboard" className="rounded-md border px-4 py-2 hover:bg-muted">
+          </Button>
+          <Link href="/app/dashboard" className={buttonVariants({ variant: 'outline' })}>
             Back to dashboard
           </Link>
-        </div>
-      </div>
-    </div>
+        </>
+      }
+    >
+      An unexpected error occurred in the admin area.
+    </ErrorScreen>
   )
 }

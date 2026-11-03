@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
+import type { QuestionTab } from '../../_components/question-tabs'
 import type { AnswerFeedback } from '../../types'
 
 type FeedbackMapInput = Map<string, AnswerFeedback>
@@ -8,22 +9,19 @@ type FeedbackMapInput = Map<string, AnswerFeedback>
 type UseQuizUIOptions = {
   feedback: FeedbackMapInput
   currentIndex: number
-  activeTab: string
-  existingAnswer: unknown
+  activeTab?: QuestionTab
 }
 
 type UseQuizUIResult = {
   feedbackMap: Map<string, { isCorrect: boolean }>
   pendingOptionId: string | null
   handleSelectionChange: (id: string | null) => void
-  canSubmitAnswer: boolean
 }
 
 export function useQuizUI({
   feedback,
   currentIndex,
   activeTab,
-  existingAnswer,
 }: UseQuizUIOptions): UseQuizUIResult {
   const feedbackMap = useMemo(() => {
     const map = new Map<string, { isCorrect: boolean }>()
@@ -37,14 +35,13 @@ export function useQuizUI({
   const [pendingOptionId, setPendingOptionId] = useState<string | null>(null)
   const handleSelectionChange = useCallback((id: string | null) => setPendingOptionId(id), [])
 
-  // Clear pending selection when navigating to a different question
-  // biome-ignore lint/correctness/useExhaustiveDependencies: currentIndex triggers reset on navigation
-  useEffect(() => {
+  // Clear pending selection in the same render the question or tab changes: AnswerOptions unmounts
+  // off the Question tab, and an effect would leave one frame where Submit sends the old option.
+  const [resetKey, setResetKey] = useState({ currentIndex, activeTab })
+  if (resetKey.currentIndex !== currentIndex || resetKey.activeTab !== activeTab) {
+    setResetKey({ currentIndex, activeTab })
     setPendingOptionId(null)
-  }, [currentIndex])
+  }
 
-  const isQuestionTab = activeTab === 'question'
-  const canSubmitAnswer = isQuestionTab && !existingAnswer && !!pendingOptionId
-
-  return { feedbackMap, pendingOptionId, handleSelectionChange, canSubmitAnswer }
+  return { feedbackMap, pendingOptionId, handleSelectionChange }
 }

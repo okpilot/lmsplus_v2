@@ -34,6 +34,11 @@ beforeEach(() => {
 })
 
 describe('VfrRtExamPanel', () => {
+  it('sets the parameter values at heading size so they stay on one line at phone width', () => {
+    renderPanel()
+    expect(screen.getByText('30 min').className).toContain('text-heading')
+  })
+
   it('states the time limit, part count and per-part pass mark', () => {
     renderPanel()
     expect(screen.getByText('30 min')).toBeInTheDocument()
@@ -110,4 +115,29 @@ describe('VfrRtExamPanel', () => {
 
     expect(onAccept).toHaveBeenCalledTimes(1)
   })
+
+  it('renders each exam parameter as a stat tile', () => {
+    const { container } = renderPanel(25)
+    expect(container.querySelectorAll('[data-slot="stat"]')).toHaveLength(4)
+  })
+
+  it('titles the parameters block with a level-3 heading', () => {
+    renderPanel()
+    expect(
+      screen.getByRole('heading', { level: 3, name: 'VFR RT Mock Exam Parameters' }),
+    ).toBeInTheDocument()
+  })
+
+  it.each([
+    [null, 'grid-cols-3'],
+    [25, 'grid-cols-4'],
+  ] as const)(
+    'keeps the parameter tiles in one row at every width for question count %s',
+    (questionCount, base) => {
+      renderPanel(questionCount)
+      const grid = screen.getByText('30 min').closest('.grid')
+      const tokens = (grid?.className ?? '').split(/\s+/).filter((c) => c.includes('grid-cols'))
+      expect(tokens).toEqual([base])
+    },
+  )
 })

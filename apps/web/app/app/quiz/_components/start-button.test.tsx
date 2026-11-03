@@ -60,4 +60,12 @@ describe('StartButton', () => {
     await user.click(screen.getByRole('button', { name: 'Start Quiz' }))
     expect(onClick).not.toHaveBeenCalled()
   })
+
+  it('renders a full-width Button', () => {
+    render(<StartButton disabled={false} loading={false} label="Start Quiz" onClick={vi.fn()} />)
+    const btn = screen.getByRole('button', { name: 'Start Quiz' })
+    expect(btn).toHaveAttribute('data-slot', 'button')
+    expect(btn.className).toContain('w-full')
+    expect(btn.className).not.toContain('sm:w-auto')
+  })
 })

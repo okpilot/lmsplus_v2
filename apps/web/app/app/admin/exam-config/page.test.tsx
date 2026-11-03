@@ -1,0 +1,29 @@
+import { render, screen } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
+
+vi.mock('./_components/exam-config-content', () => ({
+  ExamConfigContent: () => {
+    throw new Promise(() => {})
+  },
+}))
+
+import ExamConfigPage from './page'
+
+vi.mock('@/lib/auth/require-admin', () => ({
+  requireAdmin: vi.fn().mockResolvedValue(undefined),
+}))
+
+describe('ExamConfigPage', async () => {
+  it('renders the page title as a level-1 heading', async () => {
+    render(await ExamConfigPage())
+    expect(screen.getByRole('heading', { level: 1, name: 'Exam Configuration' })).toHaveClass(
+      'text-title',
+    )
+  })
+
+  it('shows skeleton rows while the configuration loads', async () => {
+    const { container } = render(await ExamConfigPage())
+    expect(container.querySelectorAll('[data-slot="skeleton"]')).toHaveLength(9)
+    expect(container.querySelector('.animate-pulse:not([data-slot="skeleton"])')).toBeNull()
+  })
+})

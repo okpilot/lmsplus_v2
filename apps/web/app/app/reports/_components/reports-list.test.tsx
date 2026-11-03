@@ -72,7 +72,9 @@ const DEFAULT_PROPS = {
 describe('ReportsList', () => {
   it('shows empty state message when sessions array is empty and totalCount is 0', () => {
     render(<ReportsList sessions={[]} {...DEFAULT_PROPS} totalCount={0} />)
-    expect(screen.getByText(/no completed sessions yet/i)).toBeInTheDocument()
+    expect(
+      screen.getByText(/no completed sessions yet/i).closest('[data-slot="empty"]'),
+    ).not.toBeNull()
   })
 
   it('renders score for each session', () => {
@@ -151,21 +153,21 @@ describe('ReportsList', () => {
   it('color-codes scores green for >=70%', () => {
     render(<ReportsList sessions={[makeSession({ scorePercentage: 80 })]} {...DEFAULT_PROPS} />)
     const scoreElements = screen.getAllByText('80%')
-    const colored = scoreElements.find((el) => el.style.color === 'rgb(34, 197, 94)')
+    const colored = scoreElements.find((el) => el.style.color === 'var(--success)')
     expect(colored).toBeDefined()
   })
 
   it('color-codes scores amber for 50-69%', () => {
     render(<ReportsList sessions={[makeSession({ scorePercentage: 60 })]} {...DEFAULT_PROPS} />)
     const scoreElements = screen.getAllByText('60%')
-    const colored = scoreElements.find((el) => el.style.color === 'rgb(245, 158, 11)')
+    const colored = scoreElements.find((el) => el.style.color === 'var(--caution)')
     expect(colored).toBeDefined()
   })
 
   it('color-codes scores red for <50%', () => {
     render(<ReportsList sessions={[makeSession({ scorePercentage: 40 })]} {...DEFAULT_PROPS} />)
     const scoreElements = screen.getAllByText('40%')
-    const colored = scoreElements.find((el) => el.style.color === 'rgb(239, 68, 68)')
+    const colored = scoreElements.find((el) => el.style.color === 'var(--danger)')
     expect(colored).toBeDefined()
   })
 })

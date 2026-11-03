@@ -2,11 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetSessionUser, mockGetCallerProfile, mockFrom, mockRpc } = vi.hoisted(() => ({
+const { mockGetSessionUser, mockGetCallerProfile, mockFrom } = vi.hoisted(() => ({
   mockGetCallerProfile: vi.fn(),
   mockGetSessionUser: vi.fn(),
   mockFrom: vi.fn(),
-  mockRpc: vi.fn(),
 }))
 
 vi.mock('@/lib/auth/get-session-user', () => ({
@@ -20,7 +19,6 @@ vi.mock('@/lib/auth/get-caller-profile', () => ({
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => ({
     from: mockFrom,
-    rpc: mockRpc,
   }),
 }))
 
@@ -51,23 +49,16 @@ function buildChain(returnValue: unknown) {
   })
 }
 
-type StatsRow = { total_sessions: number | string; avg_score: number | string | null }
-
 type FromSetup = {
   profileError?: { message: string } | null
   profileData?: Record<string, unknown> | null
   orgData?: Record<string, unknown> | null
   orgError?: { message: string; code?: string } | null
-  statsRow?: StatsRow | null
-  answeredCount?: number | null
-  answeredCountError?: { message: string } | null
 }
 
 /**
  * Sets up the mocked Supabase client.
- * The profile row comes from the mocked getCallerProfile; `from` responds per table name
- * (organizations, student_responses);
- * profile stats come from the mocked `get_student_profile_stats` RPC (mockRpc).
+ * The profile row comes from the mocked getCallerProfile; `from` serves the organizations table.
  */
 function setupMocks({
   profileError = null,
@@ -79,9 +70,6 @@ function setupMocks({
   },
   orgData = { name: 'Sky Academy' },
   orgError = null,
-  statsRow = { total_sessions: 2, avg_score: 70 },
-  answeredCount = 42,
-  answeredCountError = null,
 }: FromSetup = {}) {
   mockGetCallerProfile.mockResolvedValue({
     data: profileError ? null : profileData,
@@ -91,16 +79,8 @@ function setupMocks({
     if (table === 'organizations') {
       return buildChain({ data: orgError ? null : orgData, error: orgError })
     }
-    if (table === 'student_responses') {
-      return buildChain({
-        count: answeredCountError ? null : answeredCount,
-        data: null,
-        error: answeredCountError,
-      })
-    }
     return buildChain({ data: null, error: null })
   })
-  mockRpc.mockResolvedValue({ data: statsRow === null ? null : [statsRow], error: null })
 }
 
 // ---- Tests ----------------------------------------------------------------
@@ -119,7 +99,7 @@ describe('getProfileData', () => {
   })
 
   describe('happy path', () => {
-    it('returns assembled profile with name, email, org, memberSince, and stats', async () => {
+    it('returns assembled profile with name, email, org, and memberSince', async () => {
       mockAuthenticatedUser()
       setupMocks()
 
@@ -139,117 +119,6 @@ describe('getProfileData', () => {
 
       expect(mockGetCallerProfile).toHaveBeenCalledWith(USER_ID)
       expect(mockFrom).not.toHaveBeenCalledWith('users')
-    })
-
-    it('returns the rounded average score reported by the stats RPC', async () => {
-      mockAuthenticatedUser()
-      setupMocks({ statsRow: { total_sessions: 2, avg_score: 85.5 } })
-
-      const result = await getProfileData()
-
-      // 85.5 rounds to 86
-      expect(result.stats.averageScore).toBe(86)
-    })
-
-    it('returns totalSessions reported by the stats RPC', async () => {
-      mockAuthenticatedUser()
-      setupMocks({ statsRow: { total_sessions: 7, avg_score: 70 } })
-
-      const result = await getProfileData()
-
-      expect(result.stats.totalSessions).toBe(7)
-    })
-
-    it('returns totalAnswered from the student_responses count', async () => {
-      mockAuthenticatedUser()
-      setupMocks({ answeredCount: 42 })
-
-      const result = await getProfileData()
-
-      expect(result.stats.totalAnswered).toBe(42)
-    })
-  })
-
-  describe('stats edge cases', () => {
-    it('returns averageScore of 0 when the RPC reports no completed sessions', async () => {
-      mockAuthenticatedUser()
-      setupMocks({ statsRow: { total_sessions: 0, avg_score: null } })
-
-      const result = await getProfileData()
-
-      expect(result.stats.totalSessions).toBe(0)
-      expect(result.stats.averageScore).toBe(0)
-    })
-
-    it('coerces a string avg_score from PostgREST into a rounded number', async () => {
-      mockAuthenticatedUser()
-      // Postgres numeric AVG / bigint COUNT serialize as JSON strings.
-      setupMocks({ statsRow: { total_sessions: '2', avg_score: '85.5' } })
-
-      const result = await getProfileData()
-
-      expect(result.stats.totalSessions).toBe(2)
-      expect(result.stats.averageScore).toBe(86)
-    })
-
-    it('returns totalSessions 0 and averageScore 0 when the RPC payload is not an array', async () => {
-      mockAuthenticatedUser()
-      setupMocks()
-      mockRpc.mockResolvedValue({ data: { total_sessions: 3, avg_score: 50 }, error: null })
-
-      const result = await getProfileData()
-
-      expect(result.stats.totalSessions).toBe(0)
-      expect(result.stats.averageScore).toBe(0)
-    })
-
-    it('returns totalSessions 0 and averageScore 0 when the RPC returns an empty array', async () => {
-      mockAuthenticatedUser()
-      setupMocks()
-      // Empty array: row is undefined, both values fall back to 0.
-      mockRpc.mockResolvedValue({ data: [], error: null })
-
-      const result = await getProfileData()
-
-      expect(result.stats.totalSessions).toBe(0)
-      expect(result.stats.averageScore).toBe(0)
-    })
-
-    it('returns averageScore of 0 when sessions exist but avg_score is null', async () => {
-      mockAuthenticatedUser()
-      // total_sessions > 0 but avg_score is null — the score guard short-circuits to 0.
-      setupMocks({ statsRow: { total_sessions: 5, avg_score: null } })
-
-      const result = await getProfileData()
-
-      expect(result.stats.totalSessions).toBe(5)
-      expect(result.stats.averageScore).toBe(0)
-    })
-
-    it('throws when the stats RPC returns an error', async () => {
-      mockAuthenticatedUser()
-      setupMocks()
-      mockRpc.mockResolvedValue({ data: null, error: { message: 'rpc boom' } })
-
-      await expect(getProfileData()).rejects.toThrow('Failed to fetch profile stats: rpc boom')
-    })
-
-    it('returns totalAnswered of 0 when count is null', async () => {
-      mockAuthenticatedUser()
-      setupMocks({ answeredCount: null })
-
-      const result = await getProfileData()
-
-      expect(result.stats.totalAnswered).toBe(0)
-    })
-
-    it('throws when the answered-count query returns a DB error', async () => {
-      mockAuthenticatedUser()
-      setupMocks({ answeredCountError: { message: 'count query failed' } })
-
-      await expect(getProfileData()).rejects.toThrow(
-        'Failed to fetch answered count: count query failed',
-      )
     })
   })
 
@@ -307,27 +176,5 @@ describe('getProfileData', () => {
 
       await expect(getProfileData()).rejects.toThrow(new Error('Failed to load profile'))
     })
-  })
-})
-
-describe('getProfileData parallel reads', () => {
-  it('starts the answered-count read while the stats RPC is still pending', async () => {
-    mockAuthenticatedUser()
-    setupMocks()
-    let release!: (v: unknown) => void
-    mockRpc.mockReturnValue(
-      new Promise((resolve) => {
-        release = resolve
-      }),
-    )
-    const fromCalls = () => mockFrom.mock.calls.map((c) => c[0])
-
-    const result = getProfileData()
-    await vi.waitFor(() => expect(mockRpc).toHaveBeenCalled())
-    await new Promise((r) => setTimeout(r, 10))
-    expect(fromCalls()).toContain('student_responses')
-
-    release({ data: [{ total_sessions: 1, avg_score: 50 }], error: null })
-    await result
   })
 })

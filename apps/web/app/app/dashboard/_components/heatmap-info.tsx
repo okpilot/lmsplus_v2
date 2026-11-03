@@ -5,7 +5,7 @@ export function HeatmapInfo() {
     <InfoTooltip
       label="What does this chart show?"
       title="Daily Progress"
-      description="Each cell shows three numbers: total questions answered (blue, top), correct answers (green, middle), and wrong answers (red, bottom). Use the arrows to switch months."
+      description="Each cell shows three numbers: total questions answered (top), correct answers (green, middle), and wrong answers (red, bottom). Use the arrows to switch months."
       align="left"
     />
   )

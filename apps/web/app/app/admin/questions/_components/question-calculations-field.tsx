@@ -12,7 +12,7 @@ export function QuestionCalculationsField({
   onHasCalculationsChange,
 }: Readonly<Props>) {
   return (
-    <div className="flex items-center gap-2 text-sm">
+    <div className="flex items-center gap-2 text-body">
       <Checkbox
         id="question-has-calculations"
         checked={hasCalculations}

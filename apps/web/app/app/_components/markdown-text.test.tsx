@@ -24,7 +24,7 @@ describe('MarkdownText', () => {
     render(<MarkdownText>{'press `Ctrl`'}</MarkdownText>)
     const el = screen.getByText('Ctrl')
     expect(el.tagName).toBe('CODE')
-    expect(el).toHaveClass('font-medium')
+    expect(el).toHaveClass('text-caption-strong')
     expect(el).not.toHaveClass('font-mono')
   })
 

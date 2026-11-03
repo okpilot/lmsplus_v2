@@ -90,3 +90,11 @@ describe('LoginPage', () => {
     expect(screen.getByTestId('login-form').dataset.nextPath).toBe('')
   })
 })
+
+describe('LoginPage shell', () => {
+  it('renders inside AuthShell: a card and the LMS Plus h1', async () => {
+    await renderPage()
+    expect(document.querySelector('[data-slot=card]')).not.toBeNull()
+    expect(screen.getByRole('heading', { level: 1, name: 'LMS Plus' })).toBeInTheDocument()
+  })
+})

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AnswerResult } from '../_types/session'
 import { SessionAnswerBlock } from './session-answer-block'
@@ -8,19 +8,19 @@ import { SessionAnswerBlock } from './session-answer-block'
 vi.mock('./answer-options', () => ({
   AnswerOptions: (props: {
     options: { id: string; text: string }[]
-    onSubmit: (id: string) => void
     disabled: boolean
-    submitting?: boolean
+    onSelectionChange?: (id: string | null) => void
     correctOptionId?: string | null
     selectedOptionId?: string | null
   }) => (
     <div
       data-testid="answer-options"
       data-disabled={String(props.disabled)}
-      data-submitting={String(props.submitting ?? false)}
       data-selected-option-id={props.selectedOptionId ?? ''}
       data-correct-option-id={props.correctOptionId ?? ''}
-    />
+    >
+      <button type="button" data-testid="pick" onClick={() => props.onSelectionChange?.('opt-b')} />
+    </div>
   ),
 }))
 
@@ -102,9 +102,30 @@ describe('SessionAnswerBlock — selected option is preserved across states', ()
     expect(screen.getByTestId('answer-options').dataset.selectedOptionId).toBe('opt-a')
   })
 
-  it('marks the answer options as submitting while a submit is in flight', () => {
+  it('disables Submit Answer until an option is picked, then submits the pick', () => {
+    const onSubmit = vi.fn()
+    render(<SessionAnswerBlock {...makeProps({ onSubmit })} />)
+    const submit = screen.getByRole('button', { name: 'Submit Answer' })
+    expect(submit).toBeDisabled()
+    fireEvent.click(screen.getByTestId('pick'))
+    expect(submit).toBeEnabled()
+    fireEvent.click(submit)
+    expect(onSubmit).toHaveBeenCalledWith('opt-b')
+  })
+
+  it('disables Submit Answer while a submit is in flight', () => {
     render(<SessionAnswerBlock {...makeProps({ submitting: true })} />)
-    expect(screen.getByTestId('answer-options').dataset.submitting).toBe('true')
+    fireEvent.click(screen.getByTestId('pick'))
+    expect(screen.getByRole('button', { name: 'Submit Answer' })).toBeDisabled()
+  })
+
+  it('hides Submit Answer once feedback is showing', () => {
+    render(
+      <SessionAnswerBlock
+        {...makeProps({ state: 'feedback', feedbackData: FEEDBACK_DATA, selectedOption: 'opt-a' })}
+      />,
+    )
+    expect(screen.queryByRole('button', { name: 'Submit Answer' })).toBeNull()
   })
 })
 

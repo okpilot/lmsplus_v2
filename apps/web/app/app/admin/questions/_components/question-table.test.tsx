@@ -95,16 +95,16 @@ describe('QuestionTable', () => {
     expect(screen.getByTestId('edit-dialog-q-3')).toBeInTheDocument()
   })
 
-  it('keeps the full question text in the DOM and exposes it via a title tooltip', () => {
+  it('keeps the full question text in the DOM and has no native title attribute', () => {
     // Visual overflow is handled by the CSS `truncate` class (not measurable in jsdom);
-    // the full text must stay in the DOM and be surfaced on hover via `title`.
+    // the full text must stay in the DOM and be surfaced on hover via a Base UI tooltip.
     const longText = `ZZZZZ_UNIQUE_${'Z'.repeat(200)}`
     const question = makeQuestion({ question_text: longText })
     render(<QuestionTable questions={[question]} {...DEFAULT_PROPS} />)
 
     const textEl = screen.getByText(longText)
     expect(textEl).toBeInTheDocument()
-    expect(textEl).toHaveAttribute('title', longText)
+    expect(textEl).not.toHaveAttribute('title')
   })
 
   it('displays the status badge', () => {
@@ -112,6 +112,12 @@ describe('QuestionTable', () => {
     render(<QuestionTable questions={[question]} {...DEFAULT_PROPS} />)
 
     expect(screen.getByText('draft')).toBeInTheDocument()
+    expect(screen.getByText('draft').className).toContain('bg-muted')
+  })
+
+  it('shows the active status with the success tone', () => {
+    render(<QuestionTable questions={[makeQuestion({ status: 'active' })]} {...DEFAULT_PROPS} />)
+    expect(screen.getByText('active').className).toContain('bg-success-soft')
   })
 
   it('shows a calc badge when the question involves calculations', () => {
@@ -174,5 +180,12 @@ describe('QuestionTable', () => {
 
     const selectAllCheckbox = screen.getByRole('checkbox', { name: 'Select all questions' })
     expect(selectAllCheckbox).not.toBeChecked()
+  })
+
+  it('takes the actions cell padding from the table primitive', () => {
+    render(<QuestionTable questions={[makeQuestion({ id: 'q-1' })]} {...DEFAULT_PROPS} />)
+    const cell = screen.getByTestId('edit-dialog-q-1').closest('td')
+    expect(cell?.className).toContain('py-cell-y')
+    expect(cell?.className).not.toContain('py-2.5')
   })
 })

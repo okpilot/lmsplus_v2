@@ -40,10 +40,14 @@ test.describe('Saved draft delete', () => {
     await page.getByTestId('tab-saved').click()
     await expect(page.getByText(DRAFT_TEXT)).toBeVisible()
 
-    page.once('dialog', (d) => d.accept())
     await page
-      .locator('div.rounded-xl', { hasText: DRAFT_TEXT })
+      .getByTestId('draft-card')
+      .filter({ hasText: DRAFT_TEXT })
       .getByTestId('delete-draft')
+      .click()
+    await page
+      .getByRole('alertdialog', { name: 'Delete this saved quiz?' })
+      .getByRole('button', { name: 'Delete' })
       .click()
     await expect(page.getByText(DRAFT_TEXT)).toHaveCount(0, { timeout: 15_000 })
     await expect(page).toHaveURL(/\/app\/quiz$/)

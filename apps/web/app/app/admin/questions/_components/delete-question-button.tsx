@@ -15,6 +15,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { softDeleteQuestion } from '../actions/soft-delete-question'
 
 type Props = {
@@ -42,13 +43,25 @@ export function DeleteQuestionButton({ id, label }: Readonly<Props>) {
 
   return (
     <AlertDialog>
-      <AlertDialogTrigger
-        render={
-          <Button variant="ghost" size="icon-xs" disabled={isPending} title="Delete question" />
-        }
-      >
-        <Trash2 className="size-3.5 text-muted-foreground" />
-      </AlertDialogTrigger>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <AlertDialogTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  disabled={isPending}
+                  aria-label="Delete question"
+                />
+              }
+            />
+          }
+        >
+          <Trash2 className="size-icon-sm text-muted-foreground" />
+        </TooltipTrigger>
+        <TooltipContent>Delete question</TooltipContent>
+      </Tooltip>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Delete question?</AlertDialogTitle>

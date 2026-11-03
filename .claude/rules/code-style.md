@@ -109,12 +109,14 @@ Default to Server Components. Add `'use client'` only at the lowest component th
 ❌ Page (client) → everything is client-side rendered
 ```
 ### UI Rules — Redesign (#1416)
-Enforced by prevention, not a text-matching guard (Decision 111).
+Enforced by prevention (Decision 111) and a class-scan guard for class tokens (Decision 212).
 - Font is Geist only. `apps/web/app/globals.css` maps `--font-mono` to `--font-sans` and sets `code`/`kbd`/`samp`/`pre` to `font-family: inherit`. Use `tabular-nums` where digits must align.
-- Raw `<button>` outside `apps/web/components/ui/**` — use the shadcn `Button`. Biome `noRestrictedElements` (error). Files that had one before the rule are listed off in a `biome.json` override; Phase 2 removes each as its screen is redone. Known limit: Biome does not report a listed file that no longer has a raw `<button>`.
+- Raw `<button>`, `<input>`, `<h1>`, `<h2>`, `<h3>` outside test files — use `Button`, `Input`, `Heading`. Biome `noRestrictedElements` (error); a deliberate exception, `components/ui/**` included, is a per-line `biome-ignore` naming its reason or issue.
+- `window.confirm|alert|prompt` and bare `confirm|alert|prompt` — use `ConfirmDialog`. Biome `noJsRestrictedProperties` / `noRestrictedGlobals` (error).
 - Reduced motion: one global `prefers-reduced-motion: reduce` rule in `apps/web/app/globals.css`. No per-class `motion-reduce:` needed.
 - Every page directory (one with `page.tsx`) has its own `error.tsx` and `loading.tsx`. `apps/web/app/segment-boundaries.test.ts` fails on a new gap and on a listed gap that is fixed.
-- Tailwind palette colour classes (e.g. `bg-red-500`) — use theme tokens. Phase 2 removes the palette from the theme.
+- Tailwind palette colour classes (e.g. `bg-red-500`) — use theme tokens. `apps/web/app/tokens.css` resets every stock hue, so a hue class compiles to nothing; white and black stay.
+- Class tokens (spacing steps, z-index, border/ring widths, `/NN` colour modifiers, arbitrary values, stock names of reset namespaces, raw radius and text sizes, native `title=`, numeric `strokeWidth`, email hex) — `.claude/hooks/check-design-tokens.mjs` at pre-commit and CI (Decision 212); exceptions go in its allowlist with a reason and owner.
 
 ---
 ## 3. Function Rules

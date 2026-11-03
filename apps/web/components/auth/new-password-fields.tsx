@@ -1,7 +1,7 @@
 'use client'
 
-import { Eye, EyeOff } from 'lucide-react'
 import { useState } from 'react'
+import { PasswordToggle } from '@/components/auth/password-toggle'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
@@ -31,16 +31,13 @@ export function NewPasswordFields({
             placeholder="At least 6 characters"
             required
             autoFocus
-            className="pr-10"
+            className="pr-field-end"
           />
-          <button
-            type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            aria-label={showPassword ? 'Hide password' : 'Show password'}
-          >
-            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </button>
+          <PasswordToggle
+            shown={showPassword}
+            onToggle={() => setShowPassword(!showPassword)}
+            label="passwords"
+          />
         </div>
       </div>
 

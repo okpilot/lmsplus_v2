@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Geist } from 'next/font/google'
 import { Toaster } from '@/components/ui/sonner'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { HistoryGuard } from './_components/history-guard'
 import { NewVersionPrompt } from './_components/new-version-prompt'
@@ -25,7 +26,7 @@ export default function RootLayout({
       <body className="antialiased">
         <HistoryGuard />
         <ThemeProvider>
-          {children}
+          <TooltipProvider>{children}</TooltipProvider>
           <Toaster />
           <NewVersionPrompt />
           <VercelInsights />

@@ -1,4 +1,8 @@
+import { Card, CardContent } from '@/components/ui/card'
+import { EmptyNote } from '@/components/ui/empty'
+import { Meter } from '@/components/ui/meter'
 import type { SubjectProgress } from '@/lib/queries/dashboard'
+import { masteryMeterTone } from '@/lib/utils/mastery-tone'
 
 type SubjectGridProps = {
   subjects: SubjectProgress[]
@@ -20,15 +24,9 @@ function getRelativeDate(dateStr: string | null): string {
   return `${diffMonths} month${diffMonths !== 1 ? 's' : ''} ago`
 }
 
-function getBarColor(mastery: number): string {
-  if (mastery < 50) return 'bg-red-500'
-  if (mastery < 90) return 'bg-amber-500'
-  return 'bg-green-500'
-}
-
 export function SubjectGrid({ subjects }: Readonly<SubjectGridProps>) {
   if (subjects.length === 0) {
-    return <p className="text-sm text-muted-foreground">No subjects available yet.</p>
+    return <EmptyNote>No subjects available yet.</EmptyNote>
   }
 
   return (
@@ -41,23 +39,24 @@ export function SubjectGrid({ subjects }: Readonly<SubjectGridProps>) {
 }
 
 function SubjectCard({ subject }: Readonly<{ subject: SubjectProgress }>) {
-  const barColor = getBarColor(subject.masteryPercentage)
   const relativeDate = getRelativeDate(subject.lastPracticedAt)
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">{subject.code}</span>
-        <span className="font-semibold tabular-nums">{subject.masteryPercentage}%</span>
-      </div>
-      <p className="mt-1 font-medium">{subject.name}</p>
-      <div className="mt-3 h-1.5 w-full rounded-full bg-muted">
-        <div
-          className={`h-1.5 rounded-full transition-all ${barColor}`}
-          style={{ width: `${subject.masteryPercentage}%` }}
+    <Card>
+      <CardContent>
+        <div className="flex items-center justify-between">
+          <span className="text-caption text-muted-foreground">{subject.code}</span>
+          <span className="font-semibold tabular-nums">{subject.masteryPercentage}%</span>
+        </div>
+        <p className="mt-1 font-medium">{subject.name}</p>
+        <Meter
+          value={subject.masteryPercentage}
+          tone={masteryMeterTone(subject.masteryPercentage)}
+          label={`${subject.name} mastery`}
+          className="mt-3"
         />
-      </div>
-      <p className="mt-2 text-xs text-muted-foreground">Last practiced: {relativeDate}</p>
-    </div>
+        <p className="mt-2 text-caption text-muted-foreground">Last practiced: {relativeDate}</p>
+      </CardContent>
+    </Card>
   )
 }

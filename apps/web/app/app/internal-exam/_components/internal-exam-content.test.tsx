@@ -140,4 +140,14 @@ describe('InternalExamContent', () => {
 
     expect(screen.getByRole('alert')).toBeInTheDocument()
   })
+
+  it('renders the load-failure banner as a danger alert', async () => {
+    mockListAvailableInternalExams.mockResolvedValue({ success: false, data: [] })
+
+    render(await InternalExamContent())
+
+    const alert = screen.getByRole('alert')
+    expect(alert).toHaveAttribute('data-slot', 'alert')
+    expect(alert.className).toContain('bg-danger-soft')
+  })
 })

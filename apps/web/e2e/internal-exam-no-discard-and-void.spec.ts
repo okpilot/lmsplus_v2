@@ -133,7 +133,7 @@ test.describe('internal exam — no-discard + admin void', () => {
       // Buffer an answer so the session is not 0-answer. In exam mode, the
       // Confirm step is what increments answeredCount — selection alone is not
       // enough to enable the Submit button in the finish dialog.
-      await page.locator('button:has(span.rounded-full)').first().click()
+      await page.locator('button[data-testid^="option-"]').first().click()
       await page.getByRole('button', { name: 'Confirm Answer' }).click()
       await page.waitForTimeout(300)
 

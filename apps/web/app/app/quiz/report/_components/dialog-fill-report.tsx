@@ -1,5 +1,6 @@
 import { Check, X } from 'lucide-react'
 import type { DialogFillBlankResult } from '@/lib/queries/quiz-report'
+import { FractionLine } from './fraction-line'
 
 type Props = {
   blanks: DialogFillBlankResult[]
@@ -11,23 +12,14 @@ type Props = {
 // fraction (X/N blanks correct), then lists each blank's student answer vs the
 // canonical. 3-state: fully correct / partial / none correct.
 export function DialogFillReport({ blanks, correctCount, totalBlanks }: Readonly<Props>) {
-  const allCorrect = totalBlanks > 0 && correctCount === totalBlanks
-  const noneCorrect = correctCount === 0
-
-  let fractionClass = 'text-amber-600'
-  if (allCorrect) fractionClass = 'text-green-600'
-  else if (noneCorrect) fractionClass = 'text-destructive'
-
   return (
-    <div className="mt-1 space-y-1 text-xs">
-      <p className={`font-medium ${fractionClass}`}>
-        {correctCount} / {totalBlanks} blank{totalBlanks === 1 ? '' : 's'} correct
-      </p>
+    <div className="mt-1 space-y-1 text-caption">
+      <FractionLine correct={correctCount} total={totalBlanks} noun="blank" />
       <ul className="space-y-0.5">
         {blanks.map((blank) => (
           <li
             key={blank.index}
-            className={`flex items-center gap-1 ${blank.isCorrect ? 'text-green-600' : 'text-destructive'}`}
+            className={`flex items-center gap-1 ${blank.isCorrect ? 'text-success' : 'text-danger'}`}
           >
             <span className="font-medium">Blank {blank.index + 1}:</span>
             <span>
@@ -40,12 +32,12 @@ export function DialogFillReport({ blanks, correctCount, totalBlanks }: Readonly
                 screen readers, mirroring options-list's per-item status text. */}
             <span className="sr-only">{blank.isCorrect ? 'Correct' : 'Incorrect'}</span>
             {blank.isCorrect ? (
-              <Check size={12} aria-hidden className="ml-1 shrink-0" />
+              <Check aria-hidden className="ml-1 size-icon-sm shrink-0" />
             ) : (
               <>
-                <X size={12} aria-hidden className="ml-1 shrink-0" />
+                <X aria-hidden className="ml-1 size-icon-sm shrink-0" />
                 {blank.canonical && (
-                  <span className="text-green-600">(expected: {blank.canonical})</span>
+                  <span className="text-success">(expected: {blank.canonical})</span>
                 )}
               </>
             )}

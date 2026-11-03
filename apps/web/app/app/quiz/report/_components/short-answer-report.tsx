@@ -12,20 +12,18 @@ export function ShortAnswerReport({ responseText, canonicalAnswer, isCorrect }: 
   const hasResponse = responseText !== null && responseText.trim().length > 0
 
   return (
-    <div className="mt-1 space-y-1 text-xs">
-      <div
-        className={`flex items-center gap-1 ${isCorrect ? 'text-green-600' : 'text-destructive'}`}
-      >
+    <div className="mt-1 space-y-1 text-caption">
+      <div className={`flex items-center gap-1 ${isCorrect ? 'text-success' : 'text-danger'}`}>
         <span className="font-medium">Your answer:</span>
         <span>{hasResponse ? responseText : '—'}</span>
         {isCorrect ? (
-          <Check size={12} aria-hidden className="ml-1 shrink-0" />
+          <Check aria-hidden className="ml-1 size-icon-sm shrink-0" />
         ) : (
-          <X size={12} aria-hidden className="ml-1 shrink-0" />
+          <X aria-hidden className="ml-1 size-icon-sm shrink-0" />
         )}
       </div>
       {!isCorrect && canonicalAnswer && (
-        <div className="flex items-center gap-1 text-green-600">
+        <div className="flex items-center gap-1 text-success">
           <span className="font-medium">Expected:</span>
           <span>{canonicalAnswer}</span>
         </div>

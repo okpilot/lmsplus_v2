@@ -59,6 +59,12 @@ jobs:
       - name: Soft-delete column guard — unit test
         run: node --test .claude/hooks/check-soft-delete-guard.test.mjs
 
+      - name: Design-token guard
+        run: node .claude/hooks/check-design-tokens.mjs
+
+      - name: Design-token guard — unit test
+        run: node --test .claude/hooks/check-design-tokens.test.mjs
+
       # File-size limits (.claude/limits.json). Whole-tree here, unlike the staged-file
       # pre-commit run, so a grandfathered file that grew is caught even when the commit
       # that grew it touched nothing else.

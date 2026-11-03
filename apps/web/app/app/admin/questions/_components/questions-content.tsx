@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { getSyllabusTree } from '../../syllabus/queries'
 import { getQuestionsList, PAGE_SIZE } from '../queries'
 import type { QuestionFilters } from '../types'
@@ -11,9 +12,9 @@ export async function QuestionsContent({ filters }: Readonly<Props>) {
 
   if (!result.ok) {
     return (
-      <div className="rounded-lg border border-destructive/50 p-8 text-center">
-        <p className="text-sm text-destructive">Failed to load questions. Please try again.</p>
-      </div>
+      <Alert tone="danger">
+        <AlertDescription>Failed to load questions. Please try again.</AlertDescription>
+      </Alert>
     )
   }
 

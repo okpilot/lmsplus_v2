@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useRef } from 'react'
-import { MoreButton, MoreSheet, SLOT, tone, useMoreSheet } from './more-sheet'
+import { MoreBackdrop, MoreButton, MoreSheet, SLOT, tone, useMoreSheet } from './more-sheet'
 import { NavIcon } from './nav-icon'
 import type { NavItem, NavViewer } from './nav-items'
 import { useTabBarModel } from './use-tab-bar-model'
@@ -41,7 +41,7 @@ function TabStrip({ bar }: Readonly<{ bar: Bar }>) {
     <nav
       ref={bar.ref}
       aria-label="Bottom navigation"
-      className="fixed inset-x-0 bottom-0 z-40 flex h-[calc(3.5rem+env(safe-area-inset-bottom))] border-t border-foreground/[0.06] bg-canvas/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+      className="fixed inset-x-0 bottom-0 z-nav flex h-(--tab-bar-h) border-t border-border bg-glass pb-(--safe-bottom) backdrop-blur sm:hidden"
     >
       {bar.visible.map((item) => (
         <TabLink
@@ -72,13 +72,9 @@ export function BottomTabBar({
   return (
     <>
       <TabStrip bar={bar} />
+      {bar.sheetOpen && <MoreBackdrop onDismiss={bar.dismiss} />}
       {bar.sheetOpen && (
-        <MoreSheet
-          hidden={bar.hidden}
-          activeHref={bar.activeHref}
-          onClose={bar.close}
-          onDismiss={bar.dismiss}
-        />
+        <MoreSheet hidden={bar.hidden} activeHref={bar.activeHref} onClose={bar.close} />
       )}
     </>
   )

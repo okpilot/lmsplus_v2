@@ -11,6 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { CourseOption, StudentRow } from '../types'
 import { LoginInstructionsCell } from './login-instructions-cell'
 
@@ -22,15 +23,8 @@ type Props = {
   onExport: (student: StudentRow) => void
 }
 
-function roleVariant(role: StudentRow['role']) {
-  switch (role) {
-    case 'admin':
-      return 'default' as const
-    case 'instructor':
-      return 'secondary' as const
-    default:
-      return 'outline' as const
-  }
+function roleTone(role: StudentRow['role']) {
+  return role === 'admin' ? ('info' as const) : ('neutral' as const)
 }
 
 function formatDate(iso: string) {
@@ -50,7 +44,7 @@ function CourseBadges({
   return (
     <div className="flex flex-wrap gap-1">
       {active.map((c) => (
-        <Badge key={c.id} variant="outline" className="text-xs">
+        <Badge key={c.id} tone="neutral">
           {c.short}
         </Badge>
       ))}
@@ -66,28 +60,29 @@ export function StudentTable({
   onExport,
 }: Readonly<Props>) {
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="min-w-[160px]">Name</TableHead>
-            <TableHead className="min-w-[200px]">Email</TableHead>
-            <TableHead className="w-28">Role</TableHead>
-            <TableHead className="w-40">Courses</TableHead>
-            <TableHead className="w-24">Status</TableHead>
-            <TableHead className="w-36">Last Active</TableHead>
-            <TableHead className="w-32">Created</TableHead>
-            <TableHead className="w-48">Login</TableHead>
-            <TableHead className="w-20">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {students.map((s) => (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead className="min-w-col-md">Name</TableHead>
+          <TableHead className="min-w-col-lg">Email</TableHead>
+          <TableHead className="w-col-sm">Role</TableHead>
+          <TableHead className="w-col-md">Courses</TableHead>
+          <TableHead className="w-col-code">Status</TableHead>
+          <TableHead className="w-menu-min">Last Active</TableHead>
+          <TableHead className="w-col-sm">Created</TableHead>
+          <TableHead className="w-col-lg">Login</TableHead>
+          <TableHead className="w-col-xs">Actions</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {students.map((s) => {
+          const toggleLabel = s.deleted_at === null ? 'Deactivate student' : 'Reactivate student'
+          return (
             <TableRow key={s.id}>
               <TableCell className="font-medium">{s.full_name ?? '—'}</TableCell>
-              <TableCell className="text-sm text-muted-foreground">{s.email}</TableCell>
+              <TableCell className="text-caption text-muted-foreground">{s.email}</TableCell>
               <TableCell>
-                <Badge variant={roleVariant(s.role)} className="text-xs capitalize">
+                <Badge tone={roleTone(s.role)} className="capitalize">
                   {s.role}
                 </Badge>
               </TableCell>
@@ -96,19 +91,15 @@ export function StudentTable({
               </TableCell>
               <TableCell>
                 {s.deleted_at === null ? (
-                  <Badge variant="default" className="bg-green-600 text-xs hover:bg-green-600">
-                    Active
-                  </Badge>
+                  <Badge tone="success">Active</Badge>
                 ) : (
-                  <Badge variant="destructive" className="text-xs">
-                    Inactive
-                  </Badge>
+                  <Badge tone="neutral">Inactive</Badge>
                 )}
               </TableCell>
-              <TableCell className="text-xs tabular-nums text-muted-foreground">
+              <TableCell className="text-caption tabular-nums text-muted-foreground">
                 {s.last_active_at ? formatDate(s.last_active_at) : 'Never'}
               </TableCell>
-              <TableCell className="text-xs tabular-nums text-muted-foreground">
+              <TableCell className="text-caption tabular-nums text-muted-foreground">
                 {formatDate(s.created_at)}
               </TableCell>
               <TableCell>
@@ -116,43 +107,61 @@ export function StudentTable({
               </TableCell>
               <TableCell>
                 <div className="flex items-center gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    title="Edit student"
-                    aria-label="Edit student"
-                    onClick={() => onEdit(s)}
-                  >
-                    <Pencil className="size-3.5 text-muted-foreground" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    title={s.deleted_at === null ? 'Deactivate student' : 'Reactivate student'}
-                    aria-label={s.deleted_at === null ? 'Deactivate student' : 'Reactivate student'}
-                    onClick={() => onToggleStatus(s)}
-                  >
-                    {s.deleted_at === null ? (
-                      <UserX className="size-3.5 text-muted-foreground" />
-                    ) : (
-                      <UserCheck className="size-3.5 text-muted-foreground" />
-                    )}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    title="Export data"
-                    aria-label="Export data"
-                    onClick={() => onExport(s)}
-                  >
-                    <Download className="size-3.5 text-muted-foreground" />
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label="Edit student"
+                          onClick={() => onEdit(s)}
+                        />
+                      }
+                    >
+                      <Pencil className="size-icon-sm text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent>Edit student</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={toggleLabel}
+                          onClick={() => onToggleStatus(s)}
+                        />
+                      }
+                    >
+                      {s.deleted_at === null ? (
+                        <UserX className="size-icon-sm text-muted-foreground" />
+                      ) : (
+                        <UserCheck className="size-icon-sm text-muted-foreground" />
+                      )}
+                    </TooltipTrigger>
+                    <TooltipContent>{toggleLabel}</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label="Export data"
+                          onClick={() => onExport(s)}
+                        />
+                      }
+                    >
+                      <Download className="size-icon-sm text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent>Export data</TooltipContent>
+                  </Tooltip>
                 </div>
               </TableCell>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+          )
+        })}
+      </TableBody>
+    </Table>
   )
 }

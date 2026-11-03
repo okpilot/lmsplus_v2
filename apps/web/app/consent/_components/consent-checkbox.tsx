@@ -1,4 +1,5 @@
 import { Checkbox } from '@/components/ui/checkbox'
+import { Link } from '@/components/ui/link'
 
 type ConsentCheckboxProps = {
   id: string
@@ -30,22 +31,23 @@ export function ConsentCheckbox({
         checked={checked}
         onCheckedChange={(c) => onCheckedChange(c === true)}
         disabled={disabled}
+        aria-required={required}
         aria-label={`${label} ${linkText}`}
       />
-      <label htmlFor={id} className="text-sm leading-snug cursor-pointer">
+      <label htmlFor={id} className="text-body cursor-pointer">
         {label}{' '}
-        <a
+        <Link
           href={linkHref}
+          prefetch={false}
           target="_blank"
           rel="noopener noreferrer"
-          className="underline underline-offset-4 hover:text-primary"
+          tone="inherit"
           onClick={(e) => e.stopPropagation()}
         >
           {linkText}
-        </a>
-        {required && <span className="text-destructive"> *</span>}
+        </Link>
         {description && (
-          <span className="mt-0.5 block text-xs text-muted-foreground">{description}</span>
+          <span className="mt-0.5 block text-caption text-muted-foreground">{description}</span>
         )}
       </label>
     </div>

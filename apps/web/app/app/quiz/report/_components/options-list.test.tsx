@@ -72,3 +72,14 @@ describe('OptionsList', () => {
     expect(screen.getAllByText('Your answer')).toHaveLength(1)
   })
 })
+
+describe('OptionsList palette', () => {
+  it('uses success for the correct option and danger for the wrong pick, no legacy palette', () => {
+    const { container } = render(
+      <OptionsList options={baseOptions} correctOptionId="opt-a" selectedOptionId="opt-b" />,
+    )
+    expect(container.innerHTML).toContain('text-success')
+    expect(container.innerHTML).toContain('text-danger')
+    expect(container.innerHTML).not.toMatch(/text-green-600|text-amber-600|text-destructive/)
+  })
+})

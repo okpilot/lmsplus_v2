@@ -64,4 +64,11 @@ describe('HeatmapHeader', () => {
     expect(screen.getByRole('button', { name: 'Previous month' })).not.toBeDisabled()
     expect(screen.getByRole('button', { name: 'Next month' })).not.toBeDisabled()
   })
+
+  it('styles the Daily Progress heading as a level-3 label', () => {
+    render(<HeatmapHeader {...BASE_PROPS} />)
+    expect(screen.getByRole('heading', { level: 3, name: 'Daily Progress' })).toHaveClass(
+      'text-label-strong',
+    )
+  })
 })

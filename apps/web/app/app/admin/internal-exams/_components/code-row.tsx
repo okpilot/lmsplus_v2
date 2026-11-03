@@ -1,22 +1,24 @@
 'use client'
 
-import { Badge } from '@/components/ui/badge'
+import { Badge, type BadgeTone } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { TableCell, TableRow } from '@/components/ui/table'
 import type { InternalExamCodeRow } from '../types'
 import { SendCodeEmailButton } from './send-code-email-button'
 
-function displayStatus(row: InternalExamCodeRow): string {
+type DisplayStatus = InternalExamCodeRow['status'] | 'finished'
+
+function displayStatus(row: InternalExamCodeRow): DisplayStatus {
   if (row.status === 'consumed' && row.sessionEndedAt) return 'finished'
   return row.status
 }
 
-const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-  active: 'default',
-  consumed: 'secondary',
-  finished: 'default',
-  voided: 'destructive',
-  expired: 'outline',
+const STATUS_TONE: Record<DisplayStatus, BadgeTone> = {
+  active: 'success',
+  consumed: 'neutral',
+  finished: 'success',
+  voided: 'danger',
+  expired: 'neutral',
 }
 
 function formatAbsolute(iso: string | null): string {
@@ -37,15 +39,19 @@ export function CodeRow({
   return (
     <TableRow>
       <TableCell>
-        <Badge variant={STATUS_VARIANT[ds] ?? 'outline'} className="text-xs capitalize">
+        <Badge tone={STATUS_TONE[ds]} className="capitalize">
           {ds}
         </Badge>
       </TableCell>
-      <TableCell className="font-medium tracking-wider tabular-nums text-sm">{r.code}</TableCell>
+      <TableCell className="font-medium tracking-code tabular-nums">{r.code}</TableCell>
       <TableCell>{r.studentName || r.studentEmail || '—'}</TableCell>
       <TableCell>{r.subjectName || '—'}</TableCell>
-      <TableCell className="text-xs text-muted-foreground">{formatAbsolute(r.issuedAt)}</TableCell>
-      <TableCell className="text-xs text-muted-foreground">{formatAbsolute(r.expiresAt)}</TableCell>
+      <TableCell className="text-caption text-muted-foreground">
+        {formatAbsolute(r.issuedAt)}
+      </TableCell>
+      <TableCell className="text-caption text-muted-foreground">
+        {formatAbsolute(r.expiresAt)}
+      </TableCell>
       <TableCell>
         {/* Only an active code can be (re)emailed — the send action rejects
             consumed/voided/expired codes ('Code is no longer active'), so

@@ -47,9 +47,8 @@ export function useSavedSessionResume(sessionId: string) {
         () => resumeSavedQuizAndRefresh({ sessionId, deviceId: getQuizDeviceId() }),
         () => undefined,
       ),
-    discard: () => {
-      if (!window.confirm('Delete this saved quiz? This cannot be undone.')) return
-      return run(
+    discard: async () => {
+      await run(
         () => discardSavedQuiz({ sessionId }),
         () => router.push('/app/quiz'),
       )

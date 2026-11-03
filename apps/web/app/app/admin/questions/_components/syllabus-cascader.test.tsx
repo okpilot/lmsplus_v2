@@ -89,9 +89,9 @@ describe('SyllabusCascader', () => {
         onSubtopicChange={vi.fn()}
       />,
     )
-    expect(screen.getByText('Subject *')).toBeInTheDocument()
-    expect(screen.getByText('Topic *')).toBeInTheDocument()
-    expect(screen.getByText('Subtopic')).toBeInTheDocument()
+    expect(screen.getByText('Subject')).toBeInTheDocument()
+    expect(screen.getByText('Topic')).toBeInTheDocument()
+    expect(screen.getByText('Subtopic (optional)')).toBeInTheDocument()
   })
 
   it('disables the topic select when no subject is selected', () => {

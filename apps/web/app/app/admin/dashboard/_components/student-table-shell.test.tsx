@@ -118,6 +118,13 @@ describe('StudentTableShell — empty state (totalCount is 0)', () => {
     expect(screen.getByText('No students found.')).toBeInTheDocument()
   })
 
+  it('renders the empty message in the shared empty part', () => {
+    const { container } = render(
+      <StudentTableShell students={[]} totalCount={0} filters={BASE_FILTERS} />,
+    )
+    expect(container.querySelector('[data-slot="empty"]')).toHaveTextContent('No students found.')
+  })
+
   it('renders the status filter in the empty state', () => {
     render(<StudentTableShell students={[]} totalCount={0} filters={BASE_FILTERS} />)
     expect(screen.getByTestId('status-filter')).toBeInTheDocument()

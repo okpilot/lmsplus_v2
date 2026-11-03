@@ -345,6 +345,7 @@ Owns reusable shadcn/ui components used across the app. Components here are pres
 | `lib/audit/` | Auth audit-event recording (`record_auth_event`) |
 | `lib/auth/` | Auth guards (`verifySessionUser`, `requireAuthUser`, `requireAdmin`) |
 | `lib/constants/` | Shared constants (exam modes) |
+| `lib/design/` | Design tokens (colours, type, spacing, contrast); generates `apps/web/app/tokens.css` via `pnpm tokens:css` |
 | `lib/email/` | Transactional email (Resend client + templates) |
 | `lib/grading/` | Answer normalization for grading |
 | `lib/integration-support/` | Integration-test harness + fixtures (#925 tier) |

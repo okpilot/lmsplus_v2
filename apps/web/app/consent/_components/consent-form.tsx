@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { FieldError } from '@/components/ui/field-error'
 import { LoadingButton } from '@/components/ui/loading-button'
 import { recordConsent } from '../actions'
 import { ConsentCheckbox } from './consent-checkbox'
@@ -45,7 +46,7 @@ export function ConsentForm({ nextPath }: Readonly<ConsentFormProps>) {
         <CardDescription>Please review and accept our policies to continue.</CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-stack-lg">
           <div className="space-y-4">
             <ConsentCheckbox
               id="consent-tos"
@@ -69,16 +70,12 @@ export function ConsentForm({ nextPath }: Readonly<ConsentFormProps>) {
             />
           </div>
 
-          <p className="text-xs text-muted-foreground">
+          <p className="text-caption text-muted-foreground">
             We use essential cookies only to keep you signed in. No tracking or analytics cookies
             are used.
           </p>
 
-          {error && (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          )}
+          <FieldError role="alert">{error}</FieldError>
 
           <LoadingButton
             type="submit"

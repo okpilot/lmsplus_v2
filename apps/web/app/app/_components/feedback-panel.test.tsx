@@ -98,7 +98,7 @@ describe('FeedbackPanel', () => {
     expect(onNext).toHaveBeenCalledOnce()
   })
 
-  it('applies green styling for a correct answer', () => {
+  it('renders the container as a borderless inset panel', () => {
     const { container } = render(
       <FeedbackPanel
         isCorrect={true}
@@ -107,12 +107,25 @@ describe('FeedbackPanel', () => {
         onNext={vi.fn()}
       />,
     )
-    const panel = container.firstChild as HTMLElement
-    expect(panel.className).toContain('border-green-500')
+    const panel = container.querySelector('[data-slot=inset-panel]') as HTMLElement
+    expect(panel).not.toBeNull()
+    expect(panel.className.split(/\s+/).some((c) => c.startsWith('border'))).toBe(false)
   })
 
-  it('applies destructive styling for an incorrect answer', () => {
-    const { container } = render(
+  it('colours the heading text-success for a correct answer', () => {
+    render(
+      <FeedbackPanel
+        isCorrect={true}
+        explanationText={null}
+        explanationImageUrl={null}
+        onNext={vi.fn()}
+      />,
+    )
+    expect(screen.getByText('Correct!').className).toContain('text-success')
+  })
+
+  it('colours the heading text-danger for an incorrect answer', () => {
+    render(
       <FeedbackPanel
         isCorrect={false}
         explanationText={null}
@@ -120,7 +133,6 @@ describe('FeedbackPanel', () => {
         onNext={vi.fn()}
       />,
     )
-    const panel = container.firstChild as HTMLElement
-    expect(panel.className).toContain('border-destructive')
+    expect(screen.getByText('Incorrect').className).toContain('text-danger')
   })
 })

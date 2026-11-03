@@ -34,7 +34,7 @@ export function DialogLine({
   onEnter,
 }: Readonly<DialogLineProps>) {
   return (
-    <p className="flex items-baseline gap-2 text-sm leading-7">
+    <p className="flex items-baseline gap-2 text-body leading-7">
       {line.speaker && (
         <span className="shrink-0 font-semibold text-muted-foreground">
           {SPEAKER_LABEL[line.speaker]}:

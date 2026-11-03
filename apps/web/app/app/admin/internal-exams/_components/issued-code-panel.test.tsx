@@ -41,6 +41,12 @@ describe('IssuedCodePanel', () => {
     }
   })
 
+  it('labels the panel with an eyebrow', () => {
+    render(<IssuedCodePanel {...PROPS} />)
+    expect(screen.getByText('New code issued')).toHaveClass('text-overline')
+    expect(screen.getByText('New code issued')).not.toHaveClass('uppercase')
+  })
+
   it('displays the issued code in large bold text', () => {
     render(<IssuedCodePanel {...PROPS} />)
     expect(screen.getByTestId('issued-code-value')).toHaveTextContent('ABCD2345')
@@ -162,5 +168,17 @@ describe('IssuedCodePanel', () => {
     expect(mockToastError).toHaveBeenCalledWith('Failed to send email')
     // The button must NOT flip to "Sent" after an exception.
     expect(screen.queryByRole('button', { name: /^sent$/i })).not.toBeInTheDocument()
+  })
+
+  it('is a white card with a 1px blue ring and no thick frame or soft fill', () => {
+    render(<IssuedCodePanel {...PROPS} />)
+    const el = screen.getByTestId('issued-code-panel')
+    expect(el).toHaveClass('bg-card', 'ring-surface', 'ring-primary')
+    expect(el).not.toHaveClass('border-emphasis', 'border-primary-text', 'bg-primary-soft')
+  })
+
+  it('keeps the code in stat size', () => {
+    render(<IssuedCodePanel {...PROPS} />)
+    expect(screen.getByTestId('issued-code-value')).toHaveClass('text-stat')
   })
 })

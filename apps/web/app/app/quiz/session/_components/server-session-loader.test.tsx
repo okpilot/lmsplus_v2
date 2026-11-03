@@ -65,6 +65,8 @@ describe('ServerSessionLoader', () => {
     )
 
     expect(screen.getByRole('alert')).toHaveTextContent('No questions found')
+    expect(screen.getByRole('alert')).toHaveAttribute('data-slot', 'alert')
+    expect(screen.getByRole('alert')).toHaveClass('bg-danger-soft')
     expect(mockBootstrap).not.toHaveBeenCalled()
   })
 

@@ -1,26 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { initials, UserChip } from './user-chip'
-
-describe('initials', () => {
-  it('uses the first letters of the first two words in upper case', () => {
-    expect(initials('ada pilot')).toBe('AP')
-    expect(initials('Ada Maria Pilot')).toBe('AM')
-  })
-
-  it('uses a single letter for a single word', () => {
-    expect(initials('Ada')).toBe('A')
-  })
-
-  it('uses the first letter of an email address', () => {
-    expect(initials('ada@example.com')).toBe('A')
-  })
-
-  it('falls back to a question mark for an empty name', () => {
-    expect(initials('')).toBe('?')
-    expect(initials('   ')).toBe('?')
-  })
-})
+import { UserChip } from './user-chip'
 
 describe('UserChip', () => {
   it('shows the display name and its initials', () => {
@@ -33,5 +13,33 @@ describe('UserChip', () => {
     const { container } = render(<UserChip displayName={null} />)
     expect(screen.getByText('Loading account')).toBeInTheDocument()
     expect(container.querySelector('[aria-hidden="true"]')).toBeEmptyDOMElement()
+  })
+
+  it('renders a grey avatar', () => {
+    render(<UserChip displayName="Ada Pilot" />)
+    const avatar =
+      screen.getByText('AP').closest<HTMLElement>('[data-slot="avatar"]') ??
+      document.createElement('i')
+    expect(avatar.dataset.slot).toBe('avatar')
+    expect(avatar.className).toContain('bg-muted')
+    expect(avatar.className).toContain('text-muted-foreground')
+    expect(avatar.className).not.toContain('bg-foreground')
+  })
+
+  it('renders a 28px avatar hidden from assistive tech', () => {
+    render(<UserChip displayName="Ada Pilot" />)
+    const avatar =
+      screen.getByText('AP').closest<HTMLElement>('[data-slot="avatar"]') ??
+      document.createElement('i')
+    expect(avatar.dataset.slot).toBe('avatar')
+    expect(avatar.className.split(/\s+/)).toContain('size-avatar')
+    expect(avatar).toHaveAttribute('aria-hidden', 'true')
+  })
+
+  it('renders the name at caption size', () => {
+    render(<UserChip displayName="Ada Pilot" />)
+    expect(screen.getByText('Ada Pilot').className).toMatch(
+      /(?<![\w-])text-caption-strong(?![\w-])/,
+    )
   })
 })

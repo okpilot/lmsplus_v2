@@ -1,0 +1,123 @@
+import { act, render, screen } from '@testing-library/react'
+import { toast } from 'sonner'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { Toaster } from './sonner'
+
+function toastFor(text: string) {
+  const el = screen.getByText(text).closest('[data-sonner-toast]')
+  expect(el).not.toBeNull()
+  return el as HTMLElement
+}
+
+describe('Toaster', () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })),
+    )
+  })
+
+  afterEach(() => {
+    act(() => {
+      toast.dismiss()
+    })
+    vi.unstubAllGlobals()
+  })
+
+  it('sizes a toast to its text', async () => {
+    render(<Toaster />)
+    act(() => {
+      toast('Saved')
+    })
+    expect((await screen.findByText('Saved')).closest('[data-sonner-toast]')?.className).toContain(
+      'w-fit!',
+    )
+  })
+
+  it('keeps the stacking class when the caller adds its own class', async () => {
+    render(<Toaster className="custom-toaster" />)
+    act(() => {
+      toast('Classed')
+    })
+    await screen.findByText('Classed')
+    const toaster = toastFor('Classed').closest('[data-sonner-toaster]') as HTMLElement
+    expect(toaster).toHaveClass('z-toast!', 'custom-toaster')
+  })
+
+  it('keeps the tone outlines when the caller passes its own toast options', async () => {
+    render(<Toaster toastOptions={{ duration: 3000 }} />)
+    act(() => {
+      toast.error('Kept outline')
+    })
+    await screen.findByText('Kept outline')
+    expect(toastFor('Kept outline').className).toContain('border-danger-solid!')
+  })
+
+  it('keeps the base toast sizing when the caller adds its own toast class', async () => {
+    render(<Toaster toastOptions={{ classNames: { toast: 'x-extra' } }} />)
+    act(() => {
+      toast('Merged')
+    })
+    await screen.findByText('Merged')
+    expect(toastFor('Merged').className).toContain('w-fit!')
+    expect(toastFor('Merged').className).toContain('x-extra')
+  })
+
+  it('keeps the error outline when the caller adds its own error class', async () => {
+    render(<Toaster toastOptions={{ classNames: { error: 'x-err' } }} />)
+    act(() => {
+      toast.error('Merged error')
+    })
+    await screen.findByText('Merged error')
+    expect(toastFor('Merged error').className).toContain('border-danger-solid!')
+    expect(toastFor('Merged error').className).toContain('x-err')
+  })
+
+  it('keeps the theme variables when the caller passes its own style', async () => {
+    render(<Toaster style={{ color: 'red' }} />)
+    act(() => {
+      toast('Styled')
+    })
+    await screen.findByText('Styled')
+    const toaster = toastFor('Styled').closest('[data-sonner-toaster]') as HTMLElement
+    expect(toaster.style.getPropertyValue('--normal-bg')).toBe('var(--popover)')
+  })
+
+  it('lifts the bottom offset by the published reload-banner height on desktop and mobile', async () => {
+    render(<Toaster />)
+    act(() => {
+      toast('Lifted')
+    })
+    await screen.findByText('Lifted')
+    const toaster = toastFor('Lifted').closest('[data-sonner-toaster]') as HTMLElement
+    expect(toaster.style.getPropertyValue('--offset-bottom')).toContain('var(--reload-banner-h')
+    expect(toaster.style.getPropertyValue('--mobile-offset-bottom')).toContain(
+      'var(--reload-banner-h',
+    )
+  })
+
+  it('lists several toasts one above the other instead of piling them', async () => {
+    render(<Toaster />)
+    act(() => {
+      toast('First')
+      toast('Second')
+    })
+    await screen.findByText('Second')
+    expect(toastFor('First').dataset.expanded).toBe('true')
+  })
+
+  it.each([
+    ['success', 'border-success-solid!', 'Name updated'],
+    ['error', 'border-danger-solid!', 'Could not save'],
+    ['warning', 'border-caution-solid!', 'Image too large'],
+    ['info', 'border-info-solid!', 'Code sent'],
+  ] as const)('outlines a %s toast in its colour', async (type, border, text) => {
+    render(<Toaster />)
+    act(() => {
+      toast[type](text)
+    })
+    await screen.findByText(text)
+    expect(toastFor(text).className).toContain(border)
+  })
+})

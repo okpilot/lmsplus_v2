@@ -2,11 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   allPlacementsCorrect,
   canonicalTextFor,
-  DIAGRAM_POOL_DROPPABLE_ID,
   type DiagramLabelChipData,
   type DiagramMapping,
   type DiagramZoneData,
-  hasAnyPlacement,
   placeLabel,
   placementFromSubmitted,
   poolLabels,
@@ -25,13 +23,6 @@ const LABELS: DiagramLabelChipData[] = [
   { id: 'l2', text: 'Downwind' },
   { id: 'l3', text: 'Distractor' },
 ]
-
-describe('DIAGRAM_POOL_DROPPABLE_ID', () => {
-  it('is a stable, non-empty droppable id distinct from any real zone id', () => {
-    expect(DIAGRAM_POOL_DROPPABLE_ID.length).toBeGreaterThan(0)
-    expect(ZONES.some((z) => z.id === DIAGRAM_POOL_DROPPABLE_ID)).toBe(false)
-  })
-})
 
 describe('placeLabel', () => {
   it('places a label into an empty zone', () => {
@@ -118,16 +109,6 @@ describe('serializeMapping', () => {
       { zoneId: 'z1', labelId: 'l1' },
       { zoneId: 'z2', labelId: 'l2' },
     ])
-  })
-})
-
-describe('hasAnyPlacement', () => {
-  it('is false for an empty placement', () => {
-    expect(hasAnyPlacement(new Map())).toBe(false)
-  })
-
-  it('is true once at least one zone is filled', () => {
-    expect(hasAnyPlacement(new Map([['z1', 'l1']]))).toBe(true)
   })
 })
 
@@ -262,5 +243,13 @@ describe('canonicalTextFor', () => {
 
   it('is undefined when there is no canonical mapping yet', () => {
     expect(canonicalTextFor('z1', LABELS, undefined)).toBeUndefined()
+  })
+})
+
+describe('removed drag helpers (AC 4)', () => {
+  it('no longer exports DIAGRAM_POOL_DROPPABLE_ID or hasAnyPlacement', async () => {
+    const mod: Record<string, unknown> = await import('./diagram-label-input-helpers')
+    expect(mod.DIAGRAM_POOL_DROPPABLE_ID).toBeUndefined()
+    expect(mod.hasAnyPlacement).toBeUndefined()
   })
 })

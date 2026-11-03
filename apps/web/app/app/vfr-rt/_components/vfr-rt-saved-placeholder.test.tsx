@@ -7,4 +7,9 @@ describe('VfrRtSavedPlaceholder', () => {
     render(<VfrRtSavedPlaceholder />)
     expect(screen.getByText(/saved practice sessions are coming soon/i)).toBeInTheDocument()
   })
+
+  it('renders the placeholder with the shared empty part', () => {
+    const { container } = render(<VfrRtSavedPlaceholder />)
+    expect(container.querySelector('[data-slot="empty"]')).not.toBeNull()
+  })
 })

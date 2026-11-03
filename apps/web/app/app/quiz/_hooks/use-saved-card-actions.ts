@@ -47,7 +47,6 @@ function useDelete(sessionId: string, setError: SetError) {
   const [deleting, setDeleting] = useState(false)
 
   async function remove() {
-    if (!window.confirm('Delete this saved quiz? This cannot be undone.')) return
     setDeleting(true)
     setError(null)
     try {

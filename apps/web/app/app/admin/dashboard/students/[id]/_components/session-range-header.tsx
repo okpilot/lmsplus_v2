@@ -1,5 +1,6 @@
 'use client'
 
+import { Heading } from '@/components/ui/heading'
 import {
   Select,
   SelectContent,
@@ -17,9 +18,9 @@ type Props = Readonly<{
 export function SessionRangeHeader({ range, onRangeChange }: Readonly<Props>) {
   return (
     <div className="flex items-center justify-between">
-      <h2 className="text-lg font-semibold">Session History</h2>
+      <Heading level={2}>Session History</Heading>
       <Select value={range} onValueChange={onRangeChange} items={TIME_RANGE_OPTIONS}>
-        <SelectTrigger className="w-40" aria-label="Time range">
+        <SelectTrigger className="w-col-md" aria-label="Time range">
           <SelectValue placeholder="Select range" />
         </SelectTrigger>
         <SelectContent>

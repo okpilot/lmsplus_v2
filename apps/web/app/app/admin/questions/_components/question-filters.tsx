@@ -57,13 +57,14 @@ export function QuestionFiltersBar({ tree, filters }: Readonly<Props>) {
       <Input
         type="search"
         placeholder="Search question text..."
+        aria-label="Search questions"
         value={searchText}
         onChange={(e) => {
           const val = e.target.value
           setSearchText(val)
           if (val === '') updateFilter('search', undefined)
         }}
-        className="w-56"
+        className="w-col-lg"
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
             updateFilter('search', searchText.trim() || undefined)

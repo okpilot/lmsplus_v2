@@ -5,43 +5,73 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
 const badgeVariants = cva(
-  'group/badge inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-4xl border border-transparent px-2 py-0.5 text-xs font-medium whitespace-nowrap transition-all focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&>svg]:pointer-events-none [&>svg]:size-3!',
+  'group/badge inline-flex h-chip w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-pill border border-transparent px-2 py-0.5 text-chip whitespace-nowrap transition-all focus-visible:border-ring focus-visible:outline-solid focus-visible:outline-focus focus-visible:outline-ring focus-visible:outline-offset-focus has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 aria-invalid:border-destructive aria-invalid:ring-invalid-ring [&>svg]:pointer-events-none [&>svg]:size-icon-sm',
   {
     variants: {
-      variant: {
-        default: 'bg-primary text-primary-foreground [a]:hover:bg-primary/80',
-        secondary: 'bg-secondary text-secondary-foreground [a]:hover:bg-secondary/80',
-        destructive:
-          'bg-destructive/10 text-destructive focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:focus-visible:ring-destructive/40 [a]:hover:bg-destructive/20',
-        outline: 'border-border text-foreground [a]:hover:bg-muted [a]:hover:text-muted-foreground',
-        ghost: 'hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50',
-        link: 'text-primary underline-offset-4 hover:underline',
+      tone: {
+        neutral: '',
+        info: 'bg-info-soft text-info',
+        success: 'bg-success-soft text-success',
+        caution: 'bg-caution-soft text-caution',
+        danger: 'bg-danger-soft text-danger',
+      },
+      outline: {
+        true: '',
+        false: '',
+      },
+      shape: {
+        default: '',
+        circle: 'size-avatar justify-center rounded-pill p-0',
       },
     },
+    compoundVariants: [
+      { tone: 'neutral', outline: false, className: 'bg-muted text-muted-foreground' },
+      {
+        tone: 'neutral',
+        outline: true,
+        className: 'border-border bg-transparent text-muted-foreground',
+      },
+    ],
     defaultVariants: {
-      variant: 'default',
+      tone: 'neutral',
+      outline: false,
+      shape: 'default',
     },
   },
 )
 
+type BadgeVariants = VariantProps<typeof badgeVariants>
+export type BadgeTone = NonNullable<BadgeVariants['tone']>
+
+/** `outline` exists for the neutral tone only. */
+type BadgeToneProps =
+  | { tone?: 'neutral'; outline?: boolean }
+  | { tone: Exclude<BadgeTone, 'neutral'>; outline?: never }
+
+type BadgeProps = Readonly<
+  useRender.ComponentProps<'span'> & Pick<BadgeVariants, 'shape'> & BadgeToneProps
+>
+
 function Badge({
   className,
-  variant = 'default',
+  tone = 'neutral',
+  outline = false,
+  shape,
   render,
   ...props
-}: Readonly<useRender.ComponentProps<'span'> & VariantProps<typeof badgeVariants>>) {
+}: Readonly<BadgeProps>) {
   return useRender({
     defaultTagName: 'span',
     props: mergeProps<'span'>(
       {
-        className: cn(badgeVariants({ variant }), className),
+        className: cn(badgeVariants({ tone, outline, shape }), className),
       },
       props,
     ),
     render,
     state: {
       slot: 'badge',
-      variant,
+      tone,
     },
   })
 }

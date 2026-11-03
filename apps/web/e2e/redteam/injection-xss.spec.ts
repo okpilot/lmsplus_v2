@@ -299,7 +299,7 @@ test.describe('Red Team: OWASP A05 — XSS in cross-user rendering', () => {
       await loginAs(page, TEST_EMAIL, TEST_PASSWORD)
       await page.goto(`/app/quiz/session/${sessionId}`)
       await expect(page.getByText(/Question 1/)).toBeVisible({ timeout: 15_000 })
-      const answerBtns = page.locator('button:has(span.rounded-full)')
+      const answerBtns = page.locator('button[data-testid^="option-"]')
       await answerBtns.first().waitFor({ state: 'visible', timeout: 10_000 })
       await answerBtns.first().click()
       await page.getByRole('button', { name: 'Submit Answer' }).first().click()

@@ -5,6 +5,7 @@ import { useCallback } from 'react'
 import { PaginationBar } from '@/app/app/_components/pagination-bar'
 import { useUpdateSearchParams } from '@/app/app/_hooks/use-update-search-params'
 import { SortableTableHead } from '@/components/sortable-table-head'
+import { EmptyNote } from '@/components/ui/empty'
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import type { DashboardFilters, DashboardStudent } from '../types'
 import { STUDENTS_PAGE_SIZE } from '../types'
@@ -54,22 +55,18 @@ export function StudentTableShell({ students, totalCount, filters }: Readonly<Pr
 
   if (totalCount === 0) {
     return (
-      <div className="space-y-3">
+      <div className="space-y-stack">
         {statusFilter}
-        <p className="rounded-md border p-8 text-center text-sm text-muted-foreground">
-          No students found.
-        </p>
+        <EmptyNote>No students found.</EmptyNote>
       </div>
     )
   }
 
   if (students.length === 0) {
     return (
-      <div className="space-y-3">
+      <div className="space-y-stack">
         {statusFilter}
-        <p className="rounded-md border p-8 text-center text-sm text-muted-foreground">
-          No students on this page. Try going back to page 1.
-        </p>
+        <EmptyNote>No students on this page. Try going back to page 1.</EmptyNote>
         <PaginationBar
           page={filters.page}
           totalCount={totalCount}
@@ -81,36 +78,34 @@ export function StudentTableShell({ students, totalCount, filters }: Readonly<Pr
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-stack">
       {statusFilter}
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {SORTABLE_COLUMNS.map((col) => (
-                <SortableTableHead
-                  key={col.field}
-                  field={col.field}
-                  label={col.label}
-                  activeSort={filters.sort}
-                  activeDir={filters.dir}
-                  onSort={handleSort}
-                />
-              ))}
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {students.map((s) => (
-              <StudentRow
-                key={s.id}
-                student={s}
-                onClick={() => router.push(`/app/admin/dashboard/students/${s.id}`)}
+      <Table>
+        <TableHeader>
+          <TableRow>
+            {SORTABLE_COLUMNS.map((col) => (
+              <SortableTableHead
+                key={col.field}
+                field={col.field}
+                label={col.label}
+                activeSort={filters.sort}
+                activeDir={filters.dir}
+                onSort={handleSort}
               />
             ))}
-          </TableBody>
-        </Table>
-      </div>
+            <TableHead>Status</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {students.map((s) => (
+            <StudentRow
+              key={s.id}
+              student={s}
+              onClick={() => router.push(`/app/admin/dashboard/students/${s.id}`)}
+            />
+          ))}
+        </TableBody>
+      </Table>
       <PaginationBar
         page={filters.page}
         totalCount={totalCount}

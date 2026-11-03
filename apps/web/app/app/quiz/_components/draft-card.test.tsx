@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
@@ -57,9 +57,18 @@ beforeEach(() => {
     sessionId: NEW_SESSION_ID,
     questionIds: DRAFT.questionIds,
   })
-  // Default confirm to true
-  vi.spyOn(window, 'confirm').mockReturnValue(true)
 })
+
+const DIALOG_NAME = 'Delete this saved quiz?'
+
+async function openDialog() {
+  return screen.findByRole('alertdialog', { name: DIALOG_NAME })
+}
+
+async function confirmDelete() {
+  const dialog = await openDialog()
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+}
 
 // ---- Rendering ------------------------------------------------------------
 
@@ -81,14 +90,18 @@ describe('DraftCard — rendering', () => {
 
   it('shows progress bar at correct width', () => {
     render(<DraftCard draft={DRAFT} />)
-    const bar = screen.getByTestId('draft-progress')
+    const bar = screen
+      .getByRole('progressbar', { name: 'Answered questions' })
+      .querySelector('[style*="width"]')
     // 2 of 4 = 50%
     expect(bar).toHaveStyle({ width: '50%' })
   })
 
   it('shows 0% progress bar when there are no answers', () => {
     render(<DraftCard draft={{ ...DRAFT, answers: {} }} />)
-    const bar = screen.getByTestId('draft-progress')
+    const bar = screen
+      .getByRole('progressbar', { name: 'Answered questions' })
+      .querySelector('[style*="width"]')
     expect(bar).toHaveStyle({ width: '0%' })
   })
 
@@ -154,6 +167,23 @@ describe('DraftCard — Resume', () => {
     expect(mockResumeQuizSession).toHaveBeenCalledTimes(1)
   })
 
+  it('disables Delete while a resume is in flight', () => {
+    mockResumeQuizSession.mockReturnValue(new Promise(() => {}))
+    render(<DraftCard draft={DRAFT} />)
+    fireEvent.click(screen.getByTestId('resume-draft'))
+
+    expect(screen.getByTestId('delete-draft')).toBeDisabled()
+  })
+
+  it('disables Resume while a delete is in flight', async () => {
+    mockDeleteDraft.mockReturnValue(new Promise(() => {}))
+    render(<DraftCard draft={DRAFT} />)
+    fireEvent.click(screen.getByTestId('delete-draft'))
+    await confirmDelete()
+
+    expect(screen.getByTestId('resume-draft')).toBeDisabled()
+  })
+
   it('does not start a second resume while one is already in flight', () => {
     // Never-resolving resume keeps the first call in flight; the synchronous one-shot
     // ref (not the async disabled state) must block the second click in the same tick.
@@ -193,42 +223,81 @@ describe('DraftCard — Resume', () => {
 // ---- Delete ---------------------------------------------------------------
 
 describe('DraftCard — Delete', () => {
+  it('opens an alertdialog with the fixed copy when Delete is clicked', async () => {
+    render(<DraftCard draft={DRAFT} />)
+    fireEvent.click(screen.getByTestId('delete-draft'))
+
+    const dialog = await openDialog()
+    expect(within(dialog).getByText('This cannot be undone.')).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Delete' })).toBeInTheDocument()
+    expect(mockDeleteDraft).not.toHaveBeenCalled()
+  })
+
+  it('keeps the quiz and closes the dialog when Cancel is clicked', async () => {
+    render(<DraftCard draft={DRAFT} />)
+    fireEvent.click(screen.getByTestId('delete-draft'))
+    const dialog = await openDialog()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
+    expect(mockDeleteDraft).not.toHaveBeenCalled()
+  })
+
+  it('runs the delete once and closes the dialog when Delete is confirmed', async () => {
+    render(<DraftCard draft={DRAFT} />)
+    fireEvent.click(screen.getByTestId('delete-draft'))
+    await confirmDelete()
+
+    await waitFor(() => expect(mockDeleteDraft).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
+  })
+
+  it('disables both dialog buttons while the delete is in progress', async () => {
+    mockDeleteDraft.mockReturnValue(new Promise(() => {}))
+    render(<DraftCard draft={DRAFT} />)
+    fireEvent.click(screen.getByTestId('delete-draft'))
+    const dialog = await openDialog()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() =>
+      expect(within(dialog).getByRole('button', { name: 'Cancel' })).toBeDisabled(),
+    )
+    expect(within(dialog).getByRole('button', { name: /Delete/ })).toBeDisabled()
+  })
+
   it('calls deleteDraft with the draft id after confirm', async () => {
     render(<DraftCard draft={DRAFT} />)
     fireEvent.click(screen.getByTestId('delete-draft'))
+    await confirmDelete()
 
     await waitFor(() => expect(mockDeleteDraft).toHaveBeenCalledWith({ draftId: 'draft-1' }))
-  })
-
-  it('does not call deleteDraft when the user cancels the confirm dialog', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false)
-    render(<DraftCard draft={DRAFT} />)
-    fireEvent.click(screen.getByTestId('delete-draft'))
-
-    await waitFor(() => expect(mockDeleteDraft).not.toHaveBeenCalled())
   })
 
   it('deletes in one request without a separate router refresh', async () => {
     render(<DraftCard draft={DRAFT} />)
     fireEvent.click(screen.getByTestId('delete-draft'))
+    await confirmDelete()
 
     await waitFor(() => expect(mockDeleteDraft).toHaveBeenCalledTimes(1))
     await waitFor(() => expect(screen.getByTestId('delete-draft')).not.toBeDisabled())
     expect(mockRouterRefresh).not.toHaveBeenCalled()
   })
 
-  it('shows Deleting... while delete is in progress', () => {
+  it('shows Deleting... while delete is in progress', async () => {
     mockDeleteDraft.mockReturnValue(new Promise(() => {}))
     render(<DraftCard draft={DRAFT} />)
     fireEvent.click(screen.getByTestId('delete-draft'))
+    await confirmDelete()
 
     expect(screen.getByText('Deleting...')).toBeInTheDocument()
   })
 
-  it('disables the delete button while deletion is in progress', () => {
+  it('disables the delete button while deletion is in progress', async () => {
     mockDeleteDraft.mockReturnValue(new Promise(() => {}))
     render(<DraftCard draft={DRAFT} />)
     fireEvent.click(screen.getByTestId('delete-draft'))
+    await confirmDelete()
 
     expect(screen.getByTestId('delete-draft')).toBeDisabled()
   })
@@ -237,16 +306,19 @@ describe('DraftCard — Delete', () => {
     mockDeleteDraft.mockResolvedValue({ success: false })
     render(<DraftCard draft={DRAFT} />)
     fireEvent.click(screen.getByTestId('delete-draft'))
+    await confirmDelete()
 
     await waitFor(() =>
       expect(screen.getByText('Failed to delete. Please try again.')).toBeInTheDocument(),
     )
+    expect(screen.getByRole('alert')).toHaveTextContent('Failed to delete. Please try again.')
   })
 
   it('shows an error and re-enables delete when the delete request throws', async () => {
     mockDeleteDraft.mockRejectedValue(new Error('network down'))
     render(<DraftCard draft={DRAFT} />)
     fireEvent.click(screen.getByTestId('delete-draft'))
+    await confirmDelete()
 
     await waitFor(() =>
       expect(screen.getByText('Failed to delete. Please try again.')).toBeInTheDocument(),
@@ -258,6 +330,7 @@ describe('DraftCard — Delete', () => {
     mockDeleteDraft.mockResolvedValue({ success: false })
     render(<DraftCard draft={DRAFT} />)
     fireEvent.click(screen.getByTestId('delete-draft'))
+    await confirmDelete()
 
     await waitFor(() => expect(screen.getByTestId('delete-draft')).not.toBeDisabled())
   })

@@ -30,14 +30,14 @@ export function LoginInstructionsCell({ student }: Readonly<Props>) {
 
   if (confirming) {
     return (
-      <div className="max-w-[220px] space-y-1.5 whitespace-normal text-xs">
+      <div className="max-w-login-note space-y-1.5 whitespace-normal text-caption">
         <p className="text-muted-foreground">{loginInstructionsConfirmText(state, name)}</p>
         <div className="flex items-center gap-1">
-          <LoadingButton size="xs" loading={isSending} onClick={handleSend}>
+          <LoadingButton size="sm" loading={isSending} onClick={handleSend}>
             Confirm
           </LoadingButton>
           <Button
-            size="xs"
+            size="sm"
             variant="outline"
             disabled={isSending}
             onClick={() => setConfirming(false)}
@@ -50,7 +50,7 @@ export function LoginInstructionsCell({ student }: Readonly<Props>) {
   }
 
   return (
-    <div className="space-y-1 text-xs">
+    <div className="space-y-1 text-caption">
       <p className="text-muted-foreground">{loginInstructionsStateLabel(state)}</p>
       {student.login_instructions_sent_at && (
         <p className="text-muted-foreground">
@@ -58,7 +58,7 @@ export function LoginInstructionsCell({ student }: Readonly<Props>) {
         </p>
       )}
       {canSend && (
-        <Button size="xs" variant="outline" onClick={() => setConfirming(true)}>
+        <Button size="sm" variant="outline" onClick={() => setConfirming(true)}>
           {state === 'not_sent' ? 'Send' : 'Resend'}
         </Button>
       )}

@@ -7,13 +7,6 @@ export type ProfileData = {
   email: string
   organizationName: string | null
   memberSince: string
-  stats: ProfileStats
-}
-
-export type ProfileStats = {
-  totalSessions: number
-  averageScore: number
-  totalAnswered: number
 }
 
 type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
@@ -23,18 +16,7 @@ export async function getProfileData(): Promise<ProfileData> {
   const user = await getSessionUser()
   if (!user) throw new Error('Not authenticated')
 
-  const [profile, stats] = await Promise.all([
-    getProfile(supabase, user.id),
-    getProfileStats(supabase, user.id),
-  ])
-
-  return {
-    fullName: profile.fullName,
-    email: profile.email,
-    organizationName: profile.organizationName,
-    memberSince: profile.memberSince,
-    stats,
-  }
+  return getProfile(supabase, user.id)
 }
 
 type OrgRow = { name: string }
@@ -64,45 +46,5 @@ async function getProfile(supabase: SupabaseClient, userId: string) {
     email: data.email,
     memberSince: data.created_at,
     organizationName: org?.name ?? null,
-  }
-}
-
-// Postgres serializes numeric AVG (and bigint COUNT) as JSON strings, so accept both.
-type ProfileStatsRow = { total_sessions: number | string; avg_score: number | string | null }
-
-async function getProfileStats(supabase: SupabaseClient, userId: string): Promise<ProfileStats> {
-  // Completed-session count + average score aggregated in Postgres (#668 P2): the prior
-  // client read fetched every session's score_percentage and counted/averaged in JS, which
-  // truncated at the PostgREST 1000-row cap for high-volume students. The RPC self-scopes to
-  // the caller (quiz_sessions is multi-permissive, security.md §11).
-  // `userId` is only needed for the head-count of answered questions (a safe count, no
-  // truncation). The stats RPC takes no args and self-scopes via auth.uid().
-  const [statsResult, countResult] = await Promise.all([
-    supabase.rpc('get_student_profile_stats'),
-    supabase
-      .from('student_responses')
-      .select('*', { count: 'exact', head: true })
-      .eq('student_id', userId),
-  ])
-  const { data: statsData, error: statsError } = statsResult
-  if (statsError) {
-    throw new Error(`Failed to fetch profile stats: ${statsError.message}`)
-  }
-  const { count, error: countError } = countResult
-  if (countError) {
-    throw new Error(`Failed to fetch answered count: ${countError.message}`)
-  }
-
-  // Wire shape is not validated by the client — guard the array per code-style §5.
-  const row: ProfileStatsRow | undefined = Array.isArray(statsData) ? statsData[0] : undefined
-  const totalSessions = Number(row?.total_sessions ?? 0)
-  // avg_score is the raw numeric mean; Math.round stays here to preserve the legacy rounding.
-  const averageScore =
-    totalSessions > 0 && row?.avg_score != null ? Math.round(Number(row.avg_score)) : 0
-
-  return {
-    totalSessions,
-    averageScore,
-    totalAnswered: count ?? 0,
   }
 }

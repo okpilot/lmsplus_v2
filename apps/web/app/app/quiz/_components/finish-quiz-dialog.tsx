@@ -1,8 +1,7 @@
 'use client'
 
-import { Dialog as DialogPrimitive } from '@base-ui/react/dialog'
 import { useRef } from 'react'
-import { Dialog, DialogOverlay, DialogPortal, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
 import { useConnectionBlocked } from '../session/_hooks/use-connection-state'
 import type { QuizPendingAction } from '../session/_hooks/use-quiz-submit'
@@ -85,50 +84,49 @@ export function FinishQuizDialog({
       }}
       disablePointerDismissal={!canDismiss || submitting}
     >
-      <DialogPortal>
-        <DialogOverlay className="bg-black/50 supports-backdrop-filter:backdrop-blur-none" />
-        <DialogPrimitive.Popup
-          ref={popupRef}
-          initialFocus={popupRef}
-          className="fixed max-h-[calc(100dvh-2rem)] overflow-y-auto top-1/2 left-1/2 z-50 w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-card p-6 shadow-lg outline-none sm:max-w-md"
-        >
-          <DialogTitle className="text-lg font-semibold text-foreground">{title}</DialogTitle>
-          <DialogBody
-            answeredCount={answeredCount}
-            totalQuestions={totalQuestions}
-            submitting={submitting}
-            pendingAction={pendingAction}
-            error={error}
-            isExam={isExam}
-            timeExpired={timeExpired}
-            pendingSelection={pendingSelection}
-            countdown={countdown}
-            unanswered={unanswered}
-            confirmingSubmit={confirmingSubmit}
-            confirmingDiscard={confirmingDiscard}
-            canDiscard={canDiscard}
-            onSubmit={onSubmit}
-            onDiscard={onDiscard}
-            cancelSubmitConfirm={cancelSubmitConfirm}
-            cancelDiscardConfirm={cancelDiscardConfirm}
-          />
+      <DialogContent
+        ref={popupRef}
+        initialFocus={popupRef}
+        showCloseButton={false}
+        overlayClassName="bg-scrim supports-backdrop-filter:backdrop-blur-none"
+        className="block max-h-(--dialog-max-h) overflow-y-auto p-6 sm:max-w-dialog-md"
+      >
+        <DialogTitle className="text-heading">{title}</DialogTitle>
+        <DialogBody
+          answeredCount={answeredCount}
+          totalQuestions={totalQuestions}
+          submitting={submitting}
+          pendingAction={pendingAction}
+          error={error}
+          isExam={isExam}
+          timeExpired={timeExpired}
+          pendingSelection={pendingSelection}
+          countdown={countdown}
+          unanswered={unanswered}
+          confirmingSubmit={confirmingSubmit}
+          confirmingDiscard={confirmingDiscard}
+          canDiscard={canDiscard}
+          onSubmit={onSubmit}
+          onDiscard={onDiscard}
+          cancelSubmitConfirm={cancelSubmitConfirm}
+          cancelDiscardConfirm={cancelDiscardConfirm}
+        />
 
-          <DialogFooter
-            answeredCount={answeredCount}
-            submitting={submitting}
-            pendingAction={pendingAction}
-            isExam={isExam}
-            examLabel={examLabel}
-            timeExpired={timeExpired}
-            canDismiss={canDismiss}
-            canDiscard={canDiscard}
-            onSubmitClick={handleSubmitClick}
-            onSave={onSave}
-            onDiscardOpen={openDiscardConfirm}
-            onClose={handleClose}
-          />
-        </DialogPrimitive.Popup>
-      </DialogPortal>
+        <DialogFooter
+          answeredCount={answeredCount}
+          submitting={submitting}
+          pendingAction={pendingAction}
+          isExam={isExam}
+          examLabel={examLabel}
+          timeExpired={timeExpired}
+          canDismiss={canDismiss}
+          canDiscard={canDiscard}
+          onSubmitClick={handleSubmitClick}
+          onSave={onSave}
+          onDiscardOpen={openDiscardConfirm}
+          onClose={handleClose}
+        />
+      </DialogContent>
     </Dialog>
   )
 }

@@ -116,6 +116,7 @@ describe('AnswerInput — ordering question item guard', () => {
   it('shows a refresh prompt when ordering items are absent', () => {
     render(<AnswerInput s={makeOrderingState(null)} />)
     expect(screen.getByRole('alert')).toHaveTextContent('refresh')
+    expect(screen.getByRole('alert')).toHaveAttribute('data-slot', 'alert')
     expect(screen.queryByTestId('ordering-input')).not.toBeInTheDocument()
   })
 
@@ -254,6 +255,8 @@ describe('AnswerInput — exam-mode question type support', () => {
         />,
       )
       expect(screen.getByRole('alert')).toHaveTextContent('not yet supported in exam mode')
+      expect(screen.getByRole('alert')).toHaveAttribute('data-slot', 'alert')
+      expect(screen.getByRole('alert')).toHaveClass('bg-danger-soft')
       expect(screen.queryByTestId('ordering-input')).not.toBeInTheDocument()
     },
   )

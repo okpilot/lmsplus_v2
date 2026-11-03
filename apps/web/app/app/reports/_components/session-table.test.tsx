@@ -119,12 +119,18 @@ describe('SessionTable', () => {
 
   it('renders a Practice Exam badge for mock_exam mode', () => {
     render(<SessionTable {...SORT_PROPS} sessions={[makeSession({ mode: 'mock_exam' })]} />)
-    expect(screen.getByText('Practice Exam')).toBeInTheDocument()
+    expect(screen.getByText('Practice Exam')).toHaveClass('bg-caution-soft', 'text-caution')
+  })
+
+  it('renders the exam badge uppercase', () => {
+    render(<SessionTable {...SORT_PROPS} sessions={[makeSession({ mode: 'mock_exam' })]} />)
+    expect(screen.getByText('Practice Exam')).toHaveClass('uppercase')
+    expect(screen.getByText('Practice Exam').className).not.toMatch(/\btracking-/)
   })
 
   it('renders an Internal Exam badge for internal_exam mode', () => {
     render(<SessionTable {...SORT_PROPS} sessions={[makeSession({ mode: 'internal_exam' })]} />)
-    expect(screen.getByText('Internal Exam')).toBeInTheDocument()
+    expect(screen.getByText('Internal Exam')).toHaveClass('bg-caution-soft', 'text-caution')
   })
 
   it('renders mode label for non-exam modes', () => {
@@ -201,19 +207,19 @@ describe('SessionTable row color-coding', () => {
   it('colors the score cell green when score is >=70%', () => {
     render(<SessionTable {...SORT_PROPS} sessions={[makeSession({ scorePercentage: 80 })]} />)
     const scoreCell = screen.getByText('80%')
-    expect(scoreCell.style.color).toBe('rgb(34, 197, 94)')
+    expect(scoreCell.style.color).toBe('var(--success)')
   })
 
   it('colors the score cell amber when score is 50–69%', () => {
     render(<SessionTable {...SORT_PROPS} sessions={[makeSession({ scorePercentage: 60 })]} />)
     const scoreCell = screen.getByText('60%')
-    expect(scoreCell.style.color).toBe('rgb(245, 158, 11)')
+    expect(scoreCell.style.color).toBe('var(--caution)')
   })
 
   it('colors the score cell red when score is below 50%', () => {
     render(<SessionTable {...SORT_PROPS} sessions={[makeSession({ scorePercentage: 40 })]} />)
     const scoreCell = screen.getByText('40%')
-    expect(scoreCell.style.color).toBe('rgb(239, 68, 68)')
+    expect(scoreCell.style.color).toBe('var(--danger)')
   })
 
   it('applies no color to the score cell when scorePercentage is null', () => {

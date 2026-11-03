@@ -61,7 +61,7 @@ test.describe('Quiz progress saved to the server', () => {
     const total = await startStudyQuiz(page)
 
     // Entry: nothing answered yet, position 0.
-    const answerBtns = page.locator('button:has(span.rounded-full)')
+    const answerBtns = page.locator('button[data-testid^="option-"]')
     await answerBtns.first().waitFor({ state: 'visible' })
     await answerBtns.first().click()
     await page.getByRole('button', { name: 'Submit Answer' }).first().click()
@@ -93,7 +93,7 @@ test.describe('Quiz progress saved to the server', () => {
     context,
   }) => {
     const total = await startStudyQuiz(page)
-    const firstAnswers = page.locator('button:has(span.rounded-full)')
+    const firstAnswers = page.locator('button[data-testid^="option-"]')
     await firstAnswers.first().waitFor({ state: 'visible' })
     await firstAnswers.first().click()
     await page.getByRole('button', { name: 'Submit Answer' }).first().click()

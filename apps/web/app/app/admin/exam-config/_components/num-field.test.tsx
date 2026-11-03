@@ -13,7 +13,7 @@ describe('NumField', () => {
   describe('rendering', () => {
     it('displays the label text', () => {
       render(<NumField label="Total Questions" value={10} min={1} max={200} onChange={vi.fn()} />)
-      expect(screen.getByText('Total Questions', { selector: 'label' })).toBeTruthy()
+      expect(screen.getByText('Total Questions')).toBeTruthy()
     })
 
     it('renders an input of type number with the provided value', () => {
@@ -75,5 +75,27 @@ describe('NumField', () => {
 
       expect(onChange).not.toHaveBeenCalled()
     })
+  })
+})
+
+function expectFieldLabel(el: HTMLElement) {
+  expect(el.className).toMatch(/(?<![\w-])text-label(?![\w-])/)
+  expect(el.className).toContain('text-muted-foreground')
+  expect(el.className).not.toContain('text-[13px]')
+}
+
+describe('NumField label style', () => {
+  it('styles the label text-label + text-muted-foreground without text-[13px]', () => {
+    render(<NumField label="Pass Mark" value={75} min={1} max={100} onChange={vi.fn()} />)
+    expectFieldLabel(screen.getByText('Pass Mark'))
+  })
+  it('input is not inside a muted-coloured element', () => {
+    render(<NumField label="Pass Mark" value={75} min={1} max={100} onChange={vi.fn()} />)
+    const input = screen.getByRole('spinbutton')
+    expect(screen.getByText('Pass Mark').tagName).toBe('SPAN')
+    const label = input.closest('label')
+    expect(label).not.toBeNull()
+    expect(label?.className).not.toContain('text-muted-foreground')
+    expect(input.className).not.toMatch(/(?<![\w:-])text-muted-foreground/)
   })
 })

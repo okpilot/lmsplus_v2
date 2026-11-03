@@ -11,12 +11,13 @@ describe('ProfileCard', () => {
     email: 'student@example.com',
     organizationName: 'PPL Academy',
     memberSince: '2024-01-15T00:00:00.000Z',
-    stats: {
-      totalSessions: 42,
-      averageScore: 78,
-      totalAnswered: 630,
-    },
   }
+
+  it('lets a long email wrap inside its grid cell', () => {
+    render(<ProfileCard {...defaultProps} />)
+    const dd = screen.getByText('student@example.com')
+    expect(dd).toHaveClass('min-w-0', 'wrap-anywhere')
+  })
 
   it('renders the email address', () => {
     render(<ProfileCard {...defaultProps} />)
@@ -33,24 +34,14 @@ describe('ProfileCard', () => {
     expect(screen.queryByText('Organisation')).not.toBeInTheDocument()
   })
 
-  it('renders total sessions stat', () => {
-    render(<ProfileCard {...defaultProps} />)
-    expect(screen.getByText('42')).toBeInTheDocument()
-  })
-
-  it('renders average score with percent sign', () => {
-    render(<ProfileCard {...defaultProps} />)
-    expect(screen.getByText('78%')).toBeInTheDocument()
-  })
-
-  it('renders total answered stat', () => {
-    render(<ProfileCard {...defaultProps} />)
-    expect(screen.getByText('630')).toBeInTheDocument()
-  })
-
   it('renders the member since date in readable format', () => {
     render(<ProfileCard {...defaultProps} />)
     // Date formatted as "15 January 2024" via en-GB locale
     expect(screen.getByText('15 January 2024')).toBeInTheDocument()
+  })
+
+  it('renders no quiz statistics', () => {
+    render(<ProfileCard {...defaultProps} />)
+    expect(screen.queryByText('Quiz Statistics')).not.toBeInTheDocument()
   })
 })

@@ -70,3 +70,39 @@ describe('StudentTable — courses column', () => {
     expect(within(r).getByText('PPL')).toBeInTheDocument()
   })
 })
+
+describe('StudentTable — role tone', () => {
+  it('shows the admin role with the info tone', () => {
+    renderTable([row({ role: 'admin' })])
+    expect(screen.getByText('admin').className).toContain('bg-info-soft')
+  })
+
+  it.each(['student', 'instructor'] as const)('shows the %s role with the neutral tone', (role) => {
+    renderTable([row({ role })])
+    expect(screen.getByText(role).className).toContain('bg-muted')
+  })
+})
+
+describe('StudentTable — status and actions', () => {
+  it('shows an active student with the success badge tone', () => {
+    renderTable([row({})])
+    const badge = screen.getByText('Active')
+    expect(badge.className).toContain('bg-success-soft')
+    expect(badge.className).not.toContain('bg-green-600')
+  })
+
+  it('shows Inactive with the neutral tone (bg-muted), not bg-danger-soft', () => {
+    renderTable([row({ deleted_at: '2026-02-01T00:00:00.000Z' })])
+    const badge = screen.getByText('Inactive')
+    expect(badge.className).toContain('bg-muted')
+    expect(badge.className).not.toContain('bg-danger-soft')
+    expect(screen.queryByText('Active')).toBeNull()
+  })
+
+  it('takes the actions cell padding from the table primitive', () => {
+    renderTable([row({})])
+    const cell = screen.getByLabelText('Edit student').closest('td')
+    expect(cell?.className).toContain('py-cell-y')
+    expect(cell?.className).not.toContain('py-2.5')
+  })
+})

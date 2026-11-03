@@ -1,3 +1,4 @@
+import { PageHeader } from '@/components/ui/heading'
 import { requireAuthUser } from '@/lib/auth/require-auth-user'
 import { LookupErrorAlerts } from './_components/lookup-error-alerts'
 import { QuizPageBanners } from './_components/quiz-page-banners'
@@ -11,13 +12,8 @@ export default async function QuizPage() {
   const data = await loadQuizPageData(user.id)
 
   return (
-    <main className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Quiz</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Configure and start a practice session.
-        </p>
-      </div>
+    <main className="space-y-section">
+      <PageHeader title="Quiz" description="Configure and start a practice session." />
 
       <LookupErrorAlerts
         examFailed={data.examLookupFailed}

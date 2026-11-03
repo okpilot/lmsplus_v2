@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useRef, useState, useTransition } from 'react'
+import { useEffect, useId, useRef, useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { uploadQuestionImage } from '../actions/upload-question-image'
 
 const SUPABASE_STORAGE_ORIGIN = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/$/, '')
@@ -28,6 +29,7 @@ type Props = {
 export function ImageUploadField({ label, currentUrl, onUploaded, disabled }: Readonly<Props>) {
   const [preview, setPreview] = useState<string | null>(currentUrl)
   const [isPending, startTransition] = useTransition()
+  const inputId = useId()
   const blobUrlRef = useRef<string | null>(null)
 
   // Revoke blob URL on unmount to prevent memory leaks
@@ -81,20 +83,22 @@ export function ImageUploadField({ label, currentUrl, onUploaded, disabled }: Re
 
   return (
     <div className="space-y-2">
-      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      <Label htmlFor={inputId} className="block">
+        {label}
+      </Label>
       {preview && isSafePreviewUrl(preview) && (
         <div className="relative">
           {/* biome-ignore lint/performance/noImgElement: local blob/URL preview, not optimizable by next/image */}
           <img
             src={preview}
             alt="Upload preview"
-            className="max-h-32 max-w-full rounded border object-contain"
+            className="max-h-scroll-xs max-w-full rounded-inner border object-contain"
           />
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            className="absolute right-1 top-1 h-6 px-2 text-xs"
+            className="absolute right-1 top-1 h-6 px-2"
             onClick={handleRemove}
             disabled={disabled || isPending}
           >
@@ -103,13 +107,14 @@ export function ImageUploadField({ label, currentUrl, onUploaded, disabled }: Re
         </div>
       )}
       <Input
+        id={inputId}
         type="file"
         accept="image/png,image/jpeg,image/webp"
         onChange={handleFileChange}
         disabled={disabled || isPending}
-        className="max-w-xs text-xs"
+        className="max-w-field"
       />
-      {isPending && <p className="text-xs text-muted-foreground">Uploading...</p>}
+      {isPending && <p className="text-caption text-muted-foreground">Uploading...</p>}
     </div>
   )
 }

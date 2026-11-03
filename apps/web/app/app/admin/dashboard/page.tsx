@@ -12,9 +12,9 @@ const KPI_KEYS = ['active', 'mastery', 'sessions', 'weakest', 'exam'] as const
 
 function KpiSkeleton() {
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-5">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {KPI_KEYS.map((k) => (
-        <Skeleton key={k} className="h-28 rounded-xl" />
+        <Skeleton key={k} className="h-skeleton-card rounded-card" />
       ))}
     </div>
   )
@@ -27,19 +27,19 @@ export default async function AdminDashboardPage({ searchParams }: Readonly<Page
   const filters = parseFilters(await searchParams)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-section">
       <DashboardHeader currentRange={filters.range} />
       <Suspense fallback={<KpiSkeleton />}>
         <KpiCardsContent range={filters.range} />
       </Suspense>
-      <Suspense fallback={<Skeleton className="h-96 rounded-xl" />}>
+      <Suspense fallback={<Skeleton className="h-skeleton-chart-lg rounded-card" />}>
         <StudentTableContent filters={filters} />
       </Suspense>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Suspense fallback={<Skeleton className="h-64 rounded-xl" />}>
+        <Suspense fallback={<Skeleton className="h-skeleton-chart rounded-card" />}>
           <WeakTopicsContent />
         </Suspense>
-        <Suspense fallback={<Skeleton className="h-64 rounded-xl" />}>
+        <Suspense fallback={<Skeleton className="h-skeleton-chart rounded-card" />}>
           <RecentActivityContent range={filters.range} />
         </Suspense>
       </div>

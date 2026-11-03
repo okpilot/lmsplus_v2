@@ -34,3 +34,10 @@ describe('LinkUnavailable', () => {
     expect(screen.getByRole('link', { name: /login page/i })).toHaveAttribute('href', '/')
   })
 })
+
+describe('LinkUnavailable typography', () => {
+  it('renders the heading as an h2 with text-heading', () => {
+    render(<LinkUnavailable reason="invalid" />)
+    expect(screen.getByRole('heading', { level: 2 })).toHaveClass('text-heading')
+  })
+})

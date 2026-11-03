@@ -1,10 +1,11 @@
 'use client'
 
-import Link from 'next/link'
 import { useState } from 'react'
 import { z } from 'zod'
+import { FieldError } from '@/components/ui/field-error'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Link } from '@/components/ui/link'
 import { LoadingButton } from '@/components/ui/loading-button'
 import { requestRecoveryCode } from '../actions'
 import { RecoveryCodeForm } from './recovery-code-form'
@@ -63,24 +64,24 @@ export function ForgotPasswordForm() {
         />
       </div>
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      <FieldError role="alert">{error}</FieldError>
 
       <LoadingButton type="submit" loading={loading} loadingText="Sending..." className="w-full">
         Send reset code
       </LoadingButton>
 
-      <p className="text-center text-sm">
-        <Link href="/" className="text-muted-foreground hover:text-primary">
+      <p className="text-center text-body">
+        <Link href="/" tone="muted">
           Back to login
         </Link>
       </p>
 
-      <p className="text-center text-xs text-muted-foreground">
-        <Link href="/legal/terms" className="hover:text-primary underline">
+      <p className="text-center text-caption text-muted-foreground">
+        <Link href="/legal/terms" tone="inherit">
           Terms of Service
         </Link>
         {' · '}
-        <Link href="/legal/privacy" className="hover:text-primary underline">
+        <Link href="/legal/privacy" tone="inherit">
           Privacy Policy
         </Link>
       </p>

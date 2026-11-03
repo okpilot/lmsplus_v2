@@ -62,6 +62,7 @@
       "prose-paths",
       "md-allowlist",
       "soft-delete-guard",
+      "design-tokens-guard",
       "type-check"
     ],
     "commit-msg": ["commitlint", "decisions-ledger"],
@@ -95,6 +96,10 @@
 
   "guards": {
     "_": "Every guard wired into lefthook.yml, any .github/workflows/*.yml step (a `.claude/...` path not passed to `node --test`), or any .claude/settings.json hook event must carry a spawned, graded RED and GREEN control (code-style.md §7). .claude/controls.test.mjs derives the wired set and checks it against these keys in BOTH directions, then checks each non-exempt entry's `suites` for a linked CONTROL: red and CONTROL: green test. `base` names the co-located `.claude/hooks/<base>.mutations.json` carrying the `<base>-always-passes` / `<base>-always-blocks` grading entries.",
+    ".claude/hooks/check-design-tokens.mjs": {
+      "base": "check-design-tokens",
+      "suites": [".claude/hooks/check-design-tokens.test.mjs"]
+    },
     ".claude/hooks/check-soft-delete-guard.mjs": {
       "base": "check-soft-delete-guard",
       "suites": [".claude/hooks/check-soft-delete-guard.test.mjs"]

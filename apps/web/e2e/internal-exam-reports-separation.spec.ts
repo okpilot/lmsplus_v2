@@ -76,7 +76,7 @@ async function runPracticeExamToCompletion(page: Page): Promise<void> {
   await page.waitForURL(/\/app\/quiz\/session/, { timeout: 15_000 })
   await expect(page.getByText(/Question \d/)).toBeVisible({ timeout: 10_000 })
 
-  await page.locator('button:has(span.rounded-full)').first().click()
+  await page.locator('button[data-testid^="option-"]').first().click()
   await page.getByRole('button', { name: 'Confirm Answer' }).click()
   await page.waitForTimeout(300)
   await page.getByRole('button', { name: 'Finish Practice Exam' }).click()
@@ -96,7 +96,7 @@ async function runInternalExamToCompletion(page: Page, code: string): Promise<vo
   await page.waitForURL(/\/app\/quiz\/session/, { timeout: 15_000 })
   await expect(page.getByText(/Question \d/)).toBeVisible({ timeout: 10_000 })
 
-  await page.locator('button:has(span.rounded-full)').first().click()
+  await page.locator('button[data-testid^="option-"]').first().click()
   await page.getByRole('button', { name: 'Confirm Answer' }).click()
   await page.waitForTimeout(300)
   await page.getByRole('button', { name: 'Finish Internal Exam' }).click()

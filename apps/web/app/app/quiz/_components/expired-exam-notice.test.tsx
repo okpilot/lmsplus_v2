@@ -34,6 +34,13 @@ describe('ExpiredExamNotice', () => {
     ).toBeInTheDocument()
   })
 
+  it('renders as a caution alert', () => {
+    render(<ExpiredExamNotice sessionId="sess-abc" />)
+
+    const notice = screen.getByText('Practice Exam expired').closest('[data-slot="alert"]')
+    expect(notice?.className).toContain('bg-caution-soft')
+  })
+
   it('navigates to the correct report URL when "View Results" is clicked', async () => {
     const user = userEvent.setup()
     render(<ExpiredExamNotice sessionId="sess-abc" />)

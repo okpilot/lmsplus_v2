@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { cn } from '@/lib/utils'
 
 type IconName =
   | 'home'
@@ -79,16 +80,15 @@ const ICON_PATHS: Record<IconName, ReactNode> = {
   ),
 }
 
-export function NavIcon({ name, className = 'h-5 w-5' }: Readonly<NavIconProps>) {
+export function NavIcon({ name, className = 'size-icon-lg' }: Readonly<NavIconProps>) {
   const paths = ICON_PATHS[name]
   if (!paths) return null
   return (
     <svg
-      className={className}
+      className={cn('stroke-icon', className)}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"

@@ -69,7 +69,7 @@ export function StudentFiltersBar({ filters }: Readonly<Props>) {
         onValueChange={(v) => updateFilter('status', v === ALL || v === null ? undefined : v)}
         items={STATUS_ITEMS}
       >
-        <SelectTrigger className="w-32" aria-label="Status">
+        <SelectTrigger className="w-col-sm" aria-label="Status">
           <SelectValue placeholder="All statuses" />
         </SelectTrigger>
         <SelectContent>
@@ -90,7 +90,7 @@ export function StudentFiltersBar({ filters }: Readonly<Props>) {
         onValueChange={(v) => updateFilter('role', v === ALL || v === null ? undefined : v)}
         items={ROLE_ITEMS}
       >
-        <SelectTrigger className="w-32" aria-label="Role">
+        <SelectTrigger className="w-col-sm" aria-label="Role">
           <SelectValue placeholder="All roles" />
         </SelectTrigger>
         <SelectContent>
@@ -112,9 +112,10 @@ export function StudentFiltersBar({ filters }: Readonly<Props>) {
       <Input
         type="search"
         placeholder="Search students..."
+        aria-label="Search students"
         value={searchText}
         onChange={(e) => setSearchText(e.target.value)}
-        className="w-56"
+        className="w-col-lg"
       />
 
       <Button variant="ghost" size="sm" onClick={() => router.push('/app/admin/students')}>

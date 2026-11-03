@@ -117,7 +117,7 @@ describe('ExamCountdownTimer — visual urgency classes', () => {
     expect(span?.className).toContain('text-muted-foreground')
   })
 
-  it('applies an amber warning class when 5 minutes or fewer remain', async () => {
+  it('applies a caution class when 5 minutes or fewer remain', async () => {
     const now = Date.now()
     const { container } = render(
       <ExamCountdownTimer timeLimitSeconds={600} startedAt={now} onExpired={vi.fn()} />,
@@ -125,10 +125,12 @@ describe('ExamCountdownTimer — visual urgency classes', () => {
     // Advance to 299 seconds remaining (just under 5 minutes)
     await advanceTimers(301_000)
     const span = container.querySelector('span')
-    expect(span?.className).toContain('text-amber-600')
+    expect(span?.className).toContain('text-caution')
+    expect(span?.className).not.toContain('text-amber-')
+    expect(span?.className).not.toContain('text-muted-foreground')
   })
 
-  it('applies a destructive pulsing class when 60 seconds or fewer remain', async () => {
+  it('applies a danger class without pulsing when 60 seconds or fewer remain', async () => {
     const now = Date.now()
     const { container } = render(
       <ExamCountdownTimer timeLimitSeconds={600} startedAt={now} onExpired={vi.fn()} />,
@@ -136,8 +138,9 @@ describe('ExamCountdownTimer — visual urgency classes', () => {
     // Advance to 60 seconds remaining exactly
     await advanceTimers(540_000)
     const span = container.querySelector('span')
-    expect(span?.className).toContain('text-destructive')
-    expect(span?.className).toContain('animate-pulse')
+    expect(span?.className).toContain('text-danger')
+    expect(span?.className).not.toContain('animate-pulse')
+    expect(span?.className).not.toContain('text-amber-')
   })
 })
 
@@ -182,7 +185,7 @@ describe('ExamCountdownTimer — hydration', () => {
     expect(errorSpy).not.toHaveBeenCalled()
     const span = container.querySelector('span')
     expect(span?.textContent).toBe('04:58')
-    expect(span?.className).toContain('text-amber-600')
+    expect(span?.className).toContain('text-caution')
     expect(span?.className).not.toContain('text-muted-foreground')
     act(() => root?.unmount())
     container.remove()

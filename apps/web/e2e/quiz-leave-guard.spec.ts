@@ -79,7 +79,7 @@ test.describe('Quiz leave guard', () => {
     page,
   }) => {
     await startStudyQuiz(page)
-    const options = page.locator('button:has(span.rounded-full)')
+    const options = page.locator('button[data-testid^="option-"]')
     await options.first().waitFor({ state: 'visible' })
     await options.first().click()
 

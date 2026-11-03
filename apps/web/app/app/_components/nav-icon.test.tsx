@@ -60,6 +60,6 @@ describe('NavIcon', () => {
 
   it('applies the default size class when no className is provided', () => {
     const { container } = render(<NavIcon name="home" />)
-    expect(container.querySelector('svg')).toHaveClass('h-5', 'w-5')
+    expect(container.querySelector('svg')).toHaveClass('size-icon-lg')
   })
 })

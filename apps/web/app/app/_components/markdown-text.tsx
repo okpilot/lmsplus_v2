@@ -7,12 +7,12 @@ const REMARK_PLUGINS = [remarkGfm]
 
 const MARKDOWN_COMPONENTS: Components = {
   p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-  ul: ({ children }) => <ul className="mb-2 list-disc pl-5 last:mb-0">{children}</ul>,
-  ol: ({ children }) => <ol className="mb-2 list-decimal pl-5 last:mb-0">{children}</ol>,
+  ul: ({ children }) => <ul className="mb-2 list-disc pl-prose-indent last:mb-0">{children}</ul>,
+  ol: ({ children }) => <ol className="mb-2 list-decimal pl-prose-indent last:mb-0">{children}</ol>,
   li: ({ children }) => <li className="mb-0.5">{children}</li>,
   table: ({ children }) => (
     <div className="mb-2 overflow-x-auto last:mb-0">
-      <table className="min-w-full border-collapse text-sm">{children}</table>
+      <table className="min-w-full border-collapse">{children}</table>
     </div>
   ),
   th: ({ children }) => (
@@ -22,7 +22,7 @@ const MARKDOWN_COMPONENTS: Components = {
   strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
   em: ({ children }) => <em>{children}</em>,
   code: ({ children }) => (
-    <code className="rounded bg-muted px-1 py-0.5 font-medium text-xs">{children}</code>
+    <code className="rounded-inner bg-muted px-1 py-0.5 text-caption-strong">{children}</code>
   ),
 }
 

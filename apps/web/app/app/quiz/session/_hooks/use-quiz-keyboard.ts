@@ -15,6 +15,8 @@ type UseQuizKeyboardOpts = {
   onNavigate: (delta: number) => void
   onConfirm: (optionId: string) => void
   onTab: (tab: QuestionTab) => void
+  /** Visible tab; ↑ / ↓ and Enter act only on the question tab. Resets the highlight when it changes. */
+  activeTab?: QuestionTab
 }
 
 /**
@@ -27,12 +29,12 @@ type UseQuizKeyboardOpts = {
 export function useQuizKeyboard(opts: UseQuizKeyboardOpts) {
   const [highlightedIndex, setHighlightedIndex] = useState(-1)
 
-  // Reset the answer highlight on question change. The body doesn't read currentIndex,
-  // so biome sees the dep as "unnecessary"; it is the reset trigger, hence the suppression.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: currentIndex is the reset trigger, not a read value
+  // Reset the answer highlight on question or tab change. The body doesn't read currentIndex
+  // or activeTab, so biome sees the deps as "unnecessary"; they are the reset triggers.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: currentIndex and activeTab are the reset triggers, not read values
   useEffect(() => {
     setHighlightedIndex(-1)
-  }, [opts.currentIndex])
+  }, [opts.currentIndex, opts.activeTab])
 
   // The keydown listener attaches once; the Effect Event reads the latest props/state so it
   // never needs re-binding (and so Enter sees the current highlight, not a stale one).
@@ -41,16 +43,19 @@ export function useQuizKeyboard(opts: UseQuizKeyboardOpts) {
     if (e.altKey || e.ctrlKey || e.metaKey) return
     const action = quizKeyAction(e.key, { isExam: opts.isExam })
     if (!action) return
+    const onQuestionTab = opts.activeTab === undefined || opts.activeTab === 'question'
     switch (action.type) {
       case 'navigate':
         e.preventDefault()
         opts.onNavigate(action.delta)
         break
       case 'highlight':
+        if (!onQuestionTab) break
         e.preventDefault()
         setHighlightedIndex((i) => nextHighlight(i, action.delta, opts.optionIds.length))
         break
       case 'confirm': {
+        if (!onQuestionTab) break
         const id = opts.optionIds[highlightedIndex]
         if (id) {
           e.preventDefault()

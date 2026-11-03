@@ -41,6 +41,11 @@ describe('AvailableTab', () => {
     expect(screen.getByTestId('available-empty')).toHaveTextContent(/no internal exams available/i)
   })
 
+  it('renders the empty state with the shared empty part', () => {
+    render(<AvailableTab rows={[]} />)
+    expect(screen.getByTestId('available-empty')).toHaveAttribute('data-slot', 'empty')
+  })
+
   it('renders the subject short and name in each row', () => {
     render(<AvailableTab rows={[ROW]} />)
     expect(screen.getByText(/010 — Air Law/)).toBeInTheDocument()

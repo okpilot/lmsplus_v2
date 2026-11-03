@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SubjectDetail } from '@/lib/queries/progress'
 import { ProgressContent } from './progress-content'
@@ -96,5 +96,17 @@ describe('ProgressContent', () => {
     render(jsx)
 
     expect(screen.getByTestId('subject-breakdown')).toHaveAttribute('data-count', '2')
+  })
+
+  it('shows overall mastery as a stat tile holding the progress bar and count', async () => {
+    mockGetProgressData.mockResolvedValue([makeSubject(10, 5)])
+
+    render(await ProgressContent())
+
+    const tile = screen.getByText('Overall Mastery').closest('[data-slot="card"]') as HTMLElement
+    expect(tile).toHaveTextContent('50%')
+    expect(tile).toHaveTextContent('5 / 10 questions mastered')
+    const meter = within(tile).getByRole('meter', { name: 'Overall mastery' })
+    expect(meter).toHaveAttribute('aria-valuenow', '50')
   })
 })

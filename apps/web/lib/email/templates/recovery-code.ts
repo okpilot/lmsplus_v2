@@ -1,4 +1,5 @@
 import { formatOtpLifetime } from '@/lib/auth/email-otp-config'
+import { EMAIL_COLOURS } from '@/lib/design/email-colours'
 
 type RecoveryCodeEmailArgs = {
   code: string
@@ -28,12 +29,12 @@ export function recoveryCodeEmail({ code }: RecoveryCodeEmailArgs): EmailContent
 
   const html = `<!doctype html>
 <html lang="en">
-  <body style="font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; line-height: 1.5;">
+  <body style="font-family: Arial, Helvetica, sans-serif; color: ${EMAIL_COLOURS.text}; line-height: 1.5;">
     <p>Hello,</p>
     <p>Use this code to reset your LMS Plus password:</p>
-    <p style="font-size: 28px; font-weight: bold; letter-spacing: 4px;">${esc(code)}</p>
+    <p style="font-size: 28px; font-weight: 600; letter-spacing: 4px;">${esc(code)}</p>
     <p>This code works once and expires in ${formatOtpLifetime()}. Enter it on the LMS Plus page where you asked for it, then choose your new password. If it has expired, go to the login page, click &quot;Forgot password?&quot; and ask for a new code.</p>
-    <p style="color: #6b7280; font-size: 13px;">If you did not ask to reset your password, you can safely ignore this email.</p>
+    <p style="color: ${EMAIL_COLOURS.muted}; font-size: 13px;">If you did not ask to reset your password, you can safely ignore this email.</p>
   </body>
 </html>`
 

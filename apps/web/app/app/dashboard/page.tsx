@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic'
 
 export default function DashboardPage() {
   return (
-    <main className="space-y-8">
+    <main className="space-y-section">
       <DashboardHeader />
       <Suspense fallback={null}>
         <DashboardCourseChipsContent />

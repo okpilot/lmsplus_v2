@@ -1,0 +1,728 @@
+{
+  "_": "Planted red/green controls grade the CLI exit wiring; the per-rule entries grade the rule tests, each by disabling one rule or scope branch.",
+  "target": ".claude/hooks/check-design-tokens.mjs",
+  "suites": [".claude/hooks/check-design-tokens.test.mjs"],
+  "mutations": [
+    {
+      "id": "check-design-tokens-always-passes",
+      "find": "    exit(1)\n  }\n  console.log(`\u2713 design-token guard:",
+      "replace": "    exit(0)\n  }\n  console.log(`\u2713 design-token guard:",
+      "expectRed": [
+        "control: a staged file with an off-scale spacing step blocks with exit 1",
+        "R1: \"p-7\" blocks with exit 1 naming R1",
+        "R1: \"gap-9\" blocks with exit 1 naming R1",
+        "R1: \"md:w-72\" blocks with exit 1 naming R1",
+        "R2: \"gap-row\" blocks with exit 1 naming R2",
+        "R2: \"px-inline\" blocks with exit 1 naming R2",
+        "R3: \"z-10\" blocks with exit 1 naming R3",
+        "R3: \"-z-10\" blocks with exit 1 naming R3",
+        "R4: \"border-2\" blocks with exit 1 naming R4",
+        "R4: \"ring-1\" blocks with exit 1 naming R4",
+        "R4: \"outline-2\" blocks with exit 1 naming R4",
+        "R4: \"divide-x-2\" blocks with exit 1 naming R4",
+        "R4: \"ring-offset-2\" blocks with exit 1 naming R4",
+        "R4: \"ring-inset\" blocks with exit 1 naming R4",
+        "R5: \"opacity-40\" blocks with exit 1 naming R5",
+        "R6: \"bg-primary/50\" blocks with exit 1 naming R6",
+        "R7: \"min-[500px]:flex\" blocks with exit 1 naming R7",
+        "R7: \"max-[600px]:flex\" blocks with exit 1 naming R7",
+        "R8: \"font-bold\" blocks with exit 1 naming R8",
+        "R8: \"tracking-wide\" blocks with exit 1 naming R8",
+        "R8: \"md:flex\" blocks with exit 1 naming R8",
+        "R8: \"shadow-lg\" blocks with exit 1 naming R8",
+        "R8: \"bg-red-500\" blocks with exit 1 naming R8",
+        "R9: \"rounded-lg\" blocks with exit 1 naming R9",
+        "R9: \"max-w-2xl\" blocks with exit 1 naming R9",
+        "R9: \"size-[18px]\" blocks with exit 1 naming R9",
+        "R9: \"text-sm\" blocks with exit 1 naming R9",
+        "R9: \"size-3.5!\" blocks with exit 1 naming R9",
+        "B3: made-up value \"mt-[3px]\" blocks",
+        "B3: made-up value \"z-10\" blocks",
+        "B3: made-up value \"opacity-40\" blocks",
+        "R8: a template literal class is scanned",
+        "R8: CRLF source is scanned",
+        "R10: native title= blocks naming R10",
+        "R11: numeric strokeWidth blocks naming R11",
+        "R12: hex colour in lib/email blocks naming R12",
+        "K2: a staged .css with @apply px-inline blocks naming R2",
+        "K3: an apostrophe in JSX text does not hide a className (R1 and R8)",
+        "K4: \"scroll-mt-7\" blocks naming R1",
+        "K4: \"indent-7\" blocks naming R1",
+        "K4: \"inset-ring-2\" blocks naming R4",
+        "K4: \"stroke-2\" blocks naming R4",
+        "K5: a leading-! important \"!p-2\" blocks naming R9",
+        "K6: title= on <abbr> still blocks naming R10",
+        "K6: title= on <div> still blocks naming R10",
+        "K7: hex colour context blocks naming R12: export const s = `<p style=\"color:\\#123\">x</p>`",
+        "K7: hex colour context blocks naming R12: const BRAND = '\\#1a2b3c'",
+        "K7: hex colour context blocks naming R12: export const o = { color: '\\#fff' }",
+        "M1: \"max-w-2xs\" blocks naming R9",
+        "M1: \"max-w-3xs\" blocks naming R9",
+        "M2: title= on <abbr> after word text blocks naming R10",
+        "M3: an apostrophe in JSX text does not hide className={cn(...)} (R1 and R8)",
+        "M4: arbitrary property \"[z-index:50]\" blocks naming R7",
+        "M4: arbitrary property \"md:[border-width:3px]\" blocks naming R7",
+        "M5: --staged reads the index: bad index, clean working tree exits 1",
+        "M6: a non-test lib/design file with rounded-lg blocks naming R9",
+        "M7: outside diagrams blocks naming R11: export const X = () => <svg strokeWidth='2' />",
+        "M7: outside diagrams blocks naming R11: export const X = () => <svg strokeWidth={big ? 2.5 : 1.5} />",
+        "M8: \"bg-primary/(--alpha)\" blocks naming R6",
+        "M8: \"text-label/13\" blocks naming R6",
+        "M8: \"text-label/6\" blocks naming R6",
+        "M8: \"text-label/[13px]\" blocks naming R6",
+        "M8: \"text-label/1.5\" blocks naming R6",
+        "N1: \"bg-primary/(--spacing-card)\" (non-percentage variable) blocks naming R6",
+        "N2: typed paren \"text-(length:--x)\" blocks naming R7",
+        "N2: typed paren \"bg-(color:--x)\" blocks naming R7",
+        "N3: \"translate-7\" blocks naming R1",
+        "N3: \"-translate-7\" blocks naming R1",
+        "N3: \"translate-z-7\" blocks naming R1",
+        "N5: \"text-label/relaxed\" blocks naming R6",
+        "N6: --staged with an absolute path to a staged file resolves and grades it (exit 1 on p-7)",
+        "P1: a plain literal of lowercase class tokens blocks naming R9",
+        "P1: className=\"rounded\" blocks naming R9",
+        "P1: plain literal \"[&>svg]:size-7\" blocks naming R1",
+        "P1: plain literal \"*:p-7\" blocks naming R1",
+        "P3: important \"flex!\" blocks naming R9",
+        "P3: important \"!hidden\" blocks naming R9",
+        "P4: \"inset-ring-primary/50\" blocks naming R6",
+        "P5: non-gradient word modifier \"bg-primary/oklch\" blocks naming R6",
+        "P6: \"bg-primary/50\" blocks naming R6",
+        "P6: \"bg-primary/(--spacing-card)\" blocks naming R6",
+        "Q1: a template literal holding a ternary of off-scale classes blocks naming R1 and R3",
+        "Q3: space-inline blocks naming R2",
+        "Q3: -space-row blocks naming R2",
+        "Q3: space-y-row blocks naming R2",
+        "Q5: hex in a shadow or gradient list blocks naming R12: export const s = `<p style=\"box-shadow:0 0 0 1px \\#cccccc\">x</p>`",
+        "Q5: hex in a shadow or gradient list blocks naming R12: export const s = 'linear-gradient(\\#fff, \\#000)'"
+      ],
+      "note": "Forces the offender branch to exit 0 \u2014 violations print but never block."
+    },
+    {
+      "id": "check-design-tokens-always-blocks",
+      "find": "if (offenders.length > 0 || stale.length > 0) {",
+      "replace": "if (true) {",
+      "expectRed": [
+        "control: a staged file with token-backed classes passes with exit 0",
+        "R11: numeric strokeWidth passes under components/diagrams",
+        "R12: hex colour outside lib/email passes",
+        "green: \"p-0 p-px p-0.5 p-1.5 p-10 w-1/2 w-full w-auto h-screen -mt-2\" passes with exit 0",
+        "green: \"p-nav-gap rounded-control max-w-content size-icon\" passes with exit 0",
+        "green: \"font-semibold tracking-code text-body\" passes with exit 0",
+        "green: \"bg-primary bg-white bg-transparent text-current\" passes with exit 0",
+        "green: \"sm:flex lg:flex max-tiny:flex\" passes with exit 0",
+        "green: \"opacity-0 opacity-100 opacity-disabled\" passes with exit 0",
+        "green: \"border border-input ring ring-ring outline-none\" passes with exit 0",
+        "green: \"data-[size=sm]:p-2 has-[>svg]:gap-2 lg:grid-cols-(--layout-setup)\" passes with exit 0",
+        "green: \"shadow-raised\" passes with exit 0",
+        "scope: a .test.tsx file is not scanned",
+        "B1: whole-tree run exits 0 on the repo",
+        "K1: whole-tree run from a path containing /.claude/worktrees/ exits 0 (no stale entries)",
+        "K2: a staged .css with @apply p-2 passes",
+        "K4: \"stroke-none\" passes",
+        "K6: title= on an iframe passes",
+        "K7: prose \"Ticket \\#1677\" in lib/email passes",
+        "M2: title= on <iframe> after text passes",
+        "M2: a comparison followed by a title assignment is not a tag",
+        "M5: --staged reads the index: clean index, bad working tree exits 0",
+        "M6: a lib/design test file is not scanned",
+        "M7: inside diagrams/ passes: export const X = () => <svg strokeWidth='2' />",
+        "M7: inside diagrams/ passes: export const X = () => <svg strokeWidth={big ? 2.5 : 1.5} />",
+        "N2: untyped \"w-(--sidebar-w)\" passes",
+        "N3: \"translate-2\" passes",
+        "P1: a prose toast literal is not graded as a class list",
+        "P2: apostrophes across two <p> elements on one line pass",
+        "Q2: prose in a quoted call argument still passes",
+        "Q3: space-y-2 passes",
+        "Q4: a prose template literal passes",
+        "Q5: prose \"Ticket \\#1677\" in lib/email still passes"
+      ],
+      "note": "Forces the offender branch regardless of findings \u2014 a clean run also blocks."
+    },
+    {
+      "id": "check-design-tokens-R1",
+      "find": "if (r1 && !STEPS.has(r1[2]))",
+      "replace": "if (false)",
+      "expectRed": [
+        "control: a staged file with an off-scale spacing step blocks with exit 1",
+        "R1: \"p-7\" blocks with exit 1 naming R1",
+        "R1: \"gap-9\" blocks with exit 1 naming R1",
+        "R1: \"md:w-72\" blocks with exit 1 naming R1",
+        "B1: whole-tree run exits 0 on the repo",
+        "K1: whole-tree run from a path containing /.claude/worktrees/ exits 0 (no stale entries)",
+        "K3: an apostrophe in JSX text does not hide a className (R1 and R8)",
+        "K4: \"scroll-mt-7\" blocks naming R1",
+        "K4: \"indent-7\" blocks naming R1",
+        "K8: two identical bad tokens on one line are both reported",
+        "K8: one bad className token is reported once, not once per scan pass",
+        "M3: an apostrophe in JSX text does not hide className={cn(...)} (R1 and R8)",
+        "M5: --staged reads the index: bad index, clean working tree exits 1",
+        "N3: \"translate-7\" blocks naming R1",
+        "N3: \"-translate-7\" blocks naming R1",
+        "N3: \"translate-z-7\" blocks naming R1",
+        "N6: --staged with an absolute path to a staged file resolves and grades it (exit 1 on p-7)",
+        "P1: plain literal \"[&>svg]:size-7\" blocks naming R1",
+        "P1: plain literal \"*:p-7\" blocks naming R1",
+        "Q1: a template literal holding a ternary of off-scale classes blocks naming R1 and R3"
+      ],
+      "note": "Disables the off-allowlist spacing/sizing step rule."
+    },
+    {
+      "id": "check-design-tokens-R2",
+      "find": "if (R2_RE.test(base))",
+      "replace": "if (false)",
+      "expectRed": [
+        "R2: \"gap-row\" blocks with exit 1 naming R2",
+        "R2: \"px-inline\" blocks with exit 1 naming R2",
+        "K2: a staged .css with @apply px-inline blocks naming R2",
+        "Q3: space-inline blocks naming R2",
+        "Q3: -space-row blocks naming R2",
+        "Q3: space-y-row blocks naming R2"
+      ],
+      "note": "Disables the inline/row role-name rule."
+    },
+    {
+      "id": "check-design-tokens-R3",
+      "find": "if (/^z-\\d+$/.test(base))",
+      "replace": "if (false)",
+      "expectRed": [
+        "R3: \"z-10\" blocks with exit 1 naming R3",
+        "R3: \"-z-10\" blocks with exit 1 naming R3",
+        "B3: made-up value \"z-10\" blocks",
+        "Q1: a template literal holding a ternary of off-scale classes blocks naming R1 and R3"
+      ],
+      "note": "Disables the numeric z-index rule."
+    },
+    {
+      "id": "check-design-tokens-R4",
+      "find": "if (r4 && Number(r4[1]) >= 1)",
+      "replace": "if (false)",
+      "expectRed": [
+        "R4: \"border-2\" blocks with exit 1 naming R4",
+        "R4: \"ring-1\" blocks with exit 1 naming R4",
+        "R4: \"outline-2\" blocks with exit 1 naming R4",
+        "R4: \"divide-x-2\" blocks with exit 1 naming R4",
+        "R4: \"ring-offset-2\" blocks with exit 1 naming R4",
+        "K4: \"inset-ring-2\" blocks naming R4",
+        "K4: \"stroke-2\" blocks naming R4"
+      ],
+      "note": "Disables the numeric border/ring/outline width rule."
+    },
+    {
+      "id": "check-design-tokens-R4-ring-inset",
+      "find": "if (base === 'ring-inset')",
+      "replace": "if (false)",
+      "expectRed": ["R4: \"ring-inset\" blocks with exit 1 naming R4"],
+      "note": "Disables the ring-inset rule."
+    },
+    {
+      "id": "check-design-tokens-R5",
+      "find": "if (op && !OPACITY_OK.has(op[1]))",
+      "replace": "if (false)",
+      "expectRed": [
+        "R5: \"opacity-40\" blocks with exit 1 naming R5",
+        "B3: made-up value \"opacity-40\" blocks"
+      ],
+      "note": "Disables the opacity rule."
+    },
+    {
+      "id": "check-design-tokens-R6",
+      "find": "      flag('R6', 'colour opacity modifier')",
+      "replace": "      void 0",
+      "expectRed": [
+        "R6: \"bg-primary/50\" blocks with exit 1 naming R6",
+        "M8: \"bg-primary/(--alpha)\" blocks naming R6",
+        "N1: \"bg-primary/(--spacing-card)\" (non-percentage variable) blocks naming R6",
+        "P4: \"inset-ring-primary/50\" blocks naming R6",
+        "P5: non-gradient word modifier \"bg-primary/oklch\" blocks naming R6",
+        "P6: \"bg-primary/50\" blocks naming R6",
+        "P6: \"bg-primary/(--spacing-card)\" blocks naming R6"
+      ],
+      "note": "Disables the colour opacity modifier rule."
+    },
+    {
+      "id": "check-design-tokens-R7-value",
+      "find": "if (/^[a-z][\\w-]*-\\[/.test(base)) flag('R7'",
+      "replace": "if (false) flag('R7'",
+      "expectRed": ["B3: made-up value \"mt-[3px]\" blocks"],
+      "note": "Disables the arbitrary-value rule."
+    },
+    {
+      "id": "check-design-tokens-R7-variant",
+      "find": "if (variants.some((v) => /^(?:min|max)-\\[/.test(v))) flag('R7'",
+      "replace": "if (false) flag('R7'",
+      "expectRed": [
+        "R7: \"min-[500px]:flex\" blocks with exit 1 naming R7",
+        "R7: \"max-[600px]:flex\" blocks with exit 1 naming R7"
+      ],
+      "note": "Disables the arbitrary breakpoint variant rule."
+    },
+    {
+      "id": "check-design-tokens-R8-hue",
+      "find": "    m.hue.test(bare) ||",
+      "replace": "    false ||",
+      "expectRed": ["R8: \"bg-red-500\" blocks with exit 1 naming R8"],
+      "note": "Disables stock colour hue detection."
+    },
+    {
+      "id": "check-design-tokens-R8-weight",
+      "find": "    m.weight.test(bare) ||",
+      "replace": "    false ||",
+      "expectRed": [
+        "R8: \"font-bold\" blocks with exit 1 naming R8",
+        "R8: a template literal class is scanned"
+      ],
+      "note": "Disables stock font-weight detection."
+    },
+    {
+      "id": "check-design-tokens-R8-tracking",
+      "find": "    m.tracking.test(bare) ||",
+      "replace": "    false ||",
+      "expectRed": ["R8: \"tracking-wide\" blocks with exit 1 naming R8"],
+      "note": "Disables stock tracking detection."
+    },
+    {
+      "id": "check-design-tokens-R8-shadow",
+      "find": "    m.shadow.test(bare) ||",
+      "replace": "    false ||",
+      "expectRed": ["R8: \"shadow-lg\" blocks with exit 1 naming R8"],
+      "note": "Disables stock shadow detection."
+    },
+    {
+      "id": "check-design-tokens-R8-breakpoint",
+      "find": "if (variants.some((v) => m.breakpoint.test(v)))",
+      "replace": "if (false)",
+      "expectRed": [
+        "R8: \"md:flex\" blocks with exit 1 naming R8",
+        "K3: an apostrophe in JSX text does not hide a className (R1 and R8)",
+        "M3: an apostrophe in JSX text does not hide className={cn(...)} (R1 and R8)"
+      ],
+      "note": "Disables stock breakpoint variant detection."
+    },
+    {
+      "id": "check-design-tokens-R9",
+      "find": "for (const re of R9_RULES)",
+      "replace": "for (const re of [])",
+      "expectRed": [
+        "R9: \"rounded-lg\" blocks with exit 1 naming R9",
+        "R9: \"max-w-2xl\" blocks with exit 1 naming R9",
+        "R9: \"size-[18px]\" blocks with exit 1 naming R9",
+        "R9: \"text-sm\" blocks with exit 1 naming R9",
+        "M1: \"max-w-2xs\" blocks naming R9",
+        "M1: \"max-w-3xs\" blocks naming R9",
+        "M6: a non-test lib/design file with rounded-lg blocks naming R9",
+        "P1: a plain literal of lowercase class tokens blocks naming R9",
+        "P1: className=\"rounded\" blocks naming R9"
+      ],
+      "note": "Disables the ported layout and type-size rules."
+    },
+    {
+      "id": "check-design-tokens-R10",
+      "find": "of nativeTitleSites(text)",
+      "replace": "of []",
+      "expectRed": [
+        "R10: native title= blocks naming R10",
+        "K6: title= on <abbr> still blocks naming R10",
+        "K6: title= on <div> still blocks naming R10",
+        "M2: title= on <abbr> after word text blocks naming R10"
+      ],
+      "note": "Disables the native title= rule."
+    },
+    {
+      "id": "check-design-tokens-R11",
+      "find": "if (!/\\/diagrams\\/|score-ring\\.tsx$/.test(rel)) {",
+      "replace": "if (false) {",
+      "expectRed": [
+        "R11: numeric strokeWidth blocks naming R11",
+        "M7: outside diagrams blocks naming R11: export const X = () => <svg strokeWidth='2' />",
+        "M7: outside diagrams blocks naming R11: export const X = () => <svg strokeWidth={big ? 2.5 : 1.5} />"
+      ],
+      "note": "Disables the numeric strokeWidth rule."
+    },
+    {
+      "id": "check-design-tokens-R11-exempt",
+      "find": "if (!/\\/diagrams\\/|score-ring\\.tsx$/.test(rel)) {",
+      "replace": "if (true) {",
+      "expectRed": [
+        "R11: numeric strokeWidth passes under components/diagrams",
+        "B1: whole-tree run exits 0 on the repo",
+        "K1: whole-tree run from a path containing /.claude/worktrees/ exits 0 (no stale entries)",
+        "M7: inside diagrams/ passes: export const X = () => <svg strokeWidth='2' />",
+        "M7: inside diagrams/ passes: export const X = () => <svg strokeWidth={big ? 2.5 : 1.5} />"
+      ],
+      "note": "Drops the diagrams/score-ring exemption."
+    },
+    {
+      "id": "check-design-tokens-R12",
+      "find": "if (literal && rel.startsWith('apps/web/lib/email/')) {",
+      "replace": "if (false) {",
+      "expectRed": [
+        "R12: hex colour in lib/email blocks naming R12",
+        "K7: hex colour context blocks naming R12: export const s = `<p style=\"color:\\#123\">x</p>`",
+        "K7: hex colour context blocks naming R12: const BRAND = '\\#1a2b3c'",
+        "K7: hex colour context blocks naming R12: export const o = { color: '\\#fff' }",
+        "Q5: hex in a shadow or gradient list blocks naming R12: export const s = `<p style=\"box-shadow:0 0 0 1px \\#cccccc\">x</p>`",
+        "Q5: hex in a shadow or gradient list blocks naming R12: export const s = 'linear-gradient(\\#fff, \\#000)'"
+      ],
+      "note": "Disables the email hex rule."
+    },
+    {
+      "id": "check-design-tokens-R12-scope",
+      "find": "if (literal && rel.startsWith('apps/web/lib/email/')) {",
+      "replace": "if (literal) {",
+      "expectRed": ["R12: hex colour outside lib/email passes"],
+      "note": "Applies the email hex rule outside lib/email."
+    },
+    {
+      "id": "check-design-tokens-scope-lib-design",
+      "find": "if (/\\/e2e\\/|\\/scripts\\//.test(rel)) return null",
+      "replace": "if (/\\/e2e\\/|\\/scripts\\//.test(rel) || rel.startsWith('apps/web/lib/design/')) return null",
+      "expectRed": ["M6: a non-test lib/design file with rounded-lg blocks naming R9"],
+      "note": "Excludes lib/design from the scan."
+    },
+    {
+      "id": "check-design-tokens-scope-tests",
+      "find": "if (/\\.(?:test|spec)\\.(?:ts|tsx)$/.test(rel)) return null",
+      "replace": "",
+      "expectRed": [
+        "scope: a .test.tsx file is not scanned",
+        "B1: whole-tree run exits 0 on the repo",
+        "K1: whole-tree run from a path containing /.claude/worktrees/ exits 0 (no stale entries)",
+        "M6: a lib/design test file is not scanned"
+      ],
+      "note": "Scans test files."
+    },
+    {
+      "id": "check-design-tokens-template-literal",
+      "find": "|`([^`]*)`/g",
+      "replace": "|`([^`\\n]*)`/g",
+      "expectRed": ["R8: a template literal class is scanned"],
+      "note": "Stops scanning multi-line template literals."
+    },
+    {
+      "id": "check-design-tokens-G1-worktree-exclusion",
+      "find": "sub.startsWith('.claude/worktrees/')",
+      "replace": "p.includes('.claude/worktrees/')",
+      "expectRed": [
+        "K1: whole-tree run from a path containing /.claude/worktrees/ exits 0 (no stale entries)"
+      ],
+      "note": "Applies the worktree exclusion to the absolute path instead of the repo-relative one."
+    },
+    {
+      "id": "check-design-tokens-G2-css-apply",
+      "find": "if (rel.endsWith('.css')) {\n    for",
+      "replace": "if (false) {\n    for",
+      "expectRed": ["K2: a staged .css with @apply px-inline blocks naming R2"],
+      "note": "Stops scanning @apply class lists in .css files."
+    },
+    {
+      "id": "check-design-tokens-G4-classname-pass",
+      "find": "for (const attr of text.matchAll(CLASS_ATTR))",
+      "replace": "for (const attr of [])",
+      "expectRed": ["K3: an apostrophe in JSX text does not hide a className (R1 and R8)"],
+      "note": "Drops the className/class attribute pass."
+    },
+    {
+      "id": "check-design-tokens-G4-dedupe-key",
+      "find": "if (seenAt.has(key)) return",
+      "replace": "if (false) return",
+      "expectRed": [
+        "K8: two identical bad tokens on one line are both reported",
+        "K8: one bad className token is reported once, not once per scan pass"
+      ],
+      "note": "Drops the rule:index de-duplication between scan passes."
+    },
+    {
+      "id": "check-design-tokens-G6-spacing-families",
+      "find": "|scroll-[mp][xytrblse]?|indent|border-spacing(?:-[xy])?)'",
+      "replace": ")'",
+      "expectRed": ["K4: \"scroll-mt-7\" blocks naming R1", "K4: \"indent-7\" blocks naming R1"],
+      "note": "Removes the scroll-m/p, indent and border-spacing R1 families."
+    },
+    {
+      "id": "check-design-tokens-G6-width-families",
+      "find": "|ring-offset|inset-ring|outline|",
+      "replace": "|ring-offset|outline|",
+      "expectRed": ["K4: \"inset-ring-2\" blocks naming R4"],
+      "note": "Removes inset-ring from R4."
+    },
+    {
+      "id": "check-design-tokens-G6-stroke-width",
+      "find": "|divide-[xy]|stroke)-(\\d+)$/",
+      "replace": "|divide-[xy])-(\\d+)$/",
+      "expectRed": ["K4: \"stroke-2\" blocks naming R4"],
+      "note": "Removes numeric stroke-N from R4."
+    },
+    {
+      "id": "check-design-tokens-G7-leading-important",
+      "find": "if (/^![a-z[(]|[\\w\\])%]!$/.test(rawBase)) flag",
+      "replace": "if (false) flag",
+      "expectRed": [
+        "K5: a leading-! important \"!p-2\" blocks naming R9",
+        "P3: important \"flex!\" blocks naming R9",
+        "P3: important \"!hidden\" blocks naming R9",
+        "R9: \"size-3.5!\" blocks with exit 1 naming R9",
+        "B1: whole-tree run exits 0 on the repo",
+        "K1: whole-tree run from a path containing /.claude/worktrees/ exits 0 (no stale entries)"
+      ],
+      "note": "Disables the leading or trailing ! important check."
+    },
+    {
+      "id": "check-design-tokens-G8-iframe",
+      "find": "if (open[1] === 'iframe') continue",
+      "replace": "if (false) continue",
+      "expectRed": ["K6: title= on an iframe passes", "M2: title= on <iframe> after text passes"],
+      "note": "Stops exempting iframe from the native title rule."
+    },
+    {
+      "id": "check-design-tokens-G9-hex-context",
+      "find": "HEX_ONLY.test(body.trim()) || HEX_CONTEXT.test(before)",
+      "replace": "true",
+      "expectRed": [
+        "K7: prose \"Ticket \\#1677\" in lib/email passes",
+        "Q5: prose \"Ticket \\#1677\" in lib/email still passes"
+      ],
+      "note": "Flags every hex-shaped substring in lib/email, prose included."
+    },
+    {
+      "id": "check-design-tokens-G9-hex-whole-literal",
+      "find": "HEX_ONLY.test(body.trim()) || HEX_CONTEXT",
+      "replace": "HEX_CONTEXT",
+      "expectRed": [
+        "R12: hex colour in lib/email blocks naming R12",
+        "K7: hex colour context blocks naming R12: const BRAND = '\\#1a2b3c'",
+        "K7: hex colour context blocks naming R12: export const o = { color: '\\#fff' }"
+      ],
+      "note": "Drops the whole-literal hex clause."
+    },
+    {
+      "id": "check-design-tokens-C1-max-w-container",
+      "find": "max-w-(?:3xs|2xs|xs|",
+      "replace": "max-w-(?:xs|",
+      "expectRed": ["M1: \"max-w-2xs\" blocks naming R9", "M1: \"max-w-3xs\" blocks naming R9"],
+      "note": "Drops 3xs and 2xs from the named max-w list."
+    },
+    {
+      "id": "check-design-tokens-C2-title-after-word",
+      "find": "(!spaced && /\\w/.test(prev))",
+      "replace": "/\\w/.test(prev)",
+      "expectRed": ["M2: title= on <abbr> after word text blocks naming R10"],
+      "note": "Skips any tag preceded by a word character, whitespace or not."
+    },
+    {
+      "id": "check-design-tokens-C3-classname-expression",
+      "find": "for (const open of text.matchAll(CLASS_EXPR))",
+      "replace": "for (const open of [])",
+      "expectRed": ["M3: an apostrophe in JSX text does not hide className={cn(...)} (R1 and R8)"],
+      "note": "Drops the className={...} expression pass."
+    },
+    {
+      "id": "check-design-tokens-C4-arbitrary-property",
+      "find": "if (/^\\[[a-z-]+:[^\\]]+\\]$/.test(base)) flag('R7'",
+      "replace": "if (false) flag('R7'",
+      "expectRed": [
+        "M4: arbitrary property \"[z-index:50]\" blocks naming R7",
+        "M4: arbitrary property \"md:[border-width:3px]\" blocks naming R7",
+        "B1: whole-tree run exits 0 on the repo",
+        "K1: whole-tree run from a path containing /.claude/worktrees/ exits 0 (no stale entries)"
+      ],
+      "note": "Disables the arbitrary-property rule."
+    },
+    {
+      "id": "check-design-tokens-C5-index-read",
+      "find": "staged ? readIndexBlob(rel) : readFileSync(path, 'utf8')",
+      "replace": "readFileSync(path, 'utf8')",
+      "expectRed": [
+        "M5: --staged reads the index: bad index, clean working tree exits 1",
+        "M5: --staged reads the index: clean index, bad working tree exits 0",
+        "M5: --staged on a path with no index entry exits 2 (fail closed)"
+      ],
+      "note": "Reads the working tree in --staged mode."
+    },
+    {
+      "id": "check-design-tokens-C5-fail-closed",
+      "find": "if (!blob) throw new Error(`no staged blob: ${header}`)",
+      "replace": "if (!blob) return ''",
+      "expectRed": ["M5: --staged on a path with no index entry exits 2 (fail closed)"],
+      "note": "An unresolvable index entry reads as empty instead of failing closed."
+    },
+    {
+      "id": "check-design-tokens-C8-stroke-quoted",
+      "find": "|([\"'])-?\\d[\\d.]*\\1)",
+      "replace": ")",
+      "expectRed": [
+        "M7: outside diagrams blocks naming R11: export const X = () => <svg strokeWidth='2' />"
+      ],
+      "note": "Drops quoted strokeWidth values."
+    },
+    {
+      "id": "check-design-tokens-C8-stroke-expression",
+      "find": "\\{[^}]*(?<![\\w$.])\\d[^}]*\\}",
+      "replace": "\\{\\s*-?\\d[\\d.]*\\s*\\}",
+      "expectRed": [
+        "M7: outside diagrams blocks naming R11: export const X = () => <svg strokeWidth={big ? 2.5 : 1.5} />"
+      ],
+      "note": "Narrows strokeWidth={...} to a bare number."
+    },
+    {
+      "id": "check-design-tokens-C9-variable-modifier",
+      "find": "|\\[[^\\]]*\\]|\\([^)]*\\))$/",
+      "replace": "|\\[[^\\]]*\\])$/",
+      "expectRed": [
+        "M8: \"bg-primary/(--alpha)\" blocks naming R6",
+        "N1: \"bg-primary/(--spacing-card)\" (non-percentage variable) blocks naming R6",
+        "P6: \"bg-primary/(--spacing-card)\" blocks naming R6"
+      ],
+      "note": "Drops the (--var) modifier form from the modifier matcher."
+    },
+    {
+      "id": "check-design-tokens-C9-token-var",
+      "find": "!m.alphaVars.has(/^\\(--(.+)\\)$/.exec(mod[2])?.[1] ?? '')",
+      "replace": "true",
+      "expectRed": [
+        "B1: whole-tree run exits 0 on the repo",
+        "K1: whole-tree run from a path containing /.claude/worktrees/ exits 0 (no stale entries)",
+        "N1: \"bg-foreground/(--state-hover)\" (percentage variable) is not flagged by R6",
+        "P6: \"bg-foreground/(--state-hover)\" is not flagged by R6"
+      ],
+      "note": "Stops accepting a /(--var) modifier whose variable tokens.css declares as a percentage."
+    },
+    {
+      "id": "check-design-tokens-C9-text-role-modifier",
+      "find": "if (textRole) flag('R6', 'line-height modifier on a text role')",
+      "replace": "if (textRole) {}",
+      "expectRed": [
+        "M8: \"text-label/13\" blocks naming R6",
+        "M8: \"text-label/6\" blocks naming R6",
+        "M8: \"text-label/[13px]\" blocks naming R6",
+        "M8: \"text-label/1.5\" blocks naming R6",
+        "N5: \"text-label/relaxed\" blocks naming R6"
+      ],
+      "note": "Lets a text role keep a / modifier."
+    },
+    {
+      "id": "check-design-tokens-N1-alpha-vars",
+      "find": "!m.alphaVars.has(/^\\(--(.+)\\)$/.exec(mod[2])?.[1] ?? '')",
+      "replace": "!m.alphaVars.has(/^\\(--(.+)\\)$/.exec(mod[2])?.[1] ?? '') && false",
+      "expectRed": [
+        "R6: \"bg-primary/50\" blocks with exit 1 naming R6",
+        "M8: \"bg-primary/(--alpha)\" blocks naming R6",
+        "N1: \"bg-primary/(--spacing-card)\" (non-percentage variable) blocks naming R6",
+        "P4: \"inset-ring-primary/50\" blocks naming R6",
+        "P5: non-gradient word modifier \"bg-primary/oklch\" blocks naming R6",
+        "P6: \"bg-primary/(--spacing-card)\" blocks naming R6",
+        "P6: \"bg-primary/50\" blocks naming R6"
+      ],
+      "note": "Never flags a /(--var) modifier."
+    },
+    {
+      "id": "check-design-tokens-N2-typed-paren",
+      "find": "if (/^[a-z][\\w-]*-\\([a-z-]+:--/.test(base))",
+      "replace": "if (false)",
+      "expectRed": [
+        "N2: typed paren \"text-(length:--x)\" blocks naming R7",
+        "N2: typed paren \"bg-(color:--x)\" blocks naming R7"
+      ],
+      "note": "Disables the typed paren-shorthand rule."
+    },
+    {
+      "id": "check-design-tokens-N3-translate",
+      "find": "translate(?:-[xyz])?|w|",
+      "replace": "translate-[xy]|w|",
+      "expectRed": [
+        "N3: \"translate-7\" blocks naming R1",
+        "N3: \"-translate-7\" blocks naming R1",
+        "N3: \"translate-z-7\" blocks naming R1"
+      ],
+      "note": "Drops bare translate and translate-z from the spacing prefixes."
+    },
+    {
+      "id": "check-design-tokens-N5-word-modifier",
+      "find": "\\/([\\w.-]+|",
+      "replace": "\\/(\\d+(?:\\.\\d+)?|",
+      "expectRed": [
+        "N5: \"text-label/relaxed\" blocks naming R6",
+        "P5: non-gradient word modifier \"bg-primary/oklch\" blocks naming R6"
+      ],
+      "note": "Drops word modifiers from the modifier matcher."
+    },
+    {
+      "id": "check-design-tokens-N6-staged-rel",
+      "find": "staged ? readIndexBlob(rel)",
+      "replace": "staged ? readIndexBlob(path)",
+      "expectRed": [
+        "N6: --staged with an absolute path to a staged file resolves and grades it (exit 1 on p-7)"
+      ],
+      "note": "Reads the index with the raw argument instead of the repo-relative path."
+    },
+    {
+      "id": "check-design-tokens-H1-prose-gate",
+      "find": "const prose = quoted === true && isProse(body)",
+      "replace": "const prose = false",
+      "expectRed": [
+        "B1: whole-tree run exits 0 on the repo",
+        "K1: whole-tree run from a path containing /.claude/worktrees/ exits 0 (no stale entries)",
+        "P1: a prose toast literal is not graded as a class list",
+        "P2: apostrophes across two <p> elements on one line pass",
+        "Q2: prose in a quoted call argument still passes"
+      ],
+      "note": "Grades prose literals as class lists."
+    },
+    {
+      "id": "check-design-tokens-A1-quoted-prose-gate",
+      "find": "const prose = quoted === true && isProse(body)",
+      "replace": "const prose = literal === true && isProse(body)",
+      "expectRed": [
+        "Q1: a template literal holding a ternary of off-scale classes blocks naming R1 and R3"
+      ],
+      "note": "Applies the prose gate to template literals too."
+    },
+    {
+      "id": "check-design-tokens-A6-hex-context",
+      "find": "|[(,]\\s*|(?:\\d|px|r?em|%)\\s+)$/i",
+      "replace": ")$/i",
+      "expectRed": [
+        "Q5: hex in a shadow or gradient list blocks naming R12: export const s = `<p style=\"box-shadow:0 0 0 1px \\#cccccc\">x</p>`",
+        "Q5: hex in a shadow or gradient list blocks naming R12: export const s = 'linear-gradient(\\#fff, \\#000)'"
+      ],
+      "note": "Drops the hex-after-paren/comma/length contexts."
+    },
+    {
+      "id": "check-design-tokens-A7-bare-space",
+      "find": "|space(?:-[xy])?)-(?:inline|row)$/",
+      "replace": "|space-[xy])-(?:inline|row)$/",
+      "expectRed": ["Q3: space-inline blocks naming R2", "Q3: -space-row blocks naming R2"],
+      "note": "Limits R2 to space-x|y."
+    },
+    {
+      "id": "check-design-tokens-H4-inset-ring",
+      "find": "|inset-shadow|inset-ring|drop-shadow",
+      "replace": "|inset-shadow|drop-shadow",
+      "expectRed": ["P4: \"inset-ring-primary/50\" blocks naming R6"],
+      "note": "Drops inset-ring from the colour prefixes."
+    },
+    {
+      "id": "check-design-tokens-H5-gradient-modifier",
+      "find": "!(GRADIENT_PREFIX.test(mod[1]) && GRADIENT_INTERP.test(mod[2]))",
+      "replace": "!(false && GRADIENT_PREFIX.test(mod[1]))",
+      "expectRed": [
+        "P5: gradient interpolation modifier \"bg-linear-to-r/oklch\" is not flagged by R6"
+      ],
+      "note": "Stops exempting gradient interpolation modifiers."
+    },
+    {
+      "id": "check-design-tokens-H5-gradient-any-word",
+      "find": "GRADIENT_PREFIX.test(mod[1]) && GRADIENT_INTERP.test(mod[2])",
+      "replace": "GRADIENT_INTERP.test(mod[2])",
+      "expectRed": ["P5: non-gradient word modifier \"bg-primary/oklch\" blocks naming R6"],
+      "note": "Exempts an interpolation word on any colour utility."
+    },
+    {
+      "id": "check-design-tokens-H9-staged-no-paths",
+      "find": "if (staged && pathArgs.length === 0) {",
+      "replace": "if (false) {",
+      "expectRed": ["P7: --staged with no paths exits 0"],
+      "note": "Lets --staged with no paths scan the whole tree."
+    }
+  ]
+}

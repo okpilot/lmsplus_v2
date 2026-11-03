@@ -1,3 +1,4 @@
+import { Heading } from '@/components/ui/heading'
 import { getDashboardData } from '@/lib/queries/dashboard'
 import { getDashboardCourse } from '@/lib/queries/dashboard-course'
 import { SubjectGrid } from './subject-grid'
@@ -8,7 +9,9 @@ export async function SubjectGridContent() {
 
   return (
     <section>
-      <h2 className="mb-3 text-lg font-medium">Subject Progress</h2>
+      <Heading level={2} className="mb-3">
+        Subject Progress
+      </Heading>
       <SubjectGrid subjects={data.subjects} />
     </section>
   )

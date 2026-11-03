@@ -134,7 +134,7 @@ test.describe('internal exam — lifecycle', () => {
       // Answer one option and confirm it. In exam mode, selection alone leaves
       // answeredCount=0, which keeps the Submit button in the finish dialog
       // disabled — see finish-quiz-dialog.tsx (`answeredCount === 0 && !timeExpired`).
-      const answerBtns = page.locator('button:has(span.rounded-full)')
+      const answerBtns = page.locator('button[data-testid^="option-"]')
       await answerBtns.first().click()
       await page.getByRole('button', { name: 'Confirm Answer' }).click()
       await page.waitForTimeout(300)

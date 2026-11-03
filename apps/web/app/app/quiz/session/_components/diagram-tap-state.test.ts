@@ -1,0 +1,93 @@
+import { describe, expect, it } from 'vitest'
+import {
+  focusTarget,
+  newlyPlacedZone,
+  returnedLabel,
+  tapLabel,
+  tapPool,
+  tapRow,
+} from './diagram-tap-state'
+
+const empty = { placement: new Map<string, string>(), armed: null }
+
+describe('diagram tap state', () => {
+  it('tapping a pool label arms it, tapping again disarms', () => {
+    const a = tapLabel(empty, 'l1')
+    expect(a.armed).toEqual({ kind: 'label', id: 'l1' })
+    expect(tapLabel(a, 'l1').armed).toBeNull()
+  })
+
+  it('armed label + row places it', () => {
+    const s = tapRow(tapLabel(empty, 'l1'), 'z1')
+    expect(s.placement.get('z1')).toBe('l1')
+    expect(s.armed).toBeNull()
+  })
+
+  it('row first arms the zone, then a label places it', () => {
+    const a = tapRow(empty, 'z1')
+    expect(a.armed).toEqual({ kind: 'zone', id: 'z1' })
+    expect(tapLabel(a, 'l2').placement.get('z1')).toBe('l2')
+  })
+
+  it('placed row arms its chip; tapping another row moves it', () => {
+    const placed = { placement: new Map([['z1', 'l1']]), armed: null }
+    const armed = tapRow(placed, 'z1')
+    expect(armed.armed).toEqual({ kind: 'label', id: 'l1' })
+    const moved = tapRow(armed, 'z2')
+    expect([...moved.placement]).toEqual([['z2', 'l1']])
+  })
+
+  it('pool background unplaces an armed placed label', () => {
+    const armed = tapRow({ placement: new Map([['z1', 'l1']]), armed: null }, 'z1')
+    expect(tapPool(armed).placement.size).toBe(0)
+  })
+
+  it('pool background only disarms an armed pool label', () => {
+    const s = tapPool(tapLabel(empty, 'l1'))
+    expect(s.armed).toBeNull()
+    expect(s.placement.size).toBe(0)
+  })
+})
+
+describe('newlyPlacedZone', () => {
+  it('returns the zone that received a previously unplaced label', () => {
+    expect(newlyPlacedZone(new Map(), new Map([['z1', 'l1']]))).toBe('z1')
+  })
+  it('returns null for a move between zones', () => {
+    expect(newlyPlacedZone(new Map([['z1', 'l1']]), new Map([['z2', 'l1']]))).toBeNull()
+  })
+})
+
+describe('returnedLabel', () => {
+  it('returns the label that left the placement', () => {
+    expect(returnedLabel(new Map([['z1', 'l1']]), new Map())).toBe('l1')
+  })
+  it('returns null when nothing left', () => {
+    expect(returnedLabel(new Map([['z1', 'l1']]), new Map([['z2', 'l1']]))).toBeNull()
+  })
+})
+
+describe('focusTarget', () => {
+  const armedL1 = { kind: 'label', id: 'l1' } as const
+  it('placed into a zone focuses its row', () => {
+    expect(focusTarget(null, new Map(), new Map([['z1', 'l1']]))).toBe('diagram-row-z1')
+  })
+  it('moved into an empty row focuses that row', () => {
+    const prev = new Map([['z1', 'l1']])
+    expect(focusTarget(armedL1, prev, new Map([['z2', 'l1']]))).toBe('diagram-row-z2')
+  })
+  it('moved into an occupied row focuses that row', () => {
+    const prev = new Map([
+      ['z1', 'l1'],
+      ['z2', 'l2'],
+    ])
+    expect(focusTarget(armedL1, prev, new Map([['z2', 'l1']]))).toBe('diagram-row-z2')
+  })
+  it('returned to the pool focuses the chip', () => {
+    expect(focusTarget(armedL1, new Map([['z1', 'l1']]), new Map())).toBe('diagram-tap-chip-l1')
+  })
+  it('no change returns null', () => {
+    const m = new Map([['z1', 'l1']])
+    expect(focusTarget(null, m, new Map(m))).toBeNull()
+  })
+})

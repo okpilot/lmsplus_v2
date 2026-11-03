@@ -65,7 +65,7 @@ describe('QuestionCard', () => {
         dbQuestionNumber="050-01-01-001"
       />,
     )
-    expect(screen.getByText('050-01-01-001')).toBeInTheDocument()
+    expect(screen.getByText('No. 050-01-01-001')).toBeInTheDocument()
   })
 
   it('does not display DB question number when null', () => {
