@@ -46,7 +46,7 @@ Report a needed edit when:
 8. **Steering drift check** — (a) Read each file in `.spec-workflow/steering/` if the directory exists. (b) Compare the branch diff against statements in each steering doc. (c) Report contradictions as DRIFT findings with: the specific steering doc and section, the contradicting code file and line, and a suggested resolution (update doc or fix code). If `.spec-workflow/steering/` does not exist or is empty, skip without error. DRIFT = ISSUE; CRITICAL when it contradicts `docs/security.md` or `.claude/rules/security.md`.
 
 ## Reporting a factual assertion
-Any factual assertion about file content, commit state or current code ("file X has section Y",
+Any factual assertion — a count, file content, commit state or current code ("file X has section Y",
 "commit Z updates W", "the field currently reads ...") must arrive with the command that produced it
 and that command's pasted output. Counts are one subclass. Not derivable in-session: write "not derived".
 

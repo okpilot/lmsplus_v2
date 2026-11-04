@@ -845,7 +845,7 @@ it is what the next reader trusts when deciding whether a guard can safely be re
    **Grep the CLAIM, not only the STRING that expressed it** — a sweep anchored on the retracted
    wording reports clean on every paraphrase of the same assertion. Search a distinctive TOKEN of
    the subject (the command, the filename, the field), not the sentence that carried it. Partial
-   remedy for the paraphrase-blindness `.claude/skills/review-gate/agent-workflow.md § Rule-Mirror Sync` records as grep-blind.
+   remedy for "Grep-blind: paraphrase" in `.claude/skills/review-gate/agent-workflow.md § Rule-Mirror Sync`.
 4. **Verify the fix is STAGED, not merely written** — `git grep` reads the working tree and goes
    clean the moment text is on disk. Run `git diff --staged` AND
    `git status --short --untracked-files=all` (the flag is needed because
