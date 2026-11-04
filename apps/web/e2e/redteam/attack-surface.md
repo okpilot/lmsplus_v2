@@ -2,6 +2,8 @@
 
 > Last updated: 2026-11-04 (branch chore/techdebt-group-a — row AC COVERED.)
 
+> Supabase: `REVOKE ... FROM PUBLIC` must be paired with `REVOKE ... FROM anon, authenticated`; the default-privilege grant to those roles is separate (PR #952).
+
 ## Vector-to-Spec Mapping
 
 | ID | Vector | Priority | Spec File | Status | Notes | Technique |

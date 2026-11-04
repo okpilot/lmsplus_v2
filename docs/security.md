@@ -920,7 +920,7 @@ We store student PII: email address, full name, learning history, exam scores.
 - **Data export:** admin Server Action `exportStudentData` (`apps/web/app/app/admin/students/actions/export-student-data.ts`); student self-export Server Action `exportMyData` (`apps/web/app/app/settings/gdpr-actions.ts`)
 
 ### Erasure and Retention
-- **Erasure:** declined under Art. 17(3)(b) (Decision 33); no erasure path.
+- **Erasure:** training records exempt under Art. 17(3)(b) (Decision 33). No erasure path exists, including for non-training data, which privacy policy §6 says is kept only while the account is active.
 - **Retention:** training records kept as EASA Part ORA requires (Decision 33; privacy policy §6, `apps/web/app/legal/privacy/_components/privacy-policy-content.tsx`).
 
 ### Data Minimisation
