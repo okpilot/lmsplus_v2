@@ -845,17 +845,20 @@ it is what the next reader trusts when deciding whether a guard can safely be re
    **Grep the CLAIM, not only the STRING that expressed it** — a sweep anchored on the retracted
    wording reports clean on every paraphrase of the same assertion. Search a distinctive TOKEN of
    the subject (the command, the filename, the field), not the sentence that carried it. Partial
-   remedy for the paraphrase-blindness `.claude/skills/review-gate/agent-workflow.md § Rule-Mirror Sync` records as OPEN.
+   remedy for "Grep-blind: paraphrase" in `.claude/skills/review-gate/agent-workflow.md § Rule-Mirror Sync`.
 4. **Verify the fix is STAGED, not merely written** — `git grep` reads the working tree and goes
    clean the moment text is on disk. Run `git diff --staged` AND
    `git status --short --untracked-files=all` (the flag is needed because
    `status.showUntrackedFiles=no` silently drops `??` lines).
 5. **Re-reading finds incoherence; only re-deriving finds a claim that's coherent and false.**
    While a source file is open to verify one claim, re-derive every OTHER claim in the block that
-   file can answer before closing it.
+   file can answer before closing it. Evidence must hold for the situation the claim applies
+   to, not only for the artifact cited: a migration guarded by `ON CONFLICT DO NOTHING`
+   establishes nothing about an environment where the row already existed.
 6. **A commit message may not cite a SHA that does not resolve.** Verify with
    `git rev-parse --verify <sha>` (no `--quiet`, which conflates ambiguous and absent). It proves
-   the commit EXISTS, never that the claim about it is true. Reviewer-judged.
+   the commit EXISTS, never that the claim about it is true. An existence claim ("<sha> already
+   carries X"): `git grep -nF -- '<X>' <sha> -- <path>` before writing it. Reviewer-judged.
 7. **Recompute any count, and test any EXTENT QUANTIFIER, as the LAST authoring step, against
    the final diff.** Distinct from cl.2 (enumerating an open set): this governs a count you've
    decided to state — measuring it before your commit's remaining edits land makes it stale on

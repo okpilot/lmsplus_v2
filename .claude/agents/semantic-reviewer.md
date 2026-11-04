@@ -218,3 +218,5 @@ Focus on what the others miss: **logic, behavior, consistency, and security reas
 4. **Do NOT flag open redirects on internal-only redirects** — Redirects to hardcoded paths (`/app/dashboard`, `/auth/callback`) are not open redirects. Only flag redirects constructed from user-supplied URLs or query params without validation.
 
 5. **Do NOT write tests or fix code** — You report findings. The test-writer writes tests. The main session fixes code. Stay in your lane.
+
+6. **Do NOT rescue a claim with a charitable reading** — Falsify it directly (grep the file, read the definition, `git show`). "Reasonable in context" is not a verification result.

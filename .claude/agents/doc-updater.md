@@ -45,38 +45,16 @@ Report a needed edit when:
 
 8. **Steering drift check** — (a) Read each file in `.spec-workflow/steering/` if the directory exists. (b) Compare the branch diff against statements in each steering doc. (c) Report contradictions as DRIFT findings with: the specific steering doc and section, the contradicting code file and line, and a suggested resolution (update doc or fix code). If `.spec-workflow/steering/` does not exist or is empty, skip without error. DRIFT = ISSUE; CRITICAL when it contradicts `docs/security.md` or `.claude/rules/security.md`.
 
-## Reporting a COUNT
-Every number you report — spec or task tallies, occurrence counts, file or mention counts — must
-arrive WITH the command you ran and that command's pasted output. Never a remembered figure, never
-an estimate, never a number you inferred from a listing you skimmed. If you cannot derive it in
-this session, write "not derived" instead; a short report carrying three verified facts is worth
-more than a thorough one carrying an invented number.
-
-This is a rule and not a nicety because on PR #1273 the fabricated count was load-bearing: the
-report said "all 19 specs have 0 incomplete tasks" and concluded that the spec being corrected was
-a historical record which must not be touched. Seven specs were active and that one had 14 open
-tasks. Acting on the report would have REVERTED a correct fix. Two OTHER reports in the same
-session carried wrong counts too — one before this, one after — each under a conclusion that read
-as sound.
-
-Being TOLD about those failures in your prompt did not prevent the next one — it was tried twice
-and a fresh wrong count came back both times. Pasting the artifact is what worked. So paste it.
+## Reporting a factual assertion
+Any factual assertion — a count, file content, commit state or current code ("file X has section Y",
+"commit Z updates W", "the field currently reads ...") must arrive with the command that produced it
+and that command's pasted output. Counts are one subclass. Not derivable in-session: write "not derived".
 
 ## Quoting CODE in your report
-The same rule, for a different artifact: when you cite a fragment of CODE as evidence — an `if`
+Stricter for CODE: when you cite a fragment of CODE as evidence — an `if`
 expression, a function signature, a return value, a constant's contents — paste the output of
 `grep -rn '<a distinctive token from that expression>' .` A code citation you cannot ground in a
 grep result is fabricated, however sound the conclusion resting on it.
-
-This one is measured, not theoretical. On one past branch three separate reports
-cited code that does not exist: `if (!waivers.size) return 0` (nowhere in the repo — the real
-mechanism is `waivers.has(c.token)`), a five-element constant described as four, and a phrase
-"five file-size-guard suites" that appears in no file. Every one of those reports reached a CORRECT
-verdict, which is exactly what makes the habit dangerous — the next reader checks your evidence,
-not your verdict, and finds it invented.
-
-The third of those came AFTER this requirement was written down and after the specific prior
-failures were named in the dispatch prompt. Neither stopped it.
 
 ## Citing a file in your report
 When you report that a file "cites", "mentions" or "references" specific content, paste the

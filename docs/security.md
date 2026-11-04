@@ -276,7 +276,7 @@ CREATE POLICY "instructors_read_students" ON student_responses
 -- Immutable responses: SELECT only. There is no INSERT policy — the original
 -- students_insert_responses was dropped in 20260311000006_restrict_immutable_inserts.sql,
 -- so direct INSERT is default-denied and rows are written only by SECURITY DEFINER RPCs
--- (which bypass RLS).
+-- (owner postgres, BYPASSRLS).
 CREATE POLICY "students_read_responses" ON student_responses
   FOR SELECT
   USING (student_id = (select auth.uid()));
@@ -297,9 +297,9 @@ CREATE POLICY "responses_no_delete" ON student_responses
 
 ### Immutable Tables: Policy Scope Pattern
 
-Immutable tables (`student_responses`, `quiz_session_answers`, `audit_events`) must block UPDATE and DELETE. Direct INSERT is denied on all three — every row is written by a SECURITY DEFINER RPC, which bypasses RLS. How the denial is expressed differs:
+Immutable tables (`student_responses`, `quiz_session_answers`, `audit_events`) must block UPDATE and DELETE. Direct INSERT is denied on all three — every row is written by a SECURITY DEFINER RPC owned by `postgres` (BYPASSRLS). How the denial is expressed differs:
 - `student_responses` — no INSERT policy at all, so INSERT is default-denied. (`students_insert_responses` existed briefly and was dropped in `20260311000006_restrict_immutable_inserts.sql`.)
-- `quiz_session_answers` — no INSERT policy at all, so direct INSERT is default-denied. Rows are written only by SECURITY DEFINER RPCs (e.g. `submit_quiz_answer()`), which bypass RLS.
+- `quiz_session_answers` — no INSERT policy at all, so direct INSERT is default-denied. Rows are written only by SECURITY DEFINER RPCs (e.g. `submit_quiz_answer()`), owned by `postgres` (BYPASSRLS).
 - `audit_events` — has `audit_no_direct_insert` (`FOR INSERT WITH CHECK (false)`, `20260314000034`). It denies because it is the ONLY INSERT policy, not because it overrides anything: it is PERMISSIVE, and a permissive policy can only add access. Rows are written only by SECURITY DEFINER RPCs.
 
 ⚠️ **`AS RESTRICTIVE` policies exist since migration `20261025000100` (#1607): one `<table>_select_active_caller` SELECT policy on each student-owned table, `USING ((select private.is_active_user()))`; since `20261028000100` the `easa_subjects`/`easa_topics`/`easa_subtopics`/`questions` `*_select_enrolled` SELECT policies (#1637); since `20261028000600` `exam_configs_select_enrolled` (#1637); since `20261028000400` `question_comments_select_visible_question` / `_insert_visible_question`.** List them: `SELECT tablename, policyname FROM pg_policies WHERE schemaname = 'public' AND permissive = 'RESTRICTIVE'`. Every immutable-table denial above still rests on the *absence* of a permitting permissive policy. Do not describe a `USING (false)` / `WITH CHECK (false)` permissive policy as "blocking" or "overriding" — it does neither, and it would not stop a permitting policy added beside it. Only `AS RESTRICTIVE` AND-combines.
@@ -521,7 +521,7 @@ Study Mode is a **self-paced MC flashcard practice surface** where students requ
 
 **Guard set (`start_discovery`, SECURITY DEFINER, `SET search_path = public, pg_temp`, EXECUTE TO `authenticated`; REVOKE FROM PUBLIC, anon):**
 1. Auth check `not_authenticated` + active-user gate `user_not_found_or_inactive` (security.md rules 7 + 12)
-2. Own-org explicit join (`q.organization_id = v_org_id`; DEFINER bypasses RLS) so a foreign-org ID cannot leak
+2. Own-org explicit join (`q.organization_id = v_org_id`; the owner `postgres` has BYPASSRLS) so a foreign-org ID cannot leak
 3. Soft-delete + status filters — `q.deleted_at IS NULL AND q.status = 'active'` (required; see note below)
 4. Type filter — `q.question_type = 'multiple_choice'`
 5. Options returned in **stored order** (no shuffle — the answer is visible anyway)
@@ -798,7 +798,7 @@ Any Server Action that operates on a quiz session or its questions must verify *
 `mode = 'internal_exam'` reuses the mock-exam integrity rules above (single activation, immutable responses, server-side deadline, locked question set) and adds:
 
 - **Code-gated entry.** Sessions can only start via `start_internal_exam_session(p_code)`. The RPC validates `code_not_yours`, `code_voided`, `code_already_used`, `code_expired`, and consumes the code with a race-safe `WHERE consumed_at IS NULL` clause. There is no client-side path that bypasses code validation.
-- **Single-use codes.** `internal_exam_codes` has no INSERT, UPDATE, or DELETE RLS policy for the authenticated role — writes happen only via SECURITY DEFINER RPCs (`issue_internal_exam_code`, `start_internal_exam_session`, `void_internal_exam_code`). FORCE ROW LEVEL SECURITY (migration `20260429000009`) prevents the table-owner role from bypassing RLS even on direct PostgREST writes. Migration `20260521000004` additionally `REVOKE UPDATE ON internal_exam_codes FROM authenticated` for defense-in-depth at the GRANT layer.
+- **Single-use codes.** `internal_exam_codes` has no INSERT, UPDATE, or DELETE RLS policy for the authenticated role — writes happen only via SECURITY DEFINER RPCs (`issue_internal_exam_code`, `start_internal_exam_session`, `void_internal_exam_code`, `record_internal_exam_code_emailed`; re-derive with `git grep -lE '(INSERT INTO|UPDATE) (public\.)?internal_exam_codes' -- supabase/migrations`). FORCE ROW LEVEL SECURITY (migration `20260429000009`) is not a control here: the owner `postgres` has BYPASSRLS. Migration `20260521000004` additionally `REVOKE UPDATE ON internal_exam_codes FROM authenticated` for defense-in-depth at the GRANT layer.
 - **Plaintext code storage.** Codes are stored unhashed because the active-code window is short (24h, single-use) and admins must be able to re-display a code they just issued. Codes are never returned to students through any read-path query — students fetch their active codes via the `list_my_active_internal_exam_codes()` SECURITY DEFINER RPC, which omits the `code` column from its return signature. The student SELECT RLS policy was dropped in migration `20260521000004` (closes #577), so direct PostgREST reads on `internal_exam_codes` now return 0 rows for the authenticated role; the RPC is the only sanctioned read path. The student "Available" tab lists active codes by subject + expiry only, never the code value.
 - **Admin void = forced fail.** Voiding a consumed code with an active session forces `passed = false` and computes the score from existing answers (unanswered = wrong). The RPC refuses to retroactively change a session whose `ended_at` is already set (`cannot_void_finished_attempt`).
 - **No discard.** Server Action `discardQuiz` rejects the modes in `NON_DISCARDABLE_MODES` (`apps/web/app/app/quiz/actions/_discard-guard.ts`). At the DB layer, `students_update_sessions` excludes the same modes from its `USING` (mig `20261015000100`, red-team IE), so a direct PostgREST soft-delete matches 0 rows. The student-side discard button is hidden by mode in the session header. Internal-exam attempts are auditable artefacts and cannot be removed by the student.
@@ -916,10 +916,13 @@ We store student PII: email address, full name, learning history, exam scores.
 - Re-consent trigger: bump `CURRENT_TOS_VERSION` or `CURRENT_PRIVACY_VERSION` in `lib/consent/versions.ts` → cookie mismatch → `/auth/consent-refresh` → `/consent` (the DB holds no consent for the new version).
 - **Rationale:** Audit trail for legal proof of consent. Append-only pattern prevents accidental history loss. Version strings allow fast re-consent detection.
 
-### Required Capabilities (build before first live student)
-- **Data export:** instructor can export all data for a specific student (`/admin/students/:id/export`)
-- **Data deletion:** instructor can delete a student's account and all associated data (`/admin/students/:id/delete`) — cascades on `users.id`
-- **Retention policy:** student data retained for 3 years after last activity (EASA training record requirement), then auto-deleted via scheduled Supabase function
+### Required Capabilities
+- **Data export:** admin Server Action `exportStudentData` (`apps/web/app/app/admin/students/actions/export-student-data.ts`); student self-export Server Action `exportMyData` (`apps/web/app/app/settings/gdpr-actions.ts`)
+- **Non-training data erasure on deactivation:** NOT BUILT (#1030); deactivation soft-deletes only. Privacy policy §6 keeps non-training data only while the account is active.
+
+### Erasure and Retention
+- **Erasure:** training records exempt under Art. 17(3)(b) (Decision 33); no erasure path.
+- **Retention:** training records kept as EASA Part ORA requires (Decision 33; privacy policy §6, `apps/web/app/legal/privacy/_components/privacy-policy-content.tsx`).
 
 ### Data Minimisation
 - Do not store IP addresses in `student_responses` — only in `audit_events` and `user_consents` (for consent proof)

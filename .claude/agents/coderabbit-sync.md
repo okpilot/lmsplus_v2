@@ -16,6 +16,7 @@ ONCE per branch, after the review loop ends — including any rule edits committ
 - `.claude/rules/code-style.md`
 - `.claude/rules/security.md`
 - `docs/security.md`
+- `.claude/agents/security-auditor.md`
 - `biome.json`
 - `CLAUDE.md` (workflow/rules sections)
 - A new **or changed** `.claude/hooks/*.mjs` mechanical guard wired into `lefthook.yml`
