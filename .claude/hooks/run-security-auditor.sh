@@ -108,7 +108,7 @@ OUTPUT=$(cat "$TMPFILE" | "$TIMEOUT_BIN" -k 10 "$AUDIT_TIMEOUT_SECS" env -u CLAU
   --no-session-persistence 2>&1) || {
   EXIT_CODE=$?
   rm -f "$TMPFILE"
-  if [ "$EXIT_CODE" -eq 124 ]; then
+  if [ "$EXIT_CODE" -eq 124 ] || [ "$EXIT_CODE" -eq 137 ]; then
     echo "[security-auditor] Timed out after ${AUDIT_TIMEOUT_SECS}s. Push will be BLOCKED — running a diagnostic scan first..."
     # Diagnostic scan only. It can add a block reason, never remove one: finding nothing falls
     # through to fail_closed_no_llm_output, which exits 1 regardless. It never approves.

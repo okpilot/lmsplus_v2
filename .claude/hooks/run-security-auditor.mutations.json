@@ -24,7 +24,8 @@
         "fallback scan still finds a .env file diff.noprefix=true hides on the no-upstream diff",
         "fallback scan still finds a secret color.ui=always hides on the upstream diff",
         "fallback scan still finds a .env file diff.noprefix=true hides on the upstream diff",
-        "exits 1 naming `timeout` when no timeout binary is on PATH"
+        "exits 1 naming `timeout` when no timeout binary is on PATH",
+        "reports a timeout when the CLI is killed after the grace period"
       ],
       "note": "Shadows the `exit` builtin with a function that always exits 0 — every blocking exit in the script, whichever of the four routes reaches it (the terminal BLOCKED exit, fail_closed_no_llm_output, and the two fallback-scan branches), is defeated at once. Chosen over patching only the terminal exit because the guard has multiple independent fail-closed exits (Decision 79) and this is the one mutation that represents 'the guard never blocks', matching what code-reviewer's controls.test.mjs requires every CONTROL: red test in a suite to link to under a single `<base>-always-passes` id."
     },
@@ -61,7 +62,8 @@
         "fallback scan still finds a secret color.ui=always hides on the no-upstream diff",
         "fallback scan still finds a .env file diff.noprefix=true hides on the no-upstream diff",
         "fallback scan still finds a secret color.ui=always hides on the upstream diff",
-        "fallback scan still finds a .env file diff.noprefix=true hides on the upstream diff"
+        "fallback scan still finds a .env file diff.noprefix=true hides on the upstream diff",
+        "reports a timeout when the CLI is killed after the grace period"
       ],
       "note": "Forces the timeout branch's fallback-scan exit to 0 instead of 1 — a secret found in the diff after a CLI timeout still prints 'Found N issue(s)' but approves the push anyway. Every CONTROL: red test that also uses TIMEOUT_SHIM with a finding the scan is expected to catch goes red here too, including the textconv/ext-diff/color/noprefix cases."
     },
@@ -186,6 +188,13 @@
       "replace": "  echo \"[security-auditor] \\`timeout\\` not found — refusing to run the audit unbounded. Push blocked.\"\n  exit 0\n}",
       "expectRed": ["exits 1 naming `timeout` when no timeout binary is on PATH"],
       "note": "A missing timeout binary lets the push through instead of blocking."
+    },
+    {
+      "id": "run-security-auditor-kill-after-timeout",
+      "find": "if [ \"$EXIT_CODE\" -eq 124 ] || [ \"$EXIT_CODE\" -eq 137 ]; then",
+      "replace": "if [ \"$EXIT_CODE\" -eq 124 ]; then",
+      "expectRed": ["reports a timeout when the CLI is killed after the grace period"],
+      "note": "A CLI that needed SIGKILL after the timeout is reported as a generic failure, not a timeout."
     }
   ]
 }

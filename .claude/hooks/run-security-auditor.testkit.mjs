@@ -81,3 +81,9 @@ export const TIMEOUT_SHIM = `#!/usr/bin/env bash
 echo "simulated claude CLI timeout" >&2
 exit 124
 `
+
+// Exit 137 is what `timeout -k` reports when the CLI ignored SIGTERM and needed SIGKILL.
+export const KILL_AFTER_TIMEOUT_SHIM = `#!/usr/bin/env bash
+echo "simulated claude CLI killed after the timeout grace period" >&2
+exit 137
+`

@@ -22,6 +22,7 @@ import {
   commitInit,
   gitFactory,
   initShimScratch,
+  KILL_AFTER_TIMEOUT_SHIM,
   runHookAndCleanup,
   TIMEOUT_MS,
   TIMEOUT_SHIM,
@@ -202,6 +203,15 @@ test('blocks the push via the fallback scan when the CLI times out and a secret 
   const r = runHookWithShim(TIMEOUT_SHIM, SECRET_DIRTY_CONTENT)
   assert.notEqual(r.status, 0)
   assert.match(r.stdout, /Found \d+ issue\(s\) in fallback scan/)
+})
+
+// GROUP: run-security-auditor-always-passes, run-security-auditor-fallback-scan-timeout, run-security-auditor-kill-after-timeout
+// MUTATION: dropping the exit-137 test from the timeout branch routes a CLI that `timeout -k` had
+// to SIGKILL into the CLI-failure branch, which never prints "Timed out".
+test('reports a timeout when the CLI is killed after the grace period', () => {
+  const r = runHookWithShim(KILL_AFTER_TIMEOUT_SHIM, SECRET_DIRTY_CONTENT)
+  assert.notEqual(r.status, 0)
+  assert.match(r.stdout, /Timed out after/)
 })
 
 // CONTROL: red
