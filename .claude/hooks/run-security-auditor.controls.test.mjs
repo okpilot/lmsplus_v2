@@ -144,21 +144,21 @@ EOF
 exit 0
 `
 
-// Any non-zero, non-124 exit takes the CLI-failure branch instead of the timeout branch.
+// Any non-zero exit except 124 and 137 takes the CLI-failure branch, not the timeout branch.
 const CLI_FAILURE_SHIM = `#!/usr/bin/env bash
 echo "simulated claude CLI failure" >&2
 exit 1
 `
 
-// An added line matching the fallback scan's secret pattern
-// (`eyJ|sk_live_|service_role|-----BEGIN`) — routes the diagnostic scan to "Found N issue(s)"
-// instead of falling through to fail_closed_no_llm_output.
 /** A `timeout` stand-in: reports a timeout (124) only when called with `-k`, else exits 3. */
 const KILL_AFTER_CHECKING_TIMEOUT = `#!/usr/bin/env bash
 if [ "$1" = "-k" ]; then exit 124; fi
 exit 3
 `
 
+// An added line matching the fallback scan's secret pattern
+// (`eyJ|sk_live_|service_role|-----BEGIN`) — routes the diagnostic scan to "Found N issue(s)"
+// instead of falling through to fail_closed_no_llm_output.
 const SECRET_DIRTY_CONTENT = 'base\nsk_live_FAKE_TEST_KEY_1234567890\n'
 
 // A validating shim: reads the prompt piped to it via stdin (the security-auditor.md prefix
