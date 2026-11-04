@@ -32,7 +32,7 @@ function withTree(files, fn) {
   }
 }
 
-// GROUP: check-soft-delete-guard-always-blocks
+// GROUP: check-soft-delete-guard-always-blocks, check-soft-delete-guard-excluded-uncounted
 test('staged mode reports one excluded path for a /scripts/ .ts file', () => {
   withTree(['apps/web/scripts/tool.ts'], (dir) => {
     const r = runGuard(dir, [join(dir, 'apps/web/scripts/tool.ts')])
@@ -50,7 +50,7 @@ test('staged mode does not count a missing staged path as excluded', () => {
   })
 })
 
-// GROUP: check-soft-delete-guard-always-blocks
+// GROUP: check-soft-delete-guard-always-blocks, check-soft-delete-guard-excluded-uncounted
 test('full mode reports inspected and excluded counts from the walk', () => {
   withTree(['apps/web/lib/a.ts', 'apps/web/scripts/b.ts'], (dir) => {
     const r = runGuard(dir, [])

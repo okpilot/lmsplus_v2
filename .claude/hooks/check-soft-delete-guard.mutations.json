@@ -26,6 +26,16 @@
         "full mode reports inspected and excluded counts from the walk"
       ],
       "note": "Forces main() to always take the offender branch, regardless of `analyze()`'s result — a clean file also blocks."
+    },
+    {
+      "id": "check-soft-delete-guard-excluded-uncounted",
+      "find": "? 'excluded' : 'scan'",
+      "replace": "? 'skip' : 'scan'",
+      "expectRed": [
+        "staged mode reports one excluded path for a /scripts/ .ts file",
+        "full mode reports inspected and excluded counts from the walk"
+      ],
+      "note": "classify() reports an excluded path as skipped — the summary line prints 0 excluded in both modes."
     }
   ]
 }
