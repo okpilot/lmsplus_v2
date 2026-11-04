@@ -29,9 +29,9 @@ type AdminAuth = {
  * saving is redundant work and allocation, not network traffic — #1169's premise
  * that "every call performs a real network round-trip" does not hold as written.
  *
- * Scope: React server `cache()` memoizes per request, so the memo cannot cross
- * requests. `require-admin-cache.test.ts` proves only that this gate is routed
- * through `cache`.
+ * Scope: React invalidates the `cache()` memo for each server request, so no
+ * request reuses another's verification. `require-admin-cache.test.ts` proves
+ * only that this gate is routed through `cache`.
  */
 export const requireAdmin = cache(async (): Promise<AdminAuth> => {
   const supabase = await createServerSupabaseClient()

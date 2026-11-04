@@ -101,7 +101,7 @@ The layout does not gate its sibling page: Next renders them in one flight, and 
 A layout or page check does not protect a **Server Action**: it is reachable by a direct POST, and only the action's own `requireAdmin()` (Layer 2) stops it.
 
 **Layer 2 — Data placement (`apps/web/lib/auth/require-admin.ts`):**
-`requireAdmin()` verifies both auth (non-null session) and admin role, against a `deleted_at`-filtered read. Since #1169 it is wrapped in React `cache()`, so N calls in one RENDER perform one verification; Server Actions get no memo (no React flight request is resolvable there — Next runs the action under its own async storage), so every mutation still re-verifies. Called at the top of every admin Server Action — and, since #1167, at the top of every admin query helper — before any data access. If either check fails, it throws — the action never proceeds.
+`requireAdmin()` verifies both auth (non-null session) and admin role, against a `deleted_at`-filtered read. Since #1169 it is wrapped in React `cache()`, so N calls in one request perform one verification; React invalidates the memo for each server request, so no request reuses another's verification. Called at the top of every admin Server Action — and, since #1167, at the top of every admin query helper — before any data access. If either check fails, it throws — the action never proceeds.
 
 **Why both:** The render placement prevents UI rendering for non-admins. The Server Action and query-helper placement ensures admin actions and reads are self-defending even if a page or layout omits its call or is bypassed (e.g., direct API calls). Both layers call the same `cache()`d `requireAdmin()`; a defect inside `requireAdmin()` defeats both placements.
 
@@ -276,7 +276,7 @@ CREATE POLICY "instructors_read_students" ON student_responses
 -- Immutable responses: SELECT only. There is no INSERT policy — the original
 -- students_insert_responses was dropped in 20260311000006_restrict_immutable_inserts.sql,
 -- so direct INSERT is default-denied and rows are written only by SECURITY DEFINER RPCs
--- (which bypass RLS).
+-- (owner postgres, BYPASSRLS).
 CREATE POLICY "students_read_responses" ON student_responses
   FOR SELECT
   USING (student_id = (select auth.uid()));
@@ -297,9 +297,9 @@ CREATE POLICY "responses_no_delete" ON student_responses
 
 ### Immutable Tables: Policy Scope Pattern
 
-Immutable tables (`student_responses`, `quiz_session_answers`, `audit_events`) must block UPDATE and DELETE. Direct INSERT is denied on all three — every row is written by a SECURITY DEFINER RPC, which bypasses RLS. How the denial is expressed differs:
+Immutable tables (`student_responses`, `quiz_session_answers`, `audit_events`) must block UPDATE and DELETE. Direct INSERT is denied on all three — every row is written by a SECURITY DEFINER RPC owned by `postgres` (BYPASSRLS). How the denial is expressed differs:
 - `student_responses` — no INSERT policy at all, so INSERT is default-denied. (`students_insert_responses` existed briefly and was dropped in `20260311000006_restrict_immutable_inserts.sql`.)
-- `quiz_session_answers` — no INSERT policy at all, so direct INSERT is default-denied. Rows are written only by SECURITY DEFINER RPCs (e.g. `submit_quiz_answer()`), which bypass RLS.
+- `quiz_session_answers` — no INSERT policy at all, so direct INSERT is default-denied. Rows are written only by SECURITY DEFINER RPCs (e.g. `submit_quiz_answer()`), owned by `postgres` (BYPASSRLS).
 - `audit_events` — has `audit_no_direct_insert` (`FOR INSERT WITH CHECK (false)`, `20260314000034`). It denies because it is the ONLY INSERT policy, not because it overrides anything: it is PERMISSIVE, and a permissive policy can only add access. Rows are written only by SECURITY DEFINER RPCs.
 
 ⚠️ **`AS RESTRICTIVE` policies exist since migration `20261025000100` (#1607): one `<table>_select_active_caller` SELECT policy on each student-owned table, `USING ((select private.is_active_user()))`; since `20261028000100` the `easa_subjects`/`easa_topics`/`easa_subtopics`/`questions` `*_select_enrolled` SELECT policies (#1637); since `20261028000600` `exam_configs_select_enrolled` (#1637); since `20261028000400` `question_comments_select_visible_question` / `_insert_visible_question`.** List them: `SELECT tablename, policyname FROM pg_policies WHERE schemaname = 'public' AND permissive = 'RESTRICTIVE'`. Every immutable-table denial above still rests on the *absence* of a permitting permissive policy. Do not describe a `USING (false)` / `WITH CHECK (false)` permissive policy as "blocking" or "overriding" — it does neither, and it would not stop a permitting policy added beside it. Only `AS RESTRICTIVE` AND-combines.
@@ -521,7 +521,7 @@ Study Mode is a **self-paced MC flashcard practice surface** where students requ
 
 **Guard set (`start_discovery`, SECURITY DEFINER, `SET search_path = public, pg_temp`, EXECUTE TO `authenticated`; REVOKE FROM PUBLIC, anon):**
 1. Auth check `not_authenticated` + active-user gate `user_not_found_or_inactive` (security.md rules 7 + 12)
-2. Own-org explicit join (`q.organization_id = v_org_id`; DEFINER bypasses RLS) so a foreign-org ID cannot leak
+2. Own-org explicit join (`q.organization_id = v_org_id`; the owner `postgres` has BYPASSRLS) so a foreign-org ID cannot leak
 3. Soft-delete + status filters — `q.deleted_at IS NULL AND q.status = 'active'` (required; see note below)
 4. Type filter — `q.question_type = 'multiple_choice'`
 5. Options returned in **stored order** (no shuffle — the answer is visible anyway)
