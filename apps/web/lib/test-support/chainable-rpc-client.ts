@@ -81,7 +81,7 @@ export function createChainableRpcClient(fixture: ChainableRpcClientFixture): Ch
   }
 
   // The implementation function's inferred type (a single signature with an optional
-  // third arg) is narrower than the exported ChainableRpcMock overload — vi.fn() still
+  // third arg) is narrower than the ChainableRpcMock overload — vi.fn() still
   // wraps it with full mock-inspection support (toHaveBeenCalledWith, etc.), so the cast
   // below only widens the CALL-SHAPE typing seen by consumers, not the runtime behavior.
   const rpcFn = vi.fn(

@@ -78,6 +78,11 @@ else
   DIFF="$DIFF_FULL"
 fi
 
+if ! command -v timeout &>/dev/null; then
+  echo "[security-auditor] \`timeout\` not found — refusing to run the audit unbounded. Install coreutils timeout. Push blocked."
+  exit 1
+fi
+
 TMPFILE=$(mktemp)
 cat "$REPO_ROOT/.claude/agents/security-auditor.md" > "$TMPFILE"
 printf "\n---\n\n## Diff being pushed:\n\n\`\`\`diff\n%s\n\`\`\`\n\nAudit this diff now. Output your findings in the format specified above.\nIMPORTANT: If you find any CRITICAL or HIGH issues, end with a line starting with BLOCKED (e.g. 'BLOCKED: reason').\nIf no CRITICAL or HIGH issues, end with a line containing only: APPROVED" "$DIFF" >> "$TMPFILE"
@@ -96,10 +101,6 @@ printf "\n---\n\n## Diff being pushed:\n\n\`\`\`diff\n%s\n\`\`\`\n\nAudit this d
 # risk of an under-sized budget is that every multi-migration PR becomes unpushable, which is what
 # pushes people toward `--no-verify` — the one thing this hook must never make tempting.
 AUDIT_TIMEOUT_SECS=300
-if ! command -v timeout &>/dev/null; then
-  echo "[security-auditor] \`timeout\` not found — refusing to run the audit unbounded. Install coreutils timeout. Push blocked."
-  exit 1
-fi
 TIMEOUT_CMD="timeout $AUDIT_TIMEOUT_SECS"
 
 OUTPUT=$(cat "$TMPFILE" | $TIMEOUT_CMD env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT -u ANTHROPIC_DEFAULT_SONNET_MODEL claude --print \

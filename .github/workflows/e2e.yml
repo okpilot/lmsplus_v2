@@ -393,7 +393,7 @@ jobs:
         # browser download -- until the job was cancelled ~53 min later. Not an outage: of the
         # two jobs running this same command in that window, one hung and one passed in ~6 min,
         # so it is per-runner.
-        # ubuntu-latest preinstalls Chrome and Edge, whose deb dependencies cover Playwright's
+        # ubuntu-24.04 preinstalls Chrome and Edge, whose deb dependencies cover Playwright's
         # chromium library set, so the flag mainly bought that mirror dependency (plus a `tools`
         # group of fonts and xvfb that no spec here uses -- no screenshot/snapshot assertions,
         # headless only).

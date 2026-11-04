@@ -103,7 +103,10 @@
     },
     ".claude/hooks/check-soft-delete-guard.mjs": {
       "base": "check-soft-delete-guard",
-      "suites": [".claude/hooks/check-soft-delete-guard.test.mjs"]
+      "suites": [
+        ".claude/hooks/check-soft-delete-guard.test.mjs",
+        ".claude/hooks/check-soft-delete-guard.summary.test.mjs"
+      ]
     },
     ".claude/hooks/check-file-size-guard.mjs": {
       "base": "check-file-size-guard",

@@ -381,7 +381,7 @@ jobs:
           retention-days: 14
 
       - name: Upload web coverage to Codecov
-        if: always()
+        if: ${{ !cancelled() }}
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           files: apps/web/coverage/lcov.info
@@ -390,7 +390,7 @@ jobs:
           fail_ci_if_error: false
 
       - name: Upload db coverage to Codecov
-        if: always()
+        if: ${{ !cancelled() }}
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           files: packages/db/coverage/lcov.info
