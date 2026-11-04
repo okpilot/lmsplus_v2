@@ -22,6 +22,7 @@ jobs:
   sonarcloud:
     name: SonarCloud Analysis
     runs-on: ubuntu-latest
+    timeout-minutes: 25 # measured max 11.3 min
     env:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
     steps:

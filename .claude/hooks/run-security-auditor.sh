@@ -96,11 +96,11 @@ printf "\n---\n\n## Diff being pushed:\n\n\`\`\`diff\n%s\n\`\`\`\n\nAudit this d
 # risk of an under-sized budget is that every multi-migration PR becomes unpushable, which is what
 # pushes people toward `--no-verify` — the one thing this hook must never make tempting.
 AUDIT_TIMEOUT_SECS=300
-if command -v timeout &>/dev/null; then
-  TIMEOUT_CMD="timeout $AUDIT_TIMEOUT_SECS"
-else
-  TIMEOUT_CMD=""
+if ! command -v timeout &>/dev/null; then
+  echo "[security-auditor] \`timeout\` not found — refusing to run the audit unbounded. Install coreutils timeout. Push blocked."
+  exit 1
 fi
+TIMEOUT_CMD="timeout $AUDIT_TIMEOUT_SECS"
 
 OUTPUT=$(cat "$TMPFILE" | $TIMEOUT_CMD env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT -u ANTHROPIC_DEFAULT_SONNET_MODEL claude --print \
   --model sonnet \

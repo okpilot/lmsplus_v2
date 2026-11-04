@@ -37,6 +37,7 @@ jobs:
   push:
     name: Apply migrations to prod
     runs-on: ubuntu-latest
+    # Unbounded: cancelling supabase db push mid-migration is worse than a hung job.
     environment: production
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -45,6 +46,7 @@ jobs:
 
       - uses: supabase/setup-cli@d239d1052f6f024a8d746d7e5aeddead63b9cb53 # v3.1.0
         with:
+          # Load-bearing: newer CLI drops baseline DML grants (#1178). Dependabot cannot bump this input.
           version: 2.78.1
 
       # Build the connection URL explicitly and pass via --db-url. The CLI's

@@ -4,7 +4,7 @@
 // next change to it).
 import { vi } from 'vitest'
 
-export type RpcChain = {
+type RpcChain = {
   then: (resolve: (v: unknown) => void, reject?: (e: unknown) => void) => Promise<unknown>
   order: (col: string, opts: unknown) => RpcChain
   range: (from: number, to: number) => Promise<{ data: unknown; error: unknown }>
@@ -15,7 +15,7 @@ export type RpcChain = {
 // (with count/head opts) resolves to a count result. A single union-returning
 // signature would make every call site's return type a union, forcing a cast before
 // `.order()`/`.range()` could be used.
-export type ChainableRpcMock = {
+type ChainableRpcMock = {
   (
     fn: string,
     args: Record<string, unknown>,

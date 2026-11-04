@@ -17,6 +17,7 @@ jobs:
   coverage-trend:
     name: Coverage Trend
     runs-on: ubuntu-latest
+    timeout-minutes: 25 # no successful run; same coverage suite as ci unit-tests
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -137,11 +138,11 @@ jobs:
           fi
 
           # Compare and write outputs to GITHUB_OUTPUT
-          python3 - <<PYEOF >> "$GITHUB_OUTPUT"
-          import json
+          CURRENT_JSON="$CURRENT_JSON" BASELINE_JSON="$BASELINE_JSON" python3 - <<'PYEOF' >> "$GITHUB_OUTPUT"
+          import json, os
 
-          current  = json.loads('$CURRENT_JSON')
-          baseline = json.loads('$BASELINE_JSON')
+          current  = json.loads(os.environ["CURRENT_JSON"])
+          baseline = json.loads(os.environ["BASELINE_JSON"])
 
           THRESHOLD = 2.0
           regression = False

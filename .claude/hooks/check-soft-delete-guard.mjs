@@ -409,24 +409,27 @@ export function analyze(source) {
   return violations
 }
 
-function shouldScan(path) {
-  if (!/\.(ts|tsx)$/.test(path)) return false
+// 'scan' | 'excluded' (.ts/.tsx non-test path rejected by EXCLUDE_FRAGMENTS) | 'skip'
+function classify(path) {
+  if (!/\.(ts|tsx)$/.test(path)) return 'skip'
   // `*.integration.test.ts` is covered by this `.test.ts` suffix check.
-  if (/\.test\.(ts|tsx)$/.test(path)) return false
+  if (/\.test\.(ts|tsx)$/.test(path)) return 'skip'
   const normalized = `/${path.replace(/\\/g, '/')}`
-  return !EXCLUDE_FRAGMENTS.some((frag) => normalized.includes(frag))
+  return EXCLUDE_FRAGMENTS.some((frag) => normalized.includes(frag)) ? 'excluded' : 'scan'
 }
 
-function walk(dir, acc) {
+function walk(dir, acc, tally) {
   if (!existsSync(dir)) return
   for (const entry of readdirSync(dir)) {
     const full = join(dir, entry)
     const st = statSync(full)
     if (st.isDirectory()) {
       if (entry === 'node_modules' || entry === '.next') continue
-      walk(full, acc)
-    } else if (shouldScan(full)) {
-      acc.push(full)
+      walk(full, acc, tally)
+    } else {
+      const kind = classify(full)
+      if (kind === 'scan') acc.push(full)
+      else if (kind === 'excluded') tally.excluded++
     }
   }
 }
@@ -435,15 +438,24 @@ function collectFiles(args) {
   if (args.length > 0) {
     // Staged mode: only the paths lefthook passed, skipping any that no longer
     // exist on disk (deleted / renamed staged files) and any excluded path.
-    return args.filter((p) => existsSync(p) && shouldScan(p))
+    const files = []
+    let excluded = 0
+    for (const p of args) {
+      if (!existsSync(p)) continue
+      const kind = classify(p)
+      if (kind === 'scan') files.push(p)
+      else if (kind === 'excluded') excluded++
+    }
+    return { files, excluded }
   }
   const acc = []
-  for (const root of SCAN_ROOTS) walk(root, acc)
-  return acc
+  const tally = { excluded: 0 }
+  for (const root of SCAN_ROOTS) walk(root, acc, tally)
+  return { files: acc, excluded: tally.excluded }
 }
 
 function main() {
-  const files = collectFiles(argv.slice(2))
+  const { files, excluded } = collectFiles(argv.slice(2))
   const offenders = []
   for (const file of files) {
     const source = readFileSync(file, 'utf8')
@@ -461,7 +473,9 @@ function main() {
     )
     exit(1)
   }
-  console.log(`✓ soft-delete/schema column guard: ${files.length} file(s) clean`)
+  console.log(
+    `✓ soft-delete/schema column guard: ${files.length} file(s) inspected, ${excluded} excluded, 0 violations`,
+  )
 }
 
 // Run only when executed directly (not when the test imports `analyze`).

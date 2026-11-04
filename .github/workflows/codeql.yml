@@ -21,6 +21,7 @@ jobs:
   analyze:
     name: Analyze (javascript-typescript)
     runs-on: ubuntu-latest
+    timeout-minutes: 10 # measured max 3.5 min
 
     steps:
       - name: Checkout repository
