@@ -845,14 +845,16 @@ it is what the next reader trusts when deciding whether a guard can safely be re
    **Grep the CLAIM, not only the STRING that expressed it** — a sweep anchored on the retracted
    wording reports clean on every paraphrase of the same assertion. Search a distinctive TOKEN of
    the subject (the command, the filename, the field), not the sentence that carried it. Partial
-   remedy for the paraphrase-blindness `.claude/skills/review-gate/agent-workflow.md § Rule-Mirror Sync` records as OPEN.
+   remedy for the paraphrase-blindness `.claude/skills/review-gate/agent-workflow.md § Rule-Mirror Sync` records as grep-blind.
 4. **Verify the fix is STAGED, not merely written** — `git grep` reads the working tree and goes
    clean the moment text is on disk. Run `git diff --staged` AND
    `git status --short --untracked-files=all` (the flag is needed because
    `status.showUntrackedFiles=no` silently drops `??` lines).
 5. **Re-reading finds incoherence; only re-deriving finds a claim that's coherent and false.**
    While a source file is open to verify one claim, re-derive every OTHER claim in the block that
-   file can answer before closing it.
+   file can answer before closing it. Evidence must hold for the situation the claim applies
+   to, not only for the artifact cited: a migration guarded by `ON CONFLICT DO NOTHING`
+   establishes nothing about an environment where the row already existed.
 6. **A commit message may not cite a SHA that does not resolve.** Verify with
    `git rev-parse --verify <sha>` (no `--quiet`, which conflates ambiguous and absent). It proves
    the commit EXISTS, never that the claim about it is true. Reviewer-judged.
@@ -863,10 +865,14 @@ it is what the next reader trusts when deciding whether a guard can safely be re
    (`check-file-size-guard.mjs --stats`). **"Count" includes EXTENT QUANTIFIERS** (`most`, `every`,
    `neither` — an open, illustrative set, governed by cl.2): replace the word with the command that
    establishes the extent, or test it against a falsifying fixture — a UNIVERSAL needs the case
-   expected to FAIL.
+   expected to FAIL. An existence claim in a commit message ("already carries X"):
+   `git show HEAD:<path> | grep -F -- '<X>'` before writing it.
 8. **A correction is the likeliest place to write a NEW inaccuracy.** Clauses 1-3 target text you
    did not rewrite; the commoner failure is the sentence you just wrote to FIX one. Re-derive a
    correction before committing it, on the same terms as the claim it replaces.
+9. **An absence claim needs a search of the CONCEPT, not the label.** A zero-hit grep on a phrase
+   proves the phrase absent, not the content; search a distinctive token of the thing itself
+   (command, filename, field).
 
 Before asserting any DB/RPC guard, ownership, replay/idempotency, or invariant behaviour, trace to
 the LATEST definition for the MATCHING SIGNATURE — supersession forms are an OPEN set

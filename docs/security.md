@@ -912,14 +912,13 @@ We store student PII: email address, full name, learning history, exam scores.
 - Direct client inserts blocked by RLS. Writes via `record_consent()` SECURITY DEFINER RPC only.
 - First-login: `/auth/login-complete` calls `check_consent_status()` → if user hasn't accepted current TOS/Privacy versions → redirect to `/consent` page.
 - `/consent` page: two required checkboxes (TOS, Privacy). Server Action calls `record_consent()` twice and sets the cookie with the version tokens and the caller's user id; the form then navigates client-side to the validated `next` destination (`safeNextPath`), else `/app/dashboard` (`consent-form.tsx` — the action itself does not redirect).
-- Proxy check: the `__consent_u` cookie must equal `<tos>:<privacy>:<signed-in user id>` (`buildConsentCookieValue`), so a cookie left by another user on a shared browser never matches. No DB hit in the proxy. On a mismatch the proxy redirects (307) to `/auth/consent-refresh` (GET and POST, so a Server Action is replayed), which calls `check_consent_status()` and either reissues the cookie (consented) or redirects to `/consent`. The pre-#1377 cookie `__consent` (`<tos>:<privacy>`) is neither read nor written, so a deployment still serving the old code keeps working during rollout.
+- Proxy check: the `__consent_u` cookie must equal `<tos>:<privacy>:<signed-in user id>` (`buildConsentCookieValue`), so a cookie left by another user on a shared browser never matches. No DB hit in the proxy. On a mismatch the proxy redirects (307) to `/auth/consent-refresh` (GET and POST), which calls `check_consent_status()` and either reissues the cookie (consented) or redirects to `/consent`. The pre-#1377 cookie `__consent` (`<tos>:<privacy>`) is neither read nor written, so a deployment still serving the old code keeps working during rollout.
 - Re-consent trigger: bump `CURRENT_TOS_VERSION` or `CURRENT_PRIVACY_VERSION` in `lib/consent/versions.ts` → cookie mismatch → `/auth/consent-refresh` → `/consent` (the DB holds no consent for the new version).
 - **Rationale:** Audit trail for legal proof of consent. Append-only pattern prevents accidental history loss. Version strings allow fast re-consent detection.
 
 ### Required Capabilities (build before first live student)
 - **Data export:** instructor can export all data for a specific student (`/admin/students/:id/export`)
-- **Data deletion:** instructor can delete a student's account and all associated data (`/admin/students/:id/delete`) — cascades on `users.id`
-- **Retention policy:** student data retained for 3 years after last activity (EASA training record requirement), then auto-deleted via scheduled Supabase function
+- **Erasure / retention:** declined under Art. 17(3)(b) (Decision 33); no erasure path, no scheduled deletion.
 
 ### Data Minimisation
 - Do not store IP addresses in `student_responses` — only in `audit_events` and `user_consents` (for consent proof)

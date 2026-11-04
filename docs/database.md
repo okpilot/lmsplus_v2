@@ -36,7 +36,7 @@ Enforce at the database level (RLS policies), not just application convention.
 - `quiz_session_answers` — same, tied to a specific session
 - `audit_events` — compliance log
 
-Writes happen only via SECURITY DEFINER RPCs (e.g., `submit_quiz_answer()`), which run as the database owner and bypass RLS, allowing controlled inserts with business logic enforced in the function. Direct client inserts are blocked.
+Writes happen only via SECURITY DEFINER RPCs (e.g., `submit_quiz_answer()`), which run as the owner `postgres` (BYPASSRLS), allowing controlled inserts with business logic enforced in the function. Direct client inserts are blocked.
 
 **Column-level immutability (`users` and `quiz_sessions`):** Some tables allow UPDATE on certain columns but freeze others after row creation. Enforced by `BEFORE UPDATE OF` triggers with a `current_role = 'service_role'` exemption.
 
@@ -931,7 +931,7 @@ ORDER BY deleted_at DESC;
 | `quiz_drafts` | Hard DELETE (approved exception) | Disposable temp storage; no recovery value |
 | `flagged_questions` | Yes (soft) | Unflag = set deleted_at; flags referenced in quiz filter queries |
 | `exam_configs` | Yes | Per-subject exam configuration; soft-deleted when org removes exam mode |
-| `exam_config_distributions` | Hard DELETE (approved exception) | No `deleted_at`; replaced atomically by `upsert_exam_config` RPC. Also cascades from parent `exam_configs` via `ON DELETE CASCADE`. RLS policies (admin SELECT/INSERT/DELETE) filter `ec.deleted_at IS NULL` on the parent join (mig 083), so direct PostgREST access to distributions of a soft-deleted exam config is blocked at the policy layer; `upsert_exam_config` is SECURITY DEFINER and bypasses RLS, so the replace-on-save flow is unaffected |
+| `exam_config_distributions` | Hard DELETE (approved exception) | No `deleted_at`; replaced atomically by `upsert_exam_config` RPC. Also cascades from parent `exam_configs` via `ON DELETE CASCADE`. RLS policies (admin SELECT/INSERT/DELETE) filter `ec.deleted_at IS NULL` on the parent join (mig 083), so direct PostgREST access to distributions of a soft-deleted exam config is blocked at the policy layer; `upsert_exam_config` runs as owner `postgres` (BYPASSRLS), so the replace-on-save flow is unaffected |
 | `question_comments` | Hard DELETE (explicit exception — low audit value) | deleted_at exists as safety net but not used by application code |
 | `internal_exam_codes` | Yes | Issued codes form an audit trail; admin void uses `voided_at`/`void_reason`, soft-delete reserved for compliance archival |
 
@@ -1029,7 +1029,7 @@ CREATE FUNCTION get_student_progress(...)
 LANGUAGE plpgsql
 AS $$ ... $$;
 
--- SECURITY DEFINER: RPC runs as the function owner (bypasses RLS)
+-- SECURITY DEFINER: RPC runs as owner postgres (BYPASSRLS)
 -- get_quiz_questions and submit_quiz_answer are both SECURITY DEFINER
 -- Use ONLY when: legitimate cross-table access that RLS would block
 -- Mandatory: re-implement the security check manually inside the function
@@ -1039,7 +1039,7 @@ SECURITY DEFINER
 SET search_path = public, pg_temp  -- ← always set this with SECURITY DEFINER
 AS $$
 BEGIN
-  -- Re-implement auth check manually (RLS is bypassed)
+  -- Re-implement auth check manually (owner postgres has BYPASSRLS)
   IF auth.uid() IS NULL THEN
     RAISE EXCEPTION 'not authenticated';
   END IF;
@@ -1463,7 +1463,7 @@ Admin-only. Three branches:
 
 ##### `void_internal_exam_code` — org-scope defense-in-depth (migration `20260430000006`)
 
-**Enhancement (CodeRabbit PR #576 round-2, Major):** The RPC validates that the code's `organization_id` matches the admin's, then locks and updates the linked `quiz_sessions` row by id only. This is a SECURITY DEFINER function bypassing RLS. If a future bug ever stored a cross-org `consumed_session_id`, the RPC would expire a foreign-org session.
+**Enhancement (CodeRabbit PR #576 round-2, Major):** The RPC validates that the code's `organization_id` matches the admin's, then locks and updates the linked `quiz_sessions` row by id only. This function runs as owner `postgres` (BYPASSRLS). If a future bug ever stored a cross-org `consumed_session_id`, the RPC would expire a foreign-org session.
 
 **Fix:** `CREATE OR REPLACE` with explicit `qs.organization_id = v_admin_org` filter on both the SELECT and UPDATE of the linked session. Also asserts `ROW_COUNT > 0` after the UPDATE (raises `session_state_changed` if a concurrent writer stole the row). Function body otherwise unchanged from migration `20260429000009`.
 
@@ -1537,7 +1537,7 @@ Admin-only RPC setting the complete set of active course enrolments for one user
 
 Student-facing read. Returns the caller's currently usable internal-exam codes without the plaintext `code` column — the value is single-use and meaningful only at issuance time, so it is omitted from every subsequent read. Replaces the direct `SELECT FROM internal_exam_codes` path previously gated by the `student_read_active_codes` RLS policy (dropped in migration `20260521000004` so plaintext never leaves the issuance RPC). Closes issue #577.
 
-**Security:** SECURITY DEFINER with `SET search_path = public, pg_temp`. Manual `auth.uid()` null check raises `not_authenticated`, followed by the active-user gate (`PERFORM 1 FROM users u WHERE u.id = v_user_id AND u.deleted_at IS NULL` → `user not found or inactive`) added in migration `20260824000200` — a student soft-deleted while holding a live JWT previously kept listing their outstanding codes, since deactivation does not cascade to `internal_exam_codes`. The `users u` alias is required, not stylistic: the `RETURNS TABLE` declares an `id` OUT param, so an unqualified `id` raises 42702 at execution (code-style.md §5). SECURITY DEFINER bypasses RLS, so soft-delete and ownership filters are enforced explicitly inside the function.
+**Security:** SECURITY DEFINER with `SET search_path = public, pg_temp`. Manual `auth.uid()` null check raises `not_authenticated`, followed by the active-user gate (`PERFORM 1 FROM users u WHERE u.id = v_user_id AND u.deleted_at IS NULL` → `user not found or inactive`) added in migration `20260824000200` — a student soft-deleted while holding a live JWT previously kept listing their outstanding codes, since deactivation does not cascade to `internal_exam_codes`. The `users u` alias is required, not stylistic: the `RETURNS TABLE` declares an `id` OUT param, so an unqualified `id` raises 42702 at execution (code-style.md §5). The function runs as owner `postgres` (BYPASSRLS), so soft-delete and ownership filters are enforced explicitly inside the function.
 
 **Filters (every SELECT):**
 - `iec.student_id = auth.uid()` — ownership
@@ -1569,7 +1569,7 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp
 
 Student-facing read. Returns the caller's `internal_exam` quiz-session history with a stable per-subject `attempt_number` computed server-side via `row_number() OVER (PARTITION BY subject_id ORDER BY started_at)`. The window function runs over **all** of the caller's sessions before `LIMIT 200` is applied, so the displayed `attempt_number` stays correct even when a subject has more than 200 total attempts. Closes issue #579 (TS-side counter restarted at row 200 because the client only saw a truncated slice).
 
-**Security:** SECURITY DEFINER with `SET search_path = public, pg_temp`. Manual `auth.uid()` null check raises `not_authenticated`, followed by the active-user gate (`PERFORM 1 FROM users u WHERE u.id = v_user_id AND u.deleted_at IS NULL` → `user not found or inactive`) added in migration `20260824000200`; same `users u` alias requirement as the sibling above (`id` OUT param, 42702). SECURITY DEFINER bypasses RLS, so soft-delete and ownership filters are enforced explicitly.
+**Security:** SECURITY DEFINER with `SET search_path = public, pg_temp`. Manual `auth.uid()` null check raises `not_authenticated`, followed by the active-user gate (`PERFORM 1 FROM users u WHERE u.id = v_user_id AND u.deleted_at IS NULL` → `user not found or inactive`) added in migration `20260824000200`; same `users u` alias requirement as the sibling above (`id` OUT param, 42702). The function runs as owner `postgres` (BYPASSRLS), so soft-delete and ownership filters are enforced explicitly.
 
 **Filters:**
 - `qs.student_id = auth.uid()` — ownership
@@ -1649,7 +1649,7 @@ BEGIN
   END IF;
 
   -- Ownership verified above via EXISTS on quiz_sessions.
-  -- This SECURITY DEFINER function bypasses RLS — do not remove the guard.
+  -- This function runs as owner postgres (BYPASSRLS) — do not remove the guard.
   RETURN QUERY
   SELECT DISTINCT ON (sa.question_id)
     sa.question_id, q.correct_option_id  -- mig 114 #823: collapsed LATERAL scan to the REVOKE-gated column
@@ -2147,7 +2147,7 @@ $$;
 
 #### `private.is_active_user()` — Active-caller check helper
 
-Returns `boolean`. `LANGUAGE sql STABLE SECURITY INVOKER SET search_path = ''` (migration `20261025000100`, #1607). True when `public.users` holds a row with `id = (select auth.uid())` and `deleted_at IS NULL`. The explicit `deleted_at IS NULL` filter makes it false for a deactivated caller in every context, including inside a SECURITY DEFINER caller where RLS is bypassed (`auth.uid()` reads the JWT claim). EXECUTE: `authenticated` only (revoked from PUBLIC, `anon`).
+Returns `boolean`. `LANGUAGE sql STABLE SECURITY INVOKER SET search_path = ''` (migration `20261025000100`, #1607). True when `public.users` holds a row with `id = (select auth.uid())` and `deleted_at IS NULL`. The explicit `deleted_at IS NULL` filter makes it false for a deactivated caller in every context, including inside a SECURITY DEFINER caller (owner `postgres`, BYPASSRLS) (`auth.uid()` reads the JWT claim). EXECUTE: `authenticated` only (revoked from PUBLIC, `anon`).
 
 Lives in schema `private`, the only schema this repo creates besides `public`: USAGE granted to `authenticated` only, not in `supabase/config.toml` `schemas`, so PostgREST does not expose it. Used by the `<table>_select_active_caller` RESTRICTIVE policies; derive the set: `select tablename, policyname from pg_policies where permissive = 'RESTRICTIVE'`. New policies and functions call `(select private.is_active_user())` (`private.accessible_subject_ids()` checks `u.deleted_at IS NULL` inline); a SECURITY DEFINER caller still RAISEs its family's active-user token when it is false; existing inline `EXISTS` / `PERFORM` gates stay (Decision 151).
 
@@ -2164,7 +2164,7 @@ Records a `student.login` event in `audit_events` after successful email+passwor
 
 **Security:**
 - `SECURITY DEFINER` with `SET search_path = public, pg_temp` and manual `auth.uid()` check.
-- Queries `users` with `deleted_at IS NULL` — soft-deleted users cannot generate audit events (SECURITY DEFINER bypasses RLS, so this filter is mandatory).
+- Queries `users` with `deleted_at IS NULL` — soft-deleted users cannot generate audit events (runs as owner `postgres`, BYPASSRLS, so this filter is mandatory).
 - 60-second rate limit prevents duplicate events from rapid re-logins.
 
 ```sql

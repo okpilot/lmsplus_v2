@@ -12,7 +12,7 @@ Keeps project documentation in sync with code changes: schema changes, new RPCs,
 - Verify cross-references — if database.md changed, check decisions.md stays consistent.
 - Trust the agent's judgment on what needs updating — it checks the diff against all doc files.
 - Review reported doc edits for accuracy before applying — it can hallucinate details about code it didn't read.
-- **Any COUNT must arrive with the command that produced it and its pasted output** — not a remembered figure or estimate. If a count can't be derived in-session, write "not derived".
+- **Any factual assertion about file content, commit state or current code must arrive with the command that produced it and its pasted output** — counts are one subclass. If it can't be derived in-session, write "not derived".
 - **A CODE-BODY citation needs a pasted `grep` result, not just a line number** — `grep -rn '<distinctive token>' .` A citation not grounded in a grep result is fabricated.
 - When a report claims a file "cites"/"mentions"/"references" content, paste the EXACT substring, not a paraphrase.
 

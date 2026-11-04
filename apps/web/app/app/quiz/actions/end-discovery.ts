@@ -8,9 +8,8 @@ import { resolveZeroRowWrite } from './_caller-active'
 import { NOT_ACTIVE } from './progress-error-messages'
 
 // Optional payload. When sessionId is provided, the teardown is scoped to that one
-// row (the orphan-cleanup path in startStudy) so a slow failing request can never
-// tombstone a newer discovery row from a concurrent retry. Absent (the Exit-button
-// case), the teardown clears every active discovery row for the caller.
+// row (the orphan-cleanup path in startStudy). Absent (the Exit-button case), the
+// teardown clears every active discovery row for the caller.
 const EndDiscoveryInput = z.object({ sessionId: z.uuid().optional() }).optional()
 
 type ServerSupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>

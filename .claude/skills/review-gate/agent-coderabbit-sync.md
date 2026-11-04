@@ -9,6 +9,7 @@ Run only when the branch diff changes one or more of these files:
 - `.claude/rules/code-style.md`
 - `.claude/rules/security.md`
 - `docs/security.md`
+- `.claude/agents/security-auditor.md`
 - `biome.json`
 - `CLAUDE.md`
 - A new **or changed** `.claude/hooks/*.mjs` mechanical guard wired into `lefthook.yml` (pattern-matches source for a rule CodeRabbit also enforces) — edits to an existing guard's detection pattern also require re-mirroring. Mirror into `.coderabbit.yaml` `path_instructions` **in the same commit that adds or changes the guard** — not deferred.
