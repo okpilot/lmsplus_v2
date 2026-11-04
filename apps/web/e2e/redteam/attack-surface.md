@@ -1,8 +1,8 @@
 # Red Team — Attack Surface Map
 
-> Last updated: 2026-11-04 (branch chore/techdebt-group-a — rows AC, CL and VECTOR BS reworded.)
+> Last updated: 2026-11-04 (branch chore/techdebt-group-a — wording only; no vector or spec change.)
 
-> `answer_matches`: EXECUTE revoked from PUBLIC, anon, authenticated; reached only through SECURITY DEFINER graders, which supply the canonical answer from session data. No oracle path.
+> `answer_matches`: EXECUTE revoked from PUBLIC, anon, authenticated; no direct client call.
 
 > Supabase: `REVOKE ... FROM PUBLIC` must be paired with `REVOKE ... FROM anon, authenticated`; the default-privilege grant to those roles is separate (PR #952).
 

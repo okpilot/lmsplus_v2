@@ -51,7 +51,7 @@ Any factual assertion — a count, file content, commit state or current code ("
 and that command's pasted output. Counts are one subclass. Not derivable in-session: write "not derived".
 
 ## Quoting CODE in your report
-The same rule, for a different artifact: when you cite a fragment of CODE as evidence — an `if`
+Stricter for CODE: when you cite a fragment of CODE as evidence — an `if`
 expression, a function signature, a return value, a constant's contents — paste the output of
 `grep -rn '<a distinctive token from that expression>' .` A code citation you cannot ground in a
 grep result is fabricated, however sound the conclusion resting on it.
