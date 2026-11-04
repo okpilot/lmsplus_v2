@@ -37,7 +37,7 @@ jobs:
   push:
     name: Apply migrations to prod
     runs-on: ubuntu-latest
-    # Unbounded: cancelling supabase db push mid-migration is worse than a hung job.
+    # No timeout-minutes (GitHub default 360 applies): a tighter bound can cancel supabase db push mid-migration.
     environment: production
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

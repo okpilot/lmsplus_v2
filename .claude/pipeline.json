@@ -169,7 +169,8 @@
       "suites": [
         ".claude/hooks/run-security-auditor.controls.test.mjs",
         ".claude/hooks/run-security-auditor.config.test.mjs",
-        ".claude/hooks/run-security-auditor.prompt-config.test.mjs"
+        ".claude/hooks/run-security-auditor.prompt-config.test.mjs",
+        ".claude/hooks/run-security-auditor.notimeout.test.mjs"
       ]
     },
     ".claude/hooks/run-mutations.mjs": {
