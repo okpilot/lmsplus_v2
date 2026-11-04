@@ -177,7 +177,7 @@ Lefthook enforces mechanical gates (blocking). Command list is DATA in `.claude/
 not enumerate it here (`.claude/pipeline.test.mjs` fails if it and `lefthook.yml` disagree).
 - **pre-commit:** mechanical guards only; the unit suite runs at `/fullpush` step 4, the integration tier only in CI.
 - **commit-msg:** conventional commit format; an existing `docs/decisions.md` line is never edited except to append a marker (Decision 86) — escape hatch: `Ledger-edit-ok: <N|header> — <reason>` trailer.
-- **pre-push:** security-auditor + dep audit — FAIL-CLOSED: LLM audit failure/timeout or missing `timeout` binary or `run-security-auditor.sh` BLOCKS the push, no fallback approval.
+- **pre-push:** security-auditor + dep audit — FAIL-CLOSED: LLM audit failure/timeout or missing `timeout`/`gtimeout` binary or `run-security-auditor.sh` BLOCKS the push, no fallback approval.
 
 Everything else (review, docs, tests) runs through subagents for visibility.
 

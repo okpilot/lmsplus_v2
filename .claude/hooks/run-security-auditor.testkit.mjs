@@ -1,5 +1,5 @@
 // Shared fixtures for run-security-auditor.sh's spawned graded-control suites
-// (run-security-auditor.controls.test.mjs, run-security-auditor.config.test.mjs).
+// (importers: `git grep -l run-security-auditor.testkit -- .claude/hooks`).
 //
 // Not a guard and not a suite: it defines no tests, so it needs no `ci.yml` step of its own —
 // each importing suite has one. Importing a `.test.mjs` file re-registers and re-runs its tests;
