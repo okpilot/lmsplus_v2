@@ -78,8 +78,8 @@ else
   DIFF="$DIFF_FULL"
 fi
 
-TIMEOUT_BIN=$(command -v timeout || command -v gtimeout) || {
-  echo "[security-auditor] \`timeout\` not found (nor gtimeout) — refusing to run the audit unbounded. Push blocked."
+TIMEOUT_BIN=$(command -v timeout) || {
+  echo "[security-auditor] \`timeout\` not found — refusing to run the audit unbounded. Push blocked."
   exit 1
 }
 
@@ -102,7 +102,7 @@ printf "\n---\n\n## Diff being pushed:\n\n\`\`\`diff\n%s\n\`\`\`\n\nAudit this d
 # pushes people toward `--no-verify` — the one thing this hook must never make tempting.
 AUDIT_TIMEOUT_SECS=300
 
-OUTPUT=$(cat "$TMPFILE" | "$TIMEOUT_BIN" "$AUDIT_TIMEOUT_SECS" env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT -u ANTHROPIC_DEFAULT_SONNET_MODEL claude --print \
+OUTPUT=$(cat "$TMPFILE" | "$TIMEOUT_BIN" -k 10 "$AUDIT_TIMEOUT_SECS" env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT -u ANTHROPIC_DEFAULT_SONNET_MODEL claude --print \
   --model sonnet \
   --allowedTools "Read" \
   --no-session-persistence 2>&1) || {

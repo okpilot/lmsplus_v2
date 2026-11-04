@@ -182,8 +182,8 @@
     },
     {
       "id": "run-security-auditor-no-timeout-passes",
-      "find": "  echo \"[security-auditor] \\`timeout\\` not found (nor gtimeout) — refusing to run the audit unbounded. Push blocked.\"\n  exit 1\n}",
-      "replace": "  echo \"[security-auditor] \\`timeout\\` not found (nor gtimeout) — refusing to run the audit unbounded. Push blocked.\"\n  exit 0\n}",
+      "find": "  echo \"[security-auditor] \\`timeout\\` not found — refusing to run the audit unbounded. Push blocked.\"\n  exit 1\n}",
+      "replace": "  echo \"[security-auditor] \\`timeout\\` not found — refusing to run the audit unbounded. Push blocked.\"\n  exit 0\n}",
       "expectRed": ["exits 1 naming `timeout` when no timeout binary is on PATH"],
       "note": "A missing timeout binary lets the push through instead of blocking."
     }

@@ -43,6 +43,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               workflow_id: 'coverage-trend.yml',
+              branch: context.ref.replace('refs/heads/', ''),
               status: 'success',
               per_page: 1,
             });
@@ -164,6 +165,10 @@ jobs:
           print(table)
           print("EOF")
           PYEOF
+
+          if grep -qx 'regression=true' "$GITHUB_OUTPUT"; then
+            printf '%s\n' "$BASELINE_JSON" > coverage-baseline.json
+          fi
 
       - name: Upload new baseline artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
