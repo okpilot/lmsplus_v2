@@ -15,7 +15,7 @@
 
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import test from 'node:test'
 import {
@@ -153,6 +153,12 @@ exit 1
 // An added line matching the fallback scan's secret pattern
 // (`eyJ|sk_live_|service_role|-----BEGIN`) — routes the diagnostic scan to "Found N issue(s)"
 // instead of falling through to fail_closed_no_llm_output.
+/** A `timeout` stand-in: reports a timeout (124) only when called with `-k`, else exits 3. */
+const KILL_AFTER_CHECKING_TIMEOUT = `#!/usr/bin/env bash
+if [ "$1" = "-k" ]; then exit 124; fi
+exit 3
+`
+
 const SECRET_DIRTY_CONTENT = 'base\nsk_live_FAKE_TEST_KEY_1234567890\n'
 
 // A validating shim: reads the prompt piped to it via stdin (the security-auditor.md prefix
@@ -211,6 +217,18 @@ test('blocks the push via the fallback scan when the CLI times out and a secret 
 // to SIGKILL into the CLI-failure branch, which never prints "Timed out".
 test('reports a timeout when the CLI is killed after the grace period', () => {
   const r = runHookWithShim(KILL_AFTER_TIMEOUT_SHIM, SECRET_DIRTY_CONTENT)
+  assert.notEqual(r.status, 0)
+  assert.match(r.stdout, /Timed out after/)
+})
+
+// GROUP: run-security-auditor-always-passes, run-security-auditor-fail-closed-no-llm-output, run-security-auditor-no-kill-after
+// MUTATION: dropping `-k 10` from the `timeout` call reaches this `timeout` shim without `-k`, so it
+// exits 3 instead of 124 and the hook never prints "Timed out".
+test('passes a kill-after grace period to timeout', () => {
+  const built = setupShimRepo(APPROVED_SHIM, DEFAULT_DIRTY_CONTENT)
+  writeFileSync(join(built.shimDir, 'timeout'), KILL_AFTER_CHECKING_TIMEOUT)
+  chmodSync(join(built.shimDir, 'timeout'), 0o755)
+  const r = runHookAndCleanup(built)
   assert.notEqual(r.status, 0)
   assert.match(r.stdout, /Timed out after/)
 })

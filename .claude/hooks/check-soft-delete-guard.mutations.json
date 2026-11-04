@@ -1,5 +1,5 @@
 {
-  "_": "Planted red/green controls for the CLI wiring (main/exit), which every other test in the suite never reaches — they import analyze()/loadSchema() directly. The two entries here grade the two spawned `CONTROL:` tests and the spawned summary-line tests, not the pure-function suite.",
+  "_": "Planted red/green controls for the CLI wiring (main/exit), which every other test in the suite never reaches — they import analyze()/loadSchema() directly. The entries here grade the spawned `CONTROL:` tests and the spawned summary-line tests, not the pure-function suite.",
   "target": ".claude/hooks/check-soft-delete-guard.mjs",
   "suites": [
     ".claude/hooks/check-soft-delete-guard.test.mjs",
