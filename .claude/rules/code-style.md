@@ -870,9 +870,6 @@ it is what the next reader trusts when deciding whether a guard can safely be re
 8. **A correction is the likeliest place to write a NEW inaccuracy.** Clauses 1-3 target text you
    did not rewrite; the commoner failure is the sentence you just wrote to FIX one. Re-derive a
    correction before committing it, on the same terms as the claim it replaces.
-9. **An absence claim needs a search of the CONCEPT, not the label.** A zero-hit grep on a phrase
-   proves the phrase absent, not the content; search a distinctive token of the thing itself
-   (command, filename, field).
 
 Before asserting any DB/RPC guard, ownership, replay/idempotency, or invariant behaviour, trace to
 the LATEST definition for the MATCHING SIGNATURE — supersession forms are an OPEN set
