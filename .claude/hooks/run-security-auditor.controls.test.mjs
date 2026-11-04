@@ -205,6 +205,7 @@ test('blocks the push via the fallback scan when the CLI times out and a secret 
   assert.match(r.stdout, /Found \d+ issue\(s\) in fallback scan/)
 })
 
+// CONTROL: red
 // GROUP: run-security-auditor-always-passes, run-security-auditor-fallback-scan-timeout, run-security-auditor-kill-after-timeout
 // MUTATION: dropping the exit-137 test from the timeout branch routes a CLI that `timeout -k` had
 // to SIGKILL into the CLI-failure branch, which never prints "Timed out".

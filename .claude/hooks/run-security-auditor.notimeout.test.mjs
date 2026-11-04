@@ -42,6 +42,7 @@ function binWithoutTimeout(dir) {
   }
 }
 
+// GROUP: run-security-auditor-always-passes, run-security-auditor-no-timeout-passes
 test('exits 1 naming `timeout` when no timeout binary is on PATH', () => {
   const { scratch, shimDir, repoDir } = initShimScratch('sec-aud-notimeout-', APPROVE_SHIM)
   try {
