@@ -477,6 +477,7 @@ test('P7: --staged with no paths exits 0', () => {
 // Round 5 (#1677)
 test('Q1: a template literal holding a ternary of off-scale classes blocks naming R1 and R3', () => {
   const r = runGuardOn(
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: fixture source text for the guard
     "export const f = (open) => { const cls = `flex ${open ? 'p-7 z-10' : 'p-2'}`; return cls }\n",
   )
   assert.equal(r.status, 1, r.stdout + r.stderr)
@@ -502,6 +503,7 @@ test('Q3: space-y-2 passes', () => {
 })
 
 test('Q4: a prose template literal passes', () => {
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: fixture source text for the guard
   const src = 'export const g = (name: string) => `Hello ${name}.`\n'
   assert.equal(runGuardOn(src).status, 0)
 })

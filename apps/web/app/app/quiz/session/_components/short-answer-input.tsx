@@ -49,7 +49,6 @@ export function ShortAnswerInput({
         // question), so this lands focus in the field on every new question — the
         // student can type immediately without clicking. A locked/answered question
         // renders the input disabled, so autoFocus is a no-op there (correct).
-        // biome-ignore lint/a11y/noAutofocus: intentional — single-input drill step, keyed per question
         autoFocus
         value={display ?? ''}
         onChange={(e) => setValue(e.target.value)}

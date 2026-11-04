@@ -37,11 +37,13 @@ function lazyWithPreload<P extends object>({ load, dynamicComponent }: LazyInput
     if (typeof window !== 'undefined') loaded = component
   }
 
+  // biome-ignore lint/correctness/noComponentHookFactories: runs once per input type at module scope
   function Inner(props: Readonly<P>) {
     const [Picked] = useState(() => loaded ?? dynamicComponent)
     return <Picked {...(props as P)} />
   }
 
+  // biome-ignore lint/correctness/noComponentHookFactories: runs once per input type at module scope
   function Component(props: Readonly<P>) {
     return (
       <AnswerInputBoundary>

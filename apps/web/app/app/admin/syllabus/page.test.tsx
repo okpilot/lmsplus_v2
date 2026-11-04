@@ -14,7 +14,7 @@ vi.mock('@/lib/auth/require-admin', () => ({
   requireAdmin: vi.fn().mockResolvedValue(undefined),
 }))
 
-describe('SyllabusPage', async () => {
+describe('SyllabusPage', () => {
   it('renders the page title as a level-1 heading', async () => {
     render(await SyllabusPage())
     expect(screen.getByRole('heading', { level: 1, name: 'Syllabus Manager' })).toHaveClass(
