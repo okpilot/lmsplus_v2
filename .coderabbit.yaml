@@ -264,6 +264,9 @@ reviews:
           EXTENT and carries the same burden: ship the command that establishes it, or restate
           it as the conditional a fixture supports. A universal needs the case you expect to
           FAIL. code-style.md §10 clause 7.
+        - A commit message citing a SHA that does not resolve (`git rev-parse --verify <sha>`), or
+          claiming "<sha> already carries X" when `git grep -nF -- '<X>' <sha> -- <path>` finds
+          nothing. code-style.md §10 clause 6.
         - A hunk whose PURPOSE is correcting a claim — the likeliest place for a NEW wrong one.
           Re-derive each figure in the REPLACEMENT text from the source, not from the text being
           corrected, and check what the corrected value invalidates elsewhere in the block.
