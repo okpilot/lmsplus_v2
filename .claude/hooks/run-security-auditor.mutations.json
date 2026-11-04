@@ -48,7 +48,10 @@
       "id": "run-security-auditor-fail-closed-no-llm-output",
       "find": "fail_closed_no_llm_output() {\n  echo \"[security-auditor] LLM security audit could not run — push blocked. Fix the Claude CLI (auth/network/timeout) and retry. Do not use --no-verify.\"\n  exit 1\n}",
       "replace": "fail_closed_no_llm_output() {\n  echo \"[security-auditor] LLM security audit could not run — push blocked. Fix the Claude CLI (auth/network/timeout) and retry. Do not use --no-verify.\"\n  exit 0\n}",
-      "expectRed": ["fails closed when the CLI fails and the diagnostic scan finds nothing"],
+      "expectRed": [
+        "fails closed when the CLI fails and the diagnostic scan finds nothing",
+        "passes a kill-after grace period to timeout"
+      ],
       "note": "Forces fail_closed_no_llm_output's exit to 0 instead of 1 — a CLI failure with nothing for the diagnostic scan to find still prints the fix-the-CLI message but approves the push anyway."
     },
     {
