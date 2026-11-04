@@ -918,7 +918,8 @@ We store student PII: email address, full name, learning history, exam scores.
 
 ### Required Capabilities (build before first live student)
 - **Data export:** instructor can export all data for a specific student (`/admin/students/:id/export`)
-- **Erasure / retention:** declined under Art. 17(3)(b) (Decision 33); no erasure path, no scheduled deletion.
+- **Erasure:** declined under Art. 17(3)(b) (Decision 33); no erasure path.
+- **Retention period:** not decided; no scheduled deletion exists.
 
 ### Data Minimisation
 - Do not store IP addresses in `student_responses` — only in `audit_events` and `user_consents` (for consent proof)

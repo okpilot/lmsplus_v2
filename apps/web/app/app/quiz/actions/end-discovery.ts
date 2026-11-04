@@ -8,7 +8,8 @@ import { resolveZeroRowWrite } from './_caller-active'
 import { NOT_ACTIVE } from './progress-error-messages'
 
 // Optional payload. When sessionId is provided, the teardown is scoped to that one
-// row (the orphan-cleanup path in startStudy). Absent (the Exit-button case), the
+// row (the orphan-cleanup path in startStudy), so a concurrent retry's row survives
+// unless the start RPC replayed that row's id. Absent (the Exit-button case), the
 // teardown clears every active discovery row for the caller.
 const EndDiscoveryInput = z.object({ sessionId: z.uuid().optional() }).optional()
 
