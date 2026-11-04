@@ -290,7 +290,7 @@ A commit modifying a rule in `.claude/rules/*.md`, `.claude/skills/review-gate/*
 **Sweep completeness — done when it passes these checks, not when run:**
 1. Walk every reported hit to a terminal disposition — APPLIED or SKIPPED-with-reason — before committing.
 2. **Compare the clause across every file that carries it** — a phrase-grep for NEW wording matches only the file just edited. Anchor on a distinctive substring from the clause's OPENING that the edit does NOT change: `git grep -nF -- '<substring>' -- :/`, then diff each hit's clause against the canonical text.
-**Grep-blind: paraphrase** — zero grep hits plus non-byte-identical copies. After correcting a claim, read the SAME file's structurally-parallel positions (headers, footers, summary lines, table rows) for paraphrases of it.
+**Grep-blind: paraphrase** — zero grep hits plus non-byte-identical copies. After correcting a claim, read the SAME file's structurally-parallel positions (headers, footers, summary lines, table rows) for paraphrases of it. A paraphrase in another file stays uncovered.
 **The enumeration itself is the recurring defect.** Treat "the list is complete" as the likeliest false claim. A sweep finding a surface the table does not name widens the TABLE in the same commit.
 
 ## Orchestrator Role
