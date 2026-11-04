@@ -917,11 +917,11 @@ We store student PII: email address, full name, learning history, exam scores.
 - **Rationale:** Audit trail for legal proof of consent. Append-only pattern prevents accidental history loss. Version strings allow fast re-consent detection.
 
 ### Required Capabilities (build before first live student)
-- **Data export:** admin Server Action `export-student-data.ts`; student self-export Server Action `exportMyData` (`gdpr-actions.ts`)
+- **Data export:** admin Server Action `apps/web/app/app/admin/students/actions/export-student-data.ts`; student self-export Server Action `exportMyData` (`apps/web/app/app/settings/gdpr-actions.ts`)
 
 ### Erasure and Retention
 - **Erasure:** declined under Art. 17(3)(b) (Decision 33); no erasure path.
-- **Retention:** training records kept as EASA Part ORA requires (Decision 33; privacy policy §6, `privacy-policy-content.tsx`); no scheduled deletion exists.
+- **Retention:** training records kept as EASA Part ORA requires (Decision 33; privacy policy §6, `apps/web/app/legal/privacy/_components/privacy-policy-content.tsx`).
 
 ### Data Minimisation
 - Do not store IP addresses in `student_responses` — only in `audit_events` and `user_consents` (for consent proof)

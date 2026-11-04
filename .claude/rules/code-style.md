@@ -857,8 +857,8 @@ it is what the next reader trusts when deciding whether a guard can safely be re
    establishes nothing about an environment where the row already existed.
 6. **A commit message may not cite a SHA that does not resolve.** Verify with
    `git rev-parse --verify <sha>` (no `--quiet`, which conflates ambiguous and absent). It proves
-   the commit EXISTS, never that the claim about it is true. An existence claim ("already carries
-   X"): `git grep -nF -- '<X>' HEAD -- <path>` before writing it. Reviewer-judged.
+   the commit EXISTS, never that the claim about it is true. An existence claim ("<sha> already
+   carries X"): `git grep -nF -- '<X>' <sha> -- <path>` before writing it. Reviewer-judged.
 7. **Recompute any count, and test any EXTENT QUANTIFIER, as the LAST authoring step, against
    the final diff.** Distinct from cl.2 (enumerating an open set): this governs a count you've
    decided to state — measuring it before your commit's remaining edits land makes it stale on
