@@ -293,7 +293,8 @@ reviews:
         - Asserts a tool, runner image, permission or timeout behaviour the diff did not verify
           against the file or doc that answers it (cl.5).
         - States a count, duration or "all/every" extent computed before the final edits landed,
-          without a runnable derivation (cl.7).
+          without a runnable derivation (cl.7). Exempt: `timeout-minutes: N # measured max <x> min`
+          (Decision 213).
 
     # Comment accuracy — binding docs. code-style.md §10 governs any claim, not only code
     # comments, and its markdown instances all landed in BINDING docs (a docs/database.md grant

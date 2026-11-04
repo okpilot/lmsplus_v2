@@ -101,9 +101,8 @@ printf "\n---\n\n## Diff being pushed:\n\n\`\`\`diff\n%s\n\`\`\`\n\nAudit this d
 # risk of an under-sized budget is that every multi-migration PR becomes unpushable, which is what
 # pushes people toward `--no-verify` — the one thing this hook must never make tempting.
 AUDIT_TIMEOUT_SECS=300
-TIMEOUT_CMD="$TIMEOUT_BIN $AUDIT_TIMEOUT_SECS"
 
-OUTPUT=$(cat "$TMPFILE" | $TIMEOUT_CMD env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT -u ANTHROPIC_DEFAULT_SONNET_MODEL claude --print \
+OUTPUT=$(cat "$TMPFILE" | "$TIMEOUT_BIN" "$AUDIT_TIMEOUT_SECS" env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT -u ANTHROPIC_DEFAULT_SONNET_MODEL claude --print \
   --model sonnet \
   --allowedTools "Read" \
   --no-session-persistence 2>&1) || {

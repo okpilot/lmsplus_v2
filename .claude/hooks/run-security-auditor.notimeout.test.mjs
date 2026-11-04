@@ -31,7 +31,7 @@ function binWithoutTimeout(dir) {
   for (const p of (process.env.PATH ?? '').split(':')) {
     if (!p || !existsSync(p)) continue
     for (const name of readdirSync(p)) {
-      if (name === 'timeout' || name === 'claude') continue
+      if (name === 'timeout' || name === 'gtimeout' || name === 'claude') continue
       try {
         accessSync(join(p, name), constants.X_OK)
         symlinkSync(join(p, name), join(dir, name))

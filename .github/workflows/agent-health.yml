@@ -66,7 +66,7 @@ jobs:
             [ -z "$spec_name" ] && continue
             # Skip if it's a header or helper file pattern
             [[ "$spec_name" == *"helper"* ]] && continue
-            if [ ! -f "$REDTEAM_DIR/$spec_name" ] && [ ! -f "apps/web/e2e/$spec_name" ]; then
+            if [ -z "$(find apps/web/e2e -name "$spec_name" -print -quit)" ]; then
               STALE_LIST="${STALE_LIST}- \`${spec_name}\`\n"
             fi
           done < <(grep -P '^\|' "$ATTACK_SURFACE" 2>/dev/null | grep '\.spec\.ts' || true)
