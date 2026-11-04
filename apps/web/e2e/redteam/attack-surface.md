@@ -1,6 +1,6 @@
 # Red Team — Attack Surface Map
 
-> Last updated: 2026-11-04 (branch chore/techdebt-group-a — row AC COVERED via BY1; other edits wording only.)
+> Last updated: 2026-11-04 (branch chore/techdebt-group-a.)
 
 > `answer_matches`: EXECUTE revoked from PUBLIC, anon, authenticated; granted to service_role.
 
