@@ -255,7 +255,6 @@ reviews:
         - A cited artifact true of itself but not of the situation the claim applies to (an
           ON CONFLICT DO NOTHING migration cited for an environment where the row already
           existed). code-style.md §10 clause 5.
-        - A commit-message "already carries X" not checked with git show HEAD:<path> (clause 7).
         - A count stated in a comment or commit message that was computed BEFORE the same
           change's remaining edits landed, making it stale on arrival while reading as verified.
           Distinct from clause 2 (do not enumerate an open set at all): this governs a count
@@ -367,7 +366,6 @@ reviews:
         - A cited artifact true of itself but not of the situation the claim applies to (an
           ON CONFLICT DO NOTHING migration cited for an environment where the row already
           existed). code-style.md §10 clause 5.
-        - A commit-message "already carries X" not checked with git show HEAD:<path> (clause 7).
         - A corrected claim whose OLD wording survives in a non-adjacent doc, comment or rule
           file. After correcting any claim in these binding surfaces, the retracted phrase must
           be grepped repo-wide and every hit confirmed not to describe current behaviour — a

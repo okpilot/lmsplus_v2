@@ -917,7 +917,9 @@ We store student PII: email address, full name, learning history, exam scores.
 - **Rationale:** Audit trail for legal proof of consent. Append-only pattern prevents accidental history loss. Version strings allow fast re-consent detection.
 
 ### Required Capabilities (build before first live student)
-- **Data export:** admin Server Action `export-student-data.ts`; student self-export in `data-export-card.tsx`
+- **Data export:** admin Server Action `export-student-data.ts`; student self-export Server Action `exportMyData` (`gdpr-actions.ts`)
+
+### Erasure and Retention
 - **Erasure:** declined under Art. 17(3)(b) (Decision 33); no erasure path.
 - **Retention period:** not decided; no scheduled deletion exists.
 

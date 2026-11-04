@@ -857,7 +857,8 @@ it is what the next reader trusts when deciding whether a guard can safely be re
    establishes nothing about an environment where the row already existed.
 6. **A commit message may not cite a SHA that does not resolve.** Verify with
    `git rev-parse --verify <sha>` (no `--quiet`, which conflates ambiguous and absent). It proves
-   the commit EXISTS, never that the claim about it is true. Reviewer-judged.
+   the commit EXISTS, never that the claim about it is true. An existence claim ("already carries
+   X"): `git show HEAD:<path> | grep -F -- '<X>'` before writing it. Reviewer-judged.
 7. **Recompute any count, and test any EXTENT QUANTIFIER, as the LAST authoring step, against
    the final diff.** Distinct from cl.2 (enumerating an open set): this governs a count you've
    decided to state — measuring it before your commit's remaining edits land makes it stale on
@@ -865,8 +866,7 @@ it is what the next reader trusts when deciding whether a guard can safely be re
    (`check-file-size-guard.mjs --stats`). **"Count" includes EXTENT QUANTIFIERS** (`most`, `every`,
    `neither` — an open, illustrative set, governed by cl.2): replace the word with the command that
    establishes the extent, or test it against a falsifying fixture — a UNIVERSAL needs the case
-   expected to FAIL. An existence claim in a commit message ("already carries X"):
-   `git show HEAD:<path> | grep -F -- '<X>'` before writing it.
+   expected to FAIL.
 8. **A correction is the likeliest place to write a NEW inaccuracy.** Clauses 1-3 target text you
    did not rewrite; the commoner failure is the sentence you just wrote to FIX one. Re-derive a
    correction before committing it, on the same terms as the claim it replaces.
