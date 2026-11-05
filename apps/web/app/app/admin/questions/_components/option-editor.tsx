@@ -24,10 +24,13 @@ export function OptionEditor({
   disabled,
 }: Readonly<Props>) {
   const labelId = useId()
-  const slots = OPTION_IDS.map((letter, idx) => ({ letter, id: options[idx]?.id ?? letter }))
+  const unusedIds = OPTION_IDS.filter((letter) => !options.some((opt) => opt.id === letter))
+  const slots = OPTION_IDS.map((letter, idx) => ({
+    letter,
+    id: options[idx]?.id ?? unusedIds[idx - options.length] ?? letter,
+  }))
   function handleTextChange(idx: number, text: string) {
-    const updated = options.map((opt, i) => (i === idx ? { ...opt, text } : opt))
-    onChange(updated)
+    onChange(slots.map(({ id }, i) => ({ id, text: i === idx ? text : (options[i]?.text ?? '') })))
   }
 
   // The Base UI RadioGroup is a composite root: it selects a focused text input's whole value and
