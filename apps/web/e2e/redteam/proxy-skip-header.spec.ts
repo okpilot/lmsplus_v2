@@ -8,8 +8,9 @@
  * `/?next=<path>` (matcher `/app/:path*`).
  *
  * Attack: unauthenticated GET /app/settings and /app/admin/students (maxRedirects 0) carrying
- * the header with each of the values the CVE advisories used: `middleware`, `src/middleware`, `proxy`, `src/proxy`, and the
- * five-times-repeated `middleware:...` and `proxy:...` forms.
+ * the header with each of the values the CVE advisories used: `middleware`, `src/middleware`,
+ * `proxy`, `src/proxy`, `pages/_middleware`, and the five-times-repeated `middleware:...`,
+ * `proxy:...`, `src/middleware:...` and `src/proxy:...` forms.
  * Each must answer 307 to `/?next=<that path>` — never 200, never page markup. `/app/dashboard`
  * (#1132 AC1) is not used: `safeNextPath` drops that default destination, so the proxy redirect is
  * indistinguishable from `requireAuthUser`'s bare `/` redirect. Only the proxy
@@ -48,6 +49,9 @@ const HEADER_VALUES = [
   'src/proxy',
   'middleware:middleware:middleware:middleware:middleware',
   'proxy:proxy:proxy:proxy:proxy',
+  'src/middleware:src/middleware:src/middleware:src/middleware:src/middleware',
+  'src/proxy:src/proxy:src/proxy:src/proxy:src/proxy',
+  'pages/_middleware',
 ]
 
 const SETTINGS = { path: '/app/settings', marker: 'Export My Data' }
