@@ -220,3 +220,145 @@ describe('RLS: flagged_questions INSERT/UPDATE follow question visibility', () =
     expect(rows[0]?.deleted_at).not.toBeNull()
   })
 })
+
+describe('RLS: flagged_questions question_id immutable + undelete follows visibility', () => {
+  const admin = getAdminClient()
+  const suffix = fixtureSuffix()
+  const pw = 'test-pass-123'
+
+  let orgId: string
+  let otherOrgId: string
+  let refs: Awaited<ReturnType<typeof seedReferenceData>>
+  let otherRefs: Awaited<ReturnType<typeof seedReferenceData>>
+  let ownQ: string
+  let hiddenQ: string
+  let crossOrgQ: string
+  let studentId: string
+  let otherAdminId: string
+  let client: SupabaseClient
+
+  async function flagRow(questionId: string) {
+    const { data, error } = await admin
+      .from('flagged_questions')
+      .select('question_id, deleted_at')
+      .eq('student_id', studentId)
+      .eq('question_id', questionId)
+    if (error) throw new Error(`flagRow: ${error.message}`)
+    return data ?? []
+  }
+
+  beforeAll(async () => {
+    orgId = await createTestOrg({ admin, name: `FQ Imm ${suffix}`, slug: `fq-imm-${suffix}` })
+    otherOrgId = await createTestOrg({
+      admin,
+      name: `FQ ImmO ${suffix}`,
+      slug: `fq-immo-${suffix}`,
+    })
+    const { data: courses } = await admin.from('courses').select('id, code')
+    const ppl = (courses ?? []).find((c) => c.code === 'PPL_A')?.id as string
+    const email = `fq-imm-${suffix}@test.local`
+    studentId = await createTestUser({ admin, orgId, email, password: pw, role: 'student' })
+    const { error: delErr } = await admin
+      .from('course_enrolments')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('user_id', studentId)
+      .is('deleted_at', null)
+    if (delErr) throw new Error(`clear enrolments: ${delErr.message}`)
+    const { error: enrErr } = await admin
+      .from('course_enrolments')
+      .insert({ organization_id: orgId, user_id: studentId, course_id: ppl })
+    if (enrErr) throw new Error(`enrol: ${enrErr.message}`)
+    client = await getAuthenticatedClient({ email, password: pw })
+    otherAdminId = await createTestUser({
+      admin,
+      orgId: otherOrgId,
+      email: `fq-immo-${suffix}@test.local`,
+      password: pw,
+      role: 'admin',
+    })
+
+    refs = await seedReferenceData({
+      admin,
+      subjectCode: `FI${suffix}`,
+      subjectName: `FQ Imm ${suffix}`,
+      topicCode: `FI${suffix}-01`,
+      topicName: `FQ Imm Topic ${suffix}`,
+      subtopicCode: `FI${suffix}-01.01`,
+      subtopicName: `FQ Imm Subtopic ${suffix}`,
+    })
+    otherRefs = await seedReferenceData({
+      admin,
+      subjectCode: `FJ${suffix}`,
+      subjectName: `FQ ImmO ${suffix}`,
+      topicCode: `FJ${suffix}-01`,
+      topicName: `FQ ImmO Topic ${suffix}`,
+      subtopicCode: `FJ${suffix}-01.01`,
+      subtopicName: `FQ ImmO Subtopic ${suffix}`,
+    })
+    const seeded = await seedQuestions({
+      admin,
+      orgId,
+      createdBy: studentId,
+      subjectId: refs.subjectId,
+      topicId: refs.topicId,
+      subtopicId: refs.subtopicId,
+      count: 2,
+    })
+    ;[ownQ, hiddenQ] = seeded.questionIds as [string, string]
+    const other = await seedQuestions({
+      admin,
+      orgId: otherOrgId,
+      createdBy: otherAdminId,
+      subjectId: otherRefs.subjectId,
+      topicId: otherRefs.topicId,
+      subtopicId: otherRefs.subtopicId,
+      count: 1,
+    })
+    crossOrgQ = other.questionIds[0] as string
+
+    const { error: seedErr } = await admin.from('flagged_questions').insert([
+      { student_id: studentId, question_id: ownQ },
+      { student_id: studentId, question_id: hiddenQ, deleted_at: new Date().toISOString() },
+    ])
+    if (seedErr) throw new Error(`seed flags: ${seedErr.message}`)
+    const { error: qErr } = await admin
+      .from('questions')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', hiddenQ)
+    if (qErr) throw new Error(`soft-delete question: ${qErr.message}`)
+  })
+
+  afterAll(async () => {
+    await admin.from('flagged_questions').delete().in('student_id', [studentId, otherAdminId])
+    await cleanupTestData({ admin, orgId, userIds: [studentId] })
+    await cleanupTestData({ admin, orgId: otherOrgId, userIds: [otherAdminId] })
+    await cleanupReferenceData({ admin, refs: [refs, otherRefs] })
+  })
+
+  it('AC-KZ4b: a combined repoint + soft-delete is refused (42501, immutable, row unchanged)', async () => {
+    const { error } = await client
+      .from('flagged_questions')
+      .update({ question_id: crossOrgQ, deleted_at: new Date().toISOString() })
+      .eq('student_id', studentId)
+      .eq('question_id', ownQ)
+    expect(error?.code).toBe('42501')
+    expect(error?.message).toContain('immutable')
+    expect(await flagRow(ownQ)).toEqual([{ question_id: ownQ, deleted_at: null }])
+    expect(await flagRow(crossOrgQ)).toEqual([])
+  })
+
+  it('AC-KZ6: undeleting a flag whose question became invisible is refused (42501, stays soft-deleted)', async () => {
+    const before = await flagRow(hiddenQ)
+    expect(before).toHaveLength(1)
+    expect(before[0]?.deleted_at).not.toBeNull()
+    const { error } = await client
+      .from('flagged_questions')
+      .update({ deleted_at: null })
+      .eq('student_id', studentId)
+      .eq('question_id', hiddenQ)
+    expect(error?.code).toBe('42501')
+    const after = await flagRow(hiddenQ)
+    expect(after).toHaveLength(1)
+    expect(after[0]?.deleted_at).not.toBeNull()
+  })
+})

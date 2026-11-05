@@ -637,7 +637,8 @@ RLS policies:
 - INSERT: `student_id = (select auth.uid()) AND EXISTS (SELECT 1 FROM users u WHERE u.id = (select auth.uid()) AND u.deleted_at IS NULL)` (active check: mig `20261015000100`)
 - UPDATE: `USING` same predicate, `WITH CHECK (student_id = (select auth.uid()))` (soft-delete via `deleted_at = now()` in app code)
 - INSERT, RESTRICTIVE `flagged_questions_insert_visible_question`: `WITH CHECK (EXISTS (SELECT 1 FROM questions q WHERE q.id = flagged_questions.question_id))` runs under the caller's `questions` RLS (mig `20261105000100`, #1177)
-- UPDATE, RESTRICTIVE `flagged_questions_update_visible_question`: `USING (true)`, `WITH CHECK (deleted_at IS NOT NULL OR EXISTS (SELECT 1 FROM questions q WHERE q.id = flagged_questions.question_id))`; the `deleted_at IS NOT NULL` arm keeps unflag allowed on a question that became invisible (mig `20261105000100`, #1177)
+- UPDATE, RESTRICTIVE `flagged_questions_update_visible_question`: `USING (true)`, `WITH CHECK (deleted_at IS NOT NULL OR EXISTS (SELECT 1 FROM questions q WHERE q.id = flagged_questions.question_id))`; the `deleted_at IS NOT NULL` arm allows unflag on an invisible question; `question_id` changes are blocked by the trigger (mig `20261105000100`, #1177)
+- TRIGGER `trg_flagged_questions_protect_question_id`: BEFORE UPDATE OF question_id, raises 42501 on any change (mig `20261105000100`, #1177)
 
 **Why `deleted_at` is not in RLS:** With `FORCE ROW LEVEL SECURITY`, Postgres checks SELECT visibility of the NEW row after UPDATE. Filtering `deleted_at IS NULL` in the policy would prevent soft-deletes from succeeding. Instead, read queries use the `active_flagged_questions` view (which includes `WHERE deleted_at IS NULL`). Write operations in flag.ts filter explicitly. RLS enforces ownership, and on INSERT/UPDATE an active caller.
 

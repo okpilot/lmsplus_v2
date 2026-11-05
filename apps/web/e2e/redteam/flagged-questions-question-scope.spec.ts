@@ -7,8 +7,10 @@
  *   KZ3: INSERT own flag on a soft-deleted own-org question is refused (42501).
  *   KZ4: UPDATE of an own flag's question_id to a cross-org question is refused (42501); the row
  *        keeps its question_id.
+ *        A combined repoint + soft-delete is refused too (42501, 'immutable').
  *   KZ5: quiz_drafts UPDATE of organization_id is refused (42501, no UPDATE grant); the row is
  *        unchanged.
+ *   KZ6: undelete of a soft-deleted flag whose question became invisible is refused (42501).
  * CONTROLS: flag + re-flag of a visible question succeeds; unflag of an existing flag whose
  * question was soft-deleted afterwards succeeds.
  *
@@ -42,7 +44,7 @@ type Scaffold = {
   created_by: string
 }
 
-test.describe('Red Team: flagged_questions question scope (KZ1-KZ5)', () => {
+test.describe('Red Team: flagged_questions question scope (KZ1-KZ6)', () => {
   test.setTimeout(120_000)
 
   let admin: ReturnType<typeof getAdminClient>
@@ -280,7 +282,7 @@ test.describe('Red Team: flagged_questions question scope (KZ1-KZ5)', () => {
     const control = await attacker
       .from('flagged_questions')
       .insert({ student_id: attackerId, question_id: pplQuestionId })
-    tracker.flags.add(`${attackerId}::${pplQuestionId}`)
+    if (!control.error) tracker.flags.add(`${attackerId}::${pplQuestionId}`)
     // The attacker may already hold a flag on this question (23505): visible either way.
     expect([null, '23505']).toContain(control.error?.code ?? null)
 
@@ -328,6 +330,17 @@ test.describe('Red Team: flagged_questions question scope (KZ1-KZ5)', () => {
     expect(attack.error?.code).toBe(RLS_VIOLATION)
     expect(await flagRows(attackerId, own)).toEqual([{ question_id: own, deleted_at: null }])
     expect(await flagRows(attackerId, foreign)).toHaveLength(0)
+
+    const combined = await attacker
+      .from('flagged_questions')
+      .update({ question_id: foreign, deleted_at: new Date().toISOString() })
+      .eq('student_id', attackerId)
+      .eq('question_id', own)
+      .select('question_id')
+    expect(combined.error?.code).toBe(RLS_VIOLATION)
+    expect(combined.error?.message).toContain('immutable')
+    expect(await flagRows(attackerId, own)).toEqual([{ question_id: own, deleted_at: null }])
+    expect(await flagRows(attackerId, foreign)).toHaveLength(0)
   })
 
   test('KZ5: quiz_drafts organization_id cannot be updated by the owner', async () => {
@@ -371,5 +384,33 @@ test.describe('Red Team: flagged_questions question scope (KZ1-KZ5)', () => {
       .single()
     expect(afterErr).toBeNull()
     expect(after?.organization_id).toBe(orgId)
+  })
+
+  test('KZ6: undeleting a flag whose question became invisible is refused', async () => {
+    const qid = await insertQuestion('kz6-undelete', orgId)
+    await seedFlag(attackerId, qid)
+    const unflag = await attacker
+      .from('flagged_questions')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('student_id', attackerId)
+      .eq('question_id', qid)
+    expect(unflag.error).toBeNull()
+    await softDeleteQuestion(qid)
+    const hidden = await attacker.from('questions').select('id').eq('id', qid)
+    expect(hidden.data).toHaveLength(0)
+    const before = await flagRows(attackerId, qid)
+    expect(before).toHaveLength(1)
+    expect(before[0]?.deleted_at).not.toBeNull()
+
+    const attack = await attacker
+      .from('flagged_questions')
+      .update({ deleted_at: null })
+      .eq('student_id', attackerId)
+      .eq('question_id', qid)
+      .select('question_id')
+    expect(attack.error?.code).toBe(RLS_VIOLATION)
+    const after = await flagRows(attackerId, qid)
+    expect(after).toHaveLength(1)
+    expect(after[0]?.deleted_at).not.toBeNull()
   })
 })
