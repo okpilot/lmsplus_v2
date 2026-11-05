@@ -286,7 +286,15 @@ test.describe('Red Team: progress resend after session end (Vector GT)', () => {
     // Control: on the open session the call grades and writes the progress row.
     const ok = await gradeShort('QNH')
     expect(ok.error).toBeNull()
-    expect(isRecord(ok.data) && ok.data.is_correct === true).toBe(true)
+    expect(ok.data).toEqual({
+      is_correct: true,
+      correct_answer: 'QNH',
+      blanks: null,
+      correct_order: null,
+      correct_mapping: null,
+      explanation_text: `${E2E_REDTEAM_GT_MARKER} explanation`,
+      explanation_image_url: null,
+    })
     const before = await readProgress(sessionId)
     expect(before).toEqual([{ question_id: saId, answer: { response_text: 'QNH' } }])
 

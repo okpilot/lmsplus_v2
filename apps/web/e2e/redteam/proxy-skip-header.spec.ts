@@ -7,17 +7,19 @@
  * mechanism returning: apps/web/proxy.ts redirects an unauthenticated `/app/*` request to
  * `/?next=<path>` (matcher `/app/:path*`).
  *
- * Attack: unauthenticated GET /app/settings (maxRedirects 0) carrying the header with each of
- * the values the CVE advisories used: `middleware`, `src/middleware`, `proxy`, `src/proxy`, and the
+ * Attack: unauthenticated GET /app/settings and /app/admin/students (maxRedirects 0) carrying
+ * the header with each of the values the CVE advisories used: `middleware`, `src/middleware`, `proxy`, `src/proxy`, and the
  * five-times-repeated `middleware:...` and `proxy:...` forms.
- * Each must answer 307 to `/?next=/app/settings` (not /app/dashboard: `safeNextPath` drops that
- * default destination) — never 200, never page markup. Only the proxy
+ * Each must answer 307 to `/?next=<that path>` — never 200, never page markup. `/app/dashboard`
+ * (#1132 AC1) is not used: `safeNextPath` drops that default destination, so the proxy redirect is
+ * indistinguishable from `requireAuthUser`'s bare `/` redirect. Only the proxy
  * adds `?next=` (`withNext`); `requireAuthUser` also redirects to a bare `/`, so asserting `next`
  * is what fails if the proxy were bypassed.
  *
  * CONTROL: the same request WITHOUT the header is also redirected (baseline), and a signed-in
- * student (consent cookie present) receives 200 on the same path with the header and without it,
- * so the redirects are the gate and not a broken route.
+ * user (consent cookie present) receives 200 on the same path with the header and without it
+ * (attacker student on /app/settings, red-team admin on /app/admin/students), so the redirects
+ * are the gate and not a broken route.
  *
  * Admin gating is `requireAdmin()` in the pages, not the proxy (Vector IL covers it).
  *
@@ -27,7 +29,14 @@
 import { type BrowserContext, expect, test } from '@playwright/test'
 import { buildConsentCookieValue } from '../../lib/consent/check-consent'
 import { CONSENT_COOKIE } from '../../lib/consent/versions'
-import { ATTACKER_EMAIL, ATTACKER_PASSWORD, seedRedTeamUsers } from './helpers/seed-users'
+import {
+  ADMIN_EMAIL,
+  ADMIN_PASSWORD,
+  ATTACKER_EMAIL,
+  ATTACKER_PASSWORD,
+  seedRedTeamAdmin,
+  seedRedTeamUsers,
+} from './helpers/seed-users'
 import { signInViaForm } from './server-action-capture'
 
 const BASE_URL = 'http://localhost:3000'
@@ -41,8 +50,12 @@ const HEADER_VALUES = [
   'proxy:proxy:proxy:proxy:proxy',
 ]
 
-async function appPageStatus(ctx: BrowserContext, headers: Record<string, string>) {
-  const res = await ctx.request.get(`${BASE_URL}/app/settings`, { maxRedirects: 0, headers })
+const SETTINGS = { path: '/app/settings', marker: 'Export My Data' }
+const ADMIN_STUDENTS = { path: '/app/admin/students', marker: 'Student Management' }
+const TARGETS = [SETTINGS, ADMIN_STUDENTS]
+
+async function appPageStatus(ctx: BrowserContext, path: string, headers: Record<string, string>) {
+  const res = await ctx.request.get(`${BASE_URL}${path}`, { maxRedirects: 0, headers })
   const location = res.headers().location ?? ''
   const url = location ? new URL(location, BASE_URL) : null
   return {
@@ -53,47 +66,59 @@ async function appPageStatus(ctx: BrowserContext, headers: Record<string, string
   }
 }
 
+async function signInWithConsent(
+  ctx: BrowserContext,
+  email: string,
+  password: string,
+  userId: string,
+) {
+  await ctx.addCookies([
+    { name: CONSENT_COOKIE, value: buildConsentCookieValue(userId), url: BASE_URL },
+  ])
+  const page = await ctx.newPage()
+  await signInViaForm(page, { email, password })
+  await page.close()
+}
+
 test.describe('Red Team: proxy skip header (KW)', () => {
-  test.setTimeout(90_000)
+  test.setTimeout(120_000)
 
   test('KW: x-middleware-subrequest does not bypass the proxy auth gate', async ({ browser }) => {
     const { attackerUserId } = await seedRedTeamUsers()
+    const { adminUserId } = await seedRedTeamAdmin()
     const anon = await browser.newContext({ storageState: undefined })
-    const signedIn = await browser.newContext({ storageState: undefined })
+    const student = await browser.newContext({ storageState: undefined })
+    const adminCtx = await browser.newContext({ storageState: undefined })
     try {
-      // Baseline: no header, no cookies.
-      expect(await appPageStatus(anon, {})).toEqual({
-        status: 307,
-        path: '/',
-        next: '/app/settings',
-        markup: '',
-      })
-
-      for (const value of HEADER_VALUES) {
-        const res = await appPageStatus(anon, { [SKIP_HEADER]: value })
-        expect(res, `header value ${value}`).toEqual({
-          status: 307,
-          path: '/',
-          next: '/app/settings',
-          markup: '',
-        })
+      for (const { path } of TARGETS) {
+        const denied = { status: 307, path: '/', next: path, markup: '' }
+        // Baseline: no header, no cookies.
+        expect(await appPageStatus(anon, path, {}), `baseline ${path}`).toEqual(denied)
+        for (const value of HEADER_VALUES) {
+          const res = await appPageStatus(anon, path, { [SKIP_HEADER]: value })
+          expect(res, `${path} header value ${value}`).toEqual(denied)
+        }
       }
 
       // CONTROL: a real session reaches the page, with and without the header.
-      await signedIn.addCookies([
-        { name: CONSENT_COOKIE, value: buildConsentCookieValue(attackerUserId), url: BASE_URL },
-      ])
-      const page = await signedIn.newPage()
-      await signInViaForm(page, { email: ATTACKER_EMAIL, password: ATTACKER_PASSWORD })
-      await page.close()
-      for (const headers of [{}, { [SKIP_HEADER]: HEADER_VALUES[0] as string }]) {
-        const res = await appPageStatus(signedIn, headers)
-        expect(res.status, JSON.stringify(headers)).toBe(200)
-        expect(res.markup.length).toBeGreaterThan(0)
+      await signInWithConsent(student, ATTACKER_EMAIL, ATTACKER_PASSWORD, attackerUserId)
+      await signInWithConsent(adminCtx, ADMIN_EMAIL, ADMIN_PASSWORD, adminUserId)
+      const controls = [
+        { ctx: student, target: SETTINGS },
+        { ctx: adminCtx, target: ADMIN_STUDENTS },
+      ]
+      for (const { ctx, target } of controls) {
+        for (const headers of [{}, { [SKIP_HEADER]: HEADER_VALUES[0] as string }]) {
+          const res = await appPageStatus(ctx, target.path, headers)
+          const label = `${target.path} ${JSON.stringify(headers)}`
+          expect(res.status, label).toBe(200)
+          expect(res.markup, label).toContain(target.marker)
+        }
       }
     } finally {
       await anon.close()
-      await signedIn.close()
+      await student.close()
+      await adminCtx.close()
     }
   })
 })
