@@ -319,6 +319,7 @@
 | KV | upsert_exam_config-foreign-topic-or-subtopic-row-exam-draw | LOW | ksa-area-100-scope.spec.ts | BLOCKED |  | sibling-guard-gap |
 | KW | x-middleware-subrequest-header-skips-proxy-auth-gate | HIGH | proxy-skip-header.spec.ts | BLOCKED |  | auth-bypass |
 | KX | get_admin_dashboard_kpis-and-get_admin_weak_topics-anon-student-soft-deleted-admin | MEDIUM | rpc-admin-dashboard-kpis-weak-topics.spec.ts | BLOCKED |  | privilege-escalation |
+| KY | get_admin_dashboard_kpis-and-get_admin_weak_topics-cross-org-admin-and-instructor | MEDIUM | rpc-admin-dashboard-kpis-cross-org.spec.ts | BLOCKED |  | cross-tenant |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
