@@ -13,8 +13,8 @@
  * "Weakest Subject"; the header description is client-component output and absent from an RSC
  * payload), the session report
  * `/app/admin/dashboard/sessions/[id]` and the internal-exam report
- * `/app/admin/internal-exams/report?session=<id>`; their fixtures are victim sessions completed by
- * service role / the victim's own RPCs, soft-deleted in afterAll. The bare `/app/admin` page
+ * `/app/admin/internal-exams/report?session=<id>`; both use one answerless ended internal_exam
+ * session of the victim, inserted by service role and soft-deleted in afterAll. The bare `/app/admin` page
  * renders nothing and only redirects (admin → dashboard, student and instructor → `/app/dashboard`;
  * signed-out never reaches it, the proxy redirects first, Vector KW), so it is a separate test
  * outside the marker loop.
@@ -28,7 +28,6 @@ import { buildConsentCookieValue } from '../../lib/consent/check-consent'
 import { CONSENT_COOKIE } from '../../lib/consent/versions'
 import { getAdminClient } from '../helpers/supabase'
 import { cleanupFixtures, createFixtureTracker } from './helpers/cleanup'
-import { clearOpenSessions } from './helpers/clear-open-sessions'
 import { getEgmontOrgId, upsertUser } from './helpers/seed-core'
 import {
   E2E_REDTEAM_IM_SOFTDEL_ADMIN_EMAIL,
@@ -44,7 +43,6 @@ import {
   seedRedTeamInstructor,
   seedRedTeamUsers,
 } from './helpers/seed-users'
-import { seedVictimCompletedSession } from './helpers/seed-victim-session'
 
 const BASE_URL = 'http://localhost:3000'
 const VICTIM_FULL_NAME = 'Red Team redteam-victim'
@@ -119,7 +117,7 @@ test.describe('admin render gate without the proxy role check', () => {
   let studentCreds: Credentials
   const tracker = createFixtureTracker()
 
-  /** A completed internal_exam session of the victim (no answers; the report pages still render). */
+  /** An ended answerless internal_exam session of the victim; serves the session and exam report targets. */
   async function insertVictimInternalExam(ids: {
     orgId: string
     subjectId: string
@@ -153,12 +151,6 @@ test.describe('admin render gate without the proxy role check', () => {
     }
     const admin = getAdminClient()
     const picked = await pickSubjectWithQuestions(admin, { orgId: users.orgId })
-    await clearOpenSessions(admin, victimUserId, 'admin-render-gate')
-    const sessionId = await seedVictimCompletedSession(
-      admin,
-      { orgId: users.orgId, subjectId: picked.subjectId, topicId: picked.topicId },
-      tracker,
-    )
     const examId = await insertVictimInternalExam({
       orgId: users.orgId,
       subjectId: picked.subjectId,
@@ -187,7 +179,7 @@ test.describe('admin render gate without the proxy role check', () => {
         mountedFrom: ['syllabus'],
       },
       {
-        path: `/app/admin/dashboard/sessions/${sessionId}`,
+        path: `/app/admin/dashboard/sessions/${examId}`,
         marker: 'Session Report',
         mountedFrom: ['syllabus'],
       },

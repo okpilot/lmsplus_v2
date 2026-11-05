@@ -7,19 +7,18 @@
  * mechanism returning: apps/web/proxy.ts redirects an unauthenticated `/app/*` request to
  * `/?next=<path>` (matcher `/app/:path*`).
  *
- * Attack: unauthenticated GET /app/settings and /app/admin/students (maxRedirects 0) carrying
+ * Attack: unauthenticated GET /app/settings, /app/admin/students and /app/dashboard?kw=1 (maxRedirects 0) carrying
  * the header with each of the values the CVE advisories used: `middleware`, `src/middleware`,
  * `proxy`, `src/proxy`, `pages/_middleware`, and the five-times-repeated `middleware:...`,
  * `proxy:...`, `src/middleware:...` and `src/proxy:...` forms.
- * Each must answer 307 to `/?next=<that path>` — never 200, and the body never contains the page marker. `/app/dashboard`
- * (#1132 AC1) is not used: `safeNextPath` drops that default destination, so the proxy redirect is
- * indistinguishable from `requireAuthUser`'s bare `/` redirect. Only the proxy
+ * Each must answer 307 to `/?next=<that path>` — never 200, and the body never contains the page marker. The dashboard
+ * target carries `?kw=1` because `safeNextPath` drops the bare default destination. Only the proxy
  * adds `?next=` (`withNext`); `requireAuthUser` also redirects to a bare `/`, so asserting `next`
  * is what fails if the proxy were bypassed.
  *
  * CONTROL: the same request WITHOUT the header is also redirected (baseline), and a signed-in
  * user (consent cookie present) receives 200 on the same path with the header and without it
- * (attacker student on /app/settings, red-team admin on /app/admin/students), so the redirects
+ * (attacker student on /app/settings and /app/dashboard?kw=1, red-team admin on /app/admin/students), so the redirects
  * are the gate and not a broken route.
  *
  * Admin gating is `requireAdmin()` in the pages, not the proxy (Vector IL covers it).
@@ -56,7 +55,8 @@ const HEADER_VALUES = [
 
 const SETTINGS = { path: '/app/settings', marker: 'Export My Data' }
 const ADMIN_STUDENTS = { path: '/app/admin/students', marker: 'Student Management' }
-const TARGETS = [SETTINGS, ADMIN_STUDENTS]
+const DASHBOARD = { path: '/app/dashboard?kw=1', marker: 'Welcome back' }
+const TARGETS = [SETTINGS, ADMIN_STUDENTS, DASHBOARD]
 
 async function appPageStatus(ctx: BrowserContext, path: string, headers: Record<string, string>) {
   const res = await ctx.request.get(`${BASE_URL}${path}`, { maxRedirects: 0, headers })
@@ -114,6 +114,7 @@ test.describe('Red Team: proxy skip header (KW)', () => {
       await signInWithConsent(adminCtx, ADMIN_EMAIL, ADMIN_PASSWORD, adminUserId)
       const controls = [
         { ctx: student, target: SETTINGS },
+        { ctx: student, target: DASHBOARD },
         { ctx: adminCtx, target: ADMIN_STUDENTS },
       ]
       for (const { ctx, target } of controls) {
