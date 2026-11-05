@@ -45,6 +45,7 @@ describe('canSubmitQuestion', () => {
       'an option text',
       { options: filled.options.map((o, i) => (i === 2 ? { ...o, text: ' ' } : o)) },
     ],
+    ['a fourth option', { options: filled.options.slice(0, 3) }],
     ['correct option', { correctOptionId: '' as const }],
     ['explanation', { explanationText: '' }],
   ])('rejects a missing %s', (_name, patch) => {

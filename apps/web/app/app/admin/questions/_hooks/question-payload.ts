@@ -25,6 +25,7 @@ export function canSubmitQuestion(s: FormState): boolean {
     !!s.subjectId &&
     !!s.topicId &&
     s.questionText.trim() !== '' &&
+    s.options.length === 4 &&
     s.options.every((o) => o.text.trim() !== '') &&
     !!s.correctOptionId &&
     s.explanationText.trim() !== ''
