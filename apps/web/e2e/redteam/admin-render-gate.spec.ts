@@ -9,6 +9,15 @@
  * `/app` shell (proves the layouts were skipped) and an admin's forged request
  * still carries the page marker (proves the page rendered on that path).
  *
+ * #1543 widens the targets with `/app/admin/dashboard` (marker: the server-rendered KPI label
+ * "Weakest Subject"; the header description is client-component output and absent from an RSC
+ * payload), the session report
+ * `/app/admin/dashboard/sessions/[id]` and the internal-exam report
+ * `/app/admin/internal-exams/report?session=<id>`; their fixtures are victim sessions completed by
+ * service role / the victim's own RPCs, soft-deleted in afterAll. The bare `/app/admin` page
+ * renders nothing and only redirects (admin → dashboard, everyone else → `/app/dashboard`), so it
+ * is a separate test outside the marker loop.
+ *
  * Vector IM — a soft-deleted admin with a live token. `requireAdmin()`'s
  * `deleted_at IS NULL` profile read is the only render gate left. Control arm:
  * the same session receives admin markup before the soft-delete.
@@ -17,11 +26,15 @@ import { type Browser, type BrowserContext, expect, test } from '@playwright/tes
 import { buildConsentCookieValue } from '../../lib/consent/check-consent'
 import { CONSENT_COOKIE } from '../../lib/consent/versions'
 import { getAdminClient } from '../helpers/supabase'
+import { cleanupFixtures, createFixtureTracker } from './helpers/cleanup'
+import { clearOpenSessions } from './helpers/clear-open-sessions'
 import { getEgmontOrgId, upsertUser } from './helpers/seed-core'
 import {
+  E2E_REDTEAM_IL_MARKER,
   E2E_REDTEAM_IM_SOFTDEL_ADMIN_EMAIL,
   E2E_REDTEAM_IM_SOFTDEL_ADMIN_PASSWORD,
 } from './helpers/seed-markers'
+import { pickSubjectWithQuestions } from './helpers/seed-quiz'
 import {
   ADMIN_EMAIL,
   ADMIN_PASSWORD,
@@ -31,6 +44,7 @@ import {
   seedRedTeamInstructor,
   seedRedTeamUsers,
 } from './helpers/seed-users'
+import { seedVictimCompletedSession } from './helpers/seed-victim-session'
 
 const BASE_URL = 'http://localhost:3000'
 const VICTIM_FULL_NAME = 'Red Team redteam-victim'
@@ -102,10 +116,48 @@ test.describe('admin render gate without the proxy role check', () => {
   let targets: Target[] = []
   let adminCreds: Credentials
   let victimUserId = ''
+  const tracker = createFixtureTracker()
+
+  /** A completed internal_exam session of the victim (no answers; the report pages still render). */
+  async function insertVictimInternalExam(ids: {
+    orgId: string
+    subjectId: string
+  }): Promise<string> {
+    const { data, error } = await getAdminClient()
+      .from('quiz_sessions')
+      .insert({
+        organization_id: ids.orgId,
+        student_id: victimUserId,
+        subject_id: ids.subjectId,
+        mode: 'internal_exam',
+        total_questions: 1,
+        correct_count: 0,
+        score_percentage: 0,
+        ended_at: new Date().toISOString(),
+        config: { question_ids: [], e2e_marker: E2E_REDTEAM_IL_MARKER },
+      })
+      .select('id')
+      .single()
+    if (error || !data) throw new Error(`insert internal_exam session: ${error?.message}`)
+    return data.id as string
+  }
 
   test.beforeAll(async () => {
     const users = await seedRedTeamUsers()
     victimUserId = users.victimUserId
+    const admin = getAdminClient()
+    const picked = await pickSubjectWithQuestions(admin, { orgId: users.orgId })
+    await clearOpenSessions(admin, victimUserId, 'admin-render-gate')
+    const sessionId = await seedVictimCompletedSession(
+      admin,
+      { orgId: users.orgId, subjectId: picked.subjectId, topicId: picked.topicId },
+      tracker,
+    )
+    const examId = await insertVictimInternalExam({
+      orgId: users.orgId,
+      subjectId: picked.subjectId,
+    })
+    tracker.sessions.add(examId)
     const { adminUserId } = await seedRedTeamAdmin()
     adminCreds = { email: ADMIN_EMAIL, password: ADMIN_PASSWORD, userId: adminUserId }
     targets = [
@@ -123,7 +175,26 @@ test.describe('admin render gate without the proxy role check', () => {
       { path: '/app/admin/syllabus', marker: 'Syllabus Manager', mountedFrom: ['questions'] },
       { path: '/app/admin/exam-config', marker: 'Exam Configuration', mountedFrom: ['syllabus'] },
       { path: '/app/admin/internal-exams', marker: 'Internal Exams', mountedFrom: ['syllabus'] },
+      {
+        path: '/app/admin/dashboard',
+        marker: 'Weakest Subject',
+        mountedFrom: ['syllabus'],
+      },
+      {
+        path: `/app/admin/dashboard/sessions/${sessionId}`,
+        marker: 'Session Report',
+        mountedFrom: ['syllabus'],
+      },
+      {
+        path: `/app/admin/internal-exams/report?session=${examId}`,
+        marker: VICTIM_FULL_NAME,
+        mountedFrom: ['syllabus'],
+      },
     ]
+  })
+
+  test.afterAll(async () => {
+    await cleanupFixtures(getAdminClient(), tracker)
   })
 
   test('IL: a non-admin never receives admin page output, including via a forged router state tree that skips the admin layout', async ({
@@ -189,6 +260,32 @@ test.describe('admin render gate without the proxy role check', () => {
       await adminCtx.close()
       await studentCtx.close()
       await instructorCtx.close()
+    }
+  })
+
+  test('IL: bare /app/admin renders nothing and only redirects by role', async ({ browser }) => {
+    const { attackerUserId } = await seedRedTeamUsers()
+    const adminCtx = await signIn(browser, adminCreds)
+    const studentCtx = await signIn(browser, {
+      email: ATTACKER_EMAIL,
+      password: ATTACKER_PASSWORD,
+      userId: attackerUserId,
+    })
+    try {
+      // The page's own redirect is thrown after the layout shell streamed, so the status is 200 and
+      // the redirect travels in the body (as for requireAdmin() on the other targets).
+      // Control: the admin is sent to the dashboard, the admin home.
+      const adminRes = await fetchBody(adminCtx, '/app/admin')
+      expect(adminRes.status).toBe(200)
+      expect(adminRes.body).toMatch(/NEXT_REDIRECT;(?:replace|push);\/app\/admin\/dashboard;/)
+
+      const studentRes = await fetchBody(studentCtx, '/app/admin')
+      expect(studentRes.status).toBe(200)
+      expect(studentRes.body).toMatch(/NEXT_REDIRECT;(?:replace|push);\/app\/dashboard;/)
+      expect(studentRes.body).not.toMatch(/NEXT_REDIRECT;(?:replace|push);\/app\/admin\/dashboard;/)
+    } finally {
+      await adminCtx.close()
+      await studentCtx.close()
     }
   })
 

@@ -62,6 +62,8 @@ export const E2E_REDTEAM_SI_MARKER = '[E2E_REDTEAM_SI]'
 export const E2E_REDTEAM_SQ_MARKER = '[E2E_REDTEAM_SQ]'
 // exam-revive spec (Vector GP): written into the fixture mock_exam as `config.e2e_marker`.
 export const E2E_REDTEAM_ER_MARKER = '[E2E_REDTEAM_ER]'
+// late-resend spec (Vector GT short_answer arm, #1447): marks the throwaway short_answer question it inserts.
+export const E2E_REDTEAM_GT_MARKER = '[E2E_REDTEAM_GT]'
 // quiz-progress Server Action spec (Vectors GQ-GS, #1026 PR 2a): written into fixture quiz_sessions as `config.e2e_marker`.
 export const E2E_REDTEAM_QA_MARKER = '[E2E_REDTEAM_QA]'
 // finish-quiz-session spec (Vectors GU-GZ, #1026 PR 2c): written into fixture quiz_sessions as `config.e2e_marker`.
@@ -140,3 +142,10 @@ export const E2E_REDTEAM_KH_STUDENT_PASSWORD = 'redteam-kh-enrolments-2026!'
 export const E2E_REDTEAM_KS_RT_ONLY_EMAIL = 'redteam-ks-chips-rt-only@lmsplus.local'
 export const E2E_REDTEAM_KS_FULL_EMAIL = 'redteam-ks-chips-full@lmsplus.local'
 export const E2E_REDTEAM_KS_PASSWORD = 'redteam-ks-chips-2026!'
+// Admin dashboard KPI / weak-topics RPC spec (Vector KX, #1251): the dedicated, reused throwaway admin
+// whose soft-delete proves the active-admin gate, and the marker on the internal-exam / session
+// fixtures the admin-render-gate spec (Vector IL, #1543) inserts.
+export const E2E_REDTEAM_KX_SOFTDEL_ADMIN_EMAIL =
+  'redteam-softdel-dashboard-kpis-admin@lmsplus.local'
+export const E2E_REDTEAM_KX_SOFTDEL_ADMIN_PASSWORD = 'redteam-softdel-dashboard-kpis-admin-2026!'
+export const E2E_REDTEAM_IL_MARKER = '[E2E_REDTEAM_IL]'
