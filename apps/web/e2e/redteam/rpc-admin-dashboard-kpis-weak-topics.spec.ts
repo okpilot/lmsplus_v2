@@ -68,6 +68,9 @@ const kpiArgs = { p_range_days: 30 }
 const weakArgs = { p_limit: 10 }
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null
+const isCount = (v: unknown): boolean => typeof v === 'number' && Number.isInteger(v) && v >= 0
+const isPercent = (v: unknown): boolean => isCount(v) && (v as number) <= 100
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 test.describe('Red Team: admin dashboard KPI + weak-topics RPCs (KX)', () => {
   let admin: ReturnType<typeof getAdminClient>
@@ -122,13 +125,43 @@ test.describe('Red Team: admin dashboard KPI + weak-topics RPCs (KX)', () => {
     expect(kpis.error).toBeNull()
     expect(isRecord(kpis.data)).toBe(true)
     expect(Object.keys(kpis.data as object).sort()).toEqual(KPI_KEYS)
-    expect(Number((kpis.data as Record<string, unknown>).totalStudents)).toBeGreaterThanOrEqual(1)
+    const k = kpis.data as Record<string, unknown>
+    for (const key of [
+      'activeStudents',
+      'examReadyStudents',
+      'sessionsThisPeriod',
+      'totalStudents',
+    ]) {
+      expect(isCount(k[key]), key).toBe(true)
+    }
+    expect(Number(k.totalStudents)).toBeGreaterThanOrEqual(1)
+    expect(Number(k.activeStudents)).toBeLessThanOrEqual(Number(k.totalStudents))
+    expect(Number(k.examReadyStudents)).toBeLessThanOrEqual(Number(k.totalStudents))
+    expect(isPercent(k.avgMastery), 'avgMastery').toBe(true)
+    const ws = k.weakestSubject
+    if (ws !== null) {
+      expect(isRecord(ws) && Object.keys(ws).sort()).toEqual(['avgMastery', 'name', 'short'])
+      const w = ws as Record<string, unknown>
+      expect(typeof w.name).toBe('string')
+      expect(typeof w.short).toBe('string')
+      expect(isPercent(w.avgMastery), 'weakestSubject.avgMastery').toBe(true)
+    }
 
     const weak = await adminClient.rpc(WEAK, weakArgs)
     expect(weak.error).toBeNull()
     const rows = (weak.data ?? []) as Array<Record<string, unknown>>
     expect(rows.length).toBeGreaterThanOrEqual(1)
-    for (const row of rows) expect(Object.keys(row).sort()).toEqual(WEAK_COLUMNS)
+    for (const row of rows) {
+      expect(Object.keys(row).sort()).toEqual(WEAK_COLUMNS)
+      expect(row.topic_id).toMatch(UUID_RE)
+      for (const col of ['topic_name', 'subject_name', 'subject_short']) {
+        expect(typeof row[col], col).toBe('string')
+      }
+      expect(isPercent(row.avg_score), 'avg_score').toBe(true)
+      expect(isCount(row.student_count) && Number(row.student_count) >= 1, 'student_count').toBe(
+        true,
+      )
+    }
   })
 
   test('KX: an unauthenticated caller is rejected at the privilege layer', async () => {

@@ -15,9 +15,9 @@
  * `/app/admin/dashboard/sessions/[id]` and the internal-exam report
  * `/app/admin/internal-exams/report?session=<id>`; their fixtures are victim sessions completed by
  * service role / the victim's own RPCs, soft-deleted in afterAll. The bare `/app/admin` page
- * renders nothing and only redirects (signed-out → `/` (require-admin.ts:53), admin → dashboard,
- * everyone else → `/app/dashboard`), so it
- * is a separate test outside the marker loop.
+ * renders nothing and only redirects (admin → dashboard, student and instructor → `/app/dashboard`;
+ * signed-out never reaches it, the proxy redirects first, Vector KW), so it is a separate test
+ * outside the marker loop.
  *
  * Vector IM — a soft-deleted admin with a live token. `requireAdmin()`'s
  * `deleted_at IS NULL` profile read is the only render gate left. Control arm:
@@ -272,6 +272,12 @@ test.describe('admin render gate without the proxy role check', () => {
   test('IL: bare /app/admin renders nothing and only redirects by role', async ({ browser }) => {
     const adminCtx = await signIn(browser, adminCreds)
     const studentCtx = await signIn(browser, studentCreds)
+    const instructor = await seedRedTeamInstructor()
+    const instructorCtx = await signIn(browser, {
+      email: instructor.email,
+      password: instructor.password,
+      userId: instructor.instructorUserId,
+    })
     try {
       // The page's own redirect is thrown after the layout shell streamed, so the status is 200 and
       // the redirect travels in the body (as for requireAdmin() on the other targets).
@@ -284,9 +290,17 @@ test.describe('admin render gate without the proxy role check', () => {
       expect(studentRes.status).toBe(200)
       expect(studentRes.body).toMatch(/NEXT_REDIRECT;(?:replace|push);\/app\/dashboard;/)
       expect(studentRes.body).not.toMatch(/NEXT_REDIRECT;(?:replace|push);\/app\/admin\/dashboard;/)
+
+      const instructorRes = await fetchBody(instructorCtx, '/app/admin')
+      expect(instructorRes.status).toBe(200)
+      expect(instructorRes.body).toMatch(/NEXT_REDIRECT;(?:replace|push);\/app\/dashboard;/)
+      expect(instructorRes.body).not.toMatch(
+        /NEXT_REDIRECT;(?:replace|push);\/app\/admin\/dashboard;/,
+      )
     } finally {
       await adminCtx.close()
       await studentCtx.close()
+      await instructorCtx.close()
     }
   })
 
