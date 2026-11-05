@@ -4,7 +4,8 @@
   "suites": [
     ".claude/hooks/run-security-auditor.controls.test.mjs",
     ".claude/hooks/run-security-auditor.config.test.mjs",
-    ".claude/hooks/run-security-auditor.prompt-config.test.mjs"
+    ".claude/hooks/run-security-auditor.prompt-config.test.mjs",
+    ".claude/hooks/run-security-auditor.notimeout.test.mjs"
   ],
   "mutations": [
     {
@@ -22,7 +23,10 @@
         "fallback scan still finds a secret color.ui=always hides on the no-upstream diff",
         "fallback scan still finds a .env file diff.noprefix=true hides on the no-upstream diff",
         "fallback scan still finds a secret color.ui=always hides on the upstream diff",
-        "fallback scan still finds a .env file diff.noprefix=true hides on the upstream diff"
+        "fallback scan still finds a .env file diff.noprefix=true hides on the upstream diff",
+        "exits 1 naming `timeout` when no timeout binary is on PATH",
+        "reports a timeout when the CLI is killed after the grace period",
+        "passes a kill-after grace period to timeout"
       ],
       "note": "Shadows the `exit` builtin with a function that always exits 0 — every blocking exit in the script, whichever of the four routes reaches it (the terminal BLOCKED exit, fail_closed_no_llm_output, and the two fallback-scan branches), is defeated at once. Chosen over patching only the terminal exit because the guard has multiple independent fail-closed exits (Decision 79) and this is the one mutation that represents 'the guard never blocks', matching what code-reviewer's controls.test.mjs requires every CONTROL: red test in a suite to link to under a single `<base>-always-passes` id."
     },
@@ -44,7 +48,10 @@
       "id": "run-security-auditor-fail-closed-no-llm-output",
       "find": "fail_closed_no_llm_output() {\n  echo \"[security-auditor] LLM security audit could not run — push blocked. Fix the Claude CLI (auth/network/timeout) and retry. Do not use --no-verify.\"\n  exit 1\n}",
       "replace": "fail_closed_no_llm_output() {\n  echo \"[security-auditor] LLM security audit could not run — push blocked. Fix the Claude CLI (auth/network/timeout) and retry. Do not use --no-verify.\"\n  exit 0\n}",
-      "expectRed": ["fails closed when the CLI fails and the diagnostic scan finds nothing"],
+      "expectRed": [
+        "fails closed when the CLI fails and the diagnostic scan finds nothing",
+        "passes a kill-after grace period to timeout"
+      ],
       "note": "Forces fail_closed_no_llm_output's exit to 0 instead of 1 — a CLI failure with nothing for the diagnostic scan to find still prints the fix-the-CLI message but approves the push anyway."
     },
     {
@@ -59,7 +66,8 @@
         "fallback scan still finds a secret color.ui=always hides on the no-upstream diff",
         "fallback scan still finds a .env file diff.noprefix=true hides on the no-upstream diff",
         "fallback scan still finds a secret color.ui=always hides on the upstream diff",
-        "fallback scan still finds a .env file diff.noprefix=true hides on the upstream diff"
+        "fallback scan still finds a .env file diff.noprefix=true hides on the upstream diff",
+        "reports a timeout when the CLI is killed after the grace period"
       ],
       "note": "Forces the timeout branch's fallback-scan exit to 0 instead of 1 — a secret found in the diff after a CLI timeout still prints 'Found N issue(s)' but approves the push anyway. Every CONTROL: red test that also uses TIMEOUT_SHIM with a finding the scan is expected to catch goes red here too, including the textconv/ext-diff/color/noprefix cases."
     },
@@ -177,6 +185,27 @@
         "LLM receives no ANSI escapes from the --stat summary under color.ui=always (stat path)"
       ],
       "note": "Drops --no-color from the `--stat` fallback call — a local `color.ui always` then wraps the stat summary sent to the LLM in ANSI escapes, and the validating shim returns BLOCKED."
+    },
+    {
+      "id": "run-security-auditor-no-timeout-passes",
+      "find": "  echo \"[security-auditor] \\`timeout\\` not found — refusing to run the audit unbounded. Push blocked.\"\n  exit 1\n}",
+      "replace": "  echo \"[security-auditor] \\`timeout\\` not found — refusing to run the audit unbounded. Push blocked.\"\n  exit 0\n}",
+      "expectRed": ["exits 1 naming `timeout` when no timeout binary is on PATH"],
+      "note": "A missing timeout binary lets the push through instead of blocking."
+    },
+    {
+      "id": "run-security-auditor-kill-after-timeout",
+      "find": "if [ \"$EXIT_CODE\" -eq 124 ] || [ \"$EXIT_CODE\" -eq 137 ]; then",
+      "replace": "if [ \"$EXIT_CODE\" -eq 124 ]; then",
+      "expectRed": ["reports a timeout when the CLI is killed after the grace period"],
+      "note": "A CLI that needed SIGKILL after the timeout is reported as a generic failure, not a timeout."
+    },
+    {
+      "id": "run-security-auditor-no-kill-after",
+      "find": "\"$TIMEOUT_BIN\" -k 10 \"$AUDIT_TIMEOUT_SECS\"",
+      "replace": "\"$TIMEOUT_BIN\" \"$AUDIT_TIMEOUT_SECS\"",
+      "expectRed": ["passes a kill-after grace period to timeout"],
+      "note": "Without `-k`, a CLI that ignores SIGTERM keeps the push hanging past the audit budget."
     }
   ]
 }

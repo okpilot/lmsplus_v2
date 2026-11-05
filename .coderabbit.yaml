@@ -281,6 +281,21 @@ reviews:
           explain. A correct total under an incomplete explanation invites the next reader to
           "correct" it back to a wrong one.
 
+    # Comment accuracy — workflow files (code-style.md §10 cl.2, 3, 5, 7 applied to YAML and
+    # shell comments).
+    - path: ".github/workflows/**"
+      instructions: |
+        Comment accuracy (code-style.md §10). Flag a YAML or shell comment that:
+        - Enumerates an open set ("the three jobs", "both runners") instead of stating how to
+          derive it (cl.2).
+        - Leaves the old wording standing elsewhere after this diff corrects a claim; grep the
+          retracted phrase repo-wide (cl.3).
+        - Asserts a tool, runner image, permission or timeout behaviour the diff did not verify
+          against the file or doc that answers it (cl.5).
+        - States a count, duration or "all/every" extent computed before the final edits landed,
+          without a runnable derivation (cl.7). Exempt: `timeout-minutes: N # measured max <x> min`
+          (Decision 213).
+
     # Comment accuracy — binding docs. code-style.md §10 governs any claim, not only code
     # comments, and its markdown instances all landed in BINDING docs (a docs/database.md grant
     # claim, a rules paragraph miscounting the commits it described). The glob ENUMERATES the

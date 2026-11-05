@@ -21,6 +21,7 @@ jobs:
   lint:
     name: Lint & Format — checks
     runs-on: ubuntu-latest
+    timeout-minutes: 10 # measured max 1.3 min
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -53,11 +54,17 @@ jobs:
       - name: Pre-push hook prompt git-config bypass controls
         run: node --test .claude/hooks/run-security-auditor.prompt-config.test.mjs
 
+      - name: Pre-push hook missing-timeout control
+        run: node --test .claude/hooks/run-security-auditor.notimeout.test.mjs
+
       - name: Soft-delete column guard
         run: node .claude/hooks/check-soft-delete-guard.mjs
 
       - name: Soft-delete column guard — unit test
         run: node --test .claude/hooks/check-soft-delete-guard.test.mjs
+
+      - name: Soft-delete column guard — summary test
+        run: node --test .claude/hooks/check-soft-delete-guard.summary.test.mjs
 
       - name: Design-token guard
         run: node .claude/hooks/check-design-tokens.mjs
@@ -226,6 +233,7 @@ jobs:
   mutation-plan:
     name: Mutation Harness — plan
     runs-on: ubuntu-latest
+    timeout-minutes: 5 # measured max 0.5 min
     outputs:
       guards: ${{ steps.list.outputs.guards }}
     steps:
@@ -268,6 +276,7 @@ jobs:
     name: Mutation Harness (${{ matrix.guard }})
     needs: mutation-plan
     runs-on: ubuntu-latest
+    timeout-minutes: 20 # measured max 5.5 min
     strategy:
       fail-fast: false
       matrix:
@@ -302,6 +311,7 @@ jobs:
     needs: [lint, mutation-plan, mutation-harness]
     if: always()
     runs-on: ubuntu-latest
+    timeout-minutes: 5 # measured max 0.1 min
     steps:
       - name: Require lint, mutation-plan and mutation-harness to have succeeded
         env:
@@ -317,6 +327,7 @@ jobs:
   type-check:
     name: Type Check
     runs-on: ubuntu-latest
+    timeout-minutes: 5 # measured max 1.1 min
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -337,6 +348,7 @@ jobs:
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 25 # measured max 10.2 min
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -360,7 +372,7 @@ jobs:
 
       - name: Upload coverage reports
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
-        if: ${{ !cancelled() }}
+        if: always()
         with:
           name: coverage-reports
           path: |
@@ -389,6 +401,7 @@ jobs:
   audit:
     name: Dependency Audit
     runs-on: ubuntu-latest
+    timeout-minutes: 5 # measured max 0.6 min
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

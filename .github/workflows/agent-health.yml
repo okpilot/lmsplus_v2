@@ -13,6 +13,7 @@ jobs:
   health-check:
     name: Agent System Health Check
     runs-on: ubuntu-latest
+    timeout-minutes: 5 # measured max 0.2 min
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -65,7 +66,7 @@ jobs:
             [ -z "$spec_name" ] && continue
             # Skip if it's a header or helper file pattern
             [[ "$spec_name" == *"helper"* ]] && continue
-            if [ ! -f "$REDTEAM_DIR/$spec_name" ]; then
+            if [ ! -f "$REDTEAM_DIR/$spec_name" ] && [ ! -f "apps/web/e2e/$spec_name" ]; then
               STALE_LIST="${STALE_LIST}- \`${spec_name}\`\n"
             fi
           done < <(grep -P '^\|' "$ATTACK_SURFACE" 2>/dev/null | grep '\.spec\.ts' || true)

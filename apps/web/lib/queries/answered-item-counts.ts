@@ -10,7 +10,7 @@ type SessionIdRow = { session_id: string }
  * `OffsetChainBuilder` in `apps/web/app/app/admin/internal-exams/_offset-query.ts`,
  * which exists for the same reason.
  */
-export type AnswerCountChain = {
+type AnswerCountChain = {
   select: {
     (cols: string): AnswerCountChain
     (cols: string, opts: { count: 'exact'; head: boolean }): AnswerCountChain

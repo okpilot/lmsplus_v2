@@ -1,6 +1,4 @@
-import type { QUESTION_TYPES } from '@/lib/queries/load-session-question-row'
-
-export type QuestionType = (typeof QUESTION_TYPES)[number]
+import type { QuestionType } from '@/lib/queries/load-session-question-row'
 
 type DiagramZone = { id: string; x: number; y: number; w: number; h: number }
 type DiagramLabelChip = { id: string; text: string }

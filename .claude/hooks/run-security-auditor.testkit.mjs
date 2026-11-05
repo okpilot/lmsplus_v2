@@ -1,5 +1,5 @@
 // Shared fixtures for run-security-auditor.sh's spawned graded-control suites
-// (run-security-auditor.controls.test.mjs, run-security-auditor.config.test.mjs).
+// (importers: `git grep -l run-security-auditor.testkit -- .claude/hooks`).
 //
 // Not a guard and not a suite: it defines no tests, so it needs no `ci.yml` step of its own —
 // each importing suite has one. Importing a `.test.mjs` file re-registers and re-runs its tests;
@@ -80,4 +80,10 @@ export function runHookAndCleanup({ scratch, shimDir, repoDir }, extraEnv = {}) 
 export const TIMEOUT_SHIM = `#!/usr/bin/env bash
 echo "simulated claude CLI timeout" >&2
 exit 124
+`
+
+// Exit 137 is what `timeout -k` reports when the CLI ignored SIGTERM and needed SIGKILL.
+export const KILL_AFTER_TIMEOUT_SHIM = `#!/usr/bin/env bash
+echo "simulated claude CLI killed after the timeout grace period" >&2
+exit 137
 `

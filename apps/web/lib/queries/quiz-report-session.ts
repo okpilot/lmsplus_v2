@@ -16,7 +16,7 @@ export type ReportSessionRow = {
   time_limit_seconds: number | null
 }
 
-export type ReportAnswerRow = { question_id: string; answered_at: string }
+type ReportAnswerRow = { question_id: string; answered_at: string }
 
 export type ReportSessionResult =
   | { ok: true; session: ReportSessionRow; answerRows: ReportAnswerRow[] }

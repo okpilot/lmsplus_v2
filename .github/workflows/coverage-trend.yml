@@ -17,6 +17,7 @@ jobs:
   coverage-trend:
     name: Coverage Trend
     runs-on: ubuntu-latest
+    timeout-minutes: 20 # measured max 7.6 min
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -42,6 +43,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               workflow_id: 'coverage-trend.yml',
+              branch: context.ref.replace('refs/heads/', ''),
               status: 'success',
               per_page: 1,
             });
@@ -137,11 +139,11 @@ jobs:
           fi
 
           # Compare and write outputs to GITHUB_OUTPUT
-          python3 - <<PYEOF >> "$GITHUB_OUTPUT"
-          import json
+          CURRENT_JSON="$CURRENT_JSON" BASELINE_JSON="$BASELINE_JSON" python3 - <<'PYEOF' >> "$GITHUB_OUTPUT"
+          import json, os
 
-          current  = json.loads('$CURRENT_JSON')
-          baseline = json.loads('$BASELINE_JSON')
+          current  = json.loads(os.environ["CURRENT_JSON"])
+          baseline = json.loads(os.environ["BASELINE_JSON"])
 
           THRESHOLD = 2.0
           regression = False
@@ -163,6 +165,10 @@ jobs:
           print(table)
           print("EOF")
           PYEOF
+
+          if grep -qx 'regression=true' "$GITHUB_OUTPUT"; then
+            printf '%s\n' "$BASELINE_JSON" > coverage-baseline.json
+          fi
 
       - name: Upload new baseline artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7

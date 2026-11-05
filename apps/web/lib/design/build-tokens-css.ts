@@ -33,7 +33,10 @@ import {
   Z_INDEX,
 } from './scale'
 
-/** Every stock colour hue (`--color-<hue>-50`) in Tailwind's theme.css. */
+/**
+ * Every stock colour hue (`--color-<hue>-50`) in Tailwind's theme.css.
+ * @public
+ */
 export function stockColourHues(themeCss: string): string[] {
   return [...new Set([...themeCss.matchAll(/--color-([a-z]+)-50\s*:/g)].map((m) => m[1] as string))]
 }

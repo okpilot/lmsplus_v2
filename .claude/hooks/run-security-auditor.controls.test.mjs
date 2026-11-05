@@ -15,13 +15,14 @@
 
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import test from 'node:test'
 import {
   commitInit,
   gitFactory,
   initShimScratch,
+  KILL_AFTER_TIMEOUT_SHIM,
   runHookAndCleanup,
   TIMEOUT_MS,
   TIMEOUT_SHIM,
@@ -143,10 +144,16 @@ EOF
 exit 0
 `
 
-// Any non-zero, non-124 exit takes the CLI-failure branch instead of the timeout branch.
+// Any non-zero exit except 124 and 137 takes the CLI-failure branch, not the timeout branch.
 const CLI_FAILURE_SHIM = `#!/usr/bin/env bash
 echo "simulated claude CLI failure" >&2
 exit 1
+`
+
+/** A `timeout` stand-in: reports a timeout (124) only when called with `-k`, else exits 3. */
+const KILL_AFTER_CHECKING_TIMEOUT = `#!/usr/bin/env bash
+if [ "$1" = "-k" ]; then exit 124; fi
+exit 3
 `
 
 // An added line matching the fallback scan's secret pattern
@@ -202,6 +209,28 @@ test('blocks the push via the fallback scan when the CLI times out and a secret 
   const r = runHookWithShim(TIMEOUT_SHIM, SECRET_DIRTY_CONTENT)
   assert.notEqual(r.status, 0)
   assert.match(r.stdout, /Found \d+ issue\(s\) in fallback scan/)
+})
+
+// CONTROL: red
+// GROUP: run-security-auditor-always-passes, run-security-auditor-fallback-scan-timeout, run-security-auditor-kill-after-timeout
+// MUTATION: dropping the exit-137 test from the timeout branch routes a CLI that `timeout -k` had
+// to SIGKILL into the CLI-failure branch, which never prints "Timed out".
+test('reports a timeout when the CLI is killed after the grace period', () => {
+  const r = runHookWithShim(KILL_AFTER_TIMEOUT_SHIM, SECRET_DIRTY_CONTENT)
+  assert.notEqual(r.status, 0)
+  assert.match(r.stdout, /Timed out after/)
+})
+
+// GROUP: run-security-auditor-always-passes, run-security-auditor-fail-closed-no-llm-output, run-security-auditor-no-kill-after
+// MUTATION: dropping `-k 10` from the `timeout` call reaches this `timeout` shim without `-k`, so it
+// exits 3 instead of 124 and the hook never prints "Timed out".
+test('passes a kill-after grace period to timeout', () => {
+  const built = setupShimRepo(APPROVED_SHIM, DEFAULT_DIRTY_CONTENT)
+  writeFileSync(join(built.shimDir, 'timeout'), KILL_AFTER_CHECKING_TIMEOUT)
+  chmodSync(join(built.shimDir, 'timeout'), 0o755)
+  const r = runHookAndCleanup(built)
+  assert.notEqual(r.status, 0)
+  assert.match(r.stdout, /Timed out after/)
 })
 
 // CONTROL: red

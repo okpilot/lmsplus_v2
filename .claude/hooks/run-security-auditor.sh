@@ -78,6 +78,11 @@ else
   DIFF="$DIFF_FULL"
 fi
 
+TIMEOUT_BIN=$(command -v timeout) || {
+  echo "[security-auditor] \`timeout\` not found — refusing to run the audit unbounded. Push blocked."
+  exit 1
+}
+
 TMPFILE=$(mktemp)
 cat "$REPO_ROOT/.claude/agents/security-auditor.md" > "$TMPFILE"
 printf "\n---\n\n## Diff being pushed:\n\n\`\`\`diff\n%s\n\`\`\`\n\nAudit this diff now. Output your findings in the format specified above.\nIMPORTANT: If you find any CRITICAL or HIGH issues, end with a line starting with BLOCKED (e.g. 'BLOCKED: reason').\nIf no CRITICAL or HIGH issues, end with a line containing only: APPROVED" "$DIFF" >> "$TMPFILE"
@@ -96,19 +101,14 @@ printf "\n---\n\n## Diff being pushed:\n\n\`\`\`diff\n%s\n\`\`\`\n\nAudit this d
 # risk of an under-sized budget is that every multi-migration PR becomes unpushable, which is what
 # pushes people toward `--no-verify` — the one thing this hook must never make tempting.
 AUDIT_TIMEOUT_SECS=300
-if command -v timeout &>/dev/null; then
-  TIMEOUT_CMD="timeout $AUDIT_TIMEOUT_SECS"
-else
-  TIMEOUT_CMD=""
-fi
 
-OUTPUT=$(cat "$TMPFILE" | $TIMEOUT_CMD env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT -u ANTHROPIC_DEFAULT_SONNET_MODEL claude --print \
+OUTPUT=$(cat "$TMPFILE" | "$TIMEOUT_BIN" -k 10 "$AUDIT_TIMEOUT_SECS" env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT -u ANTHROPIC_DEFAULT_SONNET_MODEL claude --print \
   --model sonnet \
   --allowedTools "Read" \
   --no-session-persistence 2>&1) || {
   EXIT_CODE=$?
   rm -f "$TMPFILE"
-  if [ "$EXIT_CODE" -eq 124 ]; then
+  if [ "$EXIT_CODE" -eq 124 ] || [ "$EXIT_CODE" -eq 137 ]; then
     echo "[security-auditor] Timed out after ${AUDIT_TIMEOUT_SECS}s. Push will be BLOCKED — running a diagnostic scan first..."
     # Diagnostic scan only. It can add a block reason, never remove one: finding nothing falls
     # through to fail_closed_no_llm_output, which exits 1 regardless. It never approves.

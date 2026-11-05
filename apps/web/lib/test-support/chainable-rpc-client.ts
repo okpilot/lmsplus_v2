@@ -4,7 +4,7 @@
 // next change to it).
 import { vi } from 'vitest'
 
-export type RpcChain = {
+type RpcChain = {
   then: (resolve: (v: unknown) => void, reject?: (e: unknown) => void) => Promise<unknown>
   order: (col: string, opts: unknown) => RpcChain
   range: (from: number, to: number) => Promise<{ data: unknown; error: unknown }>
@@ -15,7 +15,7 @@ export type RpcChain = {
 // (with count/head opts) resolves to a count result. A single union-returning
 // signature would make every call site's return type a union, forcing a cast before
 // `.order()`/`.range()` could be used.
-export type ChainableRpcMock = {
+type ChainableRpcMock = {
   (
     fn: string,
     args: Record<string, unknown>,
@@ -81,9 +81,9 @@ export function createChainableRpcClient(fixture: ChainableRpcClientFixture): Ch
   }
 
   // The implementation function's inferred type (a single signature with an optional
-  // third arg) is narrower than the exported ChainableRpcMock overload — vi.fn() still
+  // third arg) is narrower than the ChainableRpcMock overload — vi.fn() still
   // wraps it with full mock-inspection support (toHaveBeenCalledWith, etc.), so the cast
-  // below only widens the CALL-SHAPE typing seen by consumers, not the runtime behavior.
+  // below replaces the type consumers see (call shapes and return types), not the runtime behavior.
   const rpcFn = vi.fn(
     (_fn: string, _args: Record<string, unknown>, rpcOpts?: { count: 'exact'; head: true }) => {
       if (rpcOpts) return Promise.resolve(fixture.count ?? { count: 0, error: null })

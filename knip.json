@@ -1,5 +1,10 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignoreBinaries": ["psql"],
+  "ignoreIssues": {
+    "apps/web/app/auth/consent-refresh/route.ts": ["duplicates"],
+    "apps/web/e2e/redteam/matrix.ts": ["exports"]
+  },
   "workspaces": {
     ".": {
       "ignoreDependencies": ["zod"]
@@ -12,7 +17,8 @@
         "app/**/actions/*.ts",
         "app/**/route.ts",
         "app/globals.css",
-        "scripts/*.ts"
+        "scripts/*.ts",
+        "e2e/redteam/next-vector-id.ts"
       ],
       "project": ["**/*.{ts,tsx}"],
       "ignoreDependencies": ["@repo/ui"]
