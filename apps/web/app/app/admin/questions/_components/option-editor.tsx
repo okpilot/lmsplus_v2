@@ -24,6 +24,7 @@ export function OptionEditor({
   disabled,
 }: Readonly<Props>) {
   const labelId = useId()
+  const slots = OPTION_IDS.map((letter, idx) => ({ letter, id: options[idx]?.id ?? letter }))
   function handleTextChange(idx: number, text: string) {
     const updated = options.map((opt, i) => (i === idx ? { ...opt, text } : opt))
     onChange(updated)
@@ -40,8 +41,8 @@ export function OptionEditor({
       </span>
       <div className="flex gap-3">
         <div className="flex flex-1 flex-col gap-stack-lg">
-          {OPTION_IDS.map((letter, idx) => (
-            <div key={letter} className="flex h-(--control-h) items-center gap-3">
+          {slots.map(({ letter, id }, idx) => (
+            <div key={id} className="flex h-(--control-h) items-center gap-3">
               <span className="w-6 text-center text-label uppercase text-muted-foreground">
                 {letter}
               </span>
@@ -60,18 +61,18 @@ export function OptionEditor({
           aria-label="Correct option"
           value={correctOptionId || null}
           onValueChange={(v) => {
-            const id = OPTION_IDS.find((o) => o === v)
+            const id = slots.find((o) => o.id === v)?.id
             if (id) onCorrectChange(id)
           }}
           disabled={disabled}
           className="flex flex-col gap-stack-lg"
         >
-          {OPTION_IDS.map((letter) => (
-            <Label key={letter} className="h-(--control-h) cursor-pointer gap-1.5 text-caption">
-              <span id={`${labelId}-mark-${letter}`} hidden>
+          {slots.map(({ letter, id }) => (
+            <Label key={id} className="h-(--control-h) cursor-pointer gap-1.5 text-caption">
+              <span id={`${labelId}-mark-${id}`} hidden>
                 {`Mark option ${letter.toUpperCase()} as correct`}
               </span>
-              <Radio value={letter} aria-labelledby={`${labelId}-mark-${letter}`} />
+              <Radio value={id} aria-labelledby={`${labelId}-mark-${id}`} />
               Correct
             </Label>
           ))}

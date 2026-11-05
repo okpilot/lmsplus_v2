@@ -425,3 +425,27 @@ describe('UpdateStudentSchema course_ids', () => {
     expect(UpdateStudentSchema.safeParse({ ...base, course_ids: ids }).success).toBe(false)
   })
 })
+
+describe('UpsertQuestionSchema correct_option_id', () => {
+  const ids = ['a', 'b', 'c', 'd'] as const
+  const base = {
+    subject_id: VALID_UUID,
+    topic_id: VALID_UUID,
+    subtopic_id: null,
+    question_text: 'Q?',
+    options: ids.map((id) => ({ id, text: `Option ${id}` })),
+    correct_option_id: 'a',
+    explanation_text: 'Because.',
+    difficulty: 'easy',
+    status: 'draft',
+  }
+
+  it('rejects a payload whose correct_option_id matches no option id', () => {
+    const orphan = {
+      ...base,
+      options: ['a', 'b', 'c', 'a'].map((id, i) => ({ id, text: `Option ${i}` })),
+      correct_option_id: 'd',
+    }
+    expect(UpsertQuestionSchema.safeParse(orphan).success).toBe(false)
+  })
+})

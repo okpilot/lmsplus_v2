@@ -13,12 +13,12 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { LoadingButton } from '@/components/ui/loading-button'
-import { sameIdSet } from '../_utils/same-id-set'
 import { createStudent } from '../actions/create-student'
 import { updateStudent } from '../actions/update-student'
 import type { CourseOption, StudentRow } from '../types'
 import { CreatedStudentPanel } from './created-student-panel'
 import { StudentFormFields } from './student-form-fields'
+import { buildStudentPayload, canSubmitStudent } from './student-form-payload'
 
 type Props = {
   student?: StudentRow
@@ -60,16 +60,14 @@ export function StudentFormDialog({
     }
   }, [open, student])
 
+  const payload = buildStudentPayload({ student, email, fullName, role, courseIds })
+  const canSubmit = canSubmitStudent(payload, isEdit)
+
   function handleSubmit() {
     startTransition(async () => {
       try {
         if (isEdit) {
-          const result = await updateStudent({
-            id: student.id,
-            full_name: fullName,
-            role,
-            course_ids: sameIdSet(courseIds, student.course_ids) ? undefined : courseIds,
-          })
+          const result = await updateStudent(payload)
           if (result.success) {
             toast.success('Student updated')
             setOpen(false)
@@ -78,12 +76,7 @@ export function StudentFormDialog({
           }
           return
         }
-        const result = await createStudent({
-          email,
-          full_name: fullName,
-          role,
-          course_ids: courseIds,
-        })
+        const result = await createStudent(payload)
         if (result.success) {
           if (result.coursesSaved === false) {
             toast.error(
@@ -144,7 +137,12 @@ export function StudentFormDialog({
             />
 
             <DialogFooter showCloseButton>
-              <LoadingButton onClick={handleSubmit} loading={isPending} loadingText="Saving...">
+              <LoadingButton
+                onClick={handleSubmit}
+                loading={isPending}
+                disabled={!canSubmit}
+                loadingText="Saving..."
+              >
                 {isEdit ? 'Save Changes' : 'Create Student'}
               </LoadingButton>
             </DialogFooter>

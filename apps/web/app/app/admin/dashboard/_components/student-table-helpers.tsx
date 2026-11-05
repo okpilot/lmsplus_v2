@@ -55,7 +55,7 @@ export function StudentRow({ student, onClick }: Readonly<StudentRowProps>) {
         </div>
         <div className="text-caption text-muted-foreground">{student.email}</div>
       </TableCell>
-      <TableCell>{formatRelativeTime(student.lastActiveAt)}</TableCell>
+      <TableCell suppressHydrationWarning>{formatRelativeTime(student.lastActiveAt)}</TableCell>
       <TableCell>{student.sessionCount}</TableCell>
       <TableCell>{student.avgScore !== null ? `${student.avgScore}%` : '\u2014'}</TableCell>
       <TableCell className={student.isActive ? masteryTextClass(student.mastery) : undefined}>

@@ -182,3 +182,38 @@ describe('StudentFormDialog — edit', () => {
     expect(onOpenChange).not.toHaveBeenCalledWith(false)
   })
 })
+
+describe('StudentFormDialog — submit gating (#888)', () => {
+  it('disables Create Student until email and full name are valid', async () => {
+    render(<StudentFormDialog open={true} onOpenChange={vi.fn()} />)
+    const button = screen.getByRole('button', { name: 'Create Student' })
+    expect(button).toBeDisabled()
+
+    await userEvent.type(screen.getByLabelText('Email'), 'new@example.com')
+    expect(button).toBeDisabled()
+
+    await userEvent.type(screen.getByLabelText('Full name'), 'New Student')
+    expect(button).toBeEnabled()
+  })
+
+  it('disables Save Changes when the full name is cleared and enables it with a name', async () => {
+    render(<StudentFormDialog open={true} onOpenChange={vi.fn()} student={STUDENT} />)
+    const button = screen.getByRole('button', { name: 'Save Changes' })
+    expect(button).toBeEnabled()
+
+    await userEvent.clear(screen.getByLabelText('Full name'))
+    expect(button).toBeDisabled()
+
+    await userEvent.type(screen.getByLabelText('Full name'), 'Alice B')
+    expect(button).toBeEnabled()
+  })
+
+  it('shows the Saving... state while the create action is pending', async () => {
+    vi.mocked(createStudent).mockReturnValue(new Promise(() => undefined))
+    render(<StudentFormDialog open={true} onOpenChange={vi.fn()} />)
+    await fillCreateForm()
+    await userEvent.click(screen.getByRole('button', { name: 'Create Student' }))
+
+    expect(await screen.findByText('Saving...')).toBeInTheDocument()
+  })
+})
