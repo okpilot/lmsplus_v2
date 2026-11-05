@@ -209,3 +209,4 @@
 ## 214 — 2026-11-04 — Artifact uploads in `ci.yml`, `e2e.yml` and `redteam.yml` use `if: always()` rather than `!cancelled()`, which also uploads on any cancel (human or `cancel-in-progress`) but delivers the report when `timeout-minutes` expires inside the test step. #1233
 ## 215 — 2026-11-04 — Only jobs that rely on the runner's preinstalled Chrome (`e2e-tests`, `redteam`, `lighthouse`) pin `runs-on: ubuntu-24.04`; all other jobs stay on `ubuntu-latest`. #1233
 ## 216 — 2026-11-05 — `question-table.tsx` selection checkboxes use `ui/checkbox`; the #1678 per-line ignores are gone. #1678
+## 217 — 2026-11-05 — Admin student and question dialogs disable submit until the required fields are present (student: full name, plus email on create; question: subject, topic, question text, every option text, correct option, explanation); format errors still return the server toast. #888
