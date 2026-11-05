@@ -1,4 +1,3 @@
-import { CreateStudentSchema, UpdateStudentSchema } from '@repo/db/schema'
 import { sameIdSet } from '../_utils/same-id-set'
 import type { StudentRow } from '../types'
 
@@ -22,7 +21,11 @@ export function buildStudentPayload({ student, email, fullName, role, courseIds 
   return { email, full_name: fullName, role, course_ids: courseIds }
 }
 
-export function canSubmitStudent(payload: unknown, isEdit: boolean): boolean {
-  return (isEdit ? UpdateStudentSchema.omit({ id: true }) : CreateStudentSchema).safeParse(payload)
-    .success
+export function canSubmitStudent(
+  payload: ReturnType<typeof buildStudentPayload>,
+  isEdit: boolean,
+): boolean {
+  const hasName = payload.full_name.trim() !== ''
+  if (isEdit) return hasName
+  return (payload.email?.trim() ?? '') !== '' && hasName
 }

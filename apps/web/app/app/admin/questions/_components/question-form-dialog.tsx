@@ -1,6 +1,5 @@
 'use client'
 
-import { UpsertQuestionSchema } from '@repo/db/schema'
 import type { ReactElement } from 'react'
 import { toast } from 'sonner'
 import {
@@ -14,7 +13,7 @@ import {
 } from '@/components/ui/dialog'
 import { LoadingButton } from '@/components/ui/loading-button'
 import type { SyllabusTree } from '../../syllabus/types'
-import { buildQuestionPayload } from '../_hooks/question-payload'
+import { buildQuestionPayload, canSubmitQuestion } from '../_hooks/question-payload'
 import { useCorrectOptionLoader } from '../_hooks/use-correct-option-loader'
 import { useQuestionFormState } from '../_hooks/use-question-form-state'
 import { upsertQuestion } from '../actions/upsert-question'
@@ -34,7 +33,7 @@ export function QuestionFormDialog({ tree, question, trigger }: Readonly<Props>)
   const { state: s, handlers: h } = useQuestionFormState(question, open)
 
   const payload = buildQuestionPayload(s, question?.id)
-  const canSubmit = UpsertQuestionSchema.safeParse(payload).success
+  const canSubmit = canSubmitQuestion(s)
 
   function handleSubmit() {
     startTransition(async () => {

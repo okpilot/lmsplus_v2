@@ -61,7 +61,7 @@ export function OptionEditor({
           aria-label="Correct option"
           value={correctOptionId || null}
           onValueChange={(v) => {
-            const id = slots.find((o) => o.id === v)?.id
+            const id = OPTION_IDS.find((o) => o === v)
             if (id) onCorrectChange(id)
           }}
           disabled={disabled}

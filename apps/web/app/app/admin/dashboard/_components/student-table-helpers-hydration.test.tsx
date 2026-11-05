@@ -29,7 +29,14 @@ function Tree() {
   )
 }
 
+let container: HTMLDivElement | undefined
+const actEnv = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+const originalActEnv = actEnv.IS_REACT_ACT_ENVIRONMENT
+
 afterEach(() => {
+  container?.remove()
+  container = undefined
+  actEnv.IS_REACT_ACT_ENVIRONMENT = originalActEnv
   vi.restoreAllMocks()
 })
 
@@ -40,20 +47,20 @@ describe('StudentRow hydration', () => {
     expect(html).toContain('0m ago')
 
     nowSpy.mockReturnValue(NOW + 90_000)
-    const container = document.createElement('div')
-    container.innerHTML = html
-    document.body.appendChild(container)
+    const root = document.createElement('div')
+    container = root
+    root.innerHTML = html
+    document.body.appendChild(root)
     const onRecoverableError = vi.fn()
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
+    actEnv.IS_REACT_ACT_ENVIRONMENT = true
 
     await act(async () => {
-      hydrateRoot(container, <Tree />, { onRecoverableError })
+      hydrateRoot(root, <Tree />, { onRecoverableError })
     })
 
     expect(onRecoverableError).not.toHaveBeenCalled()
     const hydrationLogs = consoleError.mock.calls.filter((c) => String(c[0]).includes('ydrat'))
     expect(hydrationLogs).toEqual([])
-    container.remove()
   })
 })

@@ -19,3 +19,14 @@ export function buildQuestionPayload(s: FormState, questionId: string | undefine
     has_calculations: s.hasCalculations,
   }
 }
+
+export function canSubmitQuestion(s: FormState): boolean {
+  return (
+    !!s.subjectId &&
+    !!s.topicId &&
+    s.questionText.trim() !== '' &&
+    s.options.every((o) => o.text.trim() !== '') &&
+    !!s.correctOptionId &&
+    s.explanationText.trim() !== ''
+  )
+}
