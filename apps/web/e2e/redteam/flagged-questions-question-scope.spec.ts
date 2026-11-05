@@ -14,8 +14,9 @@
  * CONTROLS: flag + re-flag of a visible question succeeds; unflag of an existing flag whose
  * question was soft-deleted afterwards succeeds.
  *
- * Mechanism: mig 20261105000100 RESTRICTIVE `flagged_questions_insert_visible_question` /
- * `flagged_questions_update_visible_question`. quiz_drafts has no INSERT/UPDATE grant or policy.
+ * Mechanism: KZ1-KZ3 = RESTRICTIVE `flagged_questions_insert_visible_question`; KZ6 = RESTRICTIVE
+ * `flagged_questions_update_visible_question`; KZ4 = trigger `trg_flagged_questions_protect_question_id`.
+ * quiz_drafts has no INSERT/UPDATE grant or policy.
  *
  * Status: Expected to PASS.
  */
@@ -189,18 +190,32 @@ test.describe('Red Team: flagged_questions question scope (KZ1-KZ6)', () => {
   })
 
   test.afterAll(async () => {
+    const errors: string[] = []
     if (createdQuestions.size > 0) {
-      const { error } = await admin
-        .from('questions')
-        .update({ deleted_at: new Date().toISOString() })
-        .in('id', Array.from(createdQuestions))
-        .is('deleted_at', null)
-      if (error) throw new Error(`afterAll questions: ${error.message}`)
+      try {
+        const { error } = await admin
+          .from('questions')
+          .update({ deleted_at: new Date().toISOString() })
+          .in('id', Array.from(createdQuestions))
+          .is('deleted_at', null)
+        if (error) throw new Error(`afterAll questions: ${error.message}`)
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      } finally {
+        createdQuestions.clear()
+      }
     }
     if (draftSeededByUs && draftId) {
-      const { error } = await admin.from('quiz_drafts').delete().eq('id', draftId)
-      if (error) throw new Error(`afterAll draft: ${error.message}`)
+      try {
+        const { error } = await admin.from('quiz_drafts').delete().eq('id', draftId)
+        if (error) throw new Error(`afterAll draft: ${error.message}`)
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      } finally {
+        draftSeededByUs = false
+      }
     }
+    if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
   })
 
   test('CONTROL: flag and re-flag of a visible question succeeds', async () => {
@@ -221,6 +236,9 @@ test.describe('Red Team: flagged_questions question scope (KZ1-KZ6)', () => {
       .eq('student_id', attackerId)
       .eq('question_id', qid)
     expect(unflag.error).toBeNull()
+    const unflagged = await flagRows(attackerId, qid)
+    expect(unflagged).toHaveLength(1)
+    expect(unflagged[0]?.deleted_at).not.toBeNull()
 
     const reflag = await attacker
       .from('flagged_questions')
@@ -265,9 +283,14 @@ test.describe('Red Team: flagged_questions question scope (KZ1-KZ6)', () => {
       .insert({ student_id: attackerId, question_id: own })
     expect(control.error).toBeNull()
 
-    const { data: exists } = await admin.from('questions').select('id').eq('id', qid)
+    const { data: exists, error: existsErr } = await admin
+      .from('questions')
+      .select('id')
+      .eq('id', qid)
+    expect(existsErr).toBeNull()
     expect(exists).toHaveLength(1)
     const hidden = await attacker.from('questions').select('id').eq('id', qid)
+    expect(hidden.error).toBeNull()
     expect(hidden.data).toHaveLength(0)
 
     const attack = await attacker
@@ -306,6 +329,7 @@ test.describe('Red Team: flagged_questions question scope (KZ1-KZ6)', () => {
     expect(visible.data).toHaveLength(1)
     await softDeleteQuestion(qid)
     const hidden = await attacker.from('questions').select('id').eq('id', qid)
+    expect(hidden.error).toBeNull()
     expect(hidden.data).toHaveLength(0)
 
     const attack = await attacker

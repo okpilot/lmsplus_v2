@@ -140,7 +140,6 @@ ALTER TABLE table_name FORCE ROW LEVEL SECURITY;
 -- The three: student_responses (20260311000005:24), quiz_session_answers
 -- (20260311000005:9, scoped via `session_id IN (SELECT id FROM quiz_sessions
 -- WHERE student_id = auth.uid())`) and flagged_questions (20260323000050:15).
--- flagged_questions INSERT/UPDATE also require a question visible to the caller (mig 20261105000100, #1177).
 -- Applying the org-wide policy below to student_responses would let every
 -- member of an organisation read every peer's submitted answers. On the other
 -- two it would not even CREATE — neither carries an organization_id column, so

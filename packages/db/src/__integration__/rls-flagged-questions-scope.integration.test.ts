@@ -137,10 +137,12 @@ describe('RLS: flagged_questions INSERT/UPDATE follow question visibility', () =
   })
 
   afterAll(async () => {
-    await admin
+    const { error: flagCleanupErr } = await admin
       .from('flagged_questions')
       .delete()
       .in('student_id', [...userIds, ...otherUserIds])
+    if (flagCleanupErr)
+      console.error('[afterAll] flagged_questions cleanup:', flagCleanupErr.message)
     await cleanupTestData({ admin, orgId, userIds })
     await cleanupTestData({ admin, orgId: otherOrgId, userIds: otherUserIds })
     await cleanupReferenceData({ admin, refs: [refs, otherRefs] })
@@ -194,6 +196,9 @@ describe('RLS: flagged_questions INSERT/UPDATE follow question visibility', () =
       .eq('student_id', ids['fq-student'])
       .eq('question_id', visibleQ)
     expect(unflag.error).toBeNull()
+    const unflagged = await flagRow(ids['fq-student'] as string, visibleQ)
+    expect(unflagged).toHaveLength(1)
+    expect(unflagged[0]?.deleted_at).not.toBeNull()
     const again = await c
       .from('flagged_questions')
       .upsert({ student_id: ids['fq-student'], question_id: visibleQ, deleted_at: null })
@@ -329,7 +334,12 @@ describe('RLS: flagged_questions question_id immutable + undelete follows visibi
   })
 
   afterAll(async () => {
-    await admin.from('flagged_questions').delete().in('student_id', [studentId, otherAdminId])
+    const { error: flagCleanupErr } = await admin
+      .from('flagged_questions')
+      .delete()
+      .in('student_id', [studentId, otherAdminId])
+    if (flagCleanupErr)
+      console.error('[afterAll] flagged_questions cleanup:', flagCleanupErr.message)
     await cleanupTestData({ admin, orgId, userIds: [studentId] })
     await cleanupTestData({ admin, orgId: otherOrgId, userIds: [otherAdminId] })
     await cleanupReferenceData({ admin, refs: [refs, otherRefs] })
