@@ -52,7 +52,7 @@ function renderForm() {
 }
 
 describe('QuestionFormFields labels', () => {
-  it.each(['Subject', 'Topic', 'Options', 'Question Text'])(
+  it.each(['Subject', 'Topic', 'Options', 'Question Text', 'Explanation'])(
     'renders "%s" without an asterisk',
     (t) => {
       renderForm()
@@ -61,15 +61,13 @@ describe('QuestionFormFields labels', () => {
     },
   )
 
-  it.each([
-    'Subtopic (optional)',
-    'Question # (optional)',
-    'LO Reference (optional)',
-    'Explanation (optional)',
-  ])('renders "%s"', (t) => {
-    renderForm()
-    expect(screen.getByText(t)).toBeInTheDocument()
-  })
+  it.each(['Subtopic (optional)', 'Question # (optional)', 'LO Reference (optional)'])(
+    'renders "%s"',
+    (t) => {
+      renderForm()
+      expect(screen.getByText(t)).toBeInTheDocument()
+    },
+  )
 
   it('styles field-group labels text-label + text-muted-foreground', () => {
     renderForm()

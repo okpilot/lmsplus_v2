@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog'
 import { LoadingButton } from '@/components/ui/loading-button'
 import type { SyllabusTree } from '../../syllabus/types'
+import { buildQuestionPayload, canSubmitQuestion } from '../_hooks/question-payload'
 import { useCorrectOptionLoader } from '../_hooks/use-correct-option-loader'
 import { useQuestionFormState } from '../_hooks/use-question-form-state'
 import { upsertQuestion } from '../actions/upsert-question'
@@ -31,26 +32,13 @@ export function QuestionFormDialog({ tree, question, trigger }: Readonly<Props>)
   })
   const { state: s, handlers: h } = useQuestionFormState(question, open)
 
+  const payload = buildQuestionPayload(s, question?.id)
+  const canSubmit = canSubmitQuestion(s)
+
   function handleSubmit() {
     startTransition(async () => {
       try {
-        const result = await upsertQuestion({
-          ...(isEdit ? { id: question.id } : {}),
-          subject_id: s.subjectId,
-          topic_id: s.topicId,
-          subtopic_id: s.subtopicId,
-          question_number: s.questionNumber || null,
-          lo_reference: s.loReference || null,
-          question_text: s.questionText,
-          options: s.options,
-          correct_option_id: s.correctOptionId,
-          explanation_text: s.explanationText,
-          question_image_url: s.questionImageUrl || null,
-          explanation_image_url: s.explanationImageUrl || null,
-          difficulty: s.difficulty,
-          status: s.status,
-          has_calculations: s.hasCalculations,
-        })
+        const result = await upsertQuestion(payload)
         if (result.success) {
           toast.success(isEdit ? 'Question updated' : 'Question created')
           setOpen(false)
@@ -116,7 +104,12 @@ export function QuestionFormDialog({ tree, question, trigger }: Readonly<Props>)
         />
 
         <DialogFooter showCloseButton>
-          <LoadingButton onClick={handleSubmit} loading={isPending} loadingText="Saving...">
+          <LoadingButton
+            onClick={handleSubmit}
+            loading={isPending}
+            disabled={!canSubmit}
+            loadingText="Saving..."
+          >
             {submitLabel}
           </LoadingButton>
         </DialogFooter>

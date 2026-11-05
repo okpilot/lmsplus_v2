@@ -48,7 +48,7 @@ export function internalExamCodeEmail({
     <p>
       <a href="${esc(examUrl)}" style="display: inline-block; background: ${EMAIL_COLOURS.accent}; color: ${EMAIL_COLOURS['on-accent']}; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 600;">Go to exam</a>
     </p>
-    <p style="color: ${EMAIL_COLOURS.muted}; font-size: 13px;">If the button does not work, copy and paste this link into your browser:<br />${esc(examUrl)}</p>
+    <p style="color: ${EMAIL_COLOURS.muted}; font-size: 13px; word-wrap: break-word; overflow-wrap: break-word;">If the button does not work, copy and paste this link into your browser:<br />${esc(examUrl)}</p>
   </body>
 </html>`
 

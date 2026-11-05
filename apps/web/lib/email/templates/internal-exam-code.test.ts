@@ -76,4 +76,12 @@ describe('internalExamCodeEmail', () => {
     expect(html).toContain('not-a-date')
     expect(text).toContain('not-a-date')
   })
+
+  it('wraps the long fallback link instead of overflowing the email', () => {
+    const { html } = internalExamCodeEmail(BASE)
+
+    expect(html).toMatch(
+      /<p style="[^"]*word-wrap: break-word; overflow-wrap: break-word;[^"]*">If the button does not work/,
+    )
+  })
 })

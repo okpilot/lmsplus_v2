@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks -----------------------------------------------------------------
@@ -187,5 +188,66 @@ describe('QuestionTable', () => {
     const cell = screen.getByTestId('edit-dialog-q-1').closest('td')
     expect(cell?.className).toContain('py-cell-y')
     expect(cell?.className).not.toContain('py-2.5')
+  })
+})
+
+describe('QuestionTable selection', () => {
+  const QUESTIONS = [
+    makeQuestion({ id: 'q-1', question_number: 'Q001' }),
+    makeQuestion({ id: 'q-2', question_number: 'Q002' }),
+  ]
+
+  beforeEach(() => {
+    vi.resetAllMocks()
+  })
+
+  function renderTable(selectedIds: string[], onToggleSelect = vi.fn(), onToggleAll = vi.fn()) {
+    render(
+      <QuestionTable
+        questions={QUESTIONS}
+        tree={[]}
+        selectedIds={selectedIds}
+        onToggleSelect={onToggleSelect}
+        onToggleAll={onToggleAll}
+      />,
+    )
+    return { onToggleSelect, onToggleAll }
+  }
+
+  function rowOf(number: string) {
+    const row = screen.getByRole('checkbox', { name: `Select question ${number}` }).closest('tr')
+    if (!row) throw new Error('row not found')
+    return row
+  }
+
+  it('marks a selected row with data-state="selected" and leaves unselected rows without data-state', () => {
+    renderTable(['q-1'])
+    expect(rowOf('Q001')).toHaveAttribute('data-state', 'selected')
+    expect(rowOf('Q002')).not.toHaveAttribute('data-state')
+  })
+
+  it('calls onToggleSelect with exactly the row id when a row checkbox is clicked', async () => {
+    const { onToggleSelect } = renderTable([])
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Select question Q002' }))
+    expect(onToggleSelect).toHaveBeenCalledTimes(1)
+    expect(onToggleSelect.mock.calls[0]).toEqual(['q-2'])
+  })
+
+  it('calls onToggleAll with no arguments when the header checkbox is clicked', async () => {
+    const { onToggleAll } = renderTable([])
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Select all questions' }))
+    expect(onToggleAll).toHaveBeenCalledTimes(1)
+    expect(onToggleAll.mock.calls[0]).toEqual([])
+  })
+
+  it('checks the header checkbox when every question is selected', () => {
+    renderTable(['q-1', 'q-2'])
+    expect(screen.getByRole('checkbox', { name: 'Select all questions' })).toBeChecked()
+  })
+
+  it('leaves the header checkbox unchecked when only some questions are selected', () => {
+    renderTable(['q-1'])
+    expect(screen.getByRole('checkbox', { name: 'Select question Q001' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Select all questions' })).not.toBeChecked()
   })
 })

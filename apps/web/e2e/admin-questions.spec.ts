@@ -121,6 +121,19 @@ test.describe('Admin Question Editor', () => {
     await expect(page.getByText('Question created')).toBeVisible({ timeout: 10_000 })
   })
 
+  test('Create Question stays disabled until required fields are filled', async ({ page }) => {
+    await page.getByRole('button', { name: 'New Question' }).click()
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toBeVisible({ timeout: 5_000 })
+
+    const submit = page.getByRole('button', { name: 'Create Question' })
+    await expect(submit).toBeDisabled()
+
+    await page.getByPlaceholder('Enter the question...').fill(markedQuestionText())
+    await expect(submit).toBeDisabled()
+    await expect(page).toHaveURL(/\/app\/admin\/questions/)
+  })
+
   // ── Section 4: Edit question ────────────────────────────────────────
 
   test('edits an existing question', async ({ page }) => {

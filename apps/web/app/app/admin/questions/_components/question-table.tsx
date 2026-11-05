@@ -3,6 +3,7 @@
 import { Pencil } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Table,
   TableBody,
@@ -41,11 +42,9 @@ export function QuestionTable({
       <TableHeader>
         <TableRow>
           <TableHead className="w-10">
-            {/* biome-ignore lint/correctness/noRestrictedElements: raw checkbox until #1678 */}
-            <input
-              type="checkbox"
+            <Checkbox
               checked={allSelected}
-              onChange={onToggleAll}
+              onCheckedChange={() => onToggleAll()}
               aria-label="Select all questions"
             />
           </TableHead>
@@ -60,79 +59,80 @@ export function QuestionTable({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {questions.map((q) => (
-          <TableRow key={q.id} data-selected={selectedIds.includes(q.id) || undefined}>
-            <TableCell>
-              {/* biome-ignore lint/correctness/noRestrictedElements: raw checkbox until #1678 */}
-              <input
-                type="checkbox"
-                checked={selectedIds.includes(q.id)}
-                onChange={() => onToggleSelect(q.id)}
-                aria-label={`Select question ${q.question_number ?? q.id}`}
-              />
-            </TableCell>
-            <TableCell className="tabular-nums text-caption text-muted-foreground">
-              {q.question_number ?? '\u2014'}
-            </TableCell>
-            <TableCell className="max-w-question-cell">
-              <div className="flex">
-                <Tooltip>
-                  <TooltipTrigger render={<span className="min-w-0 flex-1 truncate" />}>
-                    {q.question_text}
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-popover whitespace-pre-wrap break-words">
-                    {q.question_text}
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-            </TableCell>
-            <TableCell>
-              <span className="text-caption-strong">{q.subject?.code ?? '\u2014'}</span>
-            </TableCell>
-            <TableCell>
-              <span className="text-caption text-muted-foreground">
-                {q.topic?.name ? truncate(q.topic.name, 30) : '\u2014'}
-              </span>
-            </TableCell>
-            <TableCell>
-              {q.has_calculations ? (
-                <CalcBadge />
-              ) : (
-                <span className="text-caption text-muted-foreground">{'—'}</span>
-              )}
-            </TableCell>
-            <TableCell>
-              <Badge tone={q.status === 'active' ? 'success' : 'neutral'}>{q.status}</Badge>
-            </TableCell>
-            <TableCell className="text-caption tabular-nums text-muted-foreground">
-              {formatDate(q.updated_at)}
-            </TableCell>
-            <TableCell>
-              <div className="flex items-center gap-1">
-                <Tooltip>
-                  <QuestionFormDialog
-                    tree={tree}
-                    question={q}
-                    trigger={
-                      <TooltipTrigger
-                        render={
-                          <Button variant="ghost" size="icon-sm" aria-label="Edit question" />
-                        }
-                      >
-                        <Pencil className="size-icon-sm text-muted-foreground" />
-                      </TooltipTrigger>
-                    }
-                  />
-                  <TooltipContent>Edit question</TooltipContent>
-                </Tooltip>
-                <DeleteQuestionButton
-                  id={q.id}
-                  label={q.question_number ?? q.question_text.slice(0, 40)}
+        {questions.map((q) => {
+          const selected = selectedIds.includes(q.id)
+          return (
+            <TableRow key={q.id} data-state={selected ? 'selected' : undefined}>
+              <TableCell>
+                <Checkbox
+                  checked={selected}
+                  onCheckedChange={() => onToggleSelect(q.id)}
+                  aria-label={`Select question ${q.question_number ?? q.id}`}
                 />
-              </div>
-            </TableCell>
-          </TableRow>
-        ))}
+              </TableCell>
+              <TableCell className="tabular-nums text-caption text-muted-foreground">
+                {q.question_number ?? '\u2014'}
+              </TableCell>
+              <TableCell className="max-w-question-cell">
+                <div className="flex">
+                  <Tooltip>
+                    <TooltipTrigger render={<span className="min-w-0 flex-1 truncate" />}>
+                      {q.question_text}
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-popover whitespace-pre-wrap break-words">
+                      {q.question_text}
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              </TableCell>
+              <TableCell>
+                <span className="text-caption-strong">{q.subject?.code ?? '\u2014'}</span>
+              </TableCell>
+              <TableCell>
+                <span className="text-caption text-muted-foreground">
+                  {q.topic?.name ? truncate(q.topic.name, 30) : '\u2014'}
+                </span>
+              </TableCell>
+              <TableCell>
+                {q.has_calculations ? (
+                  <CalcBadge />
+                ) : (
+                  <span className="text-caption text-muted-foreground">{'—'}</span>
+                )}
+              </TableCell>
+              <TableCell>
+                <Badge tone={q.status === 'active' ? 'success' : 'neutral'}>{q.status}</Badge>
+              </TableCell>
+              <TableCell className="text-caption tabular-nums text-muted-foreground">
+                {formatDate(q.updated_at)}
+              </TableCell>
+              <TableCell>
+                <div className="flex items-center gap-1">
+                  <Tooltip>
+                    <QuestionFormDialog
+                      tree={tree}
+                      question={q}
+                      trigger={
+                        <TooltipTrigger
+                          render={
+                            <Button variant="ghost" size="icon-sm" aria-label="Edit question" />
+                          }
+                        >
+                          <Pencil className="size-icon-sm text-muted-foreground" />
+                        </TooltipTrigger>
+                      }
+                    />
+                    <TooltipContent>Edit question</TooltipContent>
+                  </Tooltip>
+                  <DeleteQuestionButton
+                    id={q.id}
+                    label={q.question_number ?? q.question_text.slice(0, 40)}
+                  />
+                </div>
+              </TableCell>
+            </TableRow>
+          )
+        })}
       </TableBody>
     </Table>
   )

@@ -42,7 +42,7 @@ beforeAll(() => {
 afterAll(() => rmSync(dir, { recursive: true, force: true }))
 
 describe('biome lock-in (#1677 PR A)', () => {
-  it('noRestrictedElements is relaxed only by the test-file globs; heading has 3 ignores; question-table 2 for #1678', () => {
+  it('noRestrictedElements is relaxed only by the test-file globs; heading has 3 ignores; question-table has none', () => {
     const level = (v: unknown) =>
       typeof v === 'object' && v !== null && 'level' in v ? (v as { level: unknown }).level : v
     const relaxed = cfg.overrides.filter((o) => {
@@ -62,9 +62,9 @@ describe('biome lock-in (#1677 PR A)', () => {
     expect(
       ignores(
         'apps/web/app/app/admin/questions/_components/question-table.tsx',
-        /biome-ignore lint\/correctness\/noRestrictedElements: .*#1678/g,
+        /biome-ignore lint\/correctness\/noRestrictedElements/g,
       ),
-    ).toBe(2)
+    ).toBe(0)
   })
 
   it('rejects a raw <button> in components/ui via noRestrictedElements', () => {

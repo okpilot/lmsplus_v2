@@ -4,6 +4,7 @@ import { useId } from 'react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Radio, RadioGroup } from '@/components/ui/radio-group'
+import { buildOptionSlots, OPTION_IDS, withOptionText } from '../_hooks/option-slots'
 import type { QuestionOption } from '../types'
 
 type Props = {
@@ -14,8 +15,6 @@ type Props = {
   disabled?: boolean
 }
 
-const OPTION_IDS = ['a', 'b', 'c', 'd'] as const
-
 export function OptionEditor({
   options,
   correctOptionId,
@@ -24,10 +23,7 @@ export function OptionEditor({
   disabled,
 }: Readonly<Props>) {
   const labelId = useId()
-  function handleTextChange(idx: number, text: string) {
-    const updated = options.map((opt, i) => (i === idx ? { ...opt, text } : opt))
-    onChange(updated)
-  }
+  const slots = buildOptionSlots(options)
 
   // The Base UI RadioGroup is a composite root: it selects a focused text input's whole value and
   // takes its arrow keys. The text inputs therefore sit OUTSIDE the group, in a column whose rows
@@ -40,14 +36,14 @@ export function OptionEditor({
       </span>
       <div className="flex gap-3">
         <div className="flex flex-1 flex-col gap-stack-lg">
-          {OPTION_IDS.map((letter, idx) => (
-            <div key={letter} className="flex h-(--control-h) items-center gap-3">
+          {slots.map(({ letter, id }, idx) => (
+            <div key={id} className="flex h-(--control-h) items-center gap-3">
               <span className="w-6 text-center text-label uppercase text-muted-foreground">
                 {letter}
               </span>
               <Input
                 value={options[idx]?.text ?? ''}
-                onChange={(e) => handleTextChange(idx, e.target.value)}
+                onChange={(e) => onChange(withOptionText(options, idx, e.target.value))}
                 placeholder={`Option ${letter.toUpperCase()}`}
                 aria-label={`Option ${letter.toUpperCase()}`}
                 disabled={disabled}
@@ -66,12 +62,12 @@ export function OptionEditor({
           disabled={disabled}
           className="flex flex-col gap-stack-lg"
         >
-          {OPTION_IDS.map((letter) => (
-            <Label key={letter} className="h-(--control-h) cursor-pointer gap-1.5 text-caption">
-              <span id={`${labelId}-mark-${letter}`} hidden>
+          {slots.map(({ letter, id }) => (
+            <Label key={id} className="h-(--control-h) cursor-pointer gap-1.5 text-caption">
+              <span id={`${labelId}-mark-${id}`} hidden>
                 {`Mark option ${letter.toUpperCase()} as correct`}
               </span>
-              <Radio value={letter} aria-labelledby={`${labelId}-mark-${letter}`} />
+              <Radio value={id} aria-labelledby={`${labelId}-mark-${id}`} />
               Correct
             </Label>
           ))}

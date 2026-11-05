@@ -105,6 +105,25 @@ test.describe('Admin Student Management — Create', () => {
     await page.reload()
     await expect(page.getByText(fullName)).toBeVisible({ timeout: 10_000 })
   })
+
+  test('Create Student stays disabled until email and full name are filled', async ({ page }) => {
+    await page.goto('/app/admin/students')
+    await page.getByRole('button', { name: 'New Student' }).click()
+    await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5_000 })
+
+    const submit = page.getByRole('button', { name: 'Create Student' })
+    await expect(submit).toBeDisabled()
+
+    await page.getByLabel('Email').fill(uniqueEmail())
+    await expect(submit).toBeDisabled()
+
+    await page.getByLabel('Full name').fill('   ')
+    await expect(submit).toBeDisabled()
+
+    await page.getByLabel('Full name').fill('E2E Gate Student')
+    await expect(submit).toBeEnabled()
+    await expect(page).toHaveURL(/\/app\/admin\/students/)
+  })
 })
 
 // ── Section 4: Edit student ───────────────────────────────────────────────────
