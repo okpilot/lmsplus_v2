@@ -5,7 +5,8 @@ import type { getAdminClient } from '../../helpers/supabase'
  * Pins that `email` is a live (not soft-deleted) non-admin 'student'. is_admin() is
  * `role = 'admin' AND deleted_at IS NULL` and both halves raise the same `not_admin`, so a
  * soft-deleted attacker would leave a role-denial arm green while covering only the
- * deleted_at half. upsertUser deliberately does not reset deleted_at (see seed-core.ts).
+ * deleted_at half. upsertUser does not reset deleted_at; seedRedTeamUsers resets it for the shared
+ * attacker only (see seed-users.ts).
  */
 export async function expectLiveStudent(
   admin: ReturnType<typeof getAdminClient>,

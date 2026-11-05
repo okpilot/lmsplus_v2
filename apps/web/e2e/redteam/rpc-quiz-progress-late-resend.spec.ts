@@ -252,6 +252,7 @@ test.describe('Red Team: progress resend after session end (Vector GT)', () => {
     expect(await readProgress(sessionId)).toEqual(before)
     expect((await readPosition(sessionId)).current_index).toBe(1)
   })
+
   test('GT: check_non_mc_answer on a short_answer question after the session ended is refused and changes nothing (#1447)', async () => {
     const { data, error } = await admin
       .from('quiz_sessions')

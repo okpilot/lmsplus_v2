@@ -143,9 +143,7 @@ export const E2E_REDTEAM_KS_RT_ONLY_EMAIL = 'redteam-ks-chips-rt-only@lmsplus.lo
 export const E2E_REDTEAM_KS_FULL_EMAIL = 'redteam-ks-chips-full@lmsplus.local'
 export const E2E_REDTEAM_KS_PASSWORD = 'redteam-ks-chips-2026!'
 // Admin dashboard KPI / weak-topics RPC spec (Vector KX, #1251): the dedicated, reused throwaway admin
-// whose soft-delete proves the active-admin gate, and the marker on the internal-exam / session
-// fixtures the admin-render-gate spec (Vector IL, #1543) inserts.
+// whose soft-delete proves the active-admin gate.
 export const E2E_REDTEAM_KX_SOFTDEL_ADMIN_EMAIL =
   'redteam-softdel-dashboard-kpis-admin@lmsplus.local'
 export const E2E_REDTEAM_KX_SOFTDEL_ADMIN_PASSWORD = 'redteam-softdel-dashboard-kpis-admin-2026!'
-export const E2E_REDTEAM_IL_MARKER = '[E2E_REDTEAM_IL]'

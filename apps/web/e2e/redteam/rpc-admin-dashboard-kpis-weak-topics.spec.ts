@@ -11,7 +11,8 @@
  *  - anon → 42501 `permission denied for function` (privilege layer, before the body runs);
  *  - live student → `forbidden`;
  *  - soft-deleted admin holding a still-valid JWT → `forbidden` (dedicated throwaway admin,
- *    restored in the test's finally; the same token returned data before the soft-delete).
+ *    left soft-deleted afterwards, revived by beforeAll; the same token returned data before the
+ *    soft-delete).
  * Every denial returns null data, so no org aggregate leaks.
  *
  * CONTROL: the egmont admin gets all six KPI keys with totalStudents >= 1, and >= 1 weak-topic row
@@ -92,7 +93,7 @@ test.describe('Red Team: admin dashboard KPI + weak-topics RPCs (KX)', () => {
       await getEgmontOrgId(admin),
       'admin',
     )
-    // Revive a row a previous aborted run left soft-deleted.
+    // Revive the row the previous run left soft-deleted.
     const { data, error } = await admin
       .from('users')
       .update({ deleted_at: null })
@@ -111,9 +112,9 @@ test.describe('Red Team: admin dashboard KPI + weak-topics RPCs (KX)', () => {
     if (!softDelAdminId) return
     const { error } = await admin
       .from('users')
-      .update({ deleted_at: null })
+      .update({ deleted_at: new Date().toISOString() })
       .eq('id', softDelAdminId)
-    if (error) throw new Error(`afterAll restore throwaway admin: ${error.message}`)
+    if (error) throw new Error(`afterAll soft-delete throwaway admin: ${error.message}`)
   })
 
   test('KX control: the egmont admin gets the full KPI payload and weak-topic rows', async () => {
@@ -165,7 +166,7 @@ test.describe('Red Team: admin dashboard KPI + weak-topics RPCs (KX)', () => {
     expect(preWeak.error).toBeNull()
     expect(((preWeak.data ?? []) as unknown[]).length).toBeGreaterThanOrEqual(1)
 
-    let restoreError: string | null = null
+    let finalDeleteError: string | null = null
     let post: Array<{ fn: string; data: unknown; message: string }> = []
     try {
       const { data: del, error: delErr } = await admin
@@ -186,17 +187,17 @@ test.describe('Red Team: admin dashboard KPI + weak-topics RPCs (KX)', () => {
     } finally {
       const { data, error } = await admin
         .from('users')
-        .update({ deleted_at: null })
+        .update({ deleted_at: new Date().toISOString() })
         .eq('id', softDelAdminId)
         .select('id')
-      if (error) restoreError = error.message
-      else if (!data?.length) restoreError = 'restore matched no rows'
+      if (error) finalDeleteError = error.message
+      else if (!data?.length) finalDeleteError = 'soft-delete matched no rows'
     }
     expect(post.length).toBe(2)
     for (const r of post) {
       expect(r.message, r.fn).toMatch(/forbidden/i)
       expect(r.data, r.fn).toBeNull()
     }
-    expect(restoreError).toBeNull()
+    expect(finalDeleteError).toBeNull()
   })
 })
