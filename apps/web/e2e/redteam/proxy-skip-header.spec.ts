@@ -117,8 +117,12 @@ test.describe('Red Team: proxy skip header (KW)', () => {
         { ctx: student, target: DASHBOARD },
         { ctx: adminCtx, target: ADMIN_STUDENTS },
       ]
+      const headerSets: Record<string, string>[] = [
+        {},
+        { [SKIP_HEADER]: HEADER_VALUES[0] as string },
+      ]
       for (const { ctx, target } of controls) {
-        for (const headers of [{}, { [SKIP_HEADER]: HEADER_VALUES[0] as string }]) {
+        for (const headers of headerSets) {
           const res = await appPageStatus(ctx, target.path, headers)
           const label = `${target.path} ${JSON.stringify(headers)}`
           expect(res.status, label).toBe(200)
