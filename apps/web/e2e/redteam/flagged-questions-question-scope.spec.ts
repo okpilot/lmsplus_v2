@@ -11,6 +11,7 @@
  *   KZ5: quiz_drafts UPDATE of organization_id is refused (42501, no UPDATE grant); the row is
  *        unchanged.
  *   KZ6: undelete of a soft-deleted flag whose question became invisible is refused (42501).
+ *   KZ6b: the same undelete via the ON CONFLICT upsert toggleFlag sends is refused (42501).
  * CONTROLS: flag + re-flag of a visible question succeeds; unflag of an existing flag whose
  * question was soft-deleted afterwards succeeds.
  *
@@ -45,7 +46,7 @@ type Scaffold = {
   created_by: string
 }
 
-test.describe('Red Team: flagged_questions question scope (KZ1-KZ6)', () => {
+test.describe('Red Team: flagged_questions question scope (KZ1-KZ6b)', () => {
   test.setTimeout(120_000)
 
   let admin: ReturnType<typeof getAdminClient>
@@ -432,6 +433,37 @@ test.describe('Red Team: flagged_questions question scope (KZ1-KZ6)', () => {
       .eq('student_id', attackerId)
       .eq('question_id', qid)
       .select('question_id')
+    expect(attack.error?.code).toBe(RLS_VIOLATION)
+    const after = await flagRows(attackerId, qid)
+    expect(after).toHaveLength(1)
+    expect(after[0]?.deleted_at).not.toBeNull()
+  })
+
+  test('KZ6b: re-flag upsert (toggleFlag path) of a flag whose question became invisible is refused', async () => {
+    const qid = await insertQuestion('kz6b-upsert-undelete', orgId)
+    await seedFlag(attackerId, qid)
+    const unflag = await attacker
+      .from('flagged_questions')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('student_id', attackerId)
+      .eq('question_id', qid)
+      .select('question_id')
+    expect(unflag.error).toBeNull()
+    expect(unflag.data).toHaveLength(1)
+    await softDeleteQuestion(qid)
+    const hidden = await attacker.from('questions').select('id').eq('id', qid)
+    expect(hidden.error).toBeNull()
+    expect(hidden.data).toHaveLength(0)
+
+    const attack = await attacker.from('flagged_questions').upsert(
+      {
+        student_id: attackerId,
+        question_id: qid,
+        flagged_at: new Date().toISOString(),
+        deleted_at: null,
+      },
+      { onConflict: 'student_id,question_id' },
+    )
     expect(attack.error?.code).toBe(RLS_VIOLATION)
     const after = await flagRows(attackerId, qid)
     expect(after).toHaveLength(1)
