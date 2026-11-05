@@ -8,7 +8,10 @@
  * Attack: the cross-org admin calls both RPCs.
  *  - totalStudents and sessionsThisPeriod equal the service-role per-org counts (live students;
  *    ended, non-deleted sessions), not egmont's. The mastery/exam-ready/weakest CTEs share the
- *    same `v_org_id`, so only these two are asserted.
+ *    same `v_org_id`. avgMastery, examReadyStudents and weakestSubject are pinned (0, 0, null)
+ *    under the empty-bank precondition (no active other-org question); only weakestSubject
+ *    discriminates an unscoped question_counts (avg/examReady are 0 either way). A full per-org
+ *    recompute needs a cross-org question bank.
  *  - every weak-topic row has a topic answered on an active, live question of ITS org, and its
  *    student_count equals the distinct students who answered it there. The equality applies when
  *    the other org has answered rows; otherwise the arm is the "no foreign topic" check.
@@ -18,7 +21,8 @@
  * org's), and the egmont admin receives >= 1 weak-topic row whose topic is absent from the
  * cross-org expected set (the victim's seeded responses guarantee it).
  *
- * beforeAll seeds one ended egmont session (victim); afterAll soft-deletes it via cleanupFixtures.
+ * beforeAll inserts one ended egmont session (victim; no answers, no student_responses) and the
+ * live other-org student; afterAll soft-deletes the session via cleanupFixtures.
  *
  * Status: Expected to PASS.
  */
@@ -26,20 +30,19 @@
 import { expect, test } from '@playwright/test'
 import { getAdminClient } from '../helpers/supabase'
 import { cleanupFixtures, createFixtureTracker } from './helpers/cleanup'
-import { clearOpenSessions } from './helpers/clear-open-sessions'
 import { createAuthenticatedClient } from './helpers/redteam-client'
 import { getEgmontOrgId } from './helpers/seed-core'
-import { pickSubjectWithQuestions } from './helpers/seed-quiz'
+import { E2E_REDTEAM_KY_MARKER } from './helpers/seed-markers'
 import { seedVictimResponses } from './helpers/seed-responses'
 import {
   ADMIN_EMAIL,
   ADMIN_PASSWORD,
+  createCrossOrgUser,
   seedCrossOrgAdmin,
   seedRedTeamAdmin,
   seedRedTeamInstructor,
   seedRedTeamUsers,
 } from './helpers/seed-users'
-import { seedVictimCompletedSession } from './helpers/seed-victim-session'
 
 type Client = Awaited<ReturnType<typeof createAuthenticatedClient>>
 type Admin = ReturnType<typeof getAdminClient>
@@ -78,15 +81,23 @@ async function answeredTopicStudents(
   admin: Admin,
   orgId: string,
 ): Promise<Map<string, Set<string>>> {
-  const { data, error } = await admin
-    .from('student_responses')
-    .select('student_id, questions!inner(topic_id, organization_id, status, deleted_at)')
-    .eq('questions.organization_id', orgId)
-    .eq('questions.status', 'active')
-    .is('questions.deleted_at', null)
-  if (error) throw new Error(`answered topics: ${error.message}`)
+  const rows: unknown[] = []
+  const pageSize = 1000
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await admin
+      .from('student_responses')
+      .select('student_id, questions!inner(topic_id, organization_id, status, deleted_at)')
+      .eq('questions.organization_id', orgId)
+      .eq('questions.status', 'active')
+      .is('questions.deleted_at', null)
+      .order('id')
+      .range(from, from + pageSize - 1)
+    if (error) throw new Error(`answered topics: ${error.message}`)
+    rows.push(...(data ?? []))
+    if ((data ?? []).length < pageSize) break
+  }
   const map = new Map<string, Set<string>>()
-  for (const row of data ?? []) {
+  for (const row of rows) {
     const q = (row as { questions: unknown }).questions
     const one = Array.isArray(q) ? q[0] : q
     const studentId = (row as { student_id: unknown }).student_id
@@ -121,13 +132,23 @@ test.describe('Red Team: admin dashboard RPC cross-org isolation (KY)', () => {
     const inst = await seedRedTeamInstructor()
     egmontOrgId = await getEgmontOrgId(admin)
     otherOrgId = cross.orgId
-    const picked = await pickSubjectWithQuestions(admin, { orgId: egmontOrgId })
-    await clearOpenSessions(admin, users.victimUserId, 'kpis-cross-org')
-    await seedVictimCompletedSession(
-      admin,
-      { orgId: egmontOrgId, subjectId: picked.subjectId, topicId: picked.topicId },
-      tracker,
-    )
+    await createCrossOrgUser()
+    const { data: session, error: sessionErr } = await admin
+      .from('quiz_sessions')
+      .insert({
+        organization_id: egmontOrgId,
+        student_id: users.victimUserId,
+        mode: 'quick_quiz',
+        total_questions: 0,
+        config: { question_ids: [], e2e_marker: E2E_REDTEAM_KY_MARKER },
+        ended_at: new Date().toISOString(),
+      })
+      .select('id')
+      .single()
+    if (sessionErr || !isRecord(session) || typeof session.id !== 'string') {
+      throw new Error(`seed ended session: ${sessionErr?.message ?? 'bad shape'}`)
+    }
+    tracker.sessions.add(session.id)
     egmontAdmin = await createAuthenticatedClient(ADMIN_EMAIL, ADMIN_PASSWORD)
     crossOrgAdmin = await createAuthenticatedClient(cross.email, cross.password)
     instructor = await createAuthenticatedClient(inst.email, inst.password)
@@ -156,6 +177,27 @@ test.describe('Red Team: admin dashboard RPC cross-org isolation (KY)', () => {
     expect(foreign.error).toBeNull()
     expect(isRecord(foreign.data) && foreign.data.totalStudents).toBe(otherCount)
     expect(isRecord(foreign.data) && foreign.data.sessionsThisPeriod).toBe(otherEnded)
+
+    // Empty-bank precondition: with no active other-org question, question_counts is empty.
+    expect(
+      otherCount,
+      'other org needs a live student or the weakestSubject pin is vacuous',
+    ).toBeGreaterThanOrEqual(1)
+    const { count: activeQuestions, error: qErr } = await admin
+      .from('questions')
+      .select('id', { count: 'exact', head: true })
+      .eq('organization_id', otherOrgId)
+      .eq('status', 'active')
+      .is('deleted_at', null)
+    if (qErr || activeQuestions === null)
+      throw new Error(`count questions: ${qErr?.message ?? 'null'}`)
+    expect(
+      activeQuestions,
+      'an active other-org question left by an aborted run breaks this precondition — clean it up',
+    ).toBe(0)
+    expect(isRecord(foreign.data) && foreign.data.avgMastery).toBe(0)
+    expect(isRecord(foreign.data) && foreign.data.examReadyStudents).toBe(0)
+    expect(isRecord(foreign.data) && foreign.data.weakestSubject).toBeNull()
   })
 
   test('KY: weak topics carry only topics answered in the caller org', async () => {

@@ -147,3 +147,5 @@ export const E2E_REDTEAM_KS_PASSWORD = 'redteam-ks-chips-2026!'
 export const E2E_REDTEAM_KX_SOFTDEL_ADMIN_EMAIL =
   'redteam-softdel-dashboard-kpis-admin@lmsplus.local'
 export const E2E_REDTEAM_KX_SOFTDEL_ADMIN_PASSWORD = 'redteam-softdel-dashboard-kpis-admin-2026!'
+// admin dashboard RPC cross-org spec (Vector KY): written into fixture quiz_sessions as `config.e2e_marker`.
+export const E2E_REDTEAM_KY_MARKER = '[E2E_REDTEAM_KY]'

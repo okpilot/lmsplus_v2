@@ -11,7 +11,7 @@
  * the header with each of the values the CVE advisories used: `middleware`, `src/middleware`,
  * `proxy`, `src/proxy`, `pages/_middleware`, and the five-times-repeated `middleware:...`,
  * `proxy:...`, `src/middleware:...` and `src/proxy:...` forms.
- * Each must answer 307 to `/?next=<that path>` — never 200, never page markup. `/app/dashboard`
+ * Each must answer 307 to `/?next=<that path>` — never 200, and the body never contains the page marker. `/app/dashboard`
  * (#1132 AC1) is not used: `safeNextPath` drops that default destination, so the proxy redirect is
  * indistinguishable from `requireAuthUser`'s bare `/` redirect. Only the proxy
  * adds `?next=` (`withNext`); `requireAuthUser` also redirects to a bare `/`, so asserting `next`
@@ -66,7 +66,7 @@ async function appPageStatus(ctx: BrowserContext, path: string, headers: Record<
     status: res.status(),
     path: url?.pathname ?? '',
     next: url?.searchParams.get('next') ?? '',
-    markup: res.status() === 200 ? await res.text() : '',
+    markup: await res.text(),
   }
 }
 
@@ -94,13 +94,18 @@ test.describe('Red Team: proxy skip header (KW)', () => {
     const student = await browser.newContext({ storageState: undefined })
     const adminCtx = await browser.newContext({ storageState: undefined })
     try {
-      for (const { path } of TARGETS) {
-        const denied = { status: 307, path: '/', next: path, markup: '' }
+      for (const target of TARGETS) {
+        const { path } = target
+        const denied = { status: 307, path: '/', next: path }
+        const assertDenied = (res: Awaited<ReturnType<typeof appPageStatus>>, label: string) => {
+          expect({ status: res.status, path: res.path, next: res.next }, label).toEqual(denied)
+          expect(res.markup, label).not.toContain(target.marker)
+        }
         // Baseline: no header, no cookies.
-        expect(await appPageStatus(anon, path, {}), `baseline ${path}`).toEqual(denied)
+        assertDenied(await appPageStatus(anon, path, {}), `baseline ${path}`)
         for (const value of HEADER_VALUES) {
           const res = await appPageStatus(anon, path, { [SKIP_HEADER]: value })
-          expect(res, `${path} header value ${value}`).toEqual(denied)
+          assertDenied(res, `${path} header value ${value}`)
         }
       }
 
