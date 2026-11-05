@@ -640,7 +640,7 @@ RLS policies:
 - UPDATE, RESTRICTIVE `flagged_questions_update_visible_question`: `USING (true)`, `WITH CHECK (deleted_at IS NOT NULL OR EXISTS (SELECT 1 FROM questions q WHERE q.id = flagged_questions.question_id))`; the `deleted_at IS NOT NULL` arm allows unflag on an invisible question; `question_id` changes are blocked by the trigger (mig `20261105000100`, #1177)
 - TRIGGER `trg_flagged_questions_protect_question_id`: BEFORE UPDATE OF question_id, raises 42501 on any change (mig `20261105000100`, #1177)
 
-**Why the ownership and SELECT policies do not filter `deleted_at IS NULL`:** With `FORCE ROW LEVEL SECURITY`, Postgres checks SELECT visibility of the NEW row after UPDATE. Filtering `deleted_at IS NULL` there would prevent soft-deletes from succeeding. Instead, read queries use the `active_flagged_questions` view (which includes `WHERE deleted_at IS NULL`). Write operations in flag.ts filter explicitly. RLS enforces ownership, and on INSERT/UPDATE an active caller; RESTRICTIVE policies add question visibility on INSERT and undelete, and a trigger pins `question_id`.
+**Why the ownership and SELECT policies do not filter `deleted_at IS NULL`:** With `FORCE ROW LEVEL SECURITY`, Postgres checks SELECT visibility of the NEW row after UPDATE. Filtering `deleted_at IS NULL` there would prevent soft-deletes from succeeding. Instead, read queries use the `active_flagged_questions` view (which includes `WHERE deleted_at IS NULL`). RLS enforces ownership, and on INSERT/UPDATE an active caller; RESTRICTIVE policies add question visibility on INSERT and undelete, and a trigger pins `question_id`.
 
 #### View: `active_flagged_questions`
 
