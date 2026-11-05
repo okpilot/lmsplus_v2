@@ -4,6 +4,7 @@ import { useId } from 'react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Radio, RadioGroup } from '@/components/ui/radio-group'
+import { buildOptionSlots, OPTION_IDS, withOptionText } from '../_hooks/option-slots'
 import type { QuestionOption } from '../types'
 
 type Props = {
@@ -14,8 +15,6 @@ type Props = {
   disabled?: boolean
 }
 
-const OPTION_IDS = ['a', 'b', 'c', 'd'] as const
-
 export function OptionEditor({
   options,
   correctOptionId,
@@ -24,14 +23,7 @@ export function OptionEditor({
   disabled,
 }: Readonly<Props>) {
   const labelId = useId()
-  const unusedIds = OPTION_IDS.filter((letter) => !options.some((opt) => opt.id === letter))
-  const slots = OPTION_IDS.map((letter, idx) => ({
-    letter,
-    id: options[idx]?.id ?? unusedIds[idx - options.length] ?? letter,
-  }))
-  function handleTextChange(idx: number, text: string) {
-    onChange(slots.map(({ id }, i) => ({ id, text: i === idx ? text : (options[i]?.text ?? '') })))
-  }
+  const slots = buildOptionSlots(options)
 
   // The Base UI RadioGroup is a composite root: it selects a focused text input's whole value and
   // takes its arrow keys. The text inputs therefore sit OUTSIDE the group, in a column whose rows
@@ -51,7 +43,7 @@ export function OptionEditor({
               </span>
               <Input
                 value={options[idx]?.text ?? ''}
-                onChange={(e) => handleTextChange(idx, e.target.value)}
+                onChange={(e) => onChange(withOptionText(options, idx, e.target.value))}
                 placeholder={`Option ${letter.toUpperCase()}`}
                 aria-label={`Option ${letter.toUpperCase()}`}
                 disabled={disabled}
