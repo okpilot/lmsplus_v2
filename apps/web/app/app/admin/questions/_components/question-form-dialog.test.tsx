@@ -20,14 +20,11 @@ type FieldProps = {
 vi.mock('./question-form-fields', () => ({
   QuestionFormFields: (p: FieldProps) => (
     <div>
-      <button
-        type="button"
-        onClick={() => {
-          p.onSubjectChange(UUID)
-          p.onTopicChange(UUID)
-        }}
-      >
-        set-syllabus
+      <button type="button" onClick={() => p.onSubjectChange(UUID)}>
+        set-subject
+      </button>
+      <button type="button" onClick={() => p.onTopicChange(UUID)}>
+        set-topic
       </button>
       <button type="button" onClick={() => p.onQuestionTextChange('What?')}>
         set-text
@@ -62,7 +59,14 @@ async function openDialog() {
   await userEvent.click(screen.getByRole('button', { name: 'open' }))
 }
 
-const STEPS = ['set-syllabus', 'set-text', 'set-options', 'set-correct', 'set-explanation']
+const STEPS = [
+  'set-subject',
+  'set-topic',
+  'set-text',
+  'set-options',
+  'set-correct',
+  'set-explanation',
+]
 
 beforeEach(() => {
   vi.clearAllMocks()

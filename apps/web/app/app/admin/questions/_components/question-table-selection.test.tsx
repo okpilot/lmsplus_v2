@@ -89,6 +89,7 @@ describe('QuestionTable selection', () => {
 
   it('leaves the header checkbox unchecked when only some questions are selected', () => {
     renderTable(['q-1'])
+    expect(screen.getByRole('checkbox', { name: 'Select question Q001' })).toBeChecked()
     expect(screen.getByRole('checkbox', { name: 'Select all questions' })).not.toBeChecked()
   })
 })

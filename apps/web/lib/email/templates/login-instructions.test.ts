@@ -23,7 +23,7 @@ describe('loginInstructionsEmail', () => {
     const { html } = loginInstructionsEmail(BASE)
 
     expect(html).toMatch(
-      /<p style="[^"]*overflow-wrap: break-word;[^"]*">If the button does not work/,
+      /<p style="[^"]*word-wrap: break-word; overflow-wrap: break-word;[^"]*">If the button does not work/,
     )
   })
 

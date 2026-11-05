@@ -184,7 +184,7 @@ describe('StudentFormDialog — edit', () => {
 })
 
 describe('StudentFormDialog — submit gating (#888)', () => {
-  it('disables Create Student until email and full name are valid', async () => {
+  it('disables Create Student until email and full name are nonblank', async () => {
     render(<StudentFormDialog open={true} onOpenChange={vi.fn()} />)
     const button = screen.getByRole('button', { name: 'Create Student' })
     expect(button).toBeDisabled()
