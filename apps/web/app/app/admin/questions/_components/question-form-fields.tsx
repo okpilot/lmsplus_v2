@@ -115,7 +115,7 @@ export function QuestionFormFields({
         onCorrectOptionChange={onCorrectOptionChange}
       />
       <LabeledTextarea
-        label="Explanation (optional)"
+        label="Explanation"
         value={explanationText}
         placeholder="Explain the correct answer..."
         rows={2}
