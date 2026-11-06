@@ -173,9 +173,8 @@ export async function ensureLoginTestUser() {
   let userId: string
   if (existingAuth) {
     userId = existingAuth.id
-    // Reset kept: out of #1146 scope. It revokes every existing session for
-    // this account. Never call this once that account's storageState has been written —
-    // see #1146.
+    // This reset revokes every existing session for this account. Never call this once
+    // that account's storageState has been written.
     const { error: resetError } = await admin.auth.admin.updateUserById(userId, {
       password: LOGIN_TEST_PASSWORD,
     })
@@ -242,9 +241,8 @@ export async function ensureInternalExamStudentUser() {
   let userId: string
   if (existingAuth) {
     userId = existingAuth.id
-    // Reset kept: out of #1146 scope. It revokes every existing session for
-    // this account. Never call this once that account's storageState
-    // (e2e/.auth/internal-exam-student.json) has been written — see #1146.
+    // This reset revokes every existing session for this account. Never call this once
+    // that account's storageState (e2e/.auth/internal-exam-student.json) has been written.
     const { error: resetError } = await admin.auth.admin.updateUserById(userId, {
       password: INTERNAL_EXAM_STUDENT_PASSWORD,
     })

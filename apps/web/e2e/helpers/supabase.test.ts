@@ -233,7 +233,7 @@ describe('ensureTestUser', () => {
     })
     mockCreateClient.mockReturnValue(mockClient)
 
-    await expect(ensureTestUser()).rejects.toThrow()
+    await expect(ensureTestUser()).rejects.toThrow('passwordAuthenticates: rate limited')
     expect(mockClient.auth.admin.updateUserById).not.toHaveBeenCalled()
   })
 

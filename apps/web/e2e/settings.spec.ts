@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { findAuthUserByEmail, resetPasswordIfDrifted } from './helpers/auth-users'
+import { findAuthUserByEmail } from './helpers/auth-users'
 import { getAdminClient, TEST_EMAIL, TEST_PASSWORD } from './helpers/supabase'
 
 // Use saved auth state from setup
@@ -151,16 +151,17 @@ test.describe('Settings — Change Password', () => {
       errors.push(e instanceof Error ? e.message : String(e))
     }
 
-    // Step 2: restore the known test password. Depends on step 1. A reset happens only on
-    // drift and revokes every session of TEST_EMAIL, including e2e/.auth/user.json.
+    // Step 2: reset password to the known test value. Depends on step 1.
+    //
+    // ORDERING ASSUMPTION: this reset and the password change in the test above each revoke
+    // every other session of TEST_EMAIL, including the one saved to e2e/.auth/user.json. A spec
+    // sorting after this file in the `e2e` project must sign in itself (vfr-rt-exam.spec.ts does).
     if (errors.length === 0 && userId) {
       try {
-        await resetPasswordIfDrifted(admin, {
-          id: userId,
-          email: TEST_EMAIL,
+        const { error: updateError } = await admin.auth.admin.updateUserById(userId, {
           password: TEST_PASSWORD,
-          tag: 'afterAll',
         })
+        if (updateError) throw new Error(`afterAll updateUserById: ${updateError.message}`)
       } catch (e) {
         errors.push(e instanceof Error ? e.message : String(e))
       }

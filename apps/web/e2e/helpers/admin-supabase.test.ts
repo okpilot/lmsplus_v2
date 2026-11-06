@@ -266,7 +266,7 @@ describe('ensureAdminTestUser', () => {
     })
     mockCreateClient.mockReturnValue(client)
 
-    await expect(ensureAdminTestUser()).rejects.toThrow()
+    await expect(ensureAdminTestUser()).rejects.toThrow('passwordAuthenticates: rate limited')
     expect(updateUserById).not.toHaveBeenCalled()
   })
 
