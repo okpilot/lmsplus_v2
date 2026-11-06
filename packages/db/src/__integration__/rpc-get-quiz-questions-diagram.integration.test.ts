@@ -65,7 +65,7 @@ describe('RPC: get_quiz_questions — diagram_label delivery (answer stripped, l
     { zone_id: diagramZoneId(IMG, 2), label_id: diagramLabelId('Downwind Leg') },
   ]
   const DIAGRAM_CONFIG: DiagramConfig = {
-    image_ref: 'rwy-27-09-lh-pattern',
+    image_ref: IMG,
     zones: ZONES,
     labels: LABELS,
     answer: ANSWER,
@@ -255,7 +255,7 @@ describe('RPC: get_quiz_questions — diagram_label delivery (answer stripped, l
     // exactly the re-projected field set for a valid config (the re-projection is
     // defense-in-depth against any future write-path that bypasses the CHECK).
     const validConfig = {
-      image_ref: 'rwy-27-09-lh-pattern',
+      image_ref: IMG,
       zones: [{ id: diagramZoneId(IMG, 0), x: 0.3, y: 0.3, w: 0.15, h: 0.15 }],
       labels: [{ id: diagramLabelId('Solo Label'), text: 'Solo Label' }],
       answer: [{ zone_id: diagramZoneId(IMG, 0), label_id: diagramLabelId('Solo Label') }],

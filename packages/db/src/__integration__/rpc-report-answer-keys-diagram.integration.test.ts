@@ -62,7 +62,7 @@ describe('RPC: get_report_answer_keys — diagram_label per-zone keys (2-hop res
   let diagramId: string
 
   const CONFIG: DiagramConfig = {
-    image_ref: 'rwy-27-09-lh-pattern',
+    image_ref: IMG,
     zones: [
       { id: diagramZoneId(IMG, 0), x: 0.1, y: 0.1, w: 0.2, h: 0.2 },
       { id: diagramZoneId(IMG, 1), x: 0.6, y: 0.1, w: 0.2, h: 0.2 },
@@ -198,7 +198,7 @@ describe('RPC: get_report_answer_keys — diagram_label per-zone keys (2-hop res
       expect(r.question_type).toBe('diagram_label')
     }
     const byIndex = new Map(rows.map((r) => [r.blank_index, r.answer_key]))
-    // Alignment for all 3 zones (>= 2 required): zone-nw=0, zone-ne=1, zone-sw=2
+    // Alignment for all 3 zones (>= 2 required): zones 0, 1, 2
     // — the SAME ordinal _grade_record_diagram_label derives, resolved via the
     // 2-hop zone -> answer entry -> label text lookup.
     expect(byIndex.get(0)).toBe(CANONICAL_TEXTS[0])

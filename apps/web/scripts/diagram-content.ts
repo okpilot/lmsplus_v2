@@ -3,9 +3,9 @@
  * state — the importer and the seed script call it, and the co-located suite exercises it.
  *
  * `assertDiagramConfig` MIRRORS the DB CHECK `is_valid_diagram_config`
- * (supabase/migrations/20260702000100_questions_diagram_label_type.sql) so a config Postgres
+ * (supabase/migrations/20261106000100_diagram_config_derived_ids.sql) so a config Postgres
  * would reject is rejected here first, naming the offending element instead of surfacing a bare
- * constraint violation. It adds ONE rule the DB cannot express: every zone and label id must be
+ * constraint violation. The DB enforces the same derived-id rule: every zone and label id must be
  * the id DERIVED from its own content.
  *
  * That derived-id rule enforces the answer-oracle invariant documented at

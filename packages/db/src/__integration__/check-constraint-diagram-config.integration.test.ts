@@ -194,8 +194,8 @@ describe('CHECK: is_valid_diagram_config — authoring-time reject/accept', () =
 
   it('rejects a diagram_config exceeding the MAX_ZONES (50) cap', async () => {
     // The validator caps zones at 50 (mirrors diagram-validation.ts MAX_ZONES) so an
-    // oversized config cannot be stored, delivered, or graded. Build 51 valid,
-    // disjoint zones with a bijective answer so ONLY the count violates the CHECK.
+    // oversized config cannot be stored, delivered, or graded. 51 zones with a bijective
+    // answer are rejected; index 50 has no canonical id.
     const n = 51
     const zones = Array.from({ length: n }, (_, i) => ({
       id: diagramZoneId(IMG, i),
@@ -210,7 +210,7 @@ describe('CHECK: is_valid_diagram_config — authoring-time reject/accept', () =
     }))
     const answer = Array.from({ length: n }, (_, i) => ({
       zone_id: diagramZoneId(IMG, i),
-      label_id: `lb${i}`,
+      label_id: diagramLabelId(`Label ${i}`),
     }))
     const { error } = await insertDiagram({ image_ref: IMG, zones, labels, answer }, '51 zones')
     expect(error).not.toBeNull()
@@ -353,9 +353,8 @@ describe('CHECK: is_valid_diagram_config — authoring-time reject/accept', () =
     expect(error?.code).toBe('23514')
   })
 
-  it('rejects a config where a zone id equals a label id', async () => {
-    // SECURITY: mig 150 enforces zone-id / label-id disjointness — a shared id
-    // could correlate a delivered zone to its answer label (header note).
+  it('rejects a config where a zone id and a label id are the same hand id', async () => {
+    // A hand-written shared id is rejected by the derived-id rule.
     const config = baseValidConfig()
     const zones = config.zones as Array<Record<string, unknown>>
     const labels = config.labels as Array<Record<string, unknown>>
@@ -454,6 +453,18 @@ describe('CHECK: is_valid_diagram_config — authoring-time reject/accept', () =
   it('rejects a whitespace-only image_ref', async () => {
     const config = baseValidConfig()
     config.image_ref = '   '
+    const blank = config.image_ref
+    config.zones = [0, 1].map((j) => ({
+      id: diagramZoneId(blank, j),
+      x: 0.2 + 0.4 * j,
+      y: 0.2 + 0.4 * j,
+      w: 0.1,
+      h: 0.1,
+    }))
+    config.answer = [
+      { zone_id: diagramZoneId(blank, 0), label_id: lb1 },
+      { zone_id: diagramZoneId(blank, 1), label_id: lb2 },
+    ]
     await expectRejected(config, 'whitespace-only image_ref')
   })
 

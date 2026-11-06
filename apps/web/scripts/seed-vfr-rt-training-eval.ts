@@ -581,10 +581,9 @@ async function seed(): Promise<void> {
   // seeded config always matches what's rendered — see rwy-2709-layout.ts)
   for (const q of DIAGRAM_LABEL) {
     // Assembled BEFORE the insert so the shared gate sees exactly the object that will be
-    // stored. assertDiagramConfig mirrors the DB CHECK is_valid_diagram_config and adds the
-    // rule the DB cannot express: every zone and label id must be the id DERIVED from its own
-    // content, which is the answer-oracle invariant (see scripts/diagram-content.ts). It
-    // replaces a module-local checker that covered only disjointness and answer coverage.
+    // stored. assertDiagramConfig mirrors the DB CHECK is_valid_diagram_config (migration
+    // 20261106000100): every zone and label id must be the id DERIVED from its own content,
+    // the answer-oracle invariant (see scripts/diagram-content.ts).
     const diagramConfig = {
       image_ref: RWY_2709_IMAGE_REF,
       zones: RWY_2709_ZONES,

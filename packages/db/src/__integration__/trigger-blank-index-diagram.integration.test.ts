@@ -35,7 +35,7 @@ const ZONE_LABEL_TEXT_0 = 'Upwind Leg'
 const ZONE_LABEL_TEXT_1 = 'Crosswind Leg'
 
 const DIAGRAM_CONFIG = {
-  image_ref: 'rwy-27-09-lh-pattern',
+  image_ref: IMG,
   zones: [
     { id: diagramZoneId(IMG, 0), x: 0.1, y: 0.1, w: 0.2, h: 0.2 },
     { id: diagramZoneId(IMG, 1), x: 0.6, y: 0.1, w: 0.2, h: 0.2 },

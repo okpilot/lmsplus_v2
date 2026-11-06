@@ -21,6 +21,9 @@
  * id would no longer match the stored `answer.zone_id`, and the question becomes ungradeable).
  * The version prefix makes such a change visible in the data rather than silent.
  *
+ * The `l`/`z` diagram ids are derived from `o` in SQL (`20261106000100_diagram_config_derived_ids.sql`);
+ * the fixture copy is `packages/db/src/__integration__/diagram-ids.ts`.
+ *
  * For the `o` (ordering-item) prefix specifically: since #1045, the database CHECK-enforces
  * `id = ordering_item_id(text)` (migration `20260928000100_ordering_items_derived_ids.sql`,
  * `is_valid_ordering_items`), a SQL re-implementation of this exact `normalizeForId` + SHA-256 +

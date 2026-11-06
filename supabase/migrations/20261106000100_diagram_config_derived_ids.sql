@@ -5,6 +5,7 @@
 -- (prefix is concatenated, not hashed). Pinned by apps/web/scripts/content-ids.integration.test.ts.
 -- Zones may be an ascending subset of canonical indices 0..49 (MAX_ZONES).
 -- Execute posture inherited from ordering_item_id (authenticated keeps it; the CHECK runs as it).
+-- Prod probe (read-only, 2026-11-06): 2 diagram_label rows, 0 violating.
 -- Signature unchanged; called by name from questions_question_type_columns_check.
 -- Body: 20260702000100:84 plus (a) zones WITH ORDINALITY, (b) label id/text rule,
 -- (c) zone id rule + ascending order, (d) image_ref non-whitespace regex. Still total.

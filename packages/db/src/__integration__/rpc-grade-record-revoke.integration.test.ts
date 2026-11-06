@@ -28,7 +28,7 @@ const IMG = 'rwy-27-09-lh-pattern'
 const DUMMY_ID = '00000000-0000-0000-0000-000000000000'
 const ORDERING_ITEMS = [orderingItem('MAYDAY MAYDAY MAYDAY'), orderingItem('callsign Golf Bravo')]
 const DIAGRAM_CONFIG = {
-  image_ref: 'rwy-27-09-lh-pattern',
+  image_ref: IMG,
   zones: [{ id: diagramZoneId(IMG, 0), x: 0.1, y: 0.1, w: 0.2, h: 0.2 }],
   labels: [{ id: diagramLabelId('Upwind Leg'), text: 'Upwind Leg' }],
   answer: [{ zone_id: diagramZoneId(IMG, 0), label_id: diagramLabelId('Upwind Leg') }],
