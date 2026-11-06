@@ -95,8 +95,8 @@ export function normalizeForId(text: string): string {
  * `\u0000` and bump ID_VERSION in the same change — and note that the bump changes EVERY derived
  * id string (ID_VERSION is a prefix component, not hashed input), so it must be paired with a
  * migration of the SQL derivation (`ordering_item_id`, plus the `l1`/`z1` literals and `' '` join
- * in `20261106000100`) and a content re-import. `quiz_sessions.config.question_ids` is unaffected — those are question ROW
- * uuids, and `--replace` updates rows in place — but the ids INSIDE a row change, so a session
+ * in `20261106000100`) and a content re-import. `quiz_sessions.config.question_ids` is
+ * unaffected — those are question ROW uuids, and `--replace` updates rows in place — but the ids INSIDE a row change, so a session
  * already holding the old `ordering_items[].id` / `diagram_config` zone and label ids submits
  * them against re-derived ones.
  */
