@@ -192,7 +192,7 @@ describe('CHECK: is_valid_diagram_config — authoring-time reject/accept', () =
     expect(error?.code).toBe('23514')
   })
 
-  it('rejects a diagram_config exceeding the MAX_ZONES (50) cap', async () => {
+  it('rejects 51 zones (index 50 has no canonical id)', async () => {
     // The validator caps zones at 50 (mirrors diagram-validation.ts MAX_ZONES) so an
     // oversized config cannot be stored, delivered, or graded. 51 zones with a bijective
     // answer are rejected; index 50 has no canonical id.
@@ -452,7 +452,7 @@ describe('CHECK: is_valid_diagram_config — authoring-time reject/accept', () =
 
   it('rejects a whitespace-only image_ref', async () => {
     const config = baseValidConfig()
-    config.image_ref = '   '
+    config.image_ref = ' \u00a0 '
     const blank = config.image_ref
     config.zones = [0, 1].map((j) => ({
       id: diagramZoneId(blank, j),

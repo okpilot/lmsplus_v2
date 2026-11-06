@@ -81,8 +81,8 @@ describe('deriveLabelId vs the SQL diagram validator', () => {
     ['internal double spaces', 'runway   heading'],
     ['leading/trailing whitespace', '  runway heading  '],
     ['non-ASCII letters (cyrillic)', 'высота полёта'],
-    ['non-breaking space', 'runway heading'],
-    ['leading BOM', '﻿runway heading'],
+    ['non-breaking space', 'runway\u00a0heading'],
+    ['leading BOM', '\ufeffrunway heading'],
     ['uppercase dotted I', 'İSTANBUL'],
   ])('accepts the JS-derived label id for %s', async (_label, text) => {
     expect(await validates(oneZoneConfig('rwy-27-09-lh-pattern', 0, text))).toBe(true)
@@ -118,7 +118,7 @@ describe('deriveZoneId vs the SQL diagram validator', () => {
     ['uppercase image_ref', 'RWY-27-09-LH-Pattern', 0],
     ['leading/trailing whitespace image_ref', '  rwy-27-09  ', 0],
     ['internal double spaces image_ref', 'rwy  27  09', 0],
-    ['NBSP in image_ref', 'rwy 27', 0],
+    ['NBSP in image_ref', 'rwy\u00a027', 0],
     ['index 0', 'rwy-27-09', 0],
     ['index 9', 'rwy-27-09', 9],
     ['index 10', 'rwy-27-09', 10],

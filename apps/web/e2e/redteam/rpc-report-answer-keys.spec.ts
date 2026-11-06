@@ -99,7 +99,7 @@ const ORDER_CANONICAL_TEXTS = ORDER_ITEMS.map((i) => i.text)
 // blank_index = the zone's 0-based ordinal in diagram_config.zones, answer_key = a 2-HOP
 // resolve (zone -> answer entry by zone_id -> label by label_id -> label.text). zone ids
 // and label ids MUST be disjoint and the answer must cover every zone exactly once with a
-// distinct label per zone (mig 150 is_valid_diagram_config). Shape mirrors the integration
+// distinct label per zone; ids derived (mig 20261106000100 is_valid_diagram_config). Shape mirrors the integration
 // test rpc-report-answer-keys-diagram.integration.test.ts.
 const DIAGRAM_IMAGE_REF = 'rwy-27-09-lh-pattern'
 const DIAGRAM_ZONES = [

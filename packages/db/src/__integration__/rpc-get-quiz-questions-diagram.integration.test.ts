@@ -46,8 +46,8 @@ describe('RPC: get_quiz_questions — diagram_label delivery (answer stripped, l
   let diagramId: string
   let mcId: string
 
-  // Zone ids and label ids use UNRELATED naming schemes (mig 150 header
-  // security invariant) — no zone_id == label_id, no parallel naming.
+  // Zone ids and label ids are derived (mig 20261106000100) and disjoint —
+  // no zone_id == label_id.
   const ZONES: Zone[] = [
     { id: diagramZoneId(IMG, 0), x: 0.1, y: 0.1, w: 0.2, h: 0.2 },
     { id: diagramZoneId(IMG, 1), x: 0.6, y: 0.1, w: 0.2, h: 0.2 },

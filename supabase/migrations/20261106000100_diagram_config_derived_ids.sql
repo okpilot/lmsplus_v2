@@ -91,7 +91,7 @@ AS $$
            OR jsonb_typeof(l->'id') IS DISTINCT FROM 'string'
            OR jsonb_typeof(l->'text') IS DISTINCT FROM 'string'
            OR (l->>'id') IS DISTINCT FROM 'l1' || substr(public.ordering_item_id(l->>'text'), 3)
-           OR (l->>'text') !~ '[^\t\n\v\f\r    -     　﻿]'
+           OR (l->>'text') !~ '[^\t\n\v\f\r \u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]'
       ) AS n_invalid,
       count(DISTINCT label_id) AS n_distinct_ids
     FROM labels
@@ -123,7 +123,7 @@ AS $$
           WHERE k.key NOT IN ('image_ref','zones','labels','answer')
         ) ELSE false END
     AND jsonb_typeof(p_config->'image_ref') = 'string'
-    AND (p_config->>'image_ref') ~ '[^\t\n\v\f\r    -     　﻿]'
+    AND (p_config->>'image_ref') ~ '[^\t\n\v\f\r \u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]'
     AND jsonb_typeof(p_config->'zones') = 'array'
     AND jsonb_typeof(p_config->'labels') = 'array'
     AND jsonb_typeof(p_config->'answer') = 'array'
