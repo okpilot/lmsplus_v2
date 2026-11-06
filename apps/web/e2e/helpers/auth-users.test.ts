@@ -1,5 +1,18 @@
-import { describe, expect, it, vi } from 'vitest'
-import { findAuthUserByEmail } from './auth-users'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+
+vi.hoisted(() => {
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key'
+})
+
+const { mockCreateClient } = vi.hoisted(() => ({ mockCreateClient: vi.fn() }))
+
+vi.mock('@supabase/supabase-js', () => ({ createClient: mockCreateClient }))
+
+import { findAuthUserByEmail, passwordAuthenticates } from './auth-users'
+
+afterEach(() => {
+  vi.clearAllMocks()
+})
 
 type ListUsersPage = {
   data: { users: Array<{ id: string; email: string }> } | null
@@ -104,5 +117,53 @@ describe('findAuthUserByEmail', () => {
       ),
     ).rejects.toThrow('No short page after 50 listUsers pages')
     expect(admin.auth.admin.listUsers).toHaveBeenCalledTimes(50)
+  })
+})
+
+describe('passwordAuthenticates', () => {
+  function mockSignIn(result: unknown) {
+    const signInWithPassword = vi.fn().mockResolvedValue(result)
+    mockCreateClient.mockReturnValue({ auth: { signInWithPassword } })
+    return signInWithPassword
+  }
+
+  it('returns true when sign-in succeeds', async () => {
+    const signIn = mockSignIn({ error: null })
+
+    await expect(passwordAuthenticates('a@lmsplus.local', 'pw')).resolves.toBe(true)
+    expect(signIn).toHaveBeenCalledWith({ email: 'a@lmsplus.local', password: 'pw' })
+  })
+
+  it('returns false when sign-in fails with invalid_credentials', async () => {
+    mockSignIn({ error: { code: 'invalid_credentials', message: 'Invalid login credentials' } })
+
+    await expect(passwordAuthenticates('a@lmsplus.local', 'pw')).resolves.toBe(false)
+  })
+
+  it('throws when sign-in fails with a non-credential error', async () => {
+    mockSignIn({ error: { code: 'over_request_rate_limit', message: 'rate limited', status: 429 } })
+
+    await expect(passwordAuthenticates('a@lmsplus.local', 'pw')).rejects.toThrow()
+  })
+
+  it('throws when the sign-in call itself rejects (network)', async () => {
+    const signInWithPassword = vi.fn().mockRejectedValue(new Error('fetch failed'))
+    mockCreateClient.mockReturnValue({ auth: { signInWithPassword } })
+
+    await expect(passwordAuthenticates('a@lmsplus.local', 'pw')).rejects.toThrow()
+  })
+
+  it('creates the anon-key client with session persistence disabled', async () => {
+    mockSignIn({ error: null })
+
+    await passwordAuthenticates('a@lmsplus.local', 'pw')
+
+    expect(mockCreateClient).toHaveBeenCalledWith(
+      expect.any(String),
+      'test-anon-key',
+      expect.objectContaining({
+        auth: expect.objectContaining({ persistSession: false, autoRefreshToken: false }),
+      }),
+    )
   })
 })

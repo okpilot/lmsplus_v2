@@ -1,3 +1,4 @@
+import { createClient } from '@supabase/supabase-js'
 import type { getAdminClient } from './supabase'
 
 /**
@@ -22,4 +23,22 @@ export async function findAuthUserByEmail(admin: ReturnType<typeof getAdminClien
   throw new Error(
     `No short page after ${MAX_AUTH_USER_PAGES} listUsers pages — possible API paging bug`,
   )
+}
+
+/**
+ * True if the password signs in, false on invalid_credentials; anything else
+ * (429, 5xx, network) throws. Probing avoids a reset, which revokes every
+ * session of the account (#1146).
+ */
+export async function passwordAuthenticates(email: string, password: string): Promise<boolean> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://localhost:54321'
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  if (!anonKey) throw new Error('NEXT_PUBLIC_SUPABASE_ANON_KEY is required for E2E tests')
+  const client = createClient(url, anonKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
+  const { error } = await client.auth.signInWithPassword({ email, password })
+  if (!error) return true
+  if (error.code === 'invalid_credentials') return false
+  throw new Error(`passwordAuthenticates: ${error.message}`)
 }

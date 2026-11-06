@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { findAuthUserByEmail } from './helpers/auth-users'
 import { getAdminClient, TEST_EMAIL, TEST_PASSWORD } from './helpers/supabase'
 
 // Use saved auth state from setup
@@ -141,9 +142,7 @@ test.describe('Settings — Change Password', () => {
     // Step 1: resolve the test user
     let userId: string | undefined
     try {
-      const { data, error: listError } = await admin.auth.admin.listUsers()
-      if (listError) throw new Error(`afterAll listUsers: ${listError.message}`)
-      const user = data?.users.find((u: { email?: string }) => u.email === TEST_EMAIL)
+      const user = await findAuthUserByEmail(admin, TEST_EMAIL)
       if (!user) {
         console.warn('[afterAll] Test user not found:', TEST_EMAIL)
       }
@@ -162,7 +161,6 @@ test.describe('Settings — Change Password', () => {
     // (exam-flow, exam-recovery, progress, quiz-flow, quiz-session-recovery,
     // settings) and no later project reads user.json. A new e2e spec sorting
     // after this one that uses user.json would start on a revoked session.
-    // Same hazard class as #1143; tracked for a durable fix in #1146.
     if (errors.length === 0 && userId) {
       try {
         const { error: updateError } = await admin.auth.admin.updateUserById(userId, {

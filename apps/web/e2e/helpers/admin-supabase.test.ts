@@ -115,6 +115,7 @@ type AdminMockOpts = {
     error: { message: string; code?: string } | null
   }
   updateUserByIdError?: { message: string } | null
+  signIn?: { error: { code?: string; message: string; status?: number } | null }
   updateRowError?: { message: string } | null
   createUserResult?: { data: { user: { id: string } } | null; error: { message: string } | null }
   insertError?: { message: string } | null
@@ -126,6 +127,7 @@ function buildAdminMockClient(opts: AdminMockOpts) {
     org = { data: { id: 'org-123' }, error: null },
     userRow = { data: null, error: { message: 'no rows', code: 'PGRST116' } },
     updateUserByIdError = null,
+    signIn = { error: null },
     updateRowError = null,
     createUserResult = { data: { user: { id: 'new-admin-id' } }, error: null },
     insertError = null,
@@ -135,6 +137,7 @@ function buildAdminMockClient(opts: AdminMockOpts) {
   const updateUserById = vi.fn().mockResolvedValue({ error: updateUserByIdError })
   const createUser = vi.fn().mockResolvedValue(createUserResult)
   const deleteUser = vi.fn().mockResolvedValue({ error: deleteUserError })
+  const signInWithPassword = vi.fn().mockResolvedValue(signIn)
 
   return {
     client: {
@@ -151,9 +154,11 @@ function buildAdminMockClient(opts: AdminMockOpts) {
         return buildChain({ data: [], error: null })
       },
       auth: {
+        signInWithPassword,
         admin: { updateUserById, createUser, deleteUser },
       },
     },
+    signInWithPassword,
     updateUserById,
     createUser,
     deleteUser,
@@ -199,12 +204,32 @@ describe('ensureAdminTestUser', () => {
     expect(result).toEqual({ orgId: 'org-123', userId: 'admin-user-id' })
   })
 
-  it('resets the password when the admin user already exists', async () => {
+  it('does not reset the password when the existing admin already authenticates', async () => {
+    const { client, updateUserById, signInWithPassword } = buildAdminMockClient({
+      userRow: {
+        data: { id: 'admin-user-id', organization_id: 'org-123', role: 'admin' },
+        error: null,
+      },
+      signIn: { error: null },
+    })
+    mockCreateClient.mockReturnValue(client)
+
+    await ensureAdminTestUser()
+
+    expect(signInWithPassword).toHaveBeenCalledWith({
+      email: ADMIN_TEST_EMAIL,
+      password: ADMIN_TEST_PASSWORD,
+    })
+    expect(updateUserById).not.toHaveBeenCalled()
+  })
+
+  it('resets the password when the probe fails with invalid_credentials', async () => {
     const { client, updateUserById } = buildAdminMockClient({
       userRow: {
         data: { id: 'admin-user-id', organization_id: 'org-123', role: 'admin' },
         error: null,
       },
+      signIn: { error: { code: 'invalid_credentials', message: 'Invalid login credentials' } },
     })
     mockCreateClient.mockReturnValue(client)
 
@@ -215,12 +240,13 @@ describe('ensureAdminTestUser', () => {
     })
   })
 
-  it('throws when password reset fails for an existing user', async () => {
+  it('throws when password reset fails after a failed probe', async () => {
     const { client } = buildAdminMockClient({
       userRow: {
         data: { id: 'admin-user-id', organization_id: 'org-123', role: 'admin' },
         error: null,
       },
+      signIn: { error: { code: 'invalid_credentials', message: 'Invalid login credentials' } },
       updateUserByIdError: { message: 'update auth failed' },
     })
     mockCreateClient.mockReturnValue(client)
@@ -228,6 +254,32 @@ describe('ensureAdminTestUser', () => {
     await expect(ensureAdminTestUser()).rejects.toThrow(
       'ensureAdminTestUser reset password: update auth failed',
     )
+  })
+
+  it('throws without resetting when the probe fails with a non-credential error', async () => {
+    const { client, updateUserById } = buildAdminMockClient({
+      userRow: {
+        data: { id: 'admin-user-id', organization_id: 'org-123', role: 'admin' },
+        error: null,
+      },
+      signIn: { error: { code: 'over_request_rate_limit', message: 'rate limited', status: 429 } },
+    })
+    mockCreateClient.mockReturnValue(client)
+
+    await expect(ensureAdminTestUser()).rejects.toThrow()
+    expect(updateUserById).not.toHaveBeenCalled()
+  })
+
+  it('does not probe or reset on the create path', async () => {
+    const { client, signInWithPassword, updateUserById } = buildAdminMockClient({
+      userRow: { data: null, error: { message: 'no rows', code: 'PGRST116' } },
+    })
+    mockCreateClient.mockReturnValue(client)
+
+    await ensureAdminTestUser()
+
+    expect(signInWithPassword).not.toHaveBeenCalled()
+    expect(updateUserById).not.toHaveBeenCalled()
   })
 
   it('throws when the role/org update fails for an existing user with wrong role', async () => {
