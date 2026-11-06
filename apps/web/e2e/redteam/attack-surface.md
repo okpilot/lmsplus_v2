@@ -318,6 +318,8 @@
 | KU | area-100-ksa-atpl-subject-non-enrolled-read-and-exam-start | HIGH | ksa-area-100-scope.spec.ts | BLOCKED |  | rls-bypass |
 | KV | upsert_exam_config-foreign-topic-or-subtopic-row-exam-draw | LOW | ksa-area-100-scope.spec.ts | BLOCKED |  | sibling-guard-gap |
 | KZ | flagged_questions-insert-update-question-not-visible-to-caller-and-quiz_drafts-org-update | HIGH | flagged-questions-question-scope.spec.ts | BLOCKED | #1177 | cross-tenant |
+| LA | get_vfr_rt_exam_questions-id-sort-and-label-position-oracle-and-key-column-select | HIGH | rpc-vfr-rt-exam-id-oracle.spec.ts | BLOCKED |  | answer-oracle |
+| LB | is_valid_diagram_config-derived-id-bypass-and-non-total-config-and-smuggled-config | HIGH | diagram-config-check-bypass.spec.ts | BLOCKED |  | input-injection |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 

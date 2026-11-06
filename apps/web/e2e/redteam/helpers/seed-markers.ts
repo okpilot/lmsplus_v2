@@ -56,6 +56,9 @@ export const E2E_REDTEAM_FX_MARKER = '[E2E_REDTEAM_FX]'
 // get_quiz_questions id-oracle spec (Vector EY, #1215): marks the diagram_label / ordering
 // fixture questions it inserts so cleanup/maintenance can target them by question_number.
 export const E2E_REDTEAM_EY_MARKER = '[E2E_REDTEAM_EY]'
+// is_valid_diagram_config bypass spec (Vector LB, #1215): marks the fixture questions it inserts
+// so cleanup/maintenance can target them by question_number.
+export const E2E_REDTEAM_LB_MARKER = '[E2E_REDTEAM_LB]'
 // quiz-progress spec (Vectors GG-GJ, #1026): written into fixture quiz_sessions as `config.e2e_marker`.
 export const E2E_REDTEAM_QP_MARKER = '[E2E_REDTEAM_QP]'
 // quiz_sessions direct-INSERT spec (Vectors GK/GL): written into the attacker's probe rows as
