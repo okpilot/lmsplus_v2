@@ -5,7 +5,11 @@ import {
   insertRawProgress,
   insertTwoBlankDialog,
   insertTwoZoneDiagram,
+  LB_A,
+  LB_B,
   saveAnswer,
+  ZN_A,
+  ZN_B,
 } from './finish-fixture'
 import { answerRows } from './finish-readers'
 import {
@@ -54,8 +58,8 @@ describe('RPC: finish_quiz_session — progress entries the grader must normalis
     const sessionId = await insertSession({ f, mode: 'mock_exam', questionIds: [diagram2Id] })
     await saveAnswer(f, sessionId, diagram2Id, {
       mapping: [
-        { zone_id: 'zn-b', label_id: 'lb-b' },
-        { zone_id: 'zn-a', label_id: 'lb-a' },
+        { zone_id: ZN_B, label_id: LB_B },
+        { zone_id: ZN_A, label_id: LB_A },
       ],
     })
     const saved = await progressRows(f, sessionId)

@@ -13,6 +13,7 @@
 import { describe, expect, it } from 'vitest'
 import { getAdminClient } from '@/lib/integration-support/harness'
 import { deriveContentId } from './content-ids'
+import { deriveLabelId, deriveZoneId } from './diagram-content'
 
 const admin = getAdminClient()
 
@@ -50,5 +51,83 @@ describe("deriveContentId('o', [text]) vs SQL ordering_item_id(text)", () => {
     ['uppercase dotted I', 'İSTANBUL'],
   ])('matches for %s', async (_label, text) => {
     expect(await sqlOrderingItemId(text)).toBe(deriveContentId('o', [text]))
+  })
+})
+
+// #1215: the diagram validator derives label and zone ids in SQL (via ordering_item_id); the
+// importer derives them in JS. Parity is asserted through the real validator, which is what the
+// questions CHECK calls.
+async function validates(config: unknown): Promise<boolean> {
+  const { data, error } = await admin.rpc('is_valid_diagram_config', { p_config: config })
+  if (error) throw new Error(`is_valid_diagram_config RPC: ${error.message}`)
+  return data === true
+}
+
+function oneZoneConfig(imageRef: string, index: number, labelText: string) {
+  const zone = { id: deriveZoneId(imageRef, index), x: 0.1, y: 0.1, w: 0.1, h: 0.1 }
+  const label = { id: deriveLabelId(labelText), text: labelText }
+  return {
+    image_ref: imageRef,
+    zones: [zone],
+    labels: [label],
+    answer: [{ zone_id: zone.id, label_id: label.id }],
+  }
+}
+
+describe('deriveLabelId vs the SQL diagram validator', () => {
+  it.each([
+    ['plain text', 'Runway heading'],
+    ['mixed case', 'Runway HEADING'],
+    ['internal double spaces', 'runway   heading'],
+    ['leading/trailing whitespace', '  runway heading  '],
+    ['non-ASCII letters (cyrillic)', 'высота полёта'],
+    ['non-breaking space', 'runway heading'],
+    ['leading BOM', '﻿runway heading'],
+    ['uppercase dotted I', 'İSTANBUL'],
+  ])('accepts the JS-derived label id for %s', async (_label, text) => {
+    expect(await validates(oneZoneConfig('rwy-27-09-lh-pattern', 0, text))).toBe(true)
+  })
+})
+
+describe('non-vacuity: the SQL diagram validator compares ids', () => {
+  it('rejects a label id derived from different text', async () => {
+    const base = oneZoneConfig('rwy-27-09', 0, 'Label')
+    const wrong = deriveLabelId('Other')
+    const config = {
+      ...base,
+      labels: [{ id: wrong, text: 'Label' }],
+      answer: [{ zone_id: deriveZoneId('rwy-27-09', 0), label_id: wrong }],
+    }
+    expect(await validates(config)).toBe(false)
+  })
+
+  it('rejects a zone id derived for a different image_ref', async () => {
+    const base = oneZoneConfig('rwy-27-09', 0, 'Label')
+    const wrong = deriveZoneId('other-image', 0)
+    const config = {
+      ...base,
+      zones: [{ id: wrong, x: 0.1, y: 0.1, w: 0.1, h: 0.1 }],
+      answer: [{ zone_id: wrong, label_id: deriveLabelId('Label') }],
+    }
+    expect(await validates(config)).toBe(false)
+  })
+})
+
+describe('deriveZoneId vs the SQL diagram validator', () => {
+  it.each([
+    ['uppercase image_ref', 'RWY-27-09-LH-Pattern', 0],
+    ['leading/trailing whitespace image_ref', '  rwy-27-09  ', 0],
+    ['internal double spaces image_ref', 'rwy  27  09', 0],
+    ['NBSP in image_ref', 'rwy 27', 0],
+    ['index 0', 'rwy-27-09', 0],
+    ['index 9', 'rwy-27-09', 9],
+    ['index 10', 'rwy-27-09', 10],
+    ['index 49', 'rwy-27-09', 49],
+  ])('accepts the JS-derived zone id for %s', async (_label, imageRef, index) => {
+    expect(await validates(oneZoneConfig(imageRef, index, 'Label'))).toBe(true)
+  })
+
+  it('rejects index 50 (beyond MAX_ZONES)', async () => {
+    expect(await validates(oneZoneConfig('rwy-27-09', 50, 'Label'))).toBe(false)
   })
 })

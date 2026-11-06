@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData, clearActiveSessions } from './cleanup'
+import { diagramLabelId, diagramZoneId } from './diagram-ids'
 import { fixtureSuffix } from './fixture-suffix'
 import { requireRpcResult } from './guards'
 import { seedReferenceData } from './seed'
@@ -11,6 +12,8 @@ import {
   getAnonClient,
   getAuthenticatedClient,
 } from './setup'
+
+const IMG = 'rwy-27-09-lh-pattern'
 
 // check_non_mc_answer grades the `diagram_label` type for immediate feedback
 // (mig 153, #697 Phase 6). Correctness is a SET comparison (order in the
@@ -73,20 +76,20 @@ describe('RPC: check_non_mc_answer — diagram_label grading + guards', () => {
   const CONFIG_A: DiagramConfig = {
     image_ref: 'rwy-27-09-lh-pattern',
     zones: [
-      { id: 'zone-nw', x: 0.1, y: 0.1, w: 0.2, h: 0.2 },
-      { id: 'zone-ne', x: 0.6, y: 0.1, w: 0.2, h: 0.2 },
-      { id: 'zone-sw', x: 0.1, y: 0.6, w: 0.2, h: 0.2 },
+      { id: diagramZoneId(IMG, 0), x: 0.1, y: 0.1, w: 0.2, h: 0.2 },
+      { id: diagramZoneId(IMG, 1), x: 0.6, y: 0.1, w: 0.2, h: 0.2 },
+      { id: diagramZoneId(IMG, 2), x: 0.1, y: 0.6, w: 0.2, h: 0.2 },
     ],
     labels: [
-      { id: 'lbl-alpha', text: 'Upwind Leg' },
-      { id: 'lbl-bravo', text: 'Crosswind Leg' },
-      { id: 'lbl-charlie', text: 'Downwind Leg' },
-      { id: 'lbl-distract', text: 'Base Leg (unused)' },
+      { id: diagramLabelId('Upwind Leg'), text: 'Upwind Leg' },
+      { id: diagramLabelId('Crosswind Leg'), text: 'Crosswind Leg' },
+      { id: diagramLabelId('Downwind Leg'), text: 'Downwind Leg' },
+      { id: diagramLabelId('Base Leg (unused)'), text: 'Base Leg (unused)' },
     ],
     answer: [
-      { zone_id: 'zone-nw', label_id: 'lbl-alpha' },
-      { zone_id: 'zone-ne', label_id: 'lbl-bravo' },
-      { zone_id: 'zone-sw', label_id: 'lbl-charlie' },
+      { zone_id: diagramZoneId(IMG, 0), label_id: diagramLabelId('Upwind Leg') },
+      { zone_id: diagramZoneId(IMG, 1), label_id: diagramLabelId('Crosswind Leg') },
+      { zone_id: diagramZoneId(IMG, 2), label_id: diagramLabelId('Downwind Leg') },
     ],
   }
   // CONFIG_B: distinct zone/label ids and a distinct canonical mapping — proves
@@ -95,16 +98,16 @@ describe('RPC: check_non_mc_answer — diagram_label grading + guards', () => {
   const CONFIG_B: DiagramConfig = {
     image_ref: 'rwy-27-09-lh-pattern',
     zones: [
-      { id: 'zone-x1', x: 0.3, y: 0.3, w: 0.1, h: 0.1 },
-      { id: 'zone-x2', x: 0.7, y: 0.7, w: 0.1, h: 0.1 },
+      { id: diagramZoneId(IMG, 0), x: 0.3, y: 0.3, w: 0.1, h: 0.1 },
+      { id: diagramZoneId(IMG, 1), x: 0.7, y: 0.7, w: 0.1, h: 0.1 },
     ],
     labels: [
-      { id: 'lbl-q8', text: 'Right Base' },
-      { id: 'lbl-q9', text: 'Left Base' },
+      { id: diagramLabelId('Right Base'), text: 'Right Base' },
+      { id: diagramLabelId('Left Base'), text: 'Left Base' },
     ],
     answer: [
-      { zone_id: 'zone-x1', label_id: 'lbl-q9' },
-      { zone_id: 'zone-x2', label_id: 'lbl-q8' },
+      { zone_id: diagramZoneId(IMG, 0), label_id: diagramLabelId('Left Base') },
+      { zone_id: diagramZoneId(IMG, 1), label_id: diagramLabelId('Right Base') },
     ],
   }
   const SA_CANONICAL = 'wilco'
@@ -274,9 +277,9 @@ describe('RPC: check_non_mc_answer — diagram_label grading + guards', () => {
 
   it('grades a mapping with two swapped zones as is_correct:false but still reveals the canonical mapping', async () => {
     const swapped: AnswerEntry[] = [
-      { zone_id: 'zone-nw', label_id: 'lbl-bravo' },
-      { zone_id: 'zone-ne', label_id: 'lbl-alpha' },
-      { zone_id: 'zone-sw', label_id: 'lbl-charlie' },
+      { zone_id: diagramZoneId(IMG, 0), label_id: diagramLabelId('Crosswind Leg') },
+      { zone_id: diagramZoneId(IMG, 1), label_id: diagramLabelId('Upwind Leg') },
+      { zone_id: diagramZoneId(IMG, 2), label_id: diagramLabelId('Downwind Leg') },
     ]
     const sessionId = await startSession(studentClient, [diagramAId])
     const { data, error } = await studentClient.rpc('check_non_mc_answer', {
@@ -312,9 +315,9 @@ describe('RPC: check_non_mc_answer — diagram_label grading + guards', () => {
     // Conditions 1 (length) and 3 (all pairs canonical) pass — only the distinct-zone
     // guard rejects it, so dropping that guard would silently regress to is_correct:true.
     const dup: AnswerEntry[] = [
-      { zone_id: 'zone-nw', label_id: 'lbl-alpha' },
-      { zone_id: 'zone-ne', label_id: 'lbl-bravo' },
-      { zone_id: 'zone-ne', label_id: 'lbl-bravo' },
+      { zone_id: diagramZoneId(IMG, 0), label_id: diagramLabelId('Upwind Leg') },
+      { zone_id: diagramZoneId(IMG, 1), label_id: diagramLabelId('Crosswind Leg') },
+      { zone_id: diagramZoneId(IMG, 1), label_id: diagramLabelId('Crosswind Leg') },
     ]
     const sessionId = await startSession(studentClient, [diagramAId])
     const { data, error } = await studentClient.rpc('check_non_mc_answer', {

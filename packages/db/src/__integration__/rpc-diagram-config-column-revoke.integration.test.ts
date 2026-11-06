@@ -1,10 +1,13 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { diagramLabelId, diagramZoneId } from './diagram-ids'
 import { fixtureSuffix } from './fixture-suffix'
 import { requireRpcResult } from './guards'
 import { seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
+
+const IMG = 'rwy-27-09-lh-pattern'
 
 // diagram_config is an answer key (diagram_config.answer — same mechanism as
 // ordering_items' array order, mig 143). mig 094 REVOKEd the blanket SELECT on
@@ -46,16 +49,16 @@ describe('Column grant: diagram_config REVOKE-by-omission from authenticated', (
   const DIAGRAM_CONFIG: DiagramConfig = {
     image_ref: 'rwy-27-09-lh-pattern',
     zones: [
-      { id: 'zone-nw', x: 0.1, y: 0.1, w: 0.2, h: 0.2 },
-      { id: 'zone-ne', x: 0.6, y: 0.1, w: 0.2, h: 0.2 },
+      { id: diagramZoneId(IMG, 0), x: 0.1, y: 0.1, w: 0.2, h: 0.2 },
+      { id: diagramZoneId(IMG, 1), x: 0.6, y: 0.1, w: 0.2, h: 0.2 },
     ],
     labels: [
-      { id: 'lbl-alpha', text: 'Upwind Leg' },
-      { id: 'lbl-bravo', text: 'Crosswind Leg' },
+      { id: diagramLabelId('Upwind Leg'), text: 'Upwind Leg' },
+      { id: diagramLabelId('Crosswind Leg'), text: 'Crosswind Leg' },
     ],
     answer: [
-      { zone_id: 'zone-nw', label_id: 'lbl-alpha' },
-      { zone_id: 'zone-ne', label_id: 'lbl-bravo' },
+      { zone_id: diagramZoneId(IMG, 0), label_id: diagramLabelId('Upwind Leg') },
+      { zone_id: diagramZoneId(IMG, 1), label_id: diagramLabelId('Crosswind Leg') },
     ],
   }
 

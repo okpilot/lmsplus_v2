@@ -1,11 +1,14 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { diagramLabelId, diagramZoneId } from './diagram-ids'
 import { fixtureSuffix } from './fixture-suffix'
 import { requireRpcResult, requireRpcRows } from './guards'
 import { P, saveAndFinish } from './save-and-finish'
 import { seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
+
+const IMG = 'rwy-27-09-lh-pattern'
 
 // get_report_answer_keys reveals the `diagram_label` canonical zone->label
 // mapping in the post-session report (mig 156, #697 Phase 6). One row PER
@@ -61,20 +64,20 @@ describe('RPC: get_report_answer_keys — diagram_label per-zone keys (2-hop res
   const CONFIG: DiagramConfig = {
     image_ref: 'rwy-27-09-lh-pattern',
     zones: [
-      { id: 'zone-nw', x: 0.1, y: 0.1, w: 0.2, h: 0.2 },
-      { id: 'zone-ne', x: 0.6, y: 0.1, w: 0.2, h: 0.2 },
-      { id: 'zone-sw', x: 0.1, y: 0.6, w: 0.2, h: 0.2 },
+      { id: diagramZoneId(IMG, 0), x: 0.1, y: 0.1, w: 0.2, h: 0.2 },
+      { id: diagramZoneId(IMG, 1), x: 0.6, y: 0.1, w: 0.2, h: 0.2 },
+      { id: diagramZoneId(IMG, 2), x: 0.1, y: 0.6, w: 0.2, h: 0.2 },
     ],
     labels: [
-      { id: 'lbl-alpha', text: 'Upwind Leg' },
-      { id: 'lbl-bravo', text: 'Crosswind Leg' },
-      { id: 'lbl-charlie', text: 'Downwind Leg' },
-      { id: 'lbl-distract', text: 'Base Leg (unused)' },
+      { id: diagramLabelId('Upwind Leg'), text: 'Upwind Leg' },
+      { id: diagramLabelId('Crosswind Leg'), text: 'Crosswind Leg' },
+      { id: diagramLabelId('Downwind Leg'), text: 'Downwind Leg' },
+      { id: diagramLabelId('Base Leg (unused)'), text: 'Base Leg (unused)' },
     ],
     answer: [
-      { zone_id: 'zone-sw', label_id: 'lbl-charlie' },
-      { zone_id: 'zone-nw', label_id: 'lbl-alpha' },
-      { zone_id: 'zone-ne', label_id: 'lbl-bravo' },
+      { zone_id: diagramZoneId(IMG, 2), label_id: diagramLabelId('Downwind Leg') },
+      { zone_id: diagramZoneId(IMG, 0), label_id: diagramLabelId('Upwind Leg') },
+      { zone_id: diagramZoneId(IMG, 1), label_id: diagramLabelId('Crosswind Leg') },
     ],
   }
   const CANONICAL_TEXTS = ['Upwind Leg', 'Crosswind Leg', 'Downwind Leg']

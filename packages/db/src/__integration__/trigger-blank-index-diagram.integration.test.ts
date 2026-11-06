@@ -1,8 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { diagramLabelId, diagramZoneId } from './diagram-ids'
 import { fixtureSuffix } from './fixture-suffix'
 import { seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient } from './setup'
+
+const IMG = 'rwy-27-09-lh-pattern'
 
 // mig 151 widens enforce_answer_blank_index_shape() (the BEFORE INSERT trigger
 // on quiz_session_answers + student_responses, mig 131, widened to `ordering`
@@ -34,16 +37,16 @@ const ZONE_LABEL_TEXT_1 = 'Crosswind Leg'
 const DIAGRAM_CONFIG = {
   image_ref: 'rwy-27-09-lh-pattern',
   zones: [
-    { id: 'zone-nw', x: 0.1, y: 0.1, w: 0.2, h: 0.2 },
-    { id: 'zone-ne', x: 0.6, y: 0.1, w: 0.2, h: 0.2 },
+    { id: diagramZoneId(IMG, 0), x: 0.1, y: 0.1, w: 0.2, h: 0.2 },
+    { id: diagramZoneId(IMG, 1), x: 0.6, y: 0.1, w: 0.2, h: 0.2 },
   ],
   labels: [
-    { id: 'lbl-alpha', text: ZONE_LABEL_TEXT_0 },
-    { id: 'lbl-bravo', text: ZONE_LABEL_TEXT_1 },
+    { id: diagramLabelId(ZONE_LABEL_TEXT_0), text: ZONE_LABEL_TEXT_0 },
+    { id: diagramLabelId(ZONE_LABEL_TEXT_1), text: ZONE_LABEL_TEXT_1 },
   ],
   answer: [
-    { zone_id: 'zone-nw', label_id: 'lbl-alpha' },
-    { zone_id: 'zone-ne', label_id: 'lbl-bravo' },
+    { zone_id: diagramZoneId(IMG, 0), label_id: diagramLabelId(ZONE_LABEL_TEXT_0) },
+    { zone_id: diagramZoneId(IMG, 1), label_id: diagramLabelId(ZONE_LABEL_TEXT_1) },
   ],
 }
 

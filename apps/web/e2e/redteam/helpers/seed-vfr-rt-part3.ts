@@ -13,6 +13,7 @@
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { deriveContentId } from '../../../scripts/content-ids'
+import { deriveLabelId, deriveZoneId } from '../../../scripts/diagram-content'
 
 /** Prefix on question_text of every pool question — cleanupVfrRtPool matches it with LIKE. */
 export const VFR_RT_POOL_MARKER = '[E2E-VFRRT]'
@@ -29,26 +30,23 @@ export const VFR_RT_P3_COUNT = VFR_RT_P3_PER_SUBTOPIC * VFR_RT_P3_SUBTOPIC_COUNT
 const ORDERING_TEXTS = ['MAYDAY MAYDAY MAYDAY', 'Golf Bravo Charlie', 'engine failure', 'position']
 const ORDERING_ITEMS = ORDERING_TEXTS.map((text) => ({ id: deriveContentId('o', [text]), text }))
 
-// Zone ids and label ids are disjoint; every zone's canonical label is distinct; one
-// label is an unused distractor (is_valid_diagram_config).
+// Ids are derived (is_valid_diagram_config): zone from (image_ref, index), label from its text.
+// Every zone's canonical label is distinct; one label is an unused distractor.
+const DIAGRAM_IMAGE_REF = 'rwy-2709-lh-pattern'
 const DIAGRAM_ZONES = [
-  { id: 'zone-nw', x: 0.1, y: 0.1, w: 0.2, h: 0.2 },
-  { id: 'zone-ne', x: 0.6, y: 0.1, w: 0.2, h: 0.2 },
-  { id: 'zone-sw', x: 0.1, y: 0.6, w: 0.2, h: 0.2 },
+  { id: deriveZoneId(DIAGRAM_IMAGE_REF, 0), x: 0.1, y: 0.1, w: 0.2, h: 0.2 },
+  { id: deriveZoneId(DIAGRAM_IMAGE_REF, 1), x: 0.6, y: 0.1, w: 0.2, h: 0.2 },
+  { id: deriveZoneId(DIAGRAM_IMAGE_REF, 2), x: 0.1, y: 0.6, w: 0.2, h: 0.2 },
 ]
-const DIAGRAM_LABELS = [
-  { id: 'lbl-alpha', text: 'Upwind Leg' },
-  { id: 'lbl-bravo', text: 'Crosswind Leg' },
-  { id: 'lbl-charlie', text: 'Downwind Leg' },
-  { id: 'lbl-distract', text: 'Base Leg (unused)' },
-]
-const DIAGRAM_ANSWER = [
-  { zone_id: 'zone-nw', label_id: 'lbl-alpha' },
-  { zone_id: 'zone-ne', label_id: 'lbl-bravo' },
-  { zone_id: 'zone-sw', label_id: 'lbl-charlie' },
-]
+const DIAGRAM_LABELS = ['Upwind Leg', 'Crosswind Leg', 'Downwind Leg', 'Base Leg (unused)'].map(
+  (text) => ({ id: deriveLabelId(text), text }),
+)
+const DIAGRAM_ANSWER = [0, 1, 2].map((i) => ({
+  zone_id: DIAGRAM_ZONES[i].id,
+  label_id: DIAGRAM_LABELS[i].id,
+}))
 const DIAGRAM_CONFIG = {
-  image_ref: 'rwy-2709-lh-pattern',
+  image_ref: DIAGRAM_IMAGE_REF,
   zones: DIAGRAM_ZONES,
   labels: DIAGRAM_LABELS,
   answer: DIAGRAM_ANSWER,

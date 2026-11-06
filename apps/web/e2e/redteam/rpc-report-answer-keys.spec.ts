@@ -35,6 +35,7 @@
 import { expect, test } from '@playwright/test'
 import { createClient } from '@supabase/supabase-js'
 import { deriveContentId } from '../../scripts/content-ids'
+import { deriveLabelId, deriveZoneId } from '../../scripts/diagram-content'
 import { getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
 import {
@@ -100,29 +101,35 @@ const ORDER_CANONICAL_TEXTS = ORDER_ITEMS.map((i) => i.text)
 // and label ids MUST be disjoint and the answer must cover every zone exactly once with a
 // distinct label per zone (mig 150 is_valid_diagram_config). Shape mirrors the integration
 // test rpc-report-answer-keys-diagram.integration.test.ts.
+const DIAGRAM_IMAGE_REF = 'rwy-27-09-lh-pattern'
 const DIAGRAM_ZONES = [
-  { id: 'zone-nw', x: 0.1, y: 0.1, w: 0.2, h: 0.2 },
-  { id: 'zone-ne', x: 0.6, y: 0.1, w: 0.2, h: 0.2 },
-  { id: 'zone-sw', x: 0.1, y: 0.6, w: 0.2, h: 0.2 },
+  { id: deriveZoneId(DIAGRAM_IMAGE_REF, 0), x: 0.1, y: 0.1, w: 0.2, h: 0.2 },
+  { id: deriveZoneId(DIAGRAM_IMAGE_REF, 1), x: 0.6, y: 0.1, w: 0.2, h: 0.2 },
+  { id: deriveZoneId(DIAGRAM_IMAGE_REF, 2), x: 0.1, y: 0.6, w: 0.2, h: 0.2 },
 ]
+const LBL = {
+  alpha: deriveLabelId('Upwind Leg'),
+  bravo: deriveLabelId('Crosswind Leg'),
+  charlie: deriveLabelId('Downwind Leg'),
+}
 const DIAGRAM_CONFIG = {
-  image_ref: 'rwy-27-09-lh-pattern',
+  image_ref: DIAGRAM_IMAGE_REF,
   zones: DIAGRAM_ZONES,
   labels: [
-    { id: 'lbl-alpha', text: 'Upwind Leg' },
-    { id: 'lbl-bravo', text: 'Crosswind Leg' },
-    { id: 'lbl-charlie', text: 'Downwind Leg' },
-    { id: 'lbl-distract', text: 'Base Leg (unused)' },
+    { id: LBL.alpha, text: 'Upwind Leg' },
+    { id: LBL.bravo, text: 'Crosswind Leg' },
+    { id: LBL.charlie, text: 'Downwind Leg' },
+    { id: deriveLabelId('Base Leg (unused)'), text: 'Base Leg (unused)' },
   ],
   answer: [
-    { zone_id: 'zone-sw', label_id: 'lbl-charlie' },
-    { zone_id: 'zone-nw', label_id: 'lbl-alpha' },
-    { zone_id: 'zone-ne', label_id: 'lbl-bravo' },
+    { zone_id: DIAGRAM_ZONES[2].id, label_id: LBL.charlie },
+    { zone_id: DIAGRAM_ZONES[0].id, label_id: LBL.alpha },
+    { zone_id: DIAGRAM_ZONES[1].id, label_id: LBL.bravo },
   ],
 }
 // Expected canonical label text per zone ORDINAL (the 2-hop resolve target):
-// zone-nw(0)->lbl-alpha='Upwind Leg', zone-ne(1)->lbl-bravo='Crosswind Leg',
-// zone-sw(2)->lbl-charlie='Downwind Leg'.
+// zone 0->alpha='Upwind Leg', zone 1->bravo='Crosswind Leg',
+// zone 2->charlie='Downwind Leg'.
 const DIAGRAM_CANONICAL_TEXTS = ['Upwind Leg', 'Crosswind Leg', 'Downwind Leg']
 
 test.describe('Red Team: get_report_answer_keys RPC (Vector EN)', () => {

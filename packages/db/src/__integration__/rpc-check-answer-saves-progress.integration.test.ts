@@ -8,7 +8,7 @@ import {
   setupProgressFixture,
   startPractice,
 } from './quiz-progress-fixture'
-import { ORDER_ITEMS } from './quiz-progress-questions'
+import { DIAGRAM_MAPPING, ORDER_ITEMS } from './quiz-progress-questions'
 
 const DEVICE_A = '11111111-1111-4111-8111-111111111111'
 const DEVICE_B = '22222222-2222-4222-8222-222222222222'
@@ -94,11 +94,7 @@ describe('RPC: answer checks also save progress', () => {
         { p_order: [...ORDER_ITEMS].reverse().map((i) => i.id) },
         { order: [...ORDER_ITEMS].reverse().map((i) => i.id) },
       ],
-      [
-        f.diagramId,
-        { p_mapping: [{ zone_id: 'zone-1', label_id: 'lbl-1' }] },
-        { mapping: [{ zone_id: 'zone-1', label_id: 'lbl-1' }] },
-      ],
+      [f.diagramId, { p_mapping: DIAGRAM_MAPPING }, { mapping: DIAGRAM_MAPPING }],
     ]
     for (const [questionId, params, stored] of cases) {
       const { error } = await f.student.rpc('check_non_mc_answer', {

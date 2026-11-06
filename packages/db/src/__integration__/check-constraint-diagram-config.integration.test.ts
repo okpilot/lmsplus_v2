@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { diagramLabelId, diagramZoneId } from './diagram-ids'
 import { fixtureSuffix } from './fixture-suffix'
 import { requireRpcResult } from './guards'
 import { seedReferenceData } from './seed'
@@ -24,21 +25,28 @@ type DiagramConfig = {
   answer: unknown
 }
 
+const IMG = 'rwy-27-09-lh-pattern'
+const zn1 = diagramZoneId(IMG, 0)
+const zn2 = diagramZoneId(IMG, 1)
+const lb1 = diagramLabelId('Label One')
+const lb2 = diagramLabelId('Label Two')
+const lb3 = diagramLabelId('Distractor')
+
 function baseValidConfig(): DiagramConfig {
   return {
-    image_ref: 'rwy-27-09-lh-pattern',
+    image_ref: IMG,
     zones: [
-      { id: 'zn1', x: 0.2, y: 0.2, w: 0.1, h: 0.1 },
-      { id: 'zn2', x: 0.6, y: 0.6, w: 0.1, h: 0.1 },
+      { id: zn1, x: 0.2, y: 0.2, w: 0.1, h: 0.1 },
+      { id: zn2, x: 0.6, y: 0.6, w: 0.1, h: 0.1 },
     ],
     labels: [
-      { id: 'lb1', text: 'Label One' },
-      { id: 'lb2', text: 'Label Two' },
-      { id: 'lb3', text: 'Distractor' },
+      { id: lb1, text: 'Label One' },
+      { id: lb2, text: 'Label Two' },
+      { id: lb3, text: 'Distractor' },
     ],
     answer: [
-      { zone_id: 'zn1', label_id: 'lb1' },
-      { zone_id: 'zn2', label_id: 'lb2' },
+      { zone_id: zn1, label_id: lb1 },
+      { zone_id: zn2, label_id: lb2 },
     ] satisfies AnswerEntry[],
   }
 }
@@ -178,7 +186,7 @@ describe('CHECK: is_valid_diagram_config — authoring-time reject/accept', () =
     // The validator pins the top-level shape to exactly {image_ref, zones, labels,
     // answer}. A stray key (e.g. answer_key) must not persist even though
     // get_quiz_questions re-projects on delivery — defence in depth.
-    const config = { ...baseValidConfig(), answer_key: 'lb1' } as unknown
+    const config = { ...baseValidConfig(), answer_key: lb1 } as unknown
     const { error } = await insertDiagram(config, 'unknown top-level key')
     expect(error).not.toBeNull()
     expect(error?.code).toBe('23514')
@@ -190,18 +198,21 @@ describe('CHECK: is_valid_diagram_config — authoring-time reject/accept', () =
     // disjoint zones with a bijective answer so ONLY the count violates the CHECK.
     const n = 51
     const zones = Array.from({ length: n }, (_, i) => ({
-      id: `zn${i}`,
+      id: diagramZoneId(IMG, i),
       x: 0,
       y: 0,
       w: 0.01,
       h: 0.01,
     }))
-    const labels = Array.from({ length: n }, (_, i) => ({ id: `lb${i}`, text: `Label ${i}` }))
-    const answer = Array.from({ length: n }, (_, i) => ({ zone_id: `zn${i}`, label_id: `lb${i}` }))
-    const { error } = await insertDiagram(
-      { image_ref: 'rwy-27-09-lh-pattern', zones, labels, answer },
-      '51 zones',
-    )
+    const labels = Array.from({ length: n }, (_, i) => ({
+      id: diagramLabelId(`Label ${i}`),
+      text: `Label ${i}`,
+    }))
+    const answer = Array.from({ length: n }, (_, i) => ({
+      zone_id: diagramZoneId(IMG, i),
+      label_id: `lb${i}`,
+    }))
+    const { error } = await insertDiagram({ image_ref: IMG, zones, labels, answer }, '51 zones')
     expect(error).not.toBeNull()
     expect(error?.code).toBe('23514')
   })
@@ -211,10 +222,13 @@ describe('CHECK: is_valid_diagram_config — authoring-time reject/accept', () =
     // DB/client parity. Two answered zones + 61 distinct labels (59 distractors) so
     // ONLY the label count violates the CHECK.
     const config = baseValidConfig()
-    config.labels = Array.from({ length: 61 }, (_, i) => ({ id: `lb${i}`, text: `Label ${i}` }))
+    config.labels = Array.from({ length: 61 }, (_, i) => ({
+      id: diagramLabelId(`Label ${i}`),
+      text: `Label ${i}`,
+    }))
     config.answer = [
-      { zone_id: 'zn1', label_id: 'lb0' },
-      { zone_id: 'zn2', label_id: 'lb1' },
+      { zone_id: zn1, label_id: diagramLabelId('Label 0') },
+      { zone_id: zn2, label_id: diagramLabelId('Label 1') },
     ] satisfies AnswerEntry[]
     const { error } = await insertDiagram(config, '61 labels')
     expect(error).not.toBeNull()
@@ -263,7 +277,7 @@ describe('CHECK: is_valid_diagram_config — authoring-time reject/accept', () =
   it('rejects an answer that leaves a zone uncovered', async () => {
     const config = baseValidConfig()
     // Only zn1 covered; zn2 has no answer entry — answer count (1) != zone count (2).
-    config.answer = [{ zone_id: 'zn1', label_id: 'lb1' }] satisfies AnswerEntry[]
+    config.answer = [{ zone_id: zn1, label_id: lb1 }] satisfies AnswerEntry[]
     const { error } = await insertDiagram(config, 'uncovered zone')
     expect(error).not.toBeNull()
     expect(error?.code).toBe('23514')
@@ -272,8 +286,8 @@ describe('CHECK: is_valid_diagram_config — authoring-time reject/accept', () =
   it('rejects an answer entry that references an unknown zone id', async () => {
     const config = baseValidConfig()
     config.answer = [
-      { zone_id: 'zn1', label_id: 'lb1' },
-      { zone_id: 'zn-does-not-exist', label_id: 'lb2' },
+      { zone_id: zn1, label_id: lb1 },
+      { zone_id: 'zn-does-not-exist', label_id: lb2 },
     ] satisfies AnswerEntry[]
     const { error } = await insertDiagram(config, 'unknown zone ref')
     expect(error).not.toBeNull()
@@ -283,8 +297,8 @@ describe('CHECK: is_valid_diagram_config — authoring-time reject/accept', () =
   it('rejects an answer entry that references an unknown label id', async () => {
     const config = baseValidConfig()
     config.answer = [
-      { zone_id: 'zn1', label_id: 'lb1' },
-      { zone_id: 'zn2', label_id: 'lb-does-not-exist' },
+      { zone_id: zn1, label_id: lb1 },
+      { zone_id: zn2, label_id: 'lb-does-not-exist' },
     ] satisfies AnswerEntry[]
     const { error } = await insertDiagram(config, 'unknown label ref')
     expect(error).not.toBeNull()
@@ -296,8 +310,8 @@ describe('CHECK: is_valid_diagram_config — authoring-time reject/accept', () =
     // Both entries target zn1; zn2 is never referenced — distinct zone_id
     // count (1) != zone count (2).
     config.answer = [
-      { zone_id: 'zn1', label_id: 'lb1' },
-      { zone_id: 'zn1', label_id: 'lb2' },
+      { zone_id: zn1, label_id: lb1 },
+      { zone_id: zn1, label_id: lb2 },
     ] satisfies AnswerEntry[]
     const { error } = await insertDiagram(config, 'duplicate zone in answer')
     expect(error).not.toBeNull()
@@ -310,8 +324,8 @@ describe('CHECK: is_valid_diagram_config — authoring-time reject/accept', () =
     // (2), same one-to-one bijection guard from the other direction.
     const config = baseValidConfig()
     config.answer = [
-      { zone_id: 'zn1', label_id: 'lb1' },
-      { zone_id: 'zn2', label_id: 'lb1' },
+      { zone_id: zn1, label_id: lb1 },
+      { zone_id: zn2, label_id: lb1 },
     ] satisfies AnswerEntry[]
     const { error } = await insertDiagram(config, 'duplicate label in answer')
     expect(error).not.toBeNull()
@@ -349,11 +363,123 @@ describe('CHECK: is_valid_diagram_config — authoring-time reject/accept', () =
     labels[0] = { ...labels[0], id: 'shared-id' }
     config.answer = [
       { zone_id: 'shared-id', label_id: 'shared-id' },
-      { zone_id: 'zn2', label_id: 'lb2' },
+      { zone_id: zn2, label_id: lb2 },
     ] satisfies AnswerEntry[]
     const { error } = await insertDiagram(config, 'zone id equals label id')
     expect(error).not.toBeNull()
     expect(error?.code).toBe('23514')
+  })
+
+  // #1215: zone/label ids are a function of content, never author-supplied.
+  async function expectRejected(config: unknown, label: string) {
+    const { error } = await insertDiagram(config, label)
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('23514')
+  }
+
+  function renameIds(config: DiagramConfig, map: Record<string, string>): DiagramConfig {
+    const m = (id: string) => map[id] ?? id
+    return {
+      ...config,
+      zones: (config.zones as Array<{ id: string }>).map((z) => ({ ...z, id: m(z.id) })),
+      labels: (config.labels as Array<{ id: string }>).map((l) => ({ ...l, id: m(l.id) })),
+      answer: (config.answer as AnswerEntry[]).map((a) => ({
+        zone_id: m(a.zone_id),
+        label_id: m(a.label_id),
+      })),
+    }
+  }
+
+  it('rejects a label with a hand-written id', async () => {
+    await expectRejected(renameIds(baseValidConfig(), { [lb1]: 'lbl-one' }), 'hand label id')
+  })
+
+  it('rejects position-encoded label ids (the sortable-id oracle)', async () => {
+    await expectRejected(
+      renameIds(baseValidConfig(), { [lb1]: 'l1-00', [lb2]: 'l1-01', [lb3]: 'l1-02' }),
+      'position-encoded label ids',
+    )
+  })
+
+  it('rejects swapped derived label ids (id of another label text)', async () => {
+    await expectRejected(
+      renameIds(baseValidConfig(), { [lb1]: lb2, [lb2]: lb1 }),
+      'swapped label ids',
+    )
+  })
+
+  it('rejects a zone with a hand-written id', async () => {
+    await expectRejected(renameIds(baseValidConfig(), { [zn1]: 'zone-a' }), 'hand zone id')
+  })
+
+  it('rejects zones whose derived ids are in descending index order', async () => {
+    const config = baseValidConfig()
+    ;(config.zones as unknown[]).reverse()
+    await expectRejected(config, 'descending zones')
+  })
+
+  it('rejects a zone id derived for another image_ref', async () => {
+    await expectRejected(
+      renameIds(baseValidConfig(), { [zn2]: diagramZoneId('some-other-image', 1) }),
+      'zone id for another image_ref',
+    )
+  })
+
+  it('rejects a label whose text is whitespace-only', async () => {
+    const config = baseValidConfig()
+    const labels = config.labels as Array<Record<string, unknown>>
+    labels[2] = { id: diagramLabelId('   '), text: '   ' }
+    await expectRejected(config, 'whitespace-only label text')
+  })
+
+  it('rejects a non-array zones value with 23514 (validator stays total)', async () => {
+    const config = baseValidConfig()
+    ;(config as unknown as { zones: unknown }).zones = 'scalar'
+    await expectRejected(config, 'scalar zones')
+  })
+
+  it('rejects a config with absent image_ref when ids are otherwise derived', async () => {
+    const config = baseValidConfig() as unknown as Record<string, unknown>
+    delete config.image_ref
+    await expectRejected(config, 'absent image_ref')
+  })
+
+  it('rejects a non-string zone id with 23514 (validator stays total)', async () => {
+    const config = baseValidConfig()
+    const zones = config.zones as Array<Record<string, unknown>>
+    zones[0] = { ...zones[0], id: 42 }
+    await expectRejected(config, 'non-string zone id')
+  })
+
+  it('rejects a whitespace-only image_ref', async () => {
+    const config = baseValidConfig()
+    config.image_ref = '   '
+    await expectRejected(config, 'whitespace-only image_ref')
+  })
+
+  it('accepts the full derived set', async () => {
+    const { error, id } = await insertDiagram(baseValidConfig(), 'derived full set')
+    expect(error).toBeNull()
+    expect(typeof id).toBe('string')
+  })
+
+  it('accepts a derived ascending subset of canonical zone indices', async () => {
+    const zi = [0, 4, 9]
+    const zones = zi.map((i) => ({
+      id: diagramZoneId(IMG, i),
+      x: 0.1 * i,
+      y: 0.1,
+      w: 0.05,
+      h: 0.05,
+    }))
+    const texts = ['Alpha', 'Bravo', 'Charlie']
+    const labels = texts.map((t) => ({ id: diagramLabelId(t), text: t }))
+    const answer = zi.map((_, k) => ({ zone_id: zones[k]?.id, label_id: labels[k]?.id }))
+    const { error } = await insertDiagram(
+      { image_ref: IMG, zones, labels, answer },
+      'derived ascending subset',
+    )
+    expect(error).toBeNull()
   })
 
   it('accepts a valid diagram_config with an unused distractor label', async () => {
@@ -372,6 +498,6 @@ describe('CHECK: is_valid_diagram_config — authoring-time reject/accept', () =
       .single<{ diagram_config: DiagramConfig }>()
     expect(readErr).toBeNull()
     const labels = stored?.diagram_config.labels as Array<{ id: string }> | undefined
-    expect(labels?.map((l) => l.id)).toContain('lb3')
+    expect(labels?.map((l) => l.id)).toContain(lb3)
   })
 })
