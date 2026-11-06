@@ -1,6 +1,6 @@
 # Red Team — Attack Surface Map
 
-> Last updated: 2026-11-04 (branch chore/techdebt-group-a.)
+> Last updated: 2026-11-05 (branch chore/techdebt-group-e1b.)
 
 > `answer_matches`: EXECUTE revoked from PUBLIC, anon, authenticated; granted to service_role.
 
@@ -317,6 +317,7 @@
 | KT | selectDashboardCourse-non-enrolled-or-malformed-code | LOW | dashboard-course-cookie.spec.ts | BLOCKED |  | idor |
 | KU | area-100-ksa-atpl-subject-non-enrolled-read-and-exam-start | HIGH | ksa-area-100-scope.spec.ts | BLOCKED |  | rls-bypass |
 | KV | upsert_exam_config-foreign-topic-or-subtopic-row-exam-draw | LOW | ksa-area-100-scope.spec.ts | BLOCKED |  | sibling-guard-gap |
+| KZ | flagged_questions-insert-update-question-not-visible-to-caller-and-quiz_drafts-org-update | HIGH | flagged-questions-question-scope.spec.ts | BLOCKED | #1177 | cross-tenant |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
