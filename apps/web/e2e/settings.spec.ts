@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { findAuthUserByEmail } from './helpers/auth-users'
+import { findAuthUserByEmail, resetPasswordIfDrifted } from './helpers/auth-users'
 import { getAdminClient, TEST_EMAIL, TEST_PASSWORD } from './helpers/supabase'
 
 // Use saved auth state from setup
@@ -151,22 +151,16 @@ test.describe('Settings — Change Password', () => {
       errors.push(e instanceof Error ? e.message : String(e))
     }
 
-    // Step 2: reset password to the known test value. Depends on step 1 — only
-    // run if the lookup succeeded (errors.length === 0; userId is also undefined
-    // on a step-1 failure, so this is defensive consistency with the §7 pattern).
-    //
-    // ORDERING ASSUMPTION: this reset revokes every session for TEST_EMAIL,
-    // including the one saved to e2e/.auth/user.json. It is safe only because
-    // this file sorts LAST among the user.json consumers in the `e2e` project
-    // (exam-flow, exam-recovery, progress, quiz-flow, quiz-session-recovery,
-    // settings) and no later project reads user.json. A new e2e spec sorting
-    // after this one that uses user.json would start on a revoked session.
+    // Step 2: restore the known test password. Depends on step 1. A reset happens only on
+    // drift and revokes every session of TEST_EMAIL, including e2e/.auth/user.json.
     if (errors.length === 0 && userId) {
       try {
-        const { error: updateError } = await admin.auth.admin.updateUserById(userId, {
+        await resetPasswordIfDrifted(admin, {
+          id: userId,
+          email: TEST_EMAIL,
           password: TEST_PASSWORD,
+          tag: 'afterAll',
         })
-        if (updateError) throw new Error(`afterAll updateUserById: ${updateError.message}`)
       } catch (e) {
         errors.push(e instanceof Error ? e.message : String(e))
       }

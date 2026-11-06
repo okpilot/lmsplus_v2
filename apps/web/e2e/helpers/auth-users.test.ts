@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.hoisted(() => {
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key'
@@ -8,10 +8,10 @@ const { mockCreateClient } = vi.hoisted(() => ({ mockCreateClient: vi.fn() }))
 
 vi.mock('@supabase/supabase-js', () => ({ createClient: mockCreateClient }))
 
-import { findAuthUserByEmail, passwordAuthenticates } from './auth-users'
+import { findAuthUserByEmail, passwordAuthenticates, resetPasswordIfDrifted } from './auth-users'
 
-afterEach(() => {
-  vi.clearAllMocks()
+beforeEach(() => {
+  vi.resetAllMocks()
 })
 
 type ListUsersPage = {
@@ -143,14 +143,29 @@ describe('passwordAuthenticates', () => {
   it('throws when sign-in fails with a non-credential error', async () => {
     mockSignIn({ error: { code: 'over_request_rate_limit', message: 'rate limited', status: 429 } })
 
-    await expect(passwordAuthenticates('a@lmsplus.local', 'pw')).rejects.toThrow()
+    await expect(passwordAuthenticates('a@lmsplus.local', 'pw')).rejects.toThrow(
+      'passwordAuthenticates: rate limited',
+    )
   })
 
   it('throws when the sign-in call itself rejects (network)', async () => {
     const signInWithPassword = vi.fn().mockRejectedValue(new Error('fetch failed'))
     mockCreateClient.mockReturnValue({ auth: { signInWithPassword } })
 
-    await expect(passwordAuthenticates('a@lmsplus.local', 'pw')).rejects.toThrow()
+    await expect(passwordAuthenticates('a@lmsplus.local', 'pw')).rejects.toThrow('fetch failed')
+  })
+
+  it('throws when the anon key is missing', async () => {
+    const saved = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    try {
+      await expect(passwordAuthenticates('a@lmsplus.local', 'pw')).rejects.toThrow(
+        'NEXT_PUBLIC_SUPABASE_ANON_KEY is required for E2E tests',
+      )
+      expect(mockCreateClient).not.toHaveBeenCalled()
+    } finally {
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = saved
+    }
   })
 
   it('creates the anon-key client with session persistence disabled', async () => {
@@ -165,5 +180,48 @@ describe('passwordAuthenticates', () => {
         auth: expect.objectContaining({ persistSession: false, autoRefreshToken: false }),
       }),
     )
+  })
+})
+
+describe('resetPasswordIfDrifted', () => {
+  const args = { id: 'u1', email: 'a@lmsplus.local', password: 'pw', tag: 'tagX' }
+
+  function setup(signInResult: unknown, updateError: { message: string } | null = null) {
+    mockCreateClient.mockReturnValue({
+      auth: { signInWithPassword: vi.fn().mockResolvedValue(signInResult) },
+    })
+    const updateUserById = vi.fn().mockResolvedValue({ error: updateError })
+    const admin = { auth: { admin: { updateUserById } } }
+    return {
+      updateUserById,
+      admin: admin as unknown as Parameters<typeof resetPasswordIfDrifted>[0],
+    }
+  }
+
+  it('does not update when the password already signs in', async () => {
+    const { admin, updateUserById } = setup({ error: null })
+
+    await resetPasswordIfDrifted(admin, args)
+
+    expect(updateUserById).not.toHaveBeenCalled()
+  })
+
+  it('resets the password on invalid_credentials', async () => {
+    const { admin, updateUserById } = setup({
+      error: { code: 'invalid_credentials', message: 'Invalid login credentials' },
+    })
+
+    await resetPasswordIfDrifted(admin, args)
+
+    expect(updateUserById).toHaveBeenCalledWith('u1', { password: 'pw' })
+  })
+
+  it('throws the tagged message when the update fails', async () => {
+    const { admin } = setup(
+      { error: { code: 'invalid_credentials', message: 'Invalid login credentials' } },
+      { message: 'boom' },
+    )
+
+    await expect(resetPasswordIfDrifted(admin, args)).rejects.toThrow('tagX reset password: boom')
   })
 })

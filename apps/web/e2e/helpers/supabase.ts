@@ -1,7 +1,7 @@
 import { enrolStudent } from '@repo/db/enrol-students'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { CURRENT_PRIVACY_VERSION, CURRENT_TOS_VERSION } from '../../lib/consent/versions'
-import { findAuthUserByEmail, passwordAuthenticates } from './auth-users'
+import { findAuthUserByEmail, resetPasswordIfDrifted } from './auth-users'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://localhost:54321'
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -104,14 +104,12 @@ export async function ensureTestUser() {
   let userId: string
   if (existingAuth) {
     userId = existingAuth.id
-    // Reset only when the password does not already sign in: a reset revokes every
-    // session of the account, including e2e/.auth/user.json (#1146).
-    if (!(await passwordAuthenticates(TEST_EMAIL, TEST_PASSWORD))) {
-      const { error: resetError } = await admin.auth.admin.updateUserById(userId, {
-        password: TEST_PASSWORD,
-      })
-      if (resetError) throw new Error(`ensureTestUser reset password: ${resetError.message}`)
-    }
+    await resetPasswordIfDrifted(admin, {
+      id: userId,
+      email: TEST_EMAIL,
+      password: TEST_PASSWORD,
+      tag: 'ensureTestUser',
+    })
   } else {
     const { data: authData, error: authError } = await admin.auth.admin.createUser({
       email: TEST_EMAIL,
@@ -175,9 +173,7 @@ export async function ensureLoginTestUser() {
   let userId: string
   if (existingAuth) {
     userId = existingAuth.id
-    // Intentional unconditional reset (#593, won't-fix): GoTrue stores only a password
-    // hash so equality can't be compared; the write is idempotent + cheap (setup workers=1).
-    // NOT side-effect-free, despite "idempotent": it revokes every existing session for
+    // Reset kept: out of #1146 scope. It revokes every existing session for
     // this account. Never call this once that account's storageState has been written —
     // see #1146.
     const { error: resetError } = await admin.auth.admin.updateUserById(userId, {
@@ -246,9 +242,7 @@ export async function ensureInternalExamStudentUser() {
   let userId: string
   if (existingAuth) {
     userId = existingAuth.id
-    // Intentional unconditional reset (#593, won't-fix): GoTrue stores only a password
-    // hash so equality can't be compared; the write is idempotent + cheap (setup workers=1).
-    // NOT side-effect-free, despite "idempotent": it revokes every existing session for
+    // Reset kept: out of #1146 scope. It revokes every existing session for
     // this account. Never call this once that account's storageState
     // (e2e/.auth/internal-exam-student.json) has been written — see #1146.
     const { error: resetError } = await admin.auth.admin.updateUserById(userId, {

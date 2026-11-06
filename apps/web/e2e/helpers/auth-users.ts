@@ -42,3 +42,13 @@ export async function passwordAuthenticates(email: string, password: string): Pr
   if (error.code === 'invalid_credentials') return false
   throw new Error(`passwordAuthenticates: ${error.message}`)
 }
+
+/** Resets the password only when it no longer signs in; a reset revokes every session (#1146). */
+export async function resetPasswordIfDrifted(
+  admin: ReturnType<typeof getAdminClient>,
+  { id, email, password, tag }: { id: string; email: string; password: string; tag: string },
+): Promise<void> {
+  if (await passwordAuthenticates(email, password)) return
+  const { error } = await admin.auth.admin.updateUserById(id, { password })
+  if (error) throw new Error(`${tag} reset password: ${error.message}`)
+}

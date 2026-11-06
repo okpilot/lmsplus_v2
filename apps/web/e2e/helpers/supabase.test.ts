@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Set the required env var before the module under test is evaluated
 vi.hoisted(() => {
@@ -100,8 +100,8 @@ vi.mock('@supabase/supabase-js', () => ({
   createClient: mockCreateClient,
 }))
 
-afterEach(() => {
-  vi.clearAllMocks()
+beforeEach(() => {
+  vi.resetAllMocks()
 })
 
 // ---------------------------------------------------------------------------

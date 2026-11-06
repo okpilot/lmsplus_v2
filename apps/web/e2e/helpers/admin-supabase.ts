@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
-import { passwordAuthenticates } from './auth-users'
+import { resetPasswordIfDrifted } from './auth-users'
 import { ensureConsentRecords, getAdminClient } from './supabase'
 
 export const ADMIN_TEST_EMAIL = 'admin@lmsplus.local'
@@ -75,14 +75,12 @@ export async function ensureAdminTestUser() {
     .single()
 
   if (userRow) {
-    // Reset only when the password does not already sign in: a reset revokes every
-    // session of the account, including the saved storageState (#1146).
-    if (!(await passwordAuthenticates(ADMIN_TEST_EMAIL, ADMIN_TEST_PASSWORD))) {
-      const { error: resetError } = await admin.auth.admin.updateUserById(userRow.id, {
-        password: ADMIN_TEST_PASSWORD,
-      })
-      if (resetError) throw new Error(`ensureAdminTestUser reset password: ${resetError.message}`)
-    }
+    await resetPasswordIfDrifted(admin, {
+      id: userRow.id,
+      email: ADMIN_TEST_EMAIL,
+      password: ADMIN_TEST_PASSWORD,
+      tag: 'ensureAdminTestUser',
+    })
 
     // Ensure role and org are correct
     if (userRow.role !== 'admin' || userRow.organization_id !== org.id) {

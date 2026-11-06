@@ -485,8 +485,8 @@ test.describe('Admin Student Management — Access Control', () => {
   }) => {
     // Sign in as a student in a fresh browser context (no inherited storage state).
     // The student is provisioned by the `setup` project (a declared dependency of
-    // admin-e2e) — deliberately NOT by an ensure*User() call here, which would reset
-    // that account's password and revoke the session saved to e2e/.auth/user.json.
+    // admin-e2e) — deliberately NOT by an ensure*User() call here, which resets
+    // that account's password on drift and revokes the session saved to e2e/.auth/user.json.
     // Under a full `pnpm e2e` run the password in force here is the one
     // settings.spec.ts's afterAll restored, not the one `setup` wrote — look there
     // first if this ever fails on wrong credentials.

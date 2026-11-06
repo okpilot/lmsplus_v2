@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockGetAdminClient } = vi.hoisted(() => ({
   mockGetAdminClient: vi.fn(),
@@ -40,10 +40,6 @@ function mockTables(tables: Record<string, Result>) {
 
 beforeEach(() => {
   vi.resetAllMocks()
-})
-
-afterEach(() => {
-  vi.restoreAllMocks()
 })
 
 const SINCE = '2026-10-27T00:00:00.000Z'

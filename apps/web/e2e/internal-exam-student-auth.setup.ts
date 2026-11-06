@@ -12,8 +12,8 @@ const AUTH_FILE = 'e2e/.auth/internal-exam-student.json'
 setup('create internal-exam student authenticated session', async ({ page }) => {
   await ensureInternalExamStudentUser()
 
-  // Do NOT call ensureAdminTestUser() here. It unconditionally resets the admin
-  // password, and that revokes every existing admin session — including the one
+  // Do NOT call ensureAdminTestUser() here. It resets the admin
+  // password when it drifted, and that revokes every existing admin session — including the one
   // admin-auth.setup.ts already wrote to e2e/.auth/admin.json, which sends every
   // admin-e2e spec to the login page. The admin user (and its role/org repair and
   // consent records) is instead guaranteed by this project's
