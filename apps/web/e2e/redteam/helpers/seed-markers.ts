@@ -149,3 +149,8 @@ export const E2E_REDTEAM_KX_SOFTDEL_ADMIN_EMAIL =
 export const E2E_REDTEAM_KX_SOFTDEL_ADMIN_PASSWORD = 'redteam-softdel-dashboard-kpis-admin-2026!'
 // admin dashboard RPC cross-org spec (Vector KY): written into fixture quiz_sessions as `config.e2e_marker`.
 export const E2E_REDTEAM_KY_MARKER = '[E2E_REDTEAM_KY]'
+// flagged_questions question-scope spec (Vector KZ, #1177): questions `question_text` prefix and
+// quiz_drafts `session_config.e2e_marker`. Dedicated throwaway student for the not-enrolled arm.
+export const E2E_REDTEAM_KZ_MARKER = '[E2E_REDTEAM_KZ]'
+export const E2E_REDTEAM_KZ_RT_ONLY_EMAIL = 'redteam-kz-rt-only@lmsplus.local'
+export const E2E_REDTEAM_KZ_RT_ONLY_PASSWORD = 'redteam-kz-rt-only-2026!'

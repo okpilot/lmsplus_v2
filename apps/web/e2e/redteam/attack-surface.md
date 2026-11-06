@@ -320,6 +320,7 @@
 | KW | x-middleware-subrequest-header-skips-proxy-auth-gate | HIGH | proxy-skip-header.spec.ts | BLOCKED |  | auth-bypass |
 | KX | get_admin_dashboard_kpis-and-get_admin_weak_topics-anon-student-soft-deleted-admin | MEDIUM | rpc-admin-dashboard-kpis-weak-topics.spec.ts | BLOCKED |  | privilege-escalation |
 | KY | get_admin_dashboard_kpis-and-get_admin_weak_topics-cross-org-admin-and-instructor | MEDIUM | rpc-admin-dashboard-kpis-cross-org.spec.ts | BLOCKED |  | cross-tenant |
+| KZ | flagged_questions-insert-update-question-not-visible-to-caller-and-quiz_drafts-org-update | HIGH | flagged-questions-question-scope.spec.ts | BLOCKED | #1177 | cross-tenant |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
