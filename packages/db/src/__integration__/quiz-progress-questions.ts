@@ -5,7 +5,7 @@ import { orderingItem } from './ordering-item-id'
 import { seedQuestions, type seedReferenceData } from './seed'
 
 const DIAGRAM_IMAGE_REF = 'rwy-27-09-lh-pattern'
-export const DIAGRAM_ZONE_ID = diagramZoneId(DIAGRAM_IMAGE_REF, 0)
+const DIAGRAM_ZONE_ID = diagramZoneId(DIAGRAM_IMAGE_REF, 0)
 export const DIAGRAM_LABEL_ID = diagramLabelId('Downwind')
 /** The one-zone diagram's correct mapping. */
 export const DIAGRAM_MAPPING = [{ zone_id: DIAGRAM_ZONE_ID, label_id: DIAGRAM_LABEL_ID }]

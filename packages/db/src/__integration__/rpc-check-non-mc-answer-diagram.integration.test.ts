@@ -294,7 +294,7 @@ describe('RPC: check_non_mc_answer — diagram_label grading + guards', () => {
   })
 
   it('grades a fully-correct mapping for a second, distinct diagram question with its own canonical mapping', async () => {
-    // Anti-hardcode: a distinct fixture (CONFIG_B) with an unrelated id scheme
+    // Anti-hardcode: a distinct fixture (CONFIG_B) with its own image_ref
     // and a different canonical mapping than CONFIG_A.
     const sessionId = await startSession(studentClient, [diagramBId])
     const { data, error } = await studentClient.rpc('check_non_mc_answer', {
