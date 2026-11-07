@@ -327,12 +327,12 @@ describe('getQuestionsList', () => {
     ])
   })
 
-  it('computes pagination totals from a separate count query', async () => {
+  it('computes pagination totals from the exact count on the page query', async () => {
     const chain = mockSupabaseWith([], 0)
 
     await getQuestionsList({})
 
-    expect(chain.select).toHaveBeenCalledWith('id', { count: 'exact', head: true })
+    expect(chain.select).toHaveBeenCalledWith(expect.any(String), { count: 'exact' })
   })
 
   it('uses range for page 1 with correct offsets', async () => {
@@ -368,15 +368,21 @@ describe('getQuestionsList', () => {
   })
 
   it('returns the last page of questions when page exceeds total pages', async () => {
-    // count=30 → totalPages=2; page=99 snaps to page 2 → range(25, 49).
+    // First query fails PGRST103; count=30 → totalPages=2; page=99 snaps to page 2 → range(25, 49).
     const chain = mockSupabaseWith([makeRow()], 30)
+    const thenImpl = chain.then as ReturnType<typeof vi.fn>
+    thenImpl.mockImplementationOnce((resolve: (v: unknown) => void) => {
+      const v = { data: null, count: null, error: { message: 'range', code: 'PGRST103' } }
+      resolve(v)
+      return Promise.resolve(v)
+    })
 
     const result = await getQuestionsList({ page: 99 })
 
     if (!result.ok) throw new Error('Expected ok result')
     expect(result.questions).toHaveLength(1)
     expect(result.totalCount).toBe(30)
-    expect(chain.range).toHaveBeenCalledWith(PAGE_SIZE, PAGE_SIZE * 2 - 1)
+    expect(chain.range).toHaveBeenLastCalledWith(PAGE_SIZE, PAGE_SIZE * 2 - 1)
   })
 
   it('returns totalCount from Supabase count', async () => {
@@ -473,7 +479,7 @@ describe('getQuestionsList', () => {
     const result = await getQuestionsList({})
 
     expect(result).toEqual({ ok: false, error: 'Failed to load questions' })
-    expect(consoleSpy).toHaveBeenCalledWith('[getQuestionsList] count error:', 'connection refused')
+    expect(consoleSpy).toHaveBeenCalledWith('[getQuestionsList] query error:', 'connection refused')
     consoleSpy.mockRestore()
   })
 
@@ -481,8 +487,8 @@ describe('getQuestionsList', () => {
     // code-style §7 "Paginated Fetch Needs a Caller-Level Page-Error Test": the
     // count-error path is covered above, but a page/range error AFTER a successful
     // non-zero count is the one that regresses silently — it would otherwise return
-    // a truncated list that looks complete. Two distinct chains, so the count query
-    // can succeed while the ranged data query fails.
+    // a truncated list that looks complete. Three chains: the requested page is past
+    // the end (PGRST103), the count succeeds, the re-read of the last page fails.
     const countChain: Record<string, unknown> = {}
     for (const m of ['select', 'is', 'order', 'range', 'eq', 'ilike']) {
       countChain[m] = vi.fn().mockReturnValue(countChain)
@@ -490,6 +496,17 @@ describe('getQuestionsList', () => {
     // biome-ignore lint/suspicious/noThenProperty: intentional thenable mock for Supabase query builder
     countChain.then = vi.fn().mockImplementation((resolve: (v: unknown) => void) => {
       const v = { data: null, count: 42, error: null }
+      resolve(v)
+      return Promise.resolve(v)
+    })
+
+    const firstChain: Record<string, unknown> = {}
+    for (const m of ['select', 'is', 'order', 'range', 'eq', 'ilike']) {
+      firstChain[m] = vi.fn().mockReturnValue(firstChain)
+    }
+    // biome-ignore lint/suspicious/noThenProperty: intentional thenable mock for Supabase query builder
+    firstChain.then = vi.fn().mockImplementation((resolve: (v: unknown) => void) => {
+      const v = { data: null, count: null, error: { message: 'range', code: 'PGRST103' } }
       resolve(v)
       return Promise.resolve(v)
     })
@@ -505,7 +522,10 @@ describe('getQuestionsList', () => {
       return Promise.resolve(v)
     })
 
-    mockFrom.mockReturnValueOnce(countChain).mockReturnValueOnce(pageChain)
+    mockFrom
+      .mockReturnValueOnce(firstChain)
+      .mockReturnValueOnce(countChain)
+      .mockReturnValueOnce(pageChain)
     mockRequireAdmin.mockResolvedValue({
       supabase: { from: mockFrom },
       userId: 'admin-1',
@@ -513,11 +533,9 @@ describe('getQuestionsList', () => {
     })
 
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const result = await getQuestionsList({})
+    const result = await getQuestionsList({ page: 99 })
 
     expect(result).toEqual({ ok: false, error: 'Failed to load questions' })
-    // Pins the PAGE path specifically — the count path logs a different prefix, so a
-    // regression that only kept the count guard would fail this assertion.
     expect(consoleSpy).toHaveBeenCalledWith('[getQuestionsList] query error:', 'page fetch failed')
     consoleSpy.mockRestore()
   })
@@ -529,5 +547,83 @@ describe('getQuestionsList', () => {
 
     await expect(getQuestionsList({})).rejects.toThrow('NEXT_REDIRECT:/app/dashboard')
     expect(mockFrom).not.toHaveBeenCalled()
+  })
+})
+
+describe('getQuestionsList single-query pagination', () => {
+  function resultChain(result: Record<string, unknown>) {
+    const chain: Record<string, unknown> = {}
+    for (const m of ['select', 'is', 'order', 'range', 'eq', 'ilike']) {
+      chain[m] = vi.fn().mockReturnValue(chain)
+    }
+    // biome-ignore lint/suspicious/noThenProperty: intentional thenable mock for Supabase query builder
+    chain.then = vi.fn().mockImplementation((resolve: (v: unknown) => void) => {
+      resolve(result)
+      return Promise.resolve(result)
+    })
+    return chain as Record<string, ReturnType<typeof vi.fn>>
+  }
+
+  function wire(chains: ReturnType<typeof resultChain>[]) {
+    mockFrom.mockReturnValue(chains[chains.length - 1])
+    for (const c of chains) mockFrom.mockReturnValueOnce(c)
+    mockRequireAdmin.mockResolvedValue({
+      supabase: { from: mockFrom },
+      userId: 'admin-1',
+      organizationId: 'org-1',
+    })
+  }
+
+  it('reads an in-range page with one questions query that carries the exact count', async () => {
+    const chain = resultChain({ data: [makeRow()], count: 30, error: null })
+    wire([chain])
+
+    const result = await getQuestionsList({ page: 1 })
+
+    expect(mockFrom).toHaveBeenCalledTimes(1)
+    expect(chain.select?.mock.calls[0]?.[1]).toMatchObject({ count: 'exact' })
+    expect(chain.select?.mock.calls[0]?.[1]).not.toMatchObject({ head: true })
+    if (!result.ok) throw new Error('Expected ok result')
+    expect(result.totalCount).toBe(30)
+    expect(result.questions).toHaveLength(1)
+  })
+
+  it('returns an empty list with one query when the table is empty', async () => {
+    wire([resultChain({ data: [], count: 0, error: null })])
+
+    const result = await getQuestionsList({})
+
+    expect(mockFrom).toHaveBeenCalledTimes(1)
+    expect(result).toEqual({ ok: true, questions: [], totalCount: 0 })
+  })
+
+  it('returns the last page when the requested page is past the end', async () => {
+    const failing = resultChain({
+      data: null,
+      count: null,
+      error: { message: 'Requested range not satisfiable', code: 'PGRST103' },
+    })
+    const counting = resultChain({ data: null, count: 30, error: null })
+    const lastPage = resultChain({ data: [makeRow()], count: 30, error: null })
+    wire([failing, counting, lastPage])
+
+    const result = await getQuestionsList({ page: 99 })
+
+    if (!result.ok) throw new Error('Expected ok result')
+    expect(result.totalCount).toBe(30)
+    expect(result.questions).toHaveLength(1)
+    expect(lastPage.range).toHaveBeenCalledWith(PAGE_SIZE, PAGE_SIZE * 2 - 1)
+  })
+
+  it('fails and logs when the questions query errors with anything other than a past-the-end range', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    wire([resultChain({ data: null, count: null, error: { message: 'boom', code: '57014' } })])
+
+    const result = await getQuestionsList({ page: 1 })
+
+    expect(result).toEqual({ ok: false, error: 'Failed to load questions' })
+    expect(consoleSpy).toHaveBeenCalled()
+    expect(mockFrom).toHaveBeenCalledTimes(1)
+    consoleSpy.mockRestore()
   })
 })

@@ -12,7 +12,7 @@ import { adminClient } from '@repo/db/admin'
 export type OffsetChainBuilder = {
   select: {
     (cols: string): OffsetChainBuilder
-    (cols: string, opts: { count: 'exact'; head: boolean }): OffsetChainBuilder
+    (cols: string, opts: { count: 'exact'; head?: boolean }): OffsetChainBuilder
   }
   eq: (col: string, val: unknown) => OffsetChainBuilder
   is: (col: string, val: null) => OffsetChainBuilder
@@ -39,8 +39,7 @@ type QueryContext = { tag: string; failMessage: string }
 
 /**
  * Runs a `head: true, count: 'exact'` select and returns the row count. Logs the raw
- * error server-side and throws a generic message on failure (count-first because
- * PostgREST returns 416 + a null count for an out-of-range `.range()` request).
+ * error server-side and throws a generic message on failure.
  */
 export async function runOffsetCount(
   builder: OffsetChainBuilder,
@@ -75,4 +74,29 @@ export async function runOffsetRows<T>(
     throw new Error(ctx.failMessage)
   }
   return Array.isArray(data) ? (data as T[]) : []
+}
+
+/** PostgREST error code for a `.range()` request past the end when an exact count is requested. */
+const PAST_END_CODE = 'PGRST103'
+
+/**
+ * Runs a data select that carries `count: 'exact'` and returns the rows with the total.
+ * `pastEnd` is true when the requested range lies past the last row (PGRST103); any
+ * other error is logged server-side and thrown as the generic message.
+ */
+export async function runOffsetPage<T>(
+  builder: OffsetChainBuilder,
+  ctx: QueryContext,
+): Promise<{ rows: T[]; count: number; pastEnd: boolean }> {
+  const { data, count, error } = (await (builder as unknown as PromiseLike<{
+    data: unknown
+    count: number | null
+    error: { message: string; code?: string } | null
+  }>)) ?? { data: null, count: null, error: null }
+  if (error?.code === PAST_END_CODE) return { rows: [], count: 0, pastEnd: true }
+  if (error) {
+    console.error(`[${ctx.tag}] DB error:`, error.message)
+    throw new Error(ctx.failMessage)
+  }
+  return { rows: Array.isArray(data) ? (data as T[]) : [], count: count ?? 0, pastEnd: false }
 }

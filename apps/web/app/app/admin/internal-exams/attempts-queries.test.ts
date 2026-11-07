@@ -37,7 +37,7 @@ function mockAdmin() {
  */
 function buildChain(
   data: unknown,
-  error: { message: string } | null = null,
+  error: { message: string; code?: string } | null = null,
   count: number | null = null,
 ): ChainMock {
   const resolved = { data, error, count }
@@ -285,7 +285,7 @@ describe('listInternalExamAttempts', () => {
       const eqCalls = chain.eq?.mock.calls ?? []
       expect(
         eqCalls.filter(([column, value]) => column === 'student_id' && value === 'stu-2'),
-      ).toHaveLength(2)
+      ).toHaveLength(1)
     })
 
     it('scopes the query to a single subject when subjectId is set', async () => {
@@ -298,7 +298,7 @@ describe('listInternalExamAttempts', () => {
       const eqCalls = chain.eq?.mock.calls ?? []
       expect(
         eqCalls.filter(([column, value]) => column === 'subject_id' && value === 'sub-1'),
-      ).toHaveLength(2)
+      ).toHaveLength(1)
     })
 
     it("restricts results to the caller's own organization", async () => {
@@ -308,12 +308,12 @@ describe('listInternalExamAttempts', () => {
 
       await listInternalExamAttempts({})
 
-      // Both the count and the rows builder must carry it: if the org filter is
-      // dropped from either, an admin sees another organization's data.
+      // The single page query must carry it: if the org filter is dropped,
+      // an admin sees another organization's data.
       const eqCalls = chain.eq?.mock.calls ?? []
       expect(
         eqCalls.filter(([column, value]) => column === 'organization_id' && value === ORG_ID),
-      ).toHaveLength(2)
+      ).toHaveLength(1)
     })
   })
 
@@ -356,7 +356,7 @@ describe('listInternalExamAttempts', () => {
       expect(chain.range).toHaveBeenCalledWith(25, 49)
     })
 
-    it('returns an empty page without querying rows when there are no attempts', async () => {
+    it('returns an empty page without querying item counts when there are no attempts', async () => {
       mockAdmin()
       const chain = buildChain([], null, 0)
       mockFrom(chain)
@@ -365,20 +365,21 @@ describe('listInternalExamAttempts', () => {
 
       expect(result.rows).toHaveLength(0)
       expect(result.totalCount).toBe(0)
-      expect(chain.range).not.toHaveBeenCalled()
+      expect(mockAdminFrom).not.toHaveBeenCalledWith('quiz_session_answers')
     })
 
     it('returns the last page of rows when the requested page is past the end', async () => {
       mockAdmin()
-      // count=40 → totalPages=2; page=99 snaps to page 2 → range(25, 49).
-      const chain = buildChain([makeRow(1)], null, 40)
-      mockFrom(chain)
+      // First query fails PGRST103; count=40 → totalPages=2; page=99 snaps to page 2 → range(25, 49).
+      const pastEnd = { message: 'range', code: 'PGRST103' }
+      const lastPage = buildChain([makeRow(1)], null, 40)
+      mockFrom([buildChain(null, pastEnd, null), buildChain([], null, 40), lastPage])
 
       const result = await listInternalExamAttempts({ page: 99 })
 
       expect(result.rows).toHaveLength(1)
       expect(result.totalCount).toBe(40)
-      expect(chain.range).toHaveBeenCalledWith(25, 49)
+      expect(lastPage.range).toHaveBeenCalledWith(25, 49)
     })
 
     it('returns an empty rows array when the rows query yields null data', async () => {
@@ -398,7 +399,10 @@ describe('listInternalExamAttempts', () => {
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
       try {
         mockAdmin()
-        mockFrom(buildChain(null, { message: 'attempts count error' }))
+        mockFrom([
+          buildChain(null, { message: 'range', code: 'PGRST103' }, null),
+          buildChain(null, { message: 'attempts count error' }),
+        ])
 
         await expect(listInternalExamAttempts()).rejects.toThrow(
           'Failed to load internal exam attempts',
@@ -416,7 +420,7 @@ describe('listInternalExamAttempts', () => {
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
       try {
         mockAdmin()
-        mockFrom([buildChain([], null, 5), buildChain(null, { message: 'attempts rows error' })])
+        mockFrom(buildChain(null, { message: 'attempts rows error' }))
 
         await expect(listInternalExamAttempts()).rejects.toThrow(
           'Failed to load internal exam attempts',
@@ -560,5 +564,71 @@ describe('listInternalExamAttempts', () => {
 
       expect(result.rows[0]!.scorePercentage).toBeNull()
     })
+  })
+})
+
+describe('listInternalExamAttempts single-query pagination', () => {
+  const row = {
+    id: 'sess-1',
+    student_id: 'stu-1',
+    subject_id: 'sub-1',
+    started_at: PAST,
+    ended_at: PAST,
+    total_questions: 20,
+    correct_count: 15,
+    score_percentage: 75,
+    passed: true,
+    easa_subjects: null,
+    users: null,
+    internal_exam_codes: null,
+  }
+  const pastEnd = { message: 'Requested range not satisfiable', code: 'PGRST103' }
+
+  function sessionCalls() {
+    return mockAdminFrom.mock.calls.filter(([t]) => t === 'quiz_sessions')
+  }
+
+  it('reads an in-range page with one attempts query that carries the exact count', async () => {
+    mockAdmin()
+    const chain = buildChain([row], null, 40)
+    mockFrom(chain)
+
+    const result = await listInternalExamAttempts({ page: 1 })
+
+    expect(sessionCalls()).toHaveLength(1)
+    expect(chain.select?.mock.calls[0]?.[1]).toMatchObject({ count: 'exact' })
+    expect(chain.select?.mock.calls[0]?.[1]).not.toMatchObject({ head: true })
+    expect(result.totalCount).toBe(40)
+    expect(result.rows).toHaveLength(1)
+  })
+
+  it('snaps to the last page without throwing when the requested page is past the end', async () => {
+    mockAdmin()
+    const failing = buildChain(null, pastEnd, null)
+    const counting = buildChain([], null, 40)
+    const lastPage = buildChain([row], null, 40)
+    mockFrom([failing, counting, lastPage])
+
+    const result = await listInternalExamAttempts({ page: 99 })
+
+    expect(result.totalCount).toBe(40)
+    expect(result.rows).toHaveLength(1)
+    expect(lastPage.range).toHaveBeenCalledWith(25, 49)
+  })
+
+  it('throws the generic message and logs when the attempts query fails with another error', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      mockAdmin()
+      mockFrom(buildChain(null, { message: 'boom', code: '57014' }, null))
+
+      await expect(listInternalExamAttempts({ page: 1 })).rejects.toThrow(
+        'Failed to load internal exam attempts',
+      )
+      expect(consoleErrorSpy).toHaveBeenCalled()
+      expect(sessionCalls()).toHaveLength(1)
+    } finally {
+      consoleErrorSpy.mockRestore()
+    }
   })
 })

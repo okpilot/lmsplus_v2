@@ -4,53 +4,11 @@ import type { QuestionFilters, QuestionRow, QuestionsListResult } from './types'
 
 export const PAGE_SIZE = 25
 
-// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
-export async function getQuestionsList(filters: QuestionFilters): Promise<QuestionsListResult> {
-  // Data-side placement of requireAdmin() (docs/security.md "Admin Route Protection");
-  // covers a page that omits its call.
-  const { supabase } = await requireAdmin()
+type Supabase = Awaited<ReturnType<typeof requireAdmin>>['supabase']
 
-  const page = filters.page ?? 1
-  const searchTerm = filters.search?.trim()
-  const escapedSearch = searchTerm ? `%${escapeLike(searchTerm)}%` : null
+const PAST_END_CODE = 'PGRST103'
 
-  // Count first — PostgREST returns 416 (and null count) for out-of-range .range() requests.
-  let countQ = supabase
-    .from('questions')
-    .select('id', { count: 'exact', head: true })
-    .is('deleted_at', null)
-  if (filters.subjectId) countQ = countQ.eq('subject_id', filters.subjectId)
-  if (filters.topicId) countQ = countQ.eq('topic_id', filters.topicId)
-  if (filters.subtopicId) countQ = countQ.eq('subtopic_id', filters.subtopicId)
-  if (filters.status) countQ = countQ.eq('status', filters.status)
-  if (filters.hasCalculations !== undefined)
-    countQ = countQ.eq('has_calculations', filters.hasCalculations)
-  if (escapedSearch) countQ = countQ.ilike('question_text', escapedSearch)
-
-  const { count, error: countError } = await countQ
-
-  if (countError) {
-    console.error('[getQuestionsList] count error:', countError.message)
-    return { ok: false, error: 'Failed to load questions' }
-  }
-
-  const total = count ?? 0
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
-
-  if (total === 0) {
-    return { ok: true as const, questions: [], totalCount: total }
-  }
-
-  // Snap-to-last-page (#1041): an out-of-range page returns the last page's rows instead of
-  // an empty list, matching PaginationBar's clamped display. Count-first fetches the count before querying the effective page.
-  const effectivePage = Math.min(Math.max(1, page), totalPages)
-  const from = (effectivePage - 1) * PAGE_SIZE
-  const to = from + PAGE_SIZE - 1
-
-  let dataQ = supabase
-    .from('questions')
-    .select(
-      `
+const QUESTION_COLUMNS = `
       id, question_number, question_text, difficulty, status,
       subject_id, topic_id, subtopic_id,
       options, explanation_text,
@@ -59,26 +17,78 @@ export async function getQuestionsList(filters: QuestionFilters): Promise<Questi
       easa_subjects(code, name),
       easa_topics(name),
       easa_subtopics(name)
-    `,
-    )
+    `
+
+function escapedSearchOf(filters: QuestionFilters): string | null {
+  const searchTerm = filters.search?.trim()
+  return searchTerm ? `%${escapeLike(searchTerm)}%` : null
+}
+
+function fetchQuestionsPage(supabase: Supabase, filters: QuestionFilters, from: number) {
+  const escapedSearch = escapedSearchOf(filters)
+  let q = supabase
+    .from('questions')
+    .select(QUESTION_COLUMNS, { count: 'exact' })
     .is('deleted_at', null)
     // id tiebreaker keeps pages stable — created_at is not unique.
     .order('created_at', { ascending: false })
     .order('id', { ascending: false })
-    .range(from, to)
-  if (filters.subjectId) dataQ = dataQ.eq('subject_id', filters.subjectId)
-  if (filters.topicId) dataQ = dataQ.eq('topic_id', filters.topicId)
-  if (filters.subtopicId) dataQ = dataQ.eq('subtopic_id', filters.subtopicId)
-  if (filters.status) dataQ = dataQ.eq('status', filters.status)
-  if (filters.hasCalculations !== undefined)
-    dataQ = dataQ.eq('has_calculations', filters.hasCalculations)
-  if (escapedSearch) dataQ = dataQ.ilike('question_text', escapedSearch)
+    .range(from, from + PAGE_SIZE - 1)
+  if (filters.subjectId) q = q.eq('subject_id', filters.subjectId)
+  if (filters.topicId) q = q.eq('topic_id', filters.topicId)
+  if (filters.subtopicId) q = q.eq('subtopic_id', filters.subtopicId)
+  if (filters.status) q = q.eq('status', filters.status)
+  if (filters.hasCalculations !== undefined) q = q.eq('has_calculations', filters.hasCalculations)
+  if (escapedSearch) q = q.ilike('question_text', escapedSearch)
+  return q
+}
 
-  const { data, error } = await dataQ
+function countQuestions(supabase: Supabase, filters: QuestionFilters) {
+  const escapedSearch = escapedSearchOf(filters)
+  let q = supabase
+    .from('questions')
+    .select('id', { count: 'exact', head: true })
+    .is('deleted_at', null)
+  if (filters.subjectId) q = q.eq('subject_id', filters.subjectId)
+  if (filters.topicId) q = q.eq('topic_id', filters.topicId)
+  if (filters.subtopicId) q = q.eq('subtopic_id', filters.subtopicId)
+  if (filters.status) q = q.eq('status', filters.status)
+  if (filters.hasCalculations !== undefined) q = q.eq('has_calculations', filters.hasCalculations)
+  if (escapedSearch) q = q.ilike('question_text', escapedSearch)
+  return q
+}
+
+/**
+ * The requested page is read with its exact total in one query. A page past the end
+ * (PGRST103) is snapped to the last page (#1041): count, clamp, read again.
+ */
+async function loadQuestionsPage(supabase: Supabase, filters: QuestionFilters) {
+  const requested = Math.max(1, filters.page ?? 1)
+  const first = await fetchQuestionsPage(supabase, filters, (requested - 1) * PAGE_SIZE)
+  if (first.error?.code !== PAST_END_CODE) return first
+
+  const { count, error: countError } = await countQuestions(supabase, filters)
+  if (countError) return { data: null, count: null, error: countError }
+  const totalPages = Math.max(1, Math.ceil((count ?? 0) / PAGE_SIZE))
+  const lastPage = Math.min(requested, totalPages)
+  return fetchQuestionsPage(supabase, filters, (lastPage - 1) * PAGE_SIZE)
+}
+
+export async function getQuestionsList(filters: QuestionFilters): Promise<QuestionsListResult> {
+  // Data-side placement of requireAdmin() (docs/security.md "Admin Route Protection");
+  // covers a page that omits its call.
+  const { supabase } = await requireAdmin()
+
+  const { data, count, error } = await loadQuestionsPage(supabase, filters)
 
   if (error) {
     console.error('[getQuestionsList] query error:', error.message)
     return { ok: false, error: 'Failed to load questions' }
+  }
+
+  const total = count ?? 0
+  if (total === 0) {
+    return { ok: true as const, questions: [], totalCount: total }
   }
 
   const rows = (data ?? []).map((row) => {
