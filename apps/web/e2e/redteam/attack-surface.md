@@ -1,6 +1,6 @@
 # Red Team — Attack Surface Map
 
-> Last updated: 2026-11-07 (branch chore/techdebt-group-e1c.)
+> Last updated: 2026-11-07 (branch chore/techdebt-group-d1.)
 
 > `answer_matches`: EXECUTE revoked from PUBLIC, anon, authenticated; granted to service_role.
 
@@ -261,7 +261,7 @@
 | IP | fetchQuestionComments-first-page-count-soft-deleted-comment | LOW | comments-first-page-count.spec.ts | BLOCKED |  | soft-delete-bypass |
 | IQ | discardQuizAndRefresh-foreign-session-id | MEDIUM | server-action-discard-and-refresh.spec.ts | BLOCKED |  | idor |
 | IR | discardQuizAndRefresh-non-discardable-exam-modes | HIGH | server-action-discard-and-refresh.spec.ts | BLOCKED |  | privilege-escalation |
-| IS | toggleFlag-active-internal-exam-parallel-flag-lookup | MEDIUM | server-action-toggle-flag-internal-exam.spec.ts | BLOCKED |  | privilege-escalation |
+| IS | toggleFlag-active-internal-exam-parallel-flag-lookup-and-explicit-desired-state | MEDIUM | server-action-toggle-flag-internal-exam.spec.ts | BLOCKED |  | privilege-escalation |
 | IT | saveBlockingQuizForLater-cap-refuses-before-claim | MEDIUM | server-action-save-blocking-quiz.spec.ts | BLOCKED |  | rate-limit |
 | IU | saveBlockingQuizForLater-foreign-session | HIGH | server-action-save-blocking-quiz.spec.ts | BLOCKED |  | idor |
 | IV | discardSavedQuizAndRefresh-foreign-saved-session | MEDIUM | server-action-saved-quiz-refresh.spec.ts | BLOCKED |  | idor |
@@ -323,6 +323,7 @@
 | KZ | flagged_questions-insert-update-question-not-visible-to-caller-and-quiz_drafts-org-update | HIGH | flagged-questions-question-scope.spec.ts | BLOCKED | #1177 | cross-tenant |
 | LA | get_vfr_rt_exam_questions-id-sort-and-label-position-oracle-and-key-column-select | HIGH | rpc-vfr-rt-exam-id-oracle.spec.ts | BLOCKED |  | answer-oracle |
 | LB | is_valid_diagram_config-derived-id-bypass-and-non-total-config-and-smuggled-config | HIGH | diagram-config-check-bypass.spec.ts | BLOCKED |  | input-injection |
+| LC | toggleFlag-non-boolean-desired-flag-state | LOW | server-action-toggle-flag-internal-exam.spec.ts | BLOCKED |  | input-injection |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
