@@ -53,12 +53,12 @@ BEGIN
     RAISE EXCEPTION 'student_not_found';
   END IF;
 
-  -- Verify subject exists and is not soft-deleted.
-  IF NOT EXISTS (
-    SELECT 1 FROM public.easa_subjects s
-    WHERE s.id = p_subject_id
-      AND s.deleted_at IS NULL
-  ) THEN
+  -- Verify subject exists and is not soft-deleted; FOR KEY SHARE serialises against soft_delete_syllabus_item's FOR UPDATE.
+  PERFORM 1 FROM public.easa_subjects s
+  WHERE s.id = p_subject_id
+    AND s.deleted_at IS NULL
+  FOR KEY SHARE;
+  IF NOT FOUND THEN
     RAISE EXCEPTION 'subject_not_found';
   END IF;
 

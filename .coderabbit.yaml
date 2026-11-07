@@ -558,7 +558,7 @@ reviews:
           are owned by postgres, which holds BYPASSRLS, so RLS is not evaluated at all and the
           soft-delete filter must be replicated manually in every query. (SECURITY DEFINER ALONE
           does not bypass RLS — it re-runs as the owner, and under FORCE ROW LEVEL SECURITY not
-          even the owner is exempt; the bypass comes from the owner's BYPASSRLS attribute.) Narrow carve-out: SELECTs fetching records by IDs
+          even the owner is exempt; the bypass comes from the owner's BYPASSRLS attribute.) Two carve-outs. Write-once carve-out: SELECTs fetching records by IDs
           stored in an immutable, write-once column may omit the filter. Examples include
           (docs/security.md §15 is the authoritative list, not this enumeration): (a) finish_quiz_session (via _grade_session_progress and _score_graded_session),
           submit_quiz_answer, check_quiz_answer, check_non_mc_answer, and save_quiz_answer reading
@@ -572,12 +572,16 @@ reviews:
           get_admin_report_answer_keys, and finish_quiz_session's results join, reading questions via
           quiz_session_answers.question_id — a write-once FK on the immutable, append-only
           quiz_session_answers table. The write-once guarantee is enforced by
-          trg_quiz_sessions_immutable_columns (mig 079). Any new carve-out
+          trg_quiz_sessions_immutable_columns (mig 079). Any new write-once carve-out
           instance must (a) cite the immutable write-once column, (b) include that citation in
           an inline comment at the call site, and (c) cross-reference docs/database.md §3
-          "Scoring Soft-Deleted Questions" (per docs/security.md §15). Flag any SECURITY DEFINER
+          "Scoring Soft-Deleted Questions" (per docs/security.md §15). Syllabus-parent carve-out (docs/security.md §15 (d)): a read of
+          easa_subjects/easa_topics/easa_subtopics may omit the filter only as (i) the parent of a live
+          row, (ii) a history name lookup, (iii) set_user_enrolments sweeping a course's subjects, or
+          (iv) private.accessible_subject_ids() membership; it names the case inline, and a read that
+          LISTS syllabus rows still filters; (a)-(c) above do not apply to it. Flag any SECURITY DEFINER
           SELECT on a soft-deletable table missing AND deleted_at IS NULL that lacks a cited
-          write-once carve-out, and flag any carve-out missing the docs/database.md §3 cross-reference.
+          write-once carve-out or a named §15 (d) case, and flag any write-once carve-out missing the docs/database.md §3 cross-reference.
           (security.md §9 / docs/security.md §15; docs/database.md §3.)
         - Sibling SECURITY DEFINER RPC guard-set consistency: when a migration adds or
           rewrites a SECURITY DEFINER function, compare its guard set against the siblings
