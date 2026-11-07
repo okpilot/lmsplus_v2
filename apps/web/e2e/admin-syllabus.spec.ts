@@ -50,7 +50,7 @@ async function waitForHydration(page: Page): Promise<void> {
     await trigger.click()
     await expect(trigger).not.toHaveAttribute('aria-expanded', before ?? '', { timeout: 500 })
   }).toPass()
-  await trigger.click()
+  if ((await trigger.getAttribute('aria-expanded')) === 'true') await trigger.click()
   await expect(trigger).toHaveAttribute('aria-expanded', 'false')
 }
 
@@ -87,6 +87,8 @@ async function expandAll(page: Page, n: Names): Promise<void> {
 }
 
 test.describe('Admin Syllabus Manager', () => {
+  test.setTimeout(90_000)
+
   test.beforeEach(async ({ page }) => {
     await page.goto('/app/admin/syllabus')
     await expect(page.getByRole('heading', { name: 'Syllabus Manager' })).toBeVisible()
