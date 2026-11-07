@@ -46,6 +46,7 @@
 import { expect, test } from '@playwright/test'
 import { createClient } from '@supabase/supabase-js'
 import { getAdminClient } from '../helpers/supabase'
+import { expectLiveStudent } from './helpers/attacker-pin'
 import { createAuthenticatedClient } from './helpers/redteam-client'
 import {
   ADMIN_EMAIL,
@@ -138,6 +139,7 @@ test.describe('Red Team: record_login_instructions_sent RPC', () => {
   })
 
   test('authenticated student (non-admin) cannot send login instructions (Vector FP — not_admin)', async () => {
+    await expectLiveStudent(admin, ATTACKER_EMAIL)
     const testStart = new Date().toISOString()
     // Non-vacuity: prove the target row exists and capture its baseline state
     // before the attack, so the rejection proves the role gate fired — not

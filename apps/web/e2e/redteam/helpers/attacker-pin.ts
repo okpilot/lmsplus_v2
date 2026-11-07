@@ -1,0 +1,23 @@
+import { expect } from '@playwright/test'
+import type { getAdminClient } from '../../helpers/supabase'
+
+/**
+ * Pins that `email` is a live (not soft-deleted) non-admin 'student'. is_admin() is
+ * `role = 'admin' AND deleted_at IS NULL` and both halves raise the same `not_admin`, so a
+ * soft-deleted attacker fails both and would keep a role-denial arm green even with the role
+ * predicate removed. upsertUser does not reset deleted_at; seedRedTeamUsers resets it for the shared
+ * attacker only (see seed-users.ts).
+ */
+export async function expectLiveStudent(
+  admin: ReturnType<typeof getAdminClient>,
+  email: string,
+): Promise<void> {
+  const { data, error } = await admin
+    .from('users')
+    .select('role, deleted_at')
+    .eq('email', email)
+    .single()
+  expect(error).toBeNull()
+  expect(data?.role).toBe('student')
+  expect(data?.deleted_at).toBeNull()
+}
