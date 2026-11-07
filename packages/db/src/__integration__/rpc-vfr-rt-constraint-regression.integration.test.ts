@@ -5,7 +5,9 @@
  *
  * The UNIQUE on quiz_session_answers was widened from (session_id, question_id)
  * to (session_id, question_id, blank_index) NULLS NOT DISTINCT. The ON CONFLICT
- * clause in the answer-write path (finish_quiz_session) was updated to match.
+ * clause in the answer-write path (the grading helpers called by
+ * finish_quiz_session: _grade_session_progress / _grade_record_mc) was updated
+ * to match.
  *
  * The critical failure mode is invisible to `db reset` / `db push`: plpgsql
  * resolves ON CONFLICT inference at EXECUTION time, not at CREATE OR REPLACE time
@@ -98,7 +100,7 @@ describe('Constraint regression — answer-write idempotency after mig 095/095b'
     if (orgId) await clearActiveSessions({ admin, orgId })
   })
 
-  it('save_quiz_answer twice + finish_quiz_session once yields exactly one quiz_session_answers row', async () => {
+  it('keeps a pre-existing quiz_session_answers row and still records the grading response', async () => {
     const { data: sessionData, error: startErr } = await studentClient.rpc('start_quiz_session', {
       p_mode: 'quick_quiz',
       p_subject_id: refs.subjectId,
@@ -110,17 +112,40 @@ describe('Constraint regression — answer-write idempotency after mig 095/095b'
       throw new Error('start_quiz_session did not return a string')
     const sessionId = sessionData
 
-    // Save twice for the same question, then finish: the finish path's
-    // ON CONFLICT inference must hold against the widened UNIQUE.
-    const answer = { questionId: questionIds[2]!, answer: P.mc('b'), timeSpentMs: 1000 }
-    await saveAndFinish(studentClient, sessionId, [answer, answer])
+    // Pre-insert the answer row (blank_index NULL) so the grading write hits the
+    // UNIQUE conflict: ON CONFLICT DO NOTHING must keep this row and let the
+    // rest of grading (student_responses) proceed.
+    const { error: preErr } = await admin.from('quiz_session_answers').insert({
+      session_id: sessionId,
+      question_id: questionIds[2]!,
+      selected_option_id: 'a',
+      is_correct: false,
+      response_time_ms: 1000,
+    })
+    expect(preErr).toBeNull()
+
+    await saveAndFinish(studentClient, sessionId, [
+      { questionId: questionIds[2]!, answer: P.mc('b'), timeSpentMs: 1000 },
+    ])
 
     const { data: answerRows, error: rowsErr } = await admin
       .from('quiz_session_answers')
-      .select('id')
+      .select('selected_option_id')
       .eq('session_id', sessionId)
     expect(rowsErr).toBeNull()
     expect(answerRows).toHaveLength(1)
+    expect(answerRows?.[0]?.selected_option_id).toBe('a')
+
+    // Without DO NOTHING the 23505 is swallowed per question and the response
+    // row is rolled back.
+    const { data: respRows, error: respErr } = await admin
+      .from('student_responses')
+      .select('selected_option_id')
+      .eq('session_id', sessionId)
+      .eq('question_id', questionIds[2]!)
+    expect(respErr).toBeNull()
+    expect(respRows).toHaveLength(1)
+    expect(respRows?.[0]?.selected_option_id).toBe('b')
   })
 })
 
