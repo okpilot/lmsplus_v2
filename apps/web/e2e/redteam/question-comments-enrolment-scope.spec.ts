@@ -2,7 +2,8 @@
  * Red Team Spec — question_comments scope (#1637 sibling of the enrolment gate).
  *   KM: a student enrolled in VFR_RT only reads no comment on a PPL (050) question and cannot
  *       post one.
- *   KN: a student of another org reads no comment on an egmont question and cannot post one (#1522).
+ *   KN: a student of another org reads no comment on an egmont question and cannot post one
+ *       (#1522).
  * CONTROL: a student enrolled in PPL_A + VFR_RT of the same org reads the comment and posts one.
  *
  * Status: BLOCKED — mig 20261028000400 `question_comments_select_visible_question` /
@@ -22,6 +23,7 @@ const FULL_EMAIL = 'redteam-enrol-full@lmsplus.local'
 const FULL_PASSWORD = 'redteam-enrol-full-2026!'
 const OTHER_ORG_EMAIL = 'redteam-comment-scope-other-org@lmsplus.local'
 const OTHER_ORG_PASSWORD = 'redteam-comment-scope-other-org-2026!'
+const RLS_VIOLATION = '42501'
 const PPL_COURSE_ID = 'c0a5e000-0000-4000-8000-000000000001'
 const VFR_RT_COURSE_ID = 'c0a5e000-0000-4000-8000-000000000002'
 
@@ -60,6 +62,13 @@ test.describe('Red Team: question_comments enrolment and org scope (KM, KN)', ()
       .is('deleted_at', null)
     if (liveErr) throw new Error(`enrolments: ${liveErr.message}`)
     expect((live ?? []).map((r) => r.course_id)).toEqual([VFR_RT_COURSE_ID])
+    const { data: otherLive, error: otherLiveErr } = await admin
+      .from('course_enrolments')
+      .select('course_id')
+      .eq('user_id', otherOrgUserId)
+      .is('deleted_at', null)
+    if (otherLiveErr) throw new Error(`other-org enrolments: ${otherLiveErr.message}`)
+    expect((otherLive ?? []).map((r) => r.course_id)).toContain(PPL_COURSE_ID)
 
     const { data: subj, error: subjErr } = await admin
       .from('easa_subjects')
@@ -139,6 +148,7 @@ test.describe('Red Team: question_comments enrolment and org scope (KM, KN)', ()
       })
       .select('id')
     expect(post.error).not.toBeNull()
+    expect(post.error?.code).toBe(RLS_VIOLATION)
     const { data: rows, error } = await admin
       .from('question_comments')
       .select('id')
@@ -166,6 +176,7 @@ test.describe('Red Team: question_comments enrolment and org scope (KM, KN)', ()
       })
       .select('id')
     expect(post.error).not.toBeNull()
+    expect(post.error?.code).toBe(RLS_VIOLATION)
     const { data: rows, error } = await admin
       .from('question_comments')
       .select('id')
