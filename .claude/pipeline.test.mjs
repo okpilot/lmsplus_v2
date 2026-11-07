@@ -219,6 +219,7 @@ const TOP_LEVEL_KEYS = [
   'modelLiteralSites',
   'hooks',
   'guards',
+  'supabaseCli',
 ]
 const strayTopKeys = Object.keys(spec).filter((k) => !TOP_LEVEL_KEYS.includes(k))
 strayTopKeys.length === 0
@@ -484,6 +485,38 @@ for (const site of spec.modelLiteralSites) {
   trackedMemory.length === 0
     ? pass('no agent memory is tracked')
     : fail(`agent memory is tracked: ${trackedMemory.join(', ')}`)
+}
+
+// Local supabase CLI = CI CLI (#1726). Exit condition: #1178 — drop the pin when baseline DML grants are fixed.
+{
+  const want = spec.supabaseCli
+  if (typeof want !== 'string' || !/^\d+\.\d+\.\d+$/.test(want)) {
+    fail(`pipeline.json supabaseCli must be an exact x.y.z version (got ${JSON.stringify(want)}); exit condition #1178`)
+  } else {
+    const script = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).scripts?.supabase ?? ''
+    script.includes(`supabase@${want}`)
+      ? pass(`package.json scripts.supabase pins supabase@${want}`)
+      : fail(`package.json scripts.supabase "${script}" must contain supabase@${want} (CI version, #1178 exit condition)`)
+    const wfDir = join(ROOT, '.github/workflows')
+    const versions = []
+    for (const f of readdirSync(wfDir).filter((x) => /\.ya?ml$/.test(x))) {
+      const lines = readFileSync(join(wfDir, f), 'utf8').split('\n')
+      lines.forEach((l, i) => {
+        if (!/uses:\s*supabase\/setup-cli@/.test(l)) return
+        for (const n of lines.slice(i + 1, i + 6)) {
+          const m = /^\s*version:\s*['"]?([^'"\s#]+)/.exec(n)
+          if (m) {
+            versions.push([f, m[1]])
+            break
+          }
+        }
+      })
+    }
+    const bad = versions.filter(([, v]) => v !== want)
+    versions.length > 0 && bad.length === 0
+      ? pass(`every supabase/setup-cli version equals ${want} (${versions.length})`)
+      : fail(`supabase/setup-cli versions != ${want}: ${bad.map(([f, v]) => `${f}=${v}`).join(', ') || 'none found'}`)
+  }
 }
 
 console.log(`\nResults: ${passed} passed, ${failed} failed`)
