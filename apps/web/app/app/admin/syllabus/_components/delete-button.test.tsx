@@ -58,4 +58,13 @@ describe('syllabus DeleteButton tooltip', () => {
     await new Promise((r) => setTimeout(r, 800))
     expect(screen.queryByRole('tooltip')).toBeNull()
   })
+
+  it('says the history is kept and does not claim a permanent delete in the confirm dialog', async () => {
+    setup(0)
+    await userEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    expect(
+      await screen.findByText('This removes the item from the syllabus. Its history is kept.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/cannot be undone|permanently/i)).not.toBeInTheDocument()
+  })
 })
