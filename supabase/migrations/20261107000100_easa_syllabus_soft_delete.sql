@@ -201,7 +201,7 @@ BEGIN
                   WHERE d.topic_id = p_id AND ec.deleted_at IS NULL)
        OR EXISTS (SELECT 1 FROM public.exam_configs ec
                   WHERE ec.subject_id = v_subject_id AND ec.deleted_at IS NULL
-                    -- defaults mirror start_vfr_rt_exam_session and apply to any subject's config
+                    -- defaults mirror start_vfr_rt_exam_session
                     AND v_topic_code IN (COALESCE(ec.parts_config->'part1'->>'topic_code', 'P1_ACRONYMS'),
                                          COALESCE(ec.parts_config->'part2'->>'topic_code', 'P2_DIALOG'),
                                          COALESCE(ec.parts_config->'part3'->>'topic_code', 'P3_MC')))

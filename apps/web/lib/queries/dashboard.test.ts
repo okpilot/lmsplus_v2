@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  type ChainCall,
+  hasDeletedAtFilter,
+  recordChainCalls,
+} from '@/lib/test-support/record-chain-calls'
 
 // ---- Mocks ----------------------------------------------------------------
+
+const chainLog: ChainCall[] = []
 
 const { mockGetSessionUser, mockFrom, mockRpc } = vi.hoisted(() => ({
   mockGetSessionUser: vi.fn(),
@@ -14,7 +21,7 @@ vi.mock('@/lib/auth/get-session-user', () => ({
 
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => ({
-    from: mockFrom,
+    from: (table: string) => recordChainCalls(table, mockFrom(table), chainLog),
     rpc: mockRpc,
   }),
 }))
@@ -81,6 +88,7 @@ function setRpc(opts: {
 
 beforeEach(() => {
   vi.resetAllMocks()
+  chainLog.length = 0
   setRpc({})
 })
 
@@ -596,5 +604,20 @@ describe('getDashboardData', () => {
     expect(met.totalQuestions).toBe(0)
     expect(met.answeredCorrectly).toBe(1)
     expect(met.masteryPercentage).toBe(0)
+  })
+})
+
+describe('getDashboardData soft-delete filters', () => {
+  it('reads only live subjects', async () => {
+    mockGetSessionUser.mockResolvedValue({ id: 'u1' })
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'easa_subjects') return buildChain({ data: [] })
+      if (table === 'student_responses') return buildChain({ count: 0 })
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    await getDashboardData()
+
+    expect(hasDeletedAtFilter(chainLog, 'easa_subjects')).toBe(true)
   })
 })

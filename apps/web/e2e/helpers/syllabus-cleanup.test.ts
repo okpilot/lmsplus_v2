@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockGetAdminClient } = vi.hoisted(() => ({
   mockGetAdminClient: vi.fn(),
@@ -50,6 +50,10 @@ beforeEach(() => {
   vi.resetAllMocks()
 })
 
+afterEach(() => {
+  vi.restoreAllMocks()
+})
+
 describe('makeSyllabusE2eCode', () => {
   it('returns a marked code of at most 10 characters', () => {
     const code = makeSyllabusE2eCode()
@@ -75,9 +79,18 @@ describe('softDeleteMarkedSyllabusSubjects', () => {
     expect(calls.find((c) => c.method === 'select')?.args[0]).toBe('id')
   })
 
-  it('returns 0 when no marked subject matched', async () => {
+  it('logs the count when rows were soft-deleted', async () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+    mockResult({ data: [{ id: 'a' }, { id: 'b' }], error: null })
+    await softDeleteMarkedSyllabusSubjects()
+    expect(log).toHaveBeenCalledWith(expect.stringContaining('soft-deleted 2 subject(s)'))
+  })
+
+  it('returns 0 and stays silent when no marked subject matched', async () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
     mockResult({ data: [], error: null })
     await expect(softDeleteMarkedSyllabusSubjects()).resolves.toBe(0)
+    expect(log).not.toHaveBeenCalled()
   })
 
   it('returns 0 when the response carries no data', async () => {

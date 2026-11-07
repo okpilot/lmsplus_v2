@@ -1463,7 +1463,7 @@ Admin-only (`SECURITY DEFINER`, mig `20261107000100`). `p_table` in `easa_subjec
 
 **Guards:** `not_authenticated`, `admin_not_found`, `not_admin`, `invalid_table`, `not_found` (missing or already deleted), `in_use: <kind> <code> is referenced by live data`.
 
-**Topic in-use via `parts_config`:** a live `exam_configs` row of the topic's subject blocks the delete when any `part1|2|3.topic_code`, defaulting to `P1_ACRONYMS`/`P2_DIALOG`/`P3_MC` when absent (as `start_vfr_rt_exam_session`), equals the topic code; applies to any subject's config.
+**Topic in-use via `parts_config`:** a live `exam_configs` row of the topic's subject blocks the delete when any `part1|2|3.topic_code`, defaulting to `P1_ACRONYMS`/`P2_DIALOG`/`P3_MC` when absent (as `start_vfr_rt_exam_session`), equals the topic code.
 
 **Returns:** `void`.
 

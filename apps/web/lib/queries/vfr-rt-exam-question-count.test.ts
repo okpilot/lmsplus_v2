@@ -31,8 +31,9 @@ function buildChain(returnValue: unknown, calls?: unknown[][]) {
 
 type Stub = { data?: unknown; error?: { message: string } | null; count?: number | null }
 
-function stubTables(tables: { config: Stub; topic?: Stub; subtopics?: Stub }): unknown[][] {
+function stubTables(tables: { config: Stub; topic?: Stub; subtopics?: Stub }) {
   const topicCalls: unknown[][] = []
+  const subtopicCalls: unknown[][] = []
   const byTable: Record<string, Stub | undefined> = {
     exam_configs: tables.config,
     easa_topics: tables.topic ?? { data: { id: 'topic-3' }, error: null },
@@ -41,10 +42,11 @@ function stubTables(tables: { config: Stub; topic?: Stub; subtopics?: Stub }): u
   mockFrom.mockImplementation((table: string) => {
     const stub = byTable[table]
     if (!stub) throw new Error(`unexpected table ${table}`)
-    const calls = table === 'easa_topics' ? topicCalls : undefined
+    const calls =
+      table === 'easa_topics' ? topicCalls : table === 'easa_subtopics' ? subtopicCalls : undefined
     return buildChain({ data: null, error: null, count: null, ...stub }, calls)
   })
-  return topicCalls
+  return { topicCalls, subtopicCalls }
 }
 
 const config = (parts_config: unknown): Stub => ({ data: { parts_config }, error: null })
@@ -80,7 +82,7 @@ describe('getVfrRtExamQuestionCount', () => {
   })
 
   it('looks the Part 3 topic up by the configured topic code', async () => {
-    const topicCalls = stubTables({ config: config({ part3: { topic_code: 'P3_CUSTOM' } }) })
+    const { topicCalls } = stubTables({ config: config({ part3: { topic_code: 'P3_CUSTOM' } }) })
     expect(await getVfrRtExamQuestionCount('s1')).toBe(8 + 9 + 12)
     expect(topicCalls).toContainEqual(['eq', 'code', 'P3_CUSTOM'])
   })
@@ -119,5 +121,17 @@ describe('getVfrRtExamQuestionCount', () => {
     stubTables(tables)
     expect(await getVfrRtExamQuestionCount('s1')).toBeNull()
     expect(spy).toHaveBeenCalledWith(expect.stringContaining('[getVfrRtExamQuestionCount]'), 'boom')
+  })
+
+  it('excludes soft-deleted topics when resolving the Part 3 topic', async () => {
+    const { topicCalls } = stubTables({ config: config({}) })
+    await getVfrRtExamQuestionCount('s1')
+    expect(topicCalls).toContainEqual(['is', 'deleted_at', null])
+  })
+
+  it('excludes soft-deleted subtopics when counting Part 3 subtopics', async () => {
+    const { subtopicCalls } = stubTables({ config: config({}) })
+    await getVfrRtExamQuestionCount('s1')
+    expect(subtopicCalls).toContainEqual(['is', 'deleted_at', null])
   })
 })

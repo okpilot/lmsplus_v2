@@ -18,7 +18,9 @@ export async function softDeleteMarkedSyllabusSubjects(): Promise<number> {
     .is('deleted_at', null)
     .select('id')
   if (error) throw new Error(`softDeleteMarkedSyllabusSubjects: ${error.message}`)
-  return data?.length ?? 0
+  const count = data?.length ?? 0
+  if (count > 0) console.log(`softDeleteMarkedSyllabusSubjects: soft-deleted ${count} subject(s)`)
+  return count
 }
 
 /** Reads a marked subject's `deleted_at` by code (service role). `undefined` when no row exists. */

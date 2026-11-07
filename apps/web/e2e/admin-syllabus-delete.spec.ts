@@ -47,8 +47,7 @@ test.describe('Admin Syllabus — soft delete', () => {
     await expect(page.getByRole('heading', { name: 'Syllabus Manager' })).toBeVisible()
     await expect(page.getByText(name)).toHaveCount(0)
 
-    expect(await getSubjectDeletedAt(code)).not.toBeNull()
-    expect(await getSubjectDeletedAt(code)).not.toBeUndefined()
+    expect(await getSubjectDeletedAt(code)).toEqual(expect.any(String))
   })
 
   test('cleanup helper is a no-op when no marked subject is active', async () => {
