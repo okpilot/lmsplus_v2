@@ -224,6 +224,7 @@ test('a column-0 # comment inside the job does not drop later steps', () => {
   assert.match(r.stdout, /STEP_B/)
 })
 
+// GROUP: ci-run-steps-list-item
 test('a chained pnpm install aborts before any step runs', () => {
   const r = run(
     wrap('      - run: pnpm install && echo CHAINED_RAN\n      - run: echo AFTER_CHAINED\n'),

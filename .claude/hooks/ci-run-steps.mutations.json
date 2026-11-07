@@ -7,7 +7,10 @@
       "id": "ci-run-steps-list-item",
       "find": "export const RUN_LINE_RE = /^(\\s*)(?:-\\s*)?run:[ \\t]?(.*)$/",
       "replace": "export const RUN_LINE_RE = /^(\\s*)run:[ \\t]?(.*)$/",
-      "expectRed": ["a compact `- run:` list-item step executes"],
+      "expectRed": [
+        "a compact `- run:` list-item step executes",
+        "a chained pnpm install aborts before any step runs"
+      ],
       "note": "Drops the optional `- ` list-item prefix from the run-line regex; a compact `- run:` step is no longer parsed."
     }
   ]
