@@ -1,4 +1,5 @@
 import { adminClient } from '@repo/db/admin'
+import { isPastEndPage } from '@/lib/utils/past-end-page'
 
 /**
  * The PostgREST query-builder surface used by the admin internal-exams offset
@@ -76,12 +77,10 @@ export async function runOffsetRows<T>(
   return Array.isArray(data) ? (data as T[]) : []
 }
 
-/** PostgREST error code for a `.range()` request past the end when an exact count is requested. */
-const PAST_END_CODE = 'PGRST103'
-
 /**
  * Runs a data select that carries `count: 'exact'` and returns the rows with the total.
- * `pastEnd` is true when the requested range lies past the last row (PGRST103); any
+ * `pastEnd` is true when the requested range starts at or past the end (PGRST103, or
+ * empty rows with a positive count; see `isPastEndPage`) and carries the real count; any
  * other error is logged server-side and thrown as the generic message.
  */
 export async function runOffsetPage<T>(
@@ -93,7 +92,7 @@ export async function runOffsetPage<T>(
     count: number | null
     error: { message: string; code?: string } | null
   }>)) ?? { data: null, count: null, error: null }
-  if (error?.code === PAST_END_CODE) return { rows: [], count: 0, pastEnd: true }
+  if (isPastEndPage({ data, count, error })) return { rows: [], count: count ?? 0, pastEnd: true }
   if (error) {
     console.error(`[${ctx.tag}] DB error:`, error.message)
     throw new Error(ctx.failMessage)

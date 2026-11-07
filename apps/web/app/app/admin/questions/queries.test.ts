@@ -344,7 +344,7 @@ describe('getQuestionsList', () => {
   })
 
   it('uses range for page 2 with correct offsets', async () => {
-    const chain = mockSupabaseWith([], PAGE_SIZE + 1)
+    const chain = mockSupabaseWith([makeRow()], PAGE_SIZE + 1)
 
     await getQuestionsList({ page: 2 })
 
@@ -352,7 +352,7 @@ describe('getQuestionsList', () => {
   })
 
   it('uses range for page 3 with correct offsets', async () => {
-    const chain = mockSupabaseWith([], PAGE_SIZE * 2 + 1)
+    const chain = mockSupabaseWith([makeRow()], PAGE_SIZE * 2 + 1)
 
     await getQuestionsList({ page: 3 })
 
@@ -382,6 +382,24 @@ describe('getQuestionsList', () => {
     if (!result.ok) throw new Error('Expected ok result')
     expect(result.questions).toHaveLength(1)
     expect(result.totalCount).toBe(30)
+    expect(chain.range).toHaveBeenLastCalledWith(PAGE_SIZE, PAGE_SIZE * 2 - 1)
+  })
+
+  it('snaps to the last page when the offset equals the total (empty page, count > 0)', async () => {
+    // 50 rows, page 3 → offset 50 == total: PostgREST answers 200 with [] and count 50, no error.
+    const chain = mockSupabaseWith([makeRow()], 50)
+    const thenImpl = chain.then as ReturnType<typeof vi.fn>
+    thenImpl.mockImplementationOnce((resolve: (v: unknown) => void) => {
+      const v = { data: [], count: 50, error: null }
+      resolve(v)
+      return Promise.resolve(v)
+    })
+
+    const result = await getQuestionsList({ page: 3 })
+
+    if (!result.ok) throw new Error('Expected ok result')
+    expect(result.questions).toHaveLength(1)
+    expect(result.totalCount).toBe(50)
     expect(chain.range).toHaveBeenLastCalledWith(PAGE_SIZE, PAGE_SIZE * 2 - 1)
   })
 

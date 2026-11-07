@@ -382,10 +382,23 @@ describe('listInternalExamAttempts', () => {
       expect(lastPage.range).toHaveBeenCalledWith(25, 49)
     })
 
+    it('snaps to the last page when the offset equals the total (empty page, count > 0)', async () => {
+      mockAdmin()
+      // 50 rows, page 3 → offset 50 == total: 200 with [] and count 50, no error.
+      const lastPage = buildChain([makeRow(1)], null, 50)
+      mockFrom([buildChain([], null, 50), buildChain([], null, 50), lastPage])
+
+      const result = await listInternalExamAttempts({ page: 3 })
+
+      expect(result.rows).toHaveLength(1)
+      expect(result.totalCount).toBe(50)
+      expect(lastPage.range).toHaveBeenCalledWith(25, 49)
+    })
+
     it('returns an empty rows array when the rows query yields null data', async () => {
       mockAdmin()
       // Count reports rows exist, but the data query returns null (e.g. transport quirk).
-      mockFrom([buildChain([], null, 5), buildChain(null, null, 5)])
+      mockFrom([buildChain(null, null, 5), buildChain(null, null, 5)])
 
       const result = await listInternalExamAttempts()
 
@@ -614,6 +627,40 @@ describe('listInternalExamAttempts single-query pagination', () => {
     expect(result.totalCount).toBe(40)
     expect(result.rows).toHaveLength(1)
     expect(lastPage.range).toHaveBeenCalledWith(25, 49)
+  })
+
+  it('snaps to the last page when the offset equals the total (empty page, count > 0)', async () => {
+    mockAdmin()
+    const lastPage = buildChain([row], null, 25)
+    mockFrom([buildChain([], null, 25), buildChain([], null, 25), lastPage])
+
+    const result = await listInternalExamAttempts({ page: 2 })
+
+    expect(result.totalCount).toBe(25)
+    expect(result.rows).toHaveLength(1)
+    expect(lastPage.range).toHaveBeenCalledWith(0, 24)
+  })
+
+  it('throws the generic message when the last-page re-read fails after a successful count', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      mockAdmin()
+      mockFrom([
+        buildChain(null, pastEnd, null),
+        buildChain([], null, 40),
+        buildChain(null, { message: 're-read failed' }, null),
+      ])
+
+      await expect(listInternalExamAttempts({ page: 99 })).rejects.toThrow(
+        'Failed to load internal exam attempts',
+      )
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        '[listInternalExamAttempts] DB error:',
+        're-read failed',
+      )
+    } finally {
+      consoleErrorSpy.mockRestore()
+    }
   })
 
   it('throws the generic message and logs when the attempts query fails with another error', async () => {
