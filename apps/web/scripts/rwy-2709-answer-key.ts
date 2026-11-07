@@ -1,11 +1,11 @@
 // RWY 27/09 answer key: `RWY_2709_ZONES[i]` pairs with `RWY_2709_LABELS[i]` for i < 9.
 // Server/script-side only. The import boundary is the Biome `noRestrictedImports` override in
-// biome.json (issue #1218): app code (apps/web, packages) outside scripts, e2e and tests may not import `**/scripts/**`.
+// biome.json (#1218): apps/web and packages code outside scripts, e2e and tests may not import
+// `**/scripts/**`.
 //
 // Every id is DERIVED (docs/security.md, diagram_label answer-oracle invariant): a zone id is
 // `deriveZoneId(RWY_2709_IMAGE_REF, <index>)`, a label id is `deriveLabelId(<text>)`
 // (scripts/diagram-content.ts). The ids are literals, pinned by scripts/diagram-content.test.ts.
-// Hand-picked ids were a defect: ascending ids restored canonical order. Do not reintroduce them.
 
 import type {
   DiagramLabel,

@@ -413,7 +413,7 @@ type DiagramLabelQuestion = {
  * nine labels are the nine correct ones (labels 9-11 are distractors and appear in no
  * answer entry). Ids are DERIVED from content — a zone's from (image_ref, index), a
  * label's from its own text — so any literal copied in here would go stale the moment
- * the layout module changed a text or a position, and would go stale SILENTLY: a wrong
+ * the answer-key module changed a text or a position, and would go stale SILENTLY: a wrong
  * pair still passes every structural check and only shows up as a question that cannot
  * be answered correctly.
  */
