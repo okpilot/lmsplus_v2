@@ -327,6 +327,10 @@
 | LD | easa_subjects-topics-subtopics-admin-hard-delete-and-direct-deleted_at-deleted_by-write | HIGH | syllabus-soft-delete.spec.ts | BLOCKED |  | rls-bypass |
 | LE | easa_topics-subtopics-child-insert-or-move-under-deleted-parent-and-deleted-row-rename | MEDIUM | syllabus-soft-delete.spec.ts | BLOCKED |  | soft-delete-bypass |
 | LF | exam_configs-and-exam_config_distributions-reference-to-deleted-subject-or-topic | MEDIUM | syllabus-soft-delete.spec.ts | BLOCKED |  | sibling-guard-gap |
+| LG | soft_delete_syllabus_item-cross-org-admin-deletes-topic-used-by-other-org | MEDIUM | syllabus-soft-delete-dependents.spec.ts | BLOCKED |  | cross-tenant |
+| LH | questions-restore-or-move-under-deleted-topic-or-subtopic | MEDIUM | syllabus-soft-delete-dependents.spec.ts | BLOCKED |  | soft-delete-bypass |
+| LI | issue_internal_exam_code-deleted-subject | MEDIUM | syllabus-soft-delete-dependents.spec.ts | BLOCKED |  | sibling-guard-gap |
+| LJ | soft_delete_syllabus_item-topic-delete-vs-question-insert-race | MEDIUM | syllabus-soft-delete-dependents.spec.ts | BLOCKED |  | race |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
