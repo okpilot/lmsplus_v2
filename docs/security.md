@@ -619,14 +619,14 @@ const securityHeaders = [
 'use server'
 import { z } from 'zod'
 
-const SubmitAnswerSchema = z.object({
+const CheckAnswerSchema = z.object({
   questionId: z.uuid(),
   sessionId:  z.uuid(),
   selectedOptionId: z.enum(['a', 'b', 'c', 'd']),
 })
 
 export async function submitAnswer(raw: unknown) {
-  const parsed = SubmitAnswerSchema.safeParse(raw)
+  const parsed = CheckAnswerSchema.safeParse(raw)
   if (!parsed.success) return { success: false, error: 'Invalid input' }
   // ... proceed with parsed.data only
 }

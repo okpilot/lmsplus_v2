@@ -893,7 +893,7 @@ See `docs/security.md` §3.
 
 See security.md §15 for the full list of carve-outs and their immutable-column justifications.
 
-**Other functions sharing this carve-out** (see security.md §15 for the full list, as of 2026-08-30 — re-derive from that section rather than trusting this enumeration to stay current): `check_quiz_answer` (mig 117), `get_restored_feedback` (migration 20261020000500 / #1549 — via `config.question_ids`, caller's answered progress rows only), `save_quiz_answer` (mig 20261002000400 / #1026 — reads `questions.question_type` via the frozen `config.question_ids`, after the membership check), `check_non_mc_answer` (migs 119/146/153 — widened for `ordering`/`diagram_label`), `finish_quiz_session` / `_grade_session_progress` / `_score_graded_session` (migs `20261004000100` / `20261004000200` / `20261004000300` — described above), and `get_vfr_rt_exam_questions` / `get_vfr_rt_exam_results` read `questions` via the same frozen `config.question_ids`. `get_report_correct_options`, `get_admin_report_correct_options` (mig 114), `get_report_answer_keys` (migs 133/149/156), and `get_admin_report_answer_keys` (migration 20260824000100) instead read `questions` via `quiz_session_answers.question_id` — a write-once FK on the immutable, append-only `quiz_session_answers` table — so a completed-session report still reveals the key (correct-option ID for MC; canonical answers for non-MC short_answer/dialog_fill per-blank; per-slot canonical item text for ordering, mig 149; per-zone canonical label text for diagram_label via a 2-hop resolve, mig 156) for a question soft-deleted after it was answered.
+**Other functions sharing this carve-out** (see security.md §15 for the full list, as of 2026-11-07 — re-derive from that section rather than trusting this enumeration to stay current): `check_quiz_answer` (mig 117), `get_restored_feedback` (migration 20261020000500 / #1549 — via `config.question_ids`, caller's answered progress rows only), `save_quiz_answer` (mig 20261002000400 / #1026 — reads `questions.question_type` via the frozen `config.question_ids`, after the membership check), `check_non_mc_answer` (migs 119/146/153 — widened for `ordering`/`diagram_label`), `finish_quiz_session` / `_grade_session_progress` / `_score_graded_session` (migs `20261004000100` / `20261004000200` / `20261004000300` — described above), and `get_vfr_rt_exam_questions` / `get_vfr_rt_exam_results` read `questions` via the same frozen `config.question_ids`. `get_report_correct_options`, `get_admin_report_correct_options` (mig 114), `get_report_answer_keys` (migs 133/149/156), and `get_admin_report_answer_keys` (migration 20260824000100) instead read `questions` via `quiz_session_answers.question_id` — a write-once FK on the immutable, append-only `quiz_session_answers` table — so a completed-session report still reveals the key (correct-option ID for MC; canonical answers for non-MC short_answer/dialog_fill per-blank; per-slot canonical item text for ordering, mig 149; per-zone canonical label text for diagram_label via a 2-hop resolve, mig 156) for a question soft-deleted after it was answered.
 
 ```sql
 -- ✅ CORRECT — SECURITY DEFINER RPC can score questions soft-deleted mid-quiz
@@ -1042,7 +1042,7 @@ AS $$
 BEGIN
   -- Re-implement auth check manually (owner postgres has BYPASSRLS)
   IF auth.uid() IS NULL THEN
-    RAISE EXCEPTION 'not authenticated';
+    RAISE EXCEPTION 'not_authenticated';
   END IF;
   -- ... rest of function
 END;
@@ -1602,7 +1602,7 @@ BEGIN
   END IF;
 
   -- Active-user gate: soft-deleted callers fail closed before any session
-  -- read (mirrors finish_quiz_session).
+  -- read.
   PERFORM 1
   FROM users
   WHERE id = v_student_id

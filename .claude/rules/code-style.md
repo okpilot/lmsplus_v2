@@ -136,7 +136,7 @@ export async function submitAnswer(input: unknown) {
 
 // ✅ CORRECT — orchestrator + focused helpers
 export async function submitAnswer(input: unknown) {
-  const parsed = SubmitAnswerSchema.safeParse(input)
+  const parsed = CheckAnswerSchema.safeParse(input)
   if (!parsed.success) return { success: false, error: 'Invalid input' }
   const { questionId, sessionId, selectedOptionId } = parsed.data
   const supabase = await createServerSupabaseClient()
@@ -297,10 +297,10 @@ const userId = session.user!.id
 ### No Type Casting Unvalidated External Data
 ```ts
 // ❌ WRONG
-const body = input as SubmitAnswerInput
+const body = input as z.infer<typeof CheckAnswerSchema>
 
 // ✅ CORRECT
-const parsed = SubmitAnswerSchema.safeParse(input)
+const parsed = CheckAnswerSchema.safeParse(input)
 if (!parsed.success) return { success: false, error: 'Invalid input' }
 const body = parsed.data
 ```
@@ -487,9 +487,9 @@ Never hardcode Supabase project-ref URLs. Derive from `process.env.NEXT_PUBLIC_S
 ### Export Types Next to Their Functions
 ```ts
 // actions.ts
-export type SubmitAnswerResult = { isCorrect: boolean; explanation: string }
+export type CheckAnswerResult = { isCorrect: boolean; explanation: string }
 
-export async function submitAnswer(...): Promise<SubmitAnswerResult> { ... }
+export async function checkAnswer(...): Promise<CheckAnswerResult> { ... }
 ```
 
 ---

@@ -319,8 +319,8 @@ No Route Handler mutates (R5), except `apps/web/app/auth/**` handlers and webhoo
 Export result types alongside the function that produces them, in the same file:
 
 ```ts
-export type SubmitAnswerResult = { isCorrect: boolean }
-export async function submitAnswer(...): Promise<SubmitAnswerResult> { ... }
+export type CheckAnswerResult = { isCorrect: boolean }
+export async function checkAnswer(...): Promise<CheckAnswerResult> { ... }
 ```
 
 ## Module Boundaries
