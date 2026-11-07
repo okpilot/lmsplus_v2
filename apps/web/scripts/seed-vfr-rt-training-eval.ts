@@ -27,13 +27,10 @@ import { resolve } from 'node:path'
 import { enrolStudent } from '@repo/db/enrol-students'
 import { createClient } from '@supabase/supabase-js'
 import { config } from 'dotenv'
-import {
-  RWY_2709_IMAGE_REF,
-  RWY_2709_LABELS,
-  RWY_2709_ZONES,
-} from '../app/app/quiz/session/_components/diagrams/rwy-2709-layout'
+import { RWY_2709_IMAGE_REF } from '../app/app/quiz/session/_components/diagrams/rwy-2709-layout'
 import { assertDiagramConfig } from './diagram-content'
 import { assertOrderingItems, buildOrderingItems } from './ordering-content'
+import { RWY_2709_LABELS, RWY_2709_ZONES } from './rwy-2709-answer-key'
 
 config({ path: resolve(__dirname, '../.env.local') })
 
@@ -402,7 +399,7 @@ type DiagramLabelQuestion = {
   text: string
   // The zone_id -> label_id answer key. This mapping lives ONLY here (a
   // server-side seed script) — never in the frontend layout module (see the
-  // SECURITY note atop rwy-2709-layout.ts). Distractor labels (Go-around,
+  // header of rwy-2709-answer-key.ts). Distractor labels (Go-around,
   // Departure, Threshold) exist in RWY_2709_LABELS but are intentionally
   // absent from this mapping.
   answer: { zone_id: string; label_id: string }[]

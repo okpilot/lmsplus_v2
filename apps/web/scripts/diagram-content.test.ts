@@ -1,11 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { MAX_LABELS, MAX_ZONES } from '../app/app/quiz/actions/diagram-validation'
-import {
-  RWY_2709_IMAGE_REF,
-  RWY_2709_LABELS,
-  RWY_2709_ZONES,
-} from '../app/app/quiz/session/_components/diagrams/rwy-2709-layout'
+import { RWY_2709_IMAGE_REF } from '../app/app/quiz/session/_components/diagrams/rwy-2709-layout'
 import { assertDiagramConfig, deriveLabelId, deriveZoneId } from './diagram-content'
+import { RWY_2709_LABELS, RWY_2709_ZONES } from './rwy-2709-answer-key'
 
 const AT = 'test.json (VRT-DIA-99)'
 

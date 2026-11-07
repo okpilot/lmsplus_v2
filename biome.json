@@ -101,6 +101,10 @@
               {
                 "group": ["next/dist/**"],
                 "message": "Import from public next/* entry points."
+              },
+              {
+                "group": ["**/rwy-2709-answer-key", "**/rwy-2709-answer-key.ts"],
+                "message": "The RWY 27/09 answer key is server/script-side only. Import it only from apps/web/scripts/** (#1218)."
               }
             ]
           }
@@ -169,6 +173,29 @@
             "noRestrictedImports": {
               "level": "error",
               "options": {
+                "patterns": [
+                  {
+                    "group": ["next/dist/**"],
+                    "message": "Import from public next/* entry points."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/web/scripts/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "@repo/db/test-helpers": "test-helpers wraps the service-role key (getAdminClient). Import it only from integration tests or a lib/integration-support/** dir \u2014 never production code (#925)."
+                },
                 "patterns": [
                   {
                     "group": ["next/dist/**"],
