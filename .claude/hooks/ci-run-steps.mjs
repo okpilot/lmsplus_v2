@@ -7,7 +7,7 @@ export const BLOCK_SCALAR_RE = /^[>|][-+0-9]*\s*(#.*)?$/
 
 /** Call `onStep(bodyLines)` for every `run:` step in a workflow file's text. */
 export function forEachRunStep(text, onStep) {
-  const lines = text.split('\n')
+  const lines = text.replace(/\r/g, '').split('\n')
   let i = 0
   while (i < lines.length) {
     const raw = lines[i]
@@ -41,7 +41,6 @@ export function readRunBody(lines, i, baseIndent, rest) {
 }
 
 const indentOf = (l) => l.length - l.trimStart().length
-const unquote = (s) => s.trim().replace(/^(["'])(.*)\1$/, '$2')
 
 /** Lines under `jobs.<jobId>` (comment lines, any column, never end the job) and the `jobs:` line index. */
 function jobBody(lines, jobId) {
@@ -61,13 +60,12 @@ function jobBody(lines, jobId) {
 }
 
 /**
- * Steps of `jobs.<jobId>` as `{ name, env, run, timeoutMinutes, unsupported }`: `env` = the
+ * Steps of `jobs.<jobId>` as `{ name, env, run, unsupported }`: `env` = the
  * step's `env:` block text ('' when absent), `run` = the command string (literal `|` keeps
- * newlines, folded `>` joins with spaces) or null for a step without `run:`, `timeoutMinutes` =
- * the raw `timeout-minutes:` value or null, `unsupported` = step keys the caller cannot honor.
+ * newlines, folded `>` joins with spaces) or null for a step without `run:`, `unsupported` = step keys the caller cannot honor.
  */
 export function jobSteps(text, jobId) {
-  const { job } = jobBody(text.split('\n'), jobId)
+  const { job } = jobBody(text.replace(/\r/g, '').split('\n'), jobId)
   const stepsAt = job.findIndex((l) => /^\s*steps:\s*$/.test(l))
   if (stepsAt === -1) throw new Error(`job \`${jobId}\` has no \`steps:\``)
   const body = job.slice(stepsAt + 1)
@@ -87,7 +85,6 @@ function parseItem(lines, keyIndent) {
     name: null,
     env: '',
     run: null,
-    timeoutMinutes: null,
     unsupported: [],
   }
   for (let i = 0; i < lines.length; i++) {
@@ -105,7 +102,6 @@ function parseItem(lines, keyIndent) {
     const m = /^\s*([\w-]+):[ \t]?(.*)$/.exec(l)
     if (!m) continue
     if (m[1] === 'name') step.name = scalarText(m[2])
-    else if (m[1] === 'timeout-minutes') step.timeoutMinutes = unquote(m[2].replace(/\s+#.*$/, ''))
     else if (UNSUPPORTED_STEP_KEYS.has(m[1])) step.unsupported.push(m[1])
     else if (m[1] === 'env') {
       let j = i + 1
@@ -176,22 +172,20 @@ function keyBlocks(lines, indent) {
 
 /**
  * Workflow- and job-level scope of `jobs.<jobId>`: `env` = `[{ where, text }]` for every `env:`
- * block, `timeoutMinutes` = the job's raw `timeout-minutes:` value or null, `unsupported` =
+ * block, `unsupported` =
  * `defaults:` / `working-directory` / `shell` / `continue-on-error` keys found at either level.
  */
 export function jobScope(text, jobId) {
-  const lines = text.split('\n')
+  const lines = text.replace(/\r/g, '').split('\n')
   const { jobsAt, job } = jobBody(lines, jobId)
   const jobIndent = indentOf(job.find((l) => l.trim() !== '' && !/^\s*#/.test(l)) ?? '')
-  const scope = { env: [], timeoutMinutes: null, unsupported: [] }
+  const scope = { env: [], unsupported: [] }
   for (const [where, blocks] of [
     ['workflow', keyBlocks(lines.slice(0, jobsAt), 0)],
     ['job', keyBlocks(job, jobIndent)],
   ]) {
     for (const b of blocks) {
       if (b.key === 'env') scope.env.push({ where, text: [b.rest, ...b.body].join('\n') })
-      else if (b.key === 'timeout-minutes' && where === 'job')
-        scope.timeoutMinutes = unquote(b.rest.replace(/\s+#.*$/, ''))
       else if (['defaults', 'working-directory', 'shell', 'continue-on-error'].includes(b.key))
         scope.unsupported.push(`${where} ${b.key}`)
     }

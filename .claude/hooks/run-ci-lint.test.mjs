@@ -3,7 +3,6 @@
 // `--list` parses and prints the commands to run (after substitution), one per line, without running.
 // Fixture workflows only; the live ci.yml is parse-only (`--list`). `lint:ci` is never invoked here.
 import assert from 'node:assert/strict'
-import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -69,19 +68,6 @@ test('a failing step does not stop later steps, prints FAIL, and exits non-zero'
   assert.match(r.stdout, /PASS.*Good/)
 })
 
-// GROUP: ci-run-steps-list-item
-test('a frozen pnpm install step is listed with --lockfile-only appended', () => {
-  const r = run(
-    wrap(
-      '      - run: pnpm install --frozen-lockfile\n      - name: After\n        run: echo AFTER_RAN\n',
-    ),
-    ['--list'],
-  )
-  assert.equal(r.status, 0, r.stdout + r.stderr)
-  assert.match(r.stdout, /^pnpm install --frozen-lockfile --lockfile-only$/m)
-  assert.match(r.stdout, /echo AFTER_RAN/)
-})
-
 test('every step runs with TURBO_FORCE=true', () => {
   const r = run(wrap('      - name: Env\n        run: echo TF=$TURBO_FORCE\n'))
   assert.equal(r.status, 0, r.stderr)
@@ -127,7 +113,7 @@ test('live ci.yml lint job parses to include the decisions-ledger guard with bas
   const r = runNode('run-ci-lint --list', [SCRIPT, '--list'], { cwd: ROOT })
   assert.equal(r.status, 0, r.stderr)
   assert.match(r.stdout, /check-decisions-ledger\.mjs --base origin\/master/)
-  assert.match(r.stdout, /^pnpm install --frozen-lockfile --lockfile-only$/m)
+  assert.match(r.stdout, /^pnpm install --frozen-lockfile$/m)
 })
 
 test('package.json lint:ci script runs run-ci-lint.mjs', () => {
@@ -203,17 +189,6 @@ test('a ${{ }} value in job or workflow env aborts', () => {
   }
 })
 
-test('a step exceeding timeout-minutes is a FAIL and later steps still run', () => {
-  const r = run(
-    wrap(
-      '      - name: Slow\n        timeout-minutes: 0.01\n        run: exec sleep 30\n      - name: After\n        run: echo AFTER_TIMEOUT\n',
-    ),
-  )
-  assert.notEqual(r.status, 0)
-  assert.match(r.stdout, /FAIL.*Slow/)
-  assert.match(r.stdout, /PASS.*After/)
-})
-
 test('working-directory, shell and defaults abort before any step runs', () => {
   const cases = [
     wrap('      - name: W\n        working-directory: apps\n        run: echo UNSUP_RAN\n'),
@@ -248,16 +223,6 @@ test('a column-0 # comment inside the job does not drop later steps', () => {
   assert.match(r.stdout, /STEP_B/)
 })
 
-// GROUP: ci-run-steps-list-item
-test('a chained pnpm install aborts before any step runs', () => {
-  const r = run(
-    wrap('      - run: pnpm install && echo CHAINED_RAN\n      - run: echo AFTER_CHAINED\n'),
-  )
-  assert.notEqual(r.status, 0)
-  assert.doesNotMatch(r.stdout, /CHAINED_RAN|AFTER_CHAINED/)
-  assert.match(r.stderr, /ABORT/)
-})
-
 test('a folded > body with a blank line aborts', () => {
   const r = run(
     wrap('      - name: F\n        run: >\n          echo FOLD_A\n\n          echo FOLD_B\n'),
@@ -267,102 +232,12 @@ test('a folded > body with a blank line aborts', () => {
   assert.match(r.stderr, /ABORT/)
 })
 
-test('timeout-minutes kills a backgrounded grandchild', () => {
-  const r = run(
-    wrap('      - name: Slow\n        timeout-minutes: 0.01\n        run: (sleep 31337 & wait)\n'),
-  )
-  assert.notEqual(r.status, 0)
-  assert.match(r.stdout, /FAIL.*Slow/)
-  const left = spawnSync('pgrep', ['-f', 'sleep 31337'], { encoding: 'utf8' })
-  assert.equal(left.stdout.trim(), '')
-})
-
 // GROUP: ci-run-steps-list-item
-test('a non-frozen pnpm install step aborts before any step runs', () => {
-  const r = run(wrap('      - run: pnpm install\n      - run: echo AFTER_BARE\n'))
-  assert.notEqual(r.status, 0)
-  assert.doesNotMatch(r.stdout, /AFTER_BARE/)
-  assert.match(r.stderr, /ABORT.*pnpm install/)
-})
-
-// GROUP: ci-run-steps-list-item
-test('a step `pnpm install-x` is listed unchanged, not treated as pnpm install', () => {
-  const r = run(wrap('      - run: pnpm install-x\n'), ['--list'])
-  assert.equal(r.status, 0, r.stdout + r.stderr)
-  assert.match(r.stdout, /^pnpm install-x$/m)
-})
-
-// GROUP: ci-run-steps-list-item
-test('a trailing YAML comment on a frozen pnpm install does not swallow --lockfile-only', () => {
+test('a trailing YAML comment on a frozen pnpm install is stripped from the listed command', () => {
   const r = run(wrap('      - run: pnpm install --frozen-lockfile # deps\n'), ['--list'])
   assert.equal(r.status, 0, r.stdout + r.stderr)
-  assert.match(r.stdout, /--lockfile-only$/m)
+  assert.match(r.stdout, /^pnpm install --frozen-lockfile$/m)
   assert.doesNotMatch(r.stdout, /#/)
-})
-
-const expectInstallAbort = (cmd) => {
-  const r = run(wrap(`      - run: ${cmd}\n`), ['--list'])
-  assert.notEqual(r.status, 0)
-  assert.match(r.stderr, /ABORT step ".*": pnpm install must be a single-line/)
-}
-
-// GROUP: ci-run-steps-list-item
-test('a compact `pnpm i` step aborts naming the step', () => {
-  expectInstallAbort('pnpm i')
-})
-
-// GROUP: ci-run-steps-list-item
-test('an env-prefixed `CI=1 pnpm install` step aborts naming the step', () => {
-  expectInstallAbort('CI=1 pnpm install')
-})
-
-// GROUP: ci-run-steps-list-item
-test('a `pnpm --filter x install` step aborts naming the step', () => {
-  expectInstallAbort('pnpm --filter x install')
-})
-
-// GROUP: ci-run-steps-list-item
-test('a `pnpm -r install` step aborts naming the step', () => {
-  expectInstallAbort('pnpm -r install')
-})
-
-test('a run block with pnpm install on a later line aborts naming the step', () => {
-  const r = run(
-    wrap('      - name: Setup\n        run: |\n          echo setup\n          pnpm install\n'),
-    ['--list'],
-  )
-  assert.notEqual(r.status, 0)
-  assert.match(r.stderr, /ABORT step "Setup": pnpm install must be a single-line/)
-})
-
-// GROUP: ci-run-steps-list-item
-test('an echoed `pnpm i` is not an install and is listed unchanged', () => {
-  const r = run(wrap('      - run: echo "pnpm i"\n'), ['--list'])
-  assert.equal(r.status, 0, r.stdout + r.stderr)
-  assert.match(r.stdout, /^echo "pnpm i"$/m)
-})
-
-test('a step without timeout-minutes uses the job timeout-minutes', () => {
-  const r = run(
-    withJob(
-      { job: '    timeout-minutes: 0.01 # job cap\n' },
-      '      - name: Slow\n        run: exec sleep 30\n',
-    ),
-  )
-  assert.notEqual(r.status, 0)
-  assert.match(r.stdout, /FAIL.*Slow/)
-  assert.match(r.stdout, /timeout-minutes exceeded/)
-})
-
-test('a step timeout-minutes wins over the job timeout-minutes', () => {
-  const r = run(
-    withJob(
-      { job: '    timeout-minutes: 0.01\n' },
-      '      - name: Long\n        timeout-minutes: 1\n        run: sleep 1; echo STEP_WON\n',
-    ),
-  )
-  assert.equal(r.status, 0, r.stdout + r.stderr)
-  assert.match(r.stdout, /STEP_WON/)
 })
 
 test('continue-on-error aborts before any step runs', () => {
@@ -415,17 +290,50 @@ test('a trailing comment on a step name is not part of the name', () => {
   assert.match(b.stdout, /PASS.*Lint #1$/m)
 })
 
-test('a pnpm run with many flag tokens lists without regex blowup', () => {
-  const wf = join(dir, `wf${n++}.yml`)
-  writeFileSync(wf, wrap(`      - name: Flags\n        run: pnpm${' --flag-x'.repeat(40)} run\n`))
-  const t0 = Date.now()
-  const r = spawnSync('node', [SCRIPT, '--workflow', wf, '--list'], {
-    cwd: dir,
-    encoding: 'utf8',
-    timeout: 5000,
-  })
-  const elapsed = Date.now() - t0
-  assert.equal(r.status, 0, `${r.stderr} ${r.error ?? ''}`)
-  assert.equal(r.signal, null)
-  assert.ok(elapsed < 2000, `took ${elapsed}ms`)
+test('a frozen pnpm install step is listed exactly as written with no flag appended', () => {
+  const r = run(wrap('      - name: Install\n        run: pnpm install --frozen-lockfile\n'), [
+    '--list',
+  ])
+  assert.equal(r.status, 0, r.stdout + r.stderr)
+  const lines = r.stdout.split('\n').filter((l) => l.includes('pnpm install'))
+  assert.ok(lines.length > 0, r.stdout)
+  assert.ok(
+    lines.every((l) => !l.includes('--lockfile-only')),
+    r.stdout,
+  )
+  assert.ok(
+    lines.some((l) => l.trimEnd().endsWith('pnpm install --frozen-lockfile')),
+    r.stdout,
+  )
+})
+
+test('a CRLF workflow lists its commands with no carriage return', () => {
+  const yaml = wrap('      - name: Say\n        run: echo CRLF_CMD\n').replace(/\n/g, '\r\n')
+  const r = run(yaml, ['--list'])
+  assert.equal(r.status, 0, r.stdout + r.stderr)
+  assert.match(r.stdout, /echo CRLF_CMD/)
+  assert.ok(!r.stdout.includes('\r'), JSON.stringify(r.stdout))
+})
+
+test('job-level env and timeout-minutes after steps do not alter the last step', () => {
+  const r = run(
+    wrap('      - name: Last\n        run: echo LAST_CMD\n') +
+      '    env:\n      run: x\n    timeout-minutes: 5\n',
+    ['--list'],
+  )
+  assert.equal(r.status, 0, r.stdout + r.stderr)
+  assert.match(r.stdout, /echo LAST_CMD/)
+  assert.ok(!/echo LAST_CMD[^\n]*(run: x|timeout)/.test(r.stdout), r.stdout)
+})
+
+test('CI defaults to true and a step env CI overrides it', () => {
+  const r = run(
+    wrap(
+      '      - name: Def\n        run: echo "CI=$CI"\n' +
+        '      - name: Ovr\n        env:\n          CI: x\n        run: echo "CI=$CI"\n',
+    ),
+  )
+  assert.equal(r.status, 0, r.stdout + r.stderr)
+  const vals = r.stdout.split('\n').filter((l) => /^CI=/.test(l))
+  assert.deepEqual(vals, ['CI=true', 'CI=x'])
 })
