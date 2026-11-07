@@ -25,57 +25,47 @@ REVOKE INSERT, UPDATE ON public.easa_subtopics FROM authenticated;
 GRANT INSERT (topic_id, code, name, sort_order), UPDATE (topic_id, code, name, sort_order)
   ON public.easa_subtopics TO authenticated;
 
--- Live-parent check: FOR KEY SHARE serialises with soft_delete_syllabus_item's FOR UPDATE on the parent.
-CREATE OR REPLACE FUNCTION public.trg_syllabus_live_parent()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY INVOKER
-SET search_path = public, pg_temp
-AS $$
-BEGIN
-  IF TG_TABLE_NAME = 'easa_topics' THEN
-    IF TG_OP = 'INSERT' OR NEW.subject_id IS DISTINCT FROM OLD.subject_id THEN
-      PERFORM 1 FROM public.easa_subjects s
-      WHERE s.id = NEW.subject_id AND s.deleted_at IS NULL
-      FOR KEY SHARE;
-      IF NOT FOUND THEN
-        RAISE EXCEPTION 'parent_not_found';
-      END IF;
-    END IF;
-  ELSE
-    IF TG_OP = 'INSERT' OR NEW.topic_id IS DISTINCT FROM OLD.topic_id THEN
-      PERFORM 1 FROM public.easa_topics t
-      WHERE t.id = NEW.topic_id AND t.deleted_at IS NULL
-      FOR KEY SHARE;
-      IF NOT FOUND THEN
-        RAISE EXCEPTION 'parent_not_found';
-      END IF;
-    END IF;
-  END IF;
-  RETURN NEW;
-END;
-$$;
-REVOKE EXECUTE ON FUNCTION public.trg_syllabus_live_parent() FROM PUBLIC;
-
--- Deleted rows are frozen except deleted_at / deleted_by.
-CREATE OR REPLACE FUNCTION public.trg_syllabus_deleted_row_frozen()
+-- Live-parent check, one function for every child column: TG_ARGV[0] = parent table, TG_ARGV[1] = column.
+-- FOR KEY SHARE serialises with soft_delete_syllabus_item's FOR UPDATE on the parent. NULL skips.
+CREATE OR REPLACE FUNCTION public.syllabus_live_parent()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY INVOKER
 SET search_path = public, pg_temp
 AS $$
 DECLARE
-  v_old jsonb := jsonb_build_object('code', OLD.code, 'name', OLD.name, 'sort_order', OLD.sort_order);
-  v_new jsonb := jsonb_build_object('code', NEW.code, 'name', NEW.name, 'sort_order', NEW.sort_order);
+  v uuid := (to_jsonb(NEW) ->> TG_ARGV[1])::uuid;
 BEGIN
-  IF TG_TABLE_NAME = 'easa_topics' THEN
-    v_old := v_old || jsonb_build_object('parent', OLD.subject_id);
-    v_new := v_new || jsonb_build_object('parent', NEW.subject_id);
-  ELSIF TG_TABLE_NAME = 'easa_subtopics' THEN
-    v_old := v_old || jsonb_build_object('parent', OLD.topic_id);
-    v_new := v_new || jsonb_build_object('parent', NEW.topic_id);
+  IF v IS NULL THEN
+    RETURN NEW;
   END IF;
-  IF OLD.deleted_at IS NOT NULL AND v_new IS DISTINCT FROM v_old THEN
+  IF TG_ARGV[0] = 'easa_subjects' THEN
+    PERFORM 1 FROM public.easa_subjects p WHERE p.id = v AND p.deleted_at IS NULL FOR KEY SHARE;
+  ELSIF TG_ARGV[0] = 'easa_topics' THEN
+    PERFORM 1 FROM public.easa_topics p WHERE p.id = v AND p.deleted_at IS NULL FOR KEY SHARE;
+  ELSIF TG_ARGV[0] = 'easa_subtopics' THEN
+    PERFORM 1 FROM public.easa_subtopics p WHERE p.id = v AND p.deleted_at IS NULL FOR KEY SHARE;
+  ELSE
+    RAISE EXCEPTION 'invalid_parent_table';
+  END IF;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'parent_not_found';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+REVOKE EXECUTE ON FUNCTION public.syllabus_live_parent() FROM PUBLIC;
+
+-- Deleted rows are frozen: every column except deleted_at / deleted_by (incl. easa_subjects.course_id).
+CREATE OR REPLACE FUNCTION public.trg_syllabus_deleted_row_frozen()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  IF OLD.deleted_at IS NOT NULL
+     AND to_jsonb(NEW) - 'deleted_at' - 'deleted_by' IS DISTINCT FROM to_jsonb(OLD) - 'deleted_at' - 'deleted_by' THEN
     RAISE EXCEPTION 'item_deleted';
   END IF;
   RETURN NEW;
@@ -83,12 +73,42 @@ END;
 $$;
 REVOKE EXECUTE ON FUNCTION public.trg_syllabus_deleted_row_frozen() FROM PUBLIC;
 
-CREATE TRIGGER easa_topics_live_parent
-  BEFORE INSERT OR UPDATE ON public.easa_topics
-  FOR EACH ROW EXECUTE FUNCTION public.trg_syllabus_live_parent();
-CREATE TRIGGER easa_subtopics_live_parent
-  BEFORE INSERT OR UPDATE ON public.easa_subtopics
-  FOR EACH ROW EXECUTE FUNCTION public.trg_syllabus_live_parent();
+-- Per (child table, column): check on INSERT and when the column changes. Tables with deleted_at
+-- (restore = true) also re-check when a deleted row is restored.
+DO $$
+DECLARE
+  r record;
+  v_restore text;
+BEGIN
+  FOR r IN
+    SELECT * FROM (VALUES
+      ('easa_topics',               'subject_id',  'easa_subjects', false),
+      ('easa_subtopics',            'topic_id',    'easa_topics',   false),
+      ('questions',                 'subject_id',  'easa_subjects', true),
+      ('questions',                 'topic_id',    'easa_topics',   true),
+      ('questions',                 'subtopic_id', 'easa_subtopics', true),
+      ('exam_configs',              'subject_id',  'easa_subjects', true),
+      ('exam_config_distributions', 'topic_id',    'easa_topics',   false),
+      ('exam_config_distributions', 'subtopic_id', 'easa_subtopics', false)
+    ) AS t(child, col, parent, restore)
+  LOOP
+    v_restore := CASE WHEN r.restore
+      THEN ' OR (OLD.deleted_at IS NOT NULL AND NEW.deleted_at IS NULL)' ELSE '' END;
+    EXECUTE format(
+      'CREATE TRIGGER %I BEFORE INSERT ON public.%I FOR EACH ROW WHEN (NEW.%I IS NOT NULL) '
+      'EXECUTE FUNCTION public.syllabus_live_parent(%L, %L)',
+      r.child || '_' || r.col || '_live_parent_ins', r.child, r.col, r.parent, r.col);
+    EXECUTE format(
+      'CREATE TRIGGER %I BEFORE UPDATE OF %I%s ON public.%I FOR EACH ROW '
+      'WHEN (NEW.%I IS NOT NULL AND (NEW.%I IS DISTINCT FROM OLD.%I%s)) '
+      'EXECUTE FUNCTION public.syllabus_live_parent(%L, %L)',
+      r.child || '_' || r.col || '_live_parent_upd', r.col,
+      CASE WHEN r.restore THEN ', deleted_at' ELSE '' END, r.child,
+      r.col, r.col, r.col, v_restore, r.parent, r.col);
+  END LOOP;
+END;
+$$;
+
 CREATE TRIGGER easa_subjects_deleted_row_frozen
   BEFORE UPDATE ON public.easa_subjects
   FOR EACH ROW EXECUTE FUNCTION public.trg_syllabus_deleted_row_frozen();

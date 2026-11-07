@@ -24,7 +24,7 @@ export async function deleteItem(input: unknown): Promise<ActionResult> {
     if (token === 'in_use') {
       return { success: false, error: 'Cannot delete: this item is still in use' }
     }
-    if (token === 'not_found' || token === 'parent_not_found') {
+    if (token === 'not_found') {
       return { success: false, error: 'Item not found' }
     }
     console.error('[deleteItem] Delete failed:', { code: error.code, message: error.message })

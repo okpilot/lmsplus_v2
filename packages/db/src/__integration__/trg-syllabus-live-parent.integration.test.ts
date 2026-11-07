@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupTestData } from './cleanup'
 import { fixtureSuffix } from './fixture-suffix'
+import { seedQuestions } from './seed'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 
 /**
@@ -59,6 +60,43 @@ describe('Triggers: syllabus live parent and deleted-row freeze', () => {
     return data as Record<string, unknown>
   }
 
+  async function deadTree(): Promise<Tree> {
+    const tree = await newTree()
+    await stamp('easa_subtopics', tree.subtopicId)
+    await stamp('easa_topics', tree.topicId)
+    await stamp('easa_subjects', tree.subjectId)
+    return tree
+  }
+
+  async function seedOne(tree: Tree, withSubtopic: boolean): Promise<string> {
+    const { questionIds } = await seedQuestions({
+      admin,
+      orgId,
+      createdBy: userIds[0] as string,
+      subjectId: tree.subjectId,
+      topicId: tree.topicId,
+      subtopicId: withSubtopic ? tree.subtopicId : null,
+      count: 1,
+    })
+    return questionIds[0] as string
+  }
+
+  async function newConfig(subjectId: string) {
+    return admin
+      .from('exam_configs')
+      .insert({
+        organization_id: orgId,
+        subject_id: subjectId,
+        enabled: true,
+        total_questions: 5,
+        time_limit_seconds: 600,
+        pass_mark: 75,
+        parts_config: {},
+      })
+      .select('id')
+      .single()
+  }
+
   beforeAll(async () => {
     orgId = await createTestOrg({ admin, name: `LP Org ${suffix}`, slug: `lp-syllabus-${suffix}` })
     const adminId = await createTestUser({
@@ -76,6 +114,17 @@ describe('Triggers: syllabus live parent and deleted-row freeze', () => {
   })
 
   afterAll(async () => {
+    const configs = (await admin.from('exam_configs').select('id').eq('organization_id', orgId))
+      .data
+    await admin
+      .from('exam_config_distributions')
+      .delete()
+      .in(
+        'exam_config_id',
+        (configs ?? []).map((r) => r.id as string),
+      )
+    await admin.from('questions').delete().eq('organization_id', orgId)
+    await admin.from('exam_configs').delete().eq('organization_id', orgId)
     await cleanupTestData({ admin, orgId, userIds })
     for (const id of subjectIds) {
       const topics = (await admin.from('easa_topics').select('id').eq('subject_id', id)).data ?? []
@@ -204,5 +253,86 @@ describe('Triggers: syllabus live parent and deleted-row freeze', () => {
     const after = await row('easa_topics', tree.topicId)
     expect(after.name).toBe('edited')
     expect(after.sort_order).toBe(5)
+  })
+
+  it('rejects a question insert under a soft-deleted subtopic', async () => {
+    const tree = await newTree()
+    await stamp('easa_subtopics', tree.subtopicId)
+    await expect(seedOne(tree, true)).rejects.toThrow('parent_not_found')
+    const { data } = await admin.from('questions').select('id').eq('topic_id', tree.topicId)
+    expect(data).toHaveLength(0)
+  })
+
+  it('rejects re-pointing a live question at a soft-deleted topic', async () => {
+    const live = await newTree()
+    const dead = await deadTree()
+    const qid = await seedOne(live, false)
+    const { error } = await admin.from('questions').update({ topic_id: dead.topicId }).eq('id', qid)
+    expect(error?.message).toContain('parent_not_found')
+    const { data } = await admin.from('questions').select('topic_id').eq('id', qid).single()
+    expect(data?.topic_id).toBe(live.topicId)
+  })
+
+  it('rejects restoring a soft-deleted question whose subject is soft-deleted', async () => {
+    const tree = await newTree()
+    const qid = await seedOne(tree, false)
+    const when = new Date().toISOString()
+    const del = await admin.from('questions').update({ deleted_at: when }).eq('id', qid)
+    expect(del.error).toBeNull()
+    await stamp('easa_subtopics', tree.subtopicId)
+    await stamp('easa_topics', tree.topicId)
+    await stamp('easa_subjects', tree.subjectId)
+    const { error } = await admin.from('questions').update({ deleted_at: null }).eq('id', qid)
+    expect(error?.message).toContain('parent_not_found')
+    const { data } = await admin.from('questions').select('deleted_at').eq('id', qid).single()
+    expect(data?.deleted_at).not.toBeNull()
+  })
+
+  it('rejects an exam_configs insert for a soft-deleted subject', async () => {
+    const dead = await deadTree()
+    const { error } = await newConfig(dead.subjectId)
+    expect(error?.message).toContain('parent_not_found')
+    const { data } = await admin.from('exam_configs').select('id').eq('subject_id', dead.subjectId)
+    expect(data).toHaveLength(0)
+  })
+
+  it('rejects an exam_config_distributions insert for a soft-deleted topic', async () => {
+    const live = await newTree()
+    const dead = await deadTree()
+    const { data: cfg, error: cfgErr } = await newConfig(live.subjectId)
+    expect(cfgErr).toBeNull()
+    const { error } = await admin.from('exam_config_distributions').insert({
+      exam_config_id: cfg?.id,
+      topic_id: dead.topicId,
+      question_count: 1,
+    })
+    expect(error?.message).toContain('parent_not_found')
+    const { data } = await admin
+      .from('exam_config_distributions')
+      .select('id')
+      .eq('exam_config_id', cfg?.id)
+    expect(data).toHaveLength(0)
+  })
+
+  it('rejects editing short on a soft-deleted subject', async () => {
+    const dead = await deadTree()
+    const { error } = await adminClient
+      .from('easa_subjects')
+      .update({ short: 'zzz' })
+      .eq('id', dead.subjectId)
+    expect(error?.message).toContain('item_deleted')
+    expect((await row('easa_subjects', dead.subjectId)).short).not.toBe('zzz')
+  })
+
+  it('allows a live question edit that leaves the syllabus columns alone', async () => {
+    const tree = await newTree()
+    const qid = await seedOne(tree, true)
+    const { error } = await admin
+      .from('questions')
+      .update({ question_text: 'edited?' })
+      .eq('id', qid)
+    expect(error).toBeNull()
+    const { data } = await admin.from('questions').select('question_text').eq('id', qid).single()
+    expect(data?.question_text).toBe('edited?')
   })
 })

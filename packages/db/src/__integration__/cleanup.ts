@@ -91,7 +91,8 @@ export async function cleanupTestData(opts: {
   if (ids.length > 0) {
     // Syllabus rows soft-deleted by a fixture admin reference it via deleted_by.
     for (const t of ['easa_subjects', 'easa_topics', 'easa_subtopics'] as const) {
-      await admin.from(t).update({ deleted_by: null }).in('deleted_by', ids)
+      const { error } = await admin.from(t).update({ deleted_by: null }).in('deleted_by', ids)
+      if (error) console.error(`[cleanup] ${t} deleted_by reset failed:`, error.message)
     }
   }
   if (ids.length > 0) await deleteOrLog('users', admin.from('users').delete().in('id', ids))

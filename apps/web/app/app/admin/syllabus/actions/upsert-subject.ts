@@ -4,6 +4,7 @@ import { UpsertSubjectSchema } from '@repo/db/schema'
 import { revalidatePath } from 'next/cache'
 import type { ActionResult } from '@/lib/action-result'
 import { requireAdmin } from '@/lib/auth/require-admin'
+import { writeFailure } from './check-live-parent'
 
 export async function upsertSubject(input: unknown): Promise<ActionResult> {
   const parsed = UpsertSubjectSchema.safeParse(input)
@@ -23,11 +24,7 @@ export async function upsertSubject(input: unknown): Promise<ActionResult> {
       .is('deleted_at', null)
       .select('id')
     if (error) {
-      if (error.message.includes('item_deleted')) {
-        return { success: false, error: 'Item not found' }
-      }
-      console.error('[upsertSubject] update error:', error.message)
-      return { success: false, error: 'Failed to update subject' }
+      return writeFailure({ fn: 'upsertSubject', op: 'update', entity: 'subject' }, error.message)
     }
     if (!updated || updated.length === 0) {
       return { success: false, error: 'Item not found' }
