@@ -44,8 +44,14 @@ vi.mock('./_components/report-card', () => ({
     return <div data-testid="report-card" />
   },
 }))
+const mockReportFlagProvider = vi.hoisted(() => vi.fn())
 vi.mock('./_components/report-flag-context', () => ({
-  ReportFlagProvider: ({ children }: Readonly<{ children: React.ReactNode }>) => <>{children}</>,
+  ReportFlagProvider: (
+    props: Readonly<{ children: React.ReactNode; initialFlaggedIds: string[] }>,
+  ) => {
+    mockReportFlagProvider(props)
+    return <>{props.children}</>
+  },
 }))
 
 // ---- Import under test (AFTER mocks) ----------------------------------------
@@ -173,6 +179,7 @@ describe('QuizReportView', () => {
       const questions = [{ questionId: 'q1' }, { questionId: 'q2' }]
       mockGetQuizReportSummary.mockResolvedValue(summary)
       mockGetQuizReportQuestions.mockResolvedValue({ ok: true, questions, totalCount: 12 })
+      mockGetFlaggedQuestionIds.mockResolvedValue(['q2'])
       const jsx = await QuizReportView({
         sessionId: VALID_SESSION_ID,
         pageParam: '2',
@@ -181,6 +188,9 @@ describe('QuizReportView', () => {
       render(jsx)
       expect(mockReportCard).toHaveBeenCalledWith(
         expect.objectContaining({ summary, questions, page: 2, totalCount: 12, pageSize: 10 }),
+      )
+      expect(mockReportFlagProvider).toHaveBeenCalledWith(
+        expect.objectContaining({ initialFlaggedIds: ['q2'] }),
       )
     })
   })
