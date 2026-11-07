@@ -36,6 +36,13 @@ export function missingAnchor(block) {
   return ANCHORS.find((a) => !block.includes(a)) ?? null
 }
 
+/** Text from `start` to the next numbered suppression heading (or end of file). */
+export function suppressionSection(md, start) {
+  const bodyAt = md.indexOf('\n', start) + 1
+  const next = bodyAt === 0 ? -1 : md.slice(bodyAt).search(/^\d+\. \*\*/m)
+  return next === -1 ? md.slice(start) : md.slice(start, bodyAt + next)
+}
+
 const yaml = readFileSync(join(ROOT, '.coderabbit.yaml'), 'utf8')
 const auditor = readFileSync(join(ROOT, '.claude/agents/security-auditor.md'), 'utf8')
 
@@ -47,7 +54,7 @@ test('every anchor fact of suppression 12 appears in the .coderabbit.yaml migrat
 test('every anchor fact appears in security-auditor.md suppression 12', () => {
   const i = auditor.indexOf('12. **Do NOT flag the `question-images`')
   assert.notEqual(i, -1, 'suppression 12 not found')
-  const sec = auditor.slice(i, i + 3500)
+  const sec = suppressionSection(auditor, i)
   const missing = ANCHORS.find((a) => !sec.includes(a))
   assert.equal(missing, undefined, `suppression 12 lacks anchor token ${missing}`)
 })
@@ -61,4 +68,15 @@ test('a redacted issue number in the migrations block is reported by name', () =
 test('a removed migration id is reported by name', () => {
   const mutated = migrationsBlock(yaml).replaceAll('20260324000055', 'X')
   assert.equal(missingAnchor(mutated), '20260324000055')
+})
+
+test('an anchor present only in a later suppression is reported missing', () => {
+  const md = '12. **Do NOT flag A**\nbody 20260410000009\n13. **Do NOT flag B**\n#1282 is here\n'
+  const sec = suppressionSection(md, 0)
+  assert.equal(sec.includes('20260410000009'), true)
+  assert.equal(sec.includes('#1282'), false)
+  assert.equal(
+    ANCHORS.find((a) => !sec.includes(a)),
+    '20260324000053',
+  )
 })

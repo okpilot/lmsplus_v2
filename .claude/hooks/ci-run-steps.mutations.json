@@ -1,0 +1,14 @@
+{
+  "_": "Grades the shared run-step parser through run-ci-lint.test.mjs. Not a guard: ci-run-steps.mjs is imported, never wired.",
+  "target": ".claude/hooks/ci-run-steps.mjs",
+  "suites": [".claude/hooks/run-ci-lint.test.mjs"],
+  "mutations": [
+    {
+      "id": "ci-run-steps-list-item",
+      "find": "export const RUN_LINE_RE = /^(\\s*)(?:-\\s*)?run:[ \\t]?(.*)$/",
+      "replace": "export const RUN_LINE_RE = /^(\\s*)run:[ \\t]?(.*)$/",
+      "expectRed": ["a compact `- run:` list-item step executes"],
+      "note": "Drops the optional `- ` list-item prefix from the run-line regex; a compact `- run:` step is no longer parsed."
+    }
+  ]
+}

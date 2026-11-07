@@ -487,6 +487,26 @@ for (const site of spec.modelLiteralSites) {
     : fail(`agent memory is tracked: ${trackedMemory.join(', ')}`)
 }
 
+/** `version:` of each setup-cli use (the supabase action) in a workflow text; null when the step has none. */
+function setupCliVersions(text) {
+  const lines = text.split('\n')
+  const out = []
+  lines.forEach((l, i) => {
+    if (!/uses:\s*supabase\/setup-cli@/.test(l)) return
+    let v = null
+    for (const n of lines.slice(i + 1, i + 6)) {
+      if (/^\s*-\s/.test(n)) break
+      const m = /^\s*version:\s*['"]?([^'"\s#]+)/.exec(n)
+      if (m) {
+        v = m[1]
+        break
+      }
+    }
+    out.push(v)
+  })
+  return out
+}
+
 // Local supabase CLI = CI CLI (#1726). Exit condition: #1178 — drop the pin when baseline DML grants are fixed.
 {
   const want = spec.supabaseCli
@@ -505,17 +525,7 @@ for (const site of spec.modelLiteralSites) {
     const wfDir = join(ROOT, '.github/workflows')
     const versions = []
     for (const f of readdirSync(wfDir).filter((x) => /\.ya?ml$/.test(x))) {
-      const lines = readFileSync(join(wfDir, f), 'utf8').split('\n')
-      lines.forEach((l, i) => {
-        if (!/uses:\s*supabase\/setup-cli@/.test(l)) return
-        for (const n of lines.slice(i + 1, i + 6)) {
-          const m = /^\s*version:\s*['"]?([^'"\s#]+)/.exec(n)
-          if (m) {
-            versions.push([f, m[1]])
-            break
-          }
-        }
-      })
+      for (const v of setupCliVersions(readFileSync(join(wfDir, f), 'utf8'))) versions.push([f, v])
     }
     const bad = versions.filter(([, v]) => v !== want)
     versions.length > 0 && bad.length === 0
@@ -523,6 +533,11 @@ for (const site of spec.modelLiteralSites) {
       : fail(
           `supabase/setup-cli versions != ${want}: ${bad.map(([f, v]) => `${f}=${v}`).join(', ') || 'none found'}`,
         )
+    const noVersion =
+      'x: 1\nsteps:\n  - uses: supabase/setup-cli@abc\n  - run: echo hi\n    version: 2.78.1\n'
+    setupCliVersions(noVersion).includes(null)
+      ? pass('a supabase/setup-cli use without `version:` is reported')
+      : fail('setupCliVersions ignores a supabase/setup-cli use without `version:`')
   }
 }
 

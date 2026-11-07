@@ -3,10 +3,10 @@
 // `--list` parses and prints the commands to run (after substitution), one per line, without running.
 // Fixture workflows only; the live ci.yml is parse-only (`--list`). `lint:ci` is never invoked here.
 import assert from 'node:assert/strict'
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { test } from 'node:test'
+import { after, test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { runNode } from './spawn.testkit.mjs'
 
@@ -14,6 +14,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const SCRIPT = join(ROOT, '.claude/hooks/run-ci-lint.mjs')
 const dir = mkdtempSync(join(tmpdir(), 'run-ci-lint-'))
 let n = 0
+after(() => rmSync(dir, { recursive: true, force: true }))
 
 function run(yaml, extra = []) {
   const wf = join(dir, `wf${n++}.yml`)
@@ -30,6 +31,7 @@ test('single-line run steps execute and print PASS per step name', () => {
   assert.match(r.stdout, /PASS.*Say hi/)
 })
 
+// GROUP: ci-run-steps-list-item
 test('a compact `- run:` list-item step executes', () => {
   const r = run(wrap('      - run: echo LIST_ITEM\n'))
   assert.equal(r.status, 0, r.stderr)
@@ -79,6 +81,7 @@ test('pnpm install steps are skipped', () => {
 
 test('every step runs with TURBO_FORCE=true', () => {
   const r = run(wrap('      - name: Env\n        run: echo TF=$TURBO_FORCE\n'))
+  assert.equal(r.status, 0, r.stderr)
   assert.match(r.stdout, /TF=true/)
 })
 
@@ -138,4 +141,74 @@ test('the shared run-step parser lives in ci-run-steps.mjs and controls.test.mjs
   const c = readFileSync(join(ROOT, '.claude/controls.test.mjs'), 'utf8')
   assert.match(c, /ci-run-steps\.mjs/)
   assert.doesNotMatch(c, /function collectRunSteps/)
+})
+
+const withJob = (extra, steps) =>
+  `name: t\non: pull_request\n${extra.workflow ?? ''}jobs:\n  lint:\n    runs-on: ubuntu-latest\n${extra.job ?? ''}    steps:\n${steps}`
+
+test('step, job and workflow env scalars are exported; step overrides job overrides workflow', () => {
+  const r = run(
+    withJob(
+      { workflow: 'env:\n  W: wf\n  O: wf\n', job: '    env:\n      J: job\n      O: job\n' },
+      '      - name: E\n        env:\n          S: "st"\n          O: step\n        run: echo "V=$W,$J,$S,$O"\n',
+    ),
+  )
+  assert.equal(r.status, 0, r.stdout + r.stderr)
+  assert.match(r.stdout, /V=wf,job,st,step/)
+})
+
+test('a non-scalar env block aborts before any step runs', () => {
+  for (const env of ['        env: {A: b}\n', '        env:\n          A: |\n            x\n']) {
+    const r = run(wrap(`      - name: N\n${env}        run: echo NONSCALAR_RAN\n`))
+    assert.notEqual(r.status, 0)
+    assert.doesNotMatch(r.stdout, /NONSCALAR_RAN/)
+    assert.match(r.stderr, /ABORT/)
+  }
+})
+
+test('a ${{ }} value in job or workflow env aborts', () => {
+  for (const extra of [
+    { workflow: 'env:\n  A: ${{ vars.X }}\n' },
+    { job: '    env:\n      A: ${{ vars.X }}\n' },
+  ]) {
+    const r = run(withJob(extra, '      - run: echo EXPR_RAN\n'))
+    assert.notEqual(r.status, 0)
+    assert.doesNotMatch(r.stdout, /EXPR_RAN/)
+    assert.match(r.stderr, /vars\.X/)
+  }
+})
+
+test('a step exceeding timeout-minutes is a FAIL and later steps still run', () => {
+  const r = run(
+    wrap(
+      '      - name: Slow\n        timeout-minutes: 0.01\n        run: exec sleep 30\n      - name: After\n        run: echo AFTER_TIMEOUT\n',
+    ),
+  )
+  assert.notEqual(r.status, 0)
+  assert.match(r.stdout, /FAIL.*Slow/)
+  assert.match(r.stdout, /PASS.*After/)
+})
+
+test('working-directory, shell and defaults abort before any step runs', () => {
+  const cases = [
+    wrap('      - name: W\n        working-directory: apps\n        run: echo UNSUP_RAN\n'),
+    wrap('      - name: S\n        shell: sh\n        run: echo UNSUP_RAN\n'),
+    withJob(
+      { job: '    defaults:\n      run:\n        shell: sh\n' },
+      '      - run: echo UNSUP_RAN\n',
+    ),
+    withJob({ workflow: 'defaults:\n  run:\n    shell: sh\n' }, '      - run: echo UNSUP_RAN\n'),
+  ]
+  for (const yaml of cases) {
+    const r = run(yaml)
+    assert.notEqual(r.status, 0)
+    assert.doesNotMatch(r.stdout, /UNSUP_RAN/)
+    assert.match(r.stderr, /ABORT/)
+  }
+})
+
+test('a failing stage of a pipe fails the step (pipefail)', () => {
+  const r = run(wrap('      - name: Pipe\n        run: false | true\n'))
+  assert.notEqual(r.status, 0)
+  assert.match(r.stdout, /FAIL.*Pipe/)
 })

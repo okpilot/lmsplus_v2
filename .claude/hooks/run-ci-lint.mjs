@@ -9,15 +9,19 @@
 //         1 = a step failed, or a step uses a `${{ }}` expression this script cannot substitute
 //         2 = usage error or unreadable workflow
 //
-// Every step runs to completion with TURBO_FORCE=true; `pnpm install` steps are skipped.
-// `${{ github.event.pull_request.base.sha }}` becomes `origin/master`; any other `${{ }}` in a
-// step's `run:` or `env:` aborts before anything runs.
+// Every step runs to completion with TURBO_FORCE=true under `bash --noprofile --norc -eo pipefail`;
+// `pnpm install` steps are skipped. Scalar `env:` entries (workflow, job, step) are exported;
+// `timeout-minutes` is enforced (a timeout is a FAIL).
+// `if:` is not evaluated — every step runs; the PR base becomes `origin/master` (run `git fetch origin` first).
+// `${{ github.event.pull_request.base.sha }}` is the only substituted expression; any other `${{ }}`
+// in a step's `run:` or an `env:`, a non-scalar `env:`, `defaults:`, `working-directory` or `shell`
+// aborts before anything runs.
 
 import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { jobSteps } from './ci-run-steps.mjs'
+import { jobScope, jobSteps, parseEnv } from './ci-run-steps.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const BASE_EXPR = /\$\{\{\s*github\.event\.pull_request\.base\.sha\s*\}\}/g
@@ -41,22 +45,38 @@ for (let i = 0; i < argv.length; i++) {
 }
 
 let steps
+let scope
 try {
-  steps = jobSteps(readFileSync(workflow, 'utf8'), job)
+  const text = readFileSync(workflow, 'utf8')
+  steps = jobSteps(text, job)
+  scope = jobScope(text, job)
 } catch (err) {
   usage(`${workflow}: ${err.message}`)
 }
 
 const plan = []
-const problems = []
+const problems = scope.unsupported.map((u) => `${u} is not supported`)
+const scopeEnv = {}
+for (const { where, text } of scope.env) {
+  const { vars, problems: ps } = parseEnv(text)
+  Object.assign(scopeEnv, vars)
+  for (const p of ps) problems.push(`${where} ${p}`)
+}
 for (const s of steps) {
   if (s.run === null || /^pnpm install\b/.test(s.run.trim())) continue
   const name = s.name ?? s.run.split('\n')[0].trim()
-  for (const e of s.env.match(ANY_EXPR) ?? []) problems.push(`step "${name}": env contains ${e}`)
+  for (const k of s.unsupported) problems.push(`step "${name}": ${k} is not supported`)
+  const { vars, problems: ps } = parseEnv(s.env)
+  for (const p of ps) problems.push(`step "${name}": ${p}`)
+  let timeoutMs = null
+  if (s.timeoutMinutes !== null) {
+    if (/^\d+(\.\d+)?$/.test(s.timeoutMinutes)) timeoutMs = Number(s.timeoutMinutes) * 60_000
+    else problems.push(`step "${name}": unsupported timeout-minutes ${s.timeoutMinutes}`)
+  }
   const cmd = s.run.replace(BASE_EXPR, 'origin/master')
   for (const e of cmd.match(ANY_EXPR) ?? [])
     problems.push(`step "${name}": unsupported expression ${e}`)
-  plan.push({ name, cmd })
+  plan.push({ name, cmd, env: vars, timeoutMs })
 }
 if (problems.length > 0) {
   for (const p of problems) console.error(`ABORT ${p}`)
@@ -69,13 +89,16 @@ if (list) {
 }
 
 const failed = []
-for (const { name, cmd } of plan) {
+for (const { name, cmd, env, timeoutMs } of plan) {
   console.log(`\n=== ${name}`)
-  const r = spawnSync('bash', ['-e', '-c', cmd], {
+  const r = spawnSync('bash', ['--noprofile', '--norc', '-eo', 'pipefail', '-c', cmd], {
     cwd: ROOT,
     stdio: 'inherit',
-    env: { ...process.env, TURBO_FORCE: 'true' },
+    env: { ...process.env, ...scopeEnv, ...env, TURBO_FORCE: 'true' },
+    timeout: timeoutMs ?? undefined,
+    killSignal: 'SIGKILL',
   })
+  if (r.error?.code === 'ETIMEDOUT') console.log(`timeout-minutes exceeded: ${name}`)
   const ok = r.status === 0
   console.log(`${ok ? 'PASS' : 'FAIL'} ${name}`)
   if (!ok) failed.push(name)
