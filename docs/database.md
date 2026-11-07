@@ -171,7 +171,7 @@ CREATE TABLE easa_subtopics (
 
 **Enrolment visibility (mig `20261028000100`, #1637):** RESTRICTIVE SELECT `TO authenticated` — `easa_subjects_select_enrolled` (`id IN (SELECT private.accessible_subject_ids())`, or the caller is an admin/instructor), `easa_topics_select_enrolled` and `questions_select_enrolled` (`subject_id IN (…)`), `easa_subtopics_select_enrolled` (`topic_id` of a visible topic). Same helper gates `questions`.
 
-**Column grants:** `authenticated` has INSERT/UPDATE on `easa_subjects(code, name, short, sort_order)`, `easa_topics(subject_id, code, name, sort_order)` and `easa_subtopics(topic_id, code, name, sort_order)` only; no DELETE privilege or policy. `deleted_at`/`deleted_by` are written only by `soft_delete_syllabus_item`; `course_id` by migrations (service role).
+**Column grants:** `authenticated` has INSERT/UPDATE on `easa_subjects(code, name, short, sort_order)`, `easa_topics(subject_id, code, name, sort_order)` and `easa_subtopics(topic_id, code, name, sort_order)` only; no DELETE privilege or policy. `deleted_at`/`deleted_by` are written by no `authenticated` path (`soft_delete_syllabus_item` writes them as definer); `course_id` by migrations (service role).
 
 **Soft delete (mig `20261107000100`):** subject codes stay globally UNIQUE, topic and subtopic codes unique per parent; a deleted code is not reusable. Deleted rows stay readable (history embeds keep resolving names); list readers filter `deleted_at IS NULL`.
 
