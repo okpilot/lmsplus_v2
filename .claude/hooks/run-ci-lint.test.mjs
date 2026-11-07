@@ -30,7 +30,6 @@ test('single-line run steps execute and print PASS per step name', () => {
   assert.match(r.stdout, /PASS.*Say hi/)
 })
 
-// GROUP: ci-run-steps-list-item
 test('a compact `- run:` list-item step executes', () => {
   const r = run(wrap('      - run: echo LIST_ITEM\n'))
   assert.equal(r.status, 0, r.stderr)
