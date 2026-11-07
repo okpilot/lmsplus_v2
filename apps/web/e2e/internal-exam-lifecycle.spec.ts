@@ -134,7 +134,7 @@ test.describe('internal exam — lifecycle', () => {
     const code = await issueCodeAsAdmin(adminPage, SUBJECT_LABEL_FRAGMENT)
     expect(code).toMatch(/^[A-HJKLMNPQRSTUVWXYZ23456789]{8}$/)
 
-    // ── 2. Student logs in via separate context (uses user.json storage) ────
+    // ── 2. Student logs in via separate context (internal-exam-student.json) ─
     const { context: studentCtx, page } = await openStudentContext(adminCtx.browser())
 
     try {
@@ -173,7 +173,7 @@ test.describe('internal exam — lifecycle', () => {
       // warning. The actual submit fires when "Submit anyway" is clicked.
       await page.getByRole('button', { name: 'Submit anyway' }).click()
 
-      // ── 4. Land on /app/quiz/report with badge + pass/fail ────────────────
+      // ── 4. Land on /app/internal-exam/report with badge + pass/fail ───────
       await page.waitForURL(/\/app\/internal-exam\/report\?session=/, { timeout: 30_000 })
       await expect(page.getByText('Internal Exam Complete')).toBeVisible({ timeout: 10_000 })
       // Pass or fail badge — both valid outcomes; assert one of them is rendered.

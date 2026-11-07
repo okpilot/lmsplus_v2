@@ -5,7 +5,7 @@ export const E2E_SYLLABUS_CODE_PREFIX = 'E2E-'
 
 const CODE_LIKE = `${E2E_SYLLABUS_CODE_PREFIX}%`
 
-/** A fresh, marked subject code (`E2E-` + 6 chars, within the 10-char column limit). */
+/** A fresh, marked subject code (`E2E-` + 6 chars, within the `UpsertSubjectSchema` max of 10). */
 export function newE2eSubjectCode(): string {
   return `${E2E_SYLLABUS_CODE_PREFIX}${Date.now().toString(36).slice(-6).toUpperCase()}`
 }
