@@ -163,6 +163,7 @@
       "linter": {
         "rules": {
           "style": {
+            "noCommonJs": "error",
             "noRestrictedImports": {
               "level": "error",
               "options": {
@@ -199,6 +200,7 @@
       "linter": {
         "rules": {
           "style": {
+            "noCommonJs": "off",
             "noRestrictedImports": {
               "level": "error",
               "options": {
