@@ -57,6 +57,17 @@ try {
   usage(`${workflow}: ${err.message}`)
 }
 
+/** True when any command-position segment of a run text is `pnpm [flags] install|i`. */
+function runsPnpmInstall(run) {
+  return run.split(/[;&|\n]/).some((seg) => {
+    const c = seg
+      .trim()
+      .replace(/^(\w+=\S*\s+)+/, '')
+      .replace(/^corepack\s+/, '')
+    return /^pnpm(\s+-{1,2}[\w-]+(=\S+)?(\s+[^-\s]\S*)??)*\s+(install|i)(\s|$)/.test(c)
+  })
+}
+
 const plan = []
 const problems = scope.unsupported.map((u) => `${u} is not supported`)
 const scopeEnv = {}
@@ -69,10 +80,11 @@ for (const s of steps) {
   if (s.run === null) continue
   const name = s.name ?? s.run.split('\n')[0].trim()
   let cmd = s.run.replace(BASE_EXPR, 'origin/master')
-  if (/^pnpm install(\s|$)/.test(s.run.trim())) {
-    if (/[;&|\n`]|\$\(/.test(s.run.trim()))
-      problems.push(`step "${name}": chained pnpm install is not supported`)
-    else if (/\s--frozen-lockfile(\s|$)/.test(s.run.trim())) cmd += ' --lockfile-only'
+  if (runsPnpmInstall(s.run)) {
+    const t = s.run.trim()
+    if (!/^pnpm install(\s|$)/.test(t) || /[;&|\n`]|\$\(/.test(t))
+      problems.push(`step "${name}": pnpm install must be a single-line \`pnpm install …\` step`)
+    else if (/\s--frozen-lockfile(\s|$)/.test(t)) cmd += ' --lockfile-only'
     else problems.push(`step "${name}": pnpm install without --frozen-lockfile is not supported`)
   }
   for (const k of s.unsupported) problems.push(`step "${name}": ${k} is not supported`)

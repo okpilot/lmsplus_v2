@@ -130,7 +130,11 @@ function foldedIrregular(lines, i, keyIndent, rest) {
 
 function runText(lines, i, keyIndent, rest) {
   const [body] = readRunBody(lines, i, keyIndent, rest)
-  if (!BLOCK_SCALAR_RE.test(rest.trim())) return unquote(rest)
+  if (!BLOCK_SCALAR_RE.test(rest.trim())) {
+    const v = rest.trim()
+    const q = /^(["'])(.*?)\1(\s+#.*)?$/.exec(v)
+    return /^["']/.test(v) && q ? q[2] : v.replace(/\s+#.*$/, '')
+  }
   const content = body.filter((x) => x.trim() !== '')
   const cut = Math.min(...content.map(indentOf))
   const dedented = body

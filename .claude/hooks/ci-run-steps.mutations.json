@@ -13,7 +13,13 @@
         "a frozen pnpm install step is listed with --lockfile-only appended",
         "live ci.yml lint job parses to include the decisions-ledger guard with base origin/master",
         "a non-frozen pnpm install step aborts before any step runs",
-        "a step `pnpm install-x` is listed unchanged, not treated as pnpm install"
+        "a step `pnpm install-x` is listed unchanged, not treated as pnpm install",
+        "a trailing YAML comment on a frozen pnpm install does not swallow --lockfile-only",
+        "a compact `pnpm i` step aborts naming the step",
+        "an env-prefixed `CI=1 pnpm install` step aborts naming the step",
+        "a `pnpm --filter x install` step aborts naming the step",
+        "a `pnpm -r install` step aborts naming the step",
+        "an echoed `pnpm i` is not an install and is listed unchanged"
       ],
       "note": "Drops the optional `- ` list-item prefix from the run-line regex; a compact `- run:` step is no longer parsed."
     }

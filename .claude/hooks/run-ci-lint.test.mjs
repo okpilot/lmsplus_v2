@@ -292,6 +292,56 @@ test('a step `pnpm install-x` is listed unchanged, not treated as pnpm install',
   assert.match(r.stdout, /^pnpm install-x$/m)
 })
 
+// GROUP: ci-run-steps-list-item
+test('a trailing YAML comment on a frozen pnpm install does not swallow --lockfile-only', () => {
+  const r = run(wrap('      - run: pnpm install --frozen-lockfile # deps\n'), ['--list'])
+  assert.equal(r.status, 0, r.stdout + r.stderr)
+  assert.match(r.stdout, /--lockfile-only$/m)
+  assert.doesNotMatch(r.stdout, /#/)
+})
+
+const expectInstallAbort = (cmd) => {
+  const r = run(wrap(`      - run: ${cmd}\n`), ['--list'])
+  assert.notEqual(r.status, 0)
+  assert.match(r.stderr, /ABORT step ".*": pnpm install must be a single-line/)
+}
+
+// GROUP: ci-run-steps-list-item
+test('a compact `pnpm i` step aborts naming the step', () => {
+  expectInstallAbort('pnpm i')
+})
+
+// GROUP: ci-run-steps-list-item
+test('an env-prefixed `CI=1 pnpm install` step aborts naming the step', () => {
+  expectInstallAbort('CI=1 pnpm install')
+})
+
+// GROUP: ci-run-steps-list-item
+test('a `pnpm --filter x install` step aborts naming the step', () => {
+  expectInstallAbort('pnpm --filter x install')
+})
+
+// GROUP: ci-run-steps-list-item
+test('a `pnpm -r install` step aborts naming the step', () => {
+  expectInstallAbort('pnpm -r install')
+})
+
+test('a run block with pnpm install on a later line aborts naming the step', () => {
+  const r = run(
+    wrap('      - name: Setup\n        run: |\n          echo setup\n          pnpm install\n'),
+    ['--list'],
+  )
+  assert.notEqual(r.status, 0)
+  assert.match(r.stderr, /ABORT step "Setup": pnpm install must be a single-line/)
+})
+
+// GROUP: ci-run-steps-list-item
+test('an echoed `pnpm i` is not an install and is listed unchanged', () => {
+  const r = run(wrap('      - run: echo "pnpm i"\n'), ['--list'])
+  assert.equal(r.status, 0, r.stdout + r.stderr)
+  assert.match(r.stdout, /^echo "pnpm i"$/m)
+})
+
 test('a step without timeout-minutes uses the job timeout-minutes', () => {
   const r = run(
     withJob(
