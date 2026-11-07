@@ -88,6 +88,12 @@ export async function cleanupTestData(opts: {
     await deleteOrLog('fsrs_cards', admin.from('fsrs_cards').delete().in('student_id', ids))
   }
   const lookupError = orgId ? await deleteOrgFixtures(admin, orgId) : null
+  if (ids.length > 0) {
+    // Syllabus rows soft-deleted by a fixture admin reference it via deleted_by.
+    for (const t of ['easa_subjects', 'easa_topics', 'easa_subtopics'] as const) {
+      await admin.from(t).update({ deleted_by: null }).in('deleted_by', ids)
+    }
+  }
   if (ids.length > 0) await deleteOrLog('users', admin.from('users').delete().in('id', ids))
   if (orgId) {
     await deleteOrLog('organizations', admin.from('organizations').delete().eq('id', orgId))

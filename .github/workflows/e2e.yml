@@ -121,9 +121,9 @@ jobs:
           ROWS=$(PGPASSWORD=postgres psql -h localhost -p 54322 -U postgres -d postgres -tA -F' | ' -c "
             WITH allow(relname, priv) AS (
               VALUES
-                ('easa_subjects','INSERT'), ('easa_subjects','UPDATE'), ('easa_subjects','DELETE'),
-                ('easa_topics','INSERT'), ('easa_topics','UPDATE'), ('easa_topics','DELETE'),
-                ('easa_subtopics','INSERT'), ('easa_subtopics','UPDATE'), ('easa_subtopics','DELETE'),
+                ('easa_subjects','INSERT'), ('easa_subjects','UPDATE'),
+                ('easa_topics','INSERT'), ('easa_topics','UPDATE'),
+                ('easa_subtopics','INSERT'), ('easa_subtopics','UPDATE'),
                 ('exam_configs','INSERT'), ('exam_configs','UPDATE'),
                 ('exam_config_distributions','INSERT'), ('exam_config_distributions','DELETE'),
                 ('flagged_questions','INSERT'), ('flagged_questions','UPDATE'),
