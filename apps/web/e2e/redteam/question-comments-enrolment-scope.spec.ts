@@ -2,7 +2,7 @@
  * Red Team Spec — question_comments scope (#1637 sibling of the enrolment gate).
  *   KM: a student enrolled in VFR_RT only reads no comment on a PPL (050) question and cannot
  *       post one.
- *   KN: a student of another org reads no comment on an egmont question.
+ *   KN: a student of another org reads no comment on an egmont question and cannot post one (#1522).
  * CONTROL: a student enrolled in PPL_A + VFR_RT of the same org reads the comment and posts one.
  *
  * Status: BLOCKED — mig 20261028000400 `question_comments_select_visible_question` /
@@ -31,6 +31,7 @@ test.describe('Red Team: question_comments enrolment and org scope (KM, KN)', ()
   let admin: ReturnType<typeof getAdminClient>
   let rtOnlyId: string
   let fullId: string
+  let otherOrgUserId: string
   let rtOnly: SupabaseClient
   let full: SupabaseClient
   let otherOrg: SupabaseClient
@@ -43,7 +44,7 @@ test.describe('Red Team: question_comments enrolment and org scope (KM, KN)', ()
     const otherOrgId = await getOrCreateOtherOrg(admin)
     rtOnlyId = await upsertUser(admin, RT_ONLY_EMAIL, RT_ONLY_PASSWORD, orgId)
     fullId = await upsertUser(admin, FULL_EMAIL, FULL_PASSWORD, orgId)
-    await upsertUser(admin, OTHER_ORG_EMAIL, OTHER_ORG_PASSWORD, otherOrgId)
+    otherOrgUserId = await upsertUser(admin, OTHER_ORG_EMAIL, OTHER_ORG_PASSWORD, otherOrgId)
 
     const { error: unenrolErr } = await admin
       .from('course_enrolments')
@@ -147,7 +148,7 @@ test.describe('Red Team: question_comments enrolment and org scope (KM, KN)', ()
     expect(rows).toHaveLength(0)
   })
 
-  test('KN: a student of another org reads no comment on an egmont question', async () => {
+  test('KN: a student of another org reads and posts no comment on an egmont question', async () => {
     const control = await full.from('question_comments').select('id').eq('id', commentId)
     expect(control.error).toBeNull()
     expect(control.data).toHaveLength(1)
@@ -155,5 +156,22 @@ test.describe('Red Team: question_comments enrolment and org scope (KM, KN)', ()
     const read = await otherOrg.from('question_comments').select('id, body').eq('id', commentId)
     expect(read.error).toBeNull()
     expect(read.data).toHaveLength(0)
+
+    const post = await otherOrg
+      .from('question_comments')
+      .insert({
+        question_id: pplQuestionId,
+        user_id: otherOrgUserId,
+        body: E2E_REDTEAM_COMMENT_SCOPE_MARKER,
+      })
+      .select('id')
+    expect(post.error).not.toBeNull()
+    const { data: rows, error } = await admin
+      .from('question_comments')
+      .select('id')
+      .eq('user_id', otherOrgUserId)
+      .eq('body', E2E_REDTEAM_COMMENT_SCOPE_MARKER)
+    expect(error).toBeNull()
+    expect(rows).toHaveLength(0)
   })
 })
