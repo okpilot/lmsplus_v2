@@ -574,8 +574,8 @@ async function seed(): Promise<void> {
   }
 
   // Part 3 — diagram_label (answer key in diagram_config.answer; zones/labels
-  // come from the canonical layout module shared with the SVG runner so the
-  // seeded config always matches what's rendered — see rwy-2709-layout.ts)
+  // come from scripts/rwy-2709-answer-key.ts; geometry from the layout module
+  // shared with the SVG runner — see rwy-2709-layout.ts)
   for (const q of DIAGRAM_LABEL) {
     // Assembled BEFORE the insert so the shared gate sees exactly the object that will be
     // stored. assertDiagramConfig mirrors the DB CHECK is_valid_diagram_config (migration
