@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from 'react'
 import { toggleFlag } from '../../actions/flag'
+import { withReconnect } from '../_utils/with-reconnect'
 
 /**
  * Flag state for the mounted session, seeded via `initialFlaggedIds`: read in the server
@@ -17,20 +18,23 @@ export function useFlaggedQuestions(initialFlaggedIds: readonly string[]) {
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set())
   // Ref for synchronous guard — avoids stale-closure window in concurrent toggle calls
   const pendingRef = useRef<Set<string>>(new Set())
+  // Mirror of flaggedIds so the desired state is read at click time, not from a stale closure.
+  const flaggedRef = useRef<Set<string>>(flaggedIds)
 
   const toggle = useCallback(async (questionId: string) => {
     if (pendingRef.current.has(questionId)) return false
     pendingRef.current.add(questionId)
     setPendingIds((prev) => new Set(prev).add(questionId))
     try {
-      const result = await toggleFlag({ questionId })
+      // Sends the desired state, not a toggle: the queue may resend a call that already landed.
+      const desired = !flaggedRef.current.has(questionId)
+      const result = await withReconnect(() => toggleFlag({ questionId, flagged: desired }))
       if (result.success) {
-        setFlaggedIds((prev) => {
-          const next = new Set(prev)
-          if (result.flagged) next.add(questionId)
-          else next.delete(questionId)
-          return next
-        })
+        const next = new Set(flaggedRef.current)
+        if (result.flagged) next.add(questionId)
+        else next.delete(questionId)
+        flaggedRef.current = next
+        setFlaggedIds(next)
       }
       return result.success
     } catch (err) {

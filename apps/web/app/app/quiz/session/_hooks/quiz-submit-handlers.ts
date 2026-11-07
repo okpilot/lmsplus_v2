@@ -4,6 +4,7 @@ import { reportUrl } from '@/lib/constants/report-paths'
 import type { DraftAnswer } from '../../types'
 import { getConnectionStatus } from '../_utils/connection-state'
 import { resendUnsavedAnswers } from '../_utils/progress-sync-saves'
+import { runnerToken } from '../_utils/runner-exit'
 import { isTakenOver } from '../_utils/session-takeover'
 import { whenQueueIdle } from '../_utils/with-reconnect'
 import { handleDiscardSession, handleSaveSession, handleSubmitSession } from './quiz-submit'
@@ -57,11 +58,13 @@ function dispatchSubmission({
   sharedFor,
   answers,
   onSuccess,
+  token,
 }: {
   deps: SubmitDeps
   sharedFor: ReturnType<typeof buildSharedFor>
   answers: Map<string, DraftAnswer>
   onSuccess: () => void
+  token: number
 }) {
   return handleSubmitSession({
     userId: deps.userId,
@@ -70,6 +73,7 @@ function dispatchSubmission({
     onSuccess,
     isExam: deps.isExam,
     examMode: deps.examMode,
+    token,
     ...sharedFor('submit'),
   })
 }
@@ -105,6 +109,8 @@ export function buildHandleSubmit(
   return async function handleSubmit() {
     if (deps.inFlight.current || deps.submitted.current) return
     deps.inFlight.current = true
+    // Taken at press: a runner that unmounts during the waits below must not navigate.
+    const token = runnerToken()
     const onSuccess = () => {
       deps.submitted.current = true
       deps.setShowFinishDialog(false)
@@ -120,6 +126,7 @@ export function buildHandleSubmit(
       sharedFor,
       answers: deps.answersRef.current,
       onSuccess,
+      token,
     }).finally(() => {
       // If submit rejected/threw before any setSubmitting(false), release the re-entry lock
       // so the student can retry. On success onSuccess set submitted.current = true first, so
@@ -155,20 +162,23 @@ async function resendOrStop(deps: BaseDeps, shared: ReturnType<ReturnType<typeof
 export function buildHandleSave(deps: BaseDeps) {
   const sharedFor = buildSharedFor(deps)
   return async function handleSave() {
+    const token = runnerToken()
     const shared = sharedFor('save')
     await waitForQueuedSaves(shared)
     if (!(await resendOrStop(deps, shared))) return
-    return handleSaveSession({ userId: deps.userId, sessionId: deps.sessionId, ...shared })
+    return handleSaveSession({ userId: deps.userId, sessionId: deps.sessionId, token, ...shared })
   }
 }
 
 export function buildHandleDiscard(deps: BaseDeps) {
   const sharedFor = buildSharedFor(deps)
   return async function handleDiscard() {
+    const token = runnerToken()
     await waitForQueuedSaves(sharedFor('discard'))
     return handleDiscardSession({
       userId: deps.userId,
       sessionId: deps.sessionId,
+      token,
       ...sharedFor('discard'),
     })
   }

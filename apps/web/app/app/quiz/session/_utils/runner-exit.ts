@@ -1,4 +1,6 @@
 let exiting = false
+// Bumped on every runner mount and unmount; an exit started by an earlier runner is stale.
+let generation = 0
 const listeners = new Set<() => void>()
 
 function set(next: boolean) {
@@ -10,6 +12,7 @@ function set(next: boolean) {
 /** @internal Test-only reset for the module-level state. */
 export function _resetRunnerExit() {
   exiting = false
+  generation = 0
   listeners.clear()
 }
 
@@ -31,5 +34,16 @@ export function markRunnerExiting(): void {
 
 /** Re-arms the guards; called when a runner mounts and when it unmounts. */
 export function resetRunnerExit(): void {
+  generation += 1
   set(false)
+}
+
+/** Identifies the runner mounted right now; capture it before an await that ends in an exit. */
+export function runnerToken(): number {
+  return generation
+}
+
+/** False once a runner mounted or unmounted since `token` was taken. */
+export function isCurrentRunner(token: number): boolean {
+  return token === generation
 }
