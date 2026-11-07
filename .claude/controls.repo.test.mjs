@@ -87,7 +87,7 @@ test('a suite path the registry names but that does not exist on disk blocks', (
   }))
 
 // MUTATION: revert the run-line regex to require the line start with `run:` (no leading `- `)
-// GROUP: controls-always-blocks, controls-ci-list-item
+// GROUP: controls-always-blocks
 test('a guard wired only via a compact `- run:` list-item CI step is still discovered', () =>
   withCiListItemFixture(({ dir }) => {
     const { status } = run({ dir })
