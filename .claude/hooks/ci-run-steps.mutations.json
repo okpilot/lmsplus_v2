@@ -20,6 +20,16 @@
       "replace": "      if (false)",
       "expectRed": ["a run scalar continued on a deeper line aborts"],
       "note": "A plain or quoted `run:` continued on a deeper line no longer aborts; only its first line runs."
+    },
+    {
+      "id": "ci-run-steps-uses-ignored",
+      "find": "    else if (m[1] === 'uses') step.uses = true\n",
+      "replace": "",
+      "expectRed": [
+        "live ci.yml lint job parses to include the decisions-ledger guard with base origin/master",
+        "a step with neither run: nor uses: parsed aborts naming its number; a uses: step does not"
+      ],
+      "note": "The `uses` flag is never set; a `uses:` step reads as a step with no run: or uses: and aborts."
     }
   ]
 }

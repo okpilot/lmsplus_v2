@@ -284,6 +284,21 @@ test('a run scalar continued on a deeper line aborts', () => {
   }
 })
 
+// GROUP: ci-run-steps-uses-ignored
+test('a step with neither run: nor uses: parsed aborts naming its number; a uses: step does not', () => {
+  const r = run(
+    wrap('      - uses: actions/checkout@v4\n      -   name: X\n          run: echo DROPPED_RAN\n'),
+  )
+  assert.notEqual(r.status, 0)
+  assert.doesNotMatch(r.stdout, /DROPPED_RAN/)
+  assert.match(r.stderr, /ABORT step 2 \("\?"\): no run: or uses: parsed/)
+  const ok = run(
+    wrap('      - uses: actions/checkout@v4\n      - name: Y\n        run: echo OK\n'),
+    ['--list'],
+  )
+  assert.equal(ok.status, 0, ok.stderr)
+})
+
 test('block scalars and deeper comments after a run are not multi-line', () => {
   for (const body of [
     '        run: |\n          echo A\n',

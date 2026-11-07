@@ -79,10 +79,10 @@ test('a removed migration id is reported by name', () => {
 test('an anchor present only in a later suppression is reported missing', () => {
   const md = '12. **Do NOT flag A**\nbody 20260410000009\n13. **Do NOT flag B**\n#1282 is here\n'
   const sec = suppressionSection(md, 0)
-  assert.equal(sec.includes('20260410000009'), true)
-  assert.equal(sec.includes('#1282'), false)
+  assert.equal(hasAnchor(sec, '20260410000009'), true)
+  assert.equal(hasAnchor(sec, '#1282'), false)
   assert.equal(
-    ANCHORS.find((a) => !sec.includes(a)),
+    ANCHORS.find((a) => !hasAnchor(sec, a)),
     '20260324000053',
   )
 })

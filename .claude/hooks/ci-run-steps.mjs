@@ -60,7 +60,7 @@ function jobBody(lines, jobId) {
 }
 
 /**
- * Steps of `jobs.<jobId>` as `{ name, env, run, unsupported }`: `env` = the
+ * Steps of `jobs.<jobId>` as `{ name, env, run, uses, unsupported }`: `uses` = a `uses:` key at the step's key indent, `env` = the
  * step's `env:` block text ('' when absent), `run` = the command string (literal `|` keeps
  * newlines, folded `>` joins with spaces) or null for a step without `run:`, `unsupported` = step keys the caller cannot honor.
  */
@@ -85,6 +85,7 @@ function parseItem(lines, keyIndent) {
     name: null,
     env: '',
     run: null,
+    uses: false,
     unsupported: [],
   }
   for (let i = 0; i < lines.length; i++) {
@@ -104,6 +105,7 @@ function parseItem(lines, keyIndent) {
     const m = /^\s*([\w-]+):[ \t]?(.*)$/.exec(l)
     if (!m) continue
     if (m[1] === 'name') step.name = scalarText(m[2])
+    else if (m[1] === 'uses') step.uses = true
     else if (UNSUPPORTED_STEP_KEYS.has(m[1])) step.unsupported.push(m[1])
     else if (m[1] === 'env') {
       let j = i + 1

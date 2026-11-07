@@ -64,8 +64,11 @@ for (const { where, text } of scope.env) {
   Object.assign(scopeEnv, vars)
   for (const p of ps) problems.push(`${where} ${p}`)
 }
-for (const s of steps) {
-  if (s.run === null) continue
+for (const [index, s] of steps.entries()) {
+  if (s.run === null) {
+    if (!s.uses) problems.push(`step ${index + 1} ("${s.name ?? '?'}"): no run: or uses: parsed`)
+    continue
+  }
   const name = s.name ?? s.run.split('\n')[0].trim()
   const cmd = s.run.replace(BASE_EXPR, 'origin/master')
   for (const k of s.unsupported) problems.push(`step "${name}": ${k} is not supported`)
