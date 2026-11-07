@@ -4,6 +4,13 @@ import { UpsertSubjectSchema } from '@repo/db/schema'
 import { revalidatePath } from 'next/cache'
 import type { ActionResult } from '@/lib/action-result'
 import { requireAdmin } from '@/lib/auth/require-admin'
+import { writeFailure } from './check-live-parent'
+
+const WRITE_CTX = {
+  fn: 'upsertSubject',
+  entity: 'subject',
+  duplicate: 'A subject with this code already exists (it may have been deleted)',
+} as const
 
 export async function upsertSubject(input: unknown): Promise<ActionResult> {
   const parsed = UpsertSubjectSchema.safeParse(input)
@@ -16,10 +23,17 @@ export async function upsertSubject(input: unknown): Promise<ActionResult> {
 
   if (id) {
     // Update: sort_order is client-supplied (preserves existing order during code/name edits)
-    const { error } = await supabase.from('easa_subjects').update(data).eq('id', id)
+    const { data: updated, error } = await supabase
+      .from('easa_subjects')
+      .update(data)
+      .eq('id', id)
+      .is('deleted_at', null)
+      .select('id')
     if (error) {
-      console.error('[upsertSubject] update error:', error.message)
-      return { success: false, error: 'Failed to update subject' }
+      return writeFailure({ ...WRITE_CTX, op: 'update' }, error.message, error.code)
+    }
+    if (!updated || updated.length === 0) {
+      return { success: false, error: 'Item not found' }
     }
   } else {
     // Compute sort_order server-side to avoid stale-prop collisions on rapid adds
@@ -39,11 +53,7 @@ export async function upsertSubject(input: unknown): Promise<ActionResult> {
     // @ts-expect-error TS2769: row type resolves to `never` due to TypeScript inference depth limit
     const { error } = await supabase.from('easa_subjects').insert(data)
     if (error) {
-      if (error.code === '23505') {
-        return { success: false, error: 'A subject with this code already exists' }
-      }
-      console.error('[upsertSubject] insert error:', error.message)
-      return { success: false, error: 'Failed to create subject' }
+      return writeFailure({ ...WRITE_CTX, op: 'insert' }, error.message, error.code)
     }
   }
 

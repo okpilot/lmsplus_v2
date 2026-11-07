@@ -72,6 +72,7 @@ async function countPart3Subtopics(subjectId: string, topicCode: string): Promis
     .select('id')
     .eq('subject_id', subjectId)
     .eq('code', topicCode)
+    .is('deleted_at', null)
     .maybeSingle()
   if (topicError) {
     console.error('[getVfrRtExamQuestionCount] Topic query error:', topicError.message)
@@ -83,6 +84,7 @@ async function countPart3Subtopics(subjectId: string, topicCode: string): Promis
     .from('easa_subtopics')
     .select('id', { count: 'exact', head: true })
     .eq('topic_id', topic.id)
+    .is('deleted_at', null)
   if (countError) {
     console.error('[getVfrRtExamQuestionCount] Subtopic count error:', countError.message)
     return null

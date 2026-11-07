@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockRevalidatePath = vi.hoisted(() => vi.fn())
 const mockFrom = vi.hoisted(() => vi.fn())
+const mockRpc = vi.hoisted(() => vi.fn())
 const mockRequireAdmin = vi.hoisted(() => vi.fn())
 
 vi.mock('next/cache', () => ({ revalidatePath: mockRevalidatePath }))
@@ -17,13 +18,12 @@ import { deleteItem } from './delete-item'
 
 const VALID_UUID = '00000000-0000-4000-a000-000000000001'
 
-function mockAdminWithDeleteResult(result: { error: { message: string; code?: string } | null }) {
-  mockFrom.mockReturnValue({
-    delete: vi.fn().mockReturnValue({
-      eq: vi.fn().mockResolvedValue(result),
-    }),
+function mockAdminWithRpcResult(result: { error: { message: string; code?: string } | null }) {
+  mockRpc.mockResolvedValue(result)
+  mockRequireAdmin.mockResolvedValue({
+    supabase: { from: mockFrom, rpc: mockRpc },
+    userId: 'admin-1',
   })
-  mockRequireAdmin.mockResolvedValue({ supabase: { from: mockFrom }, userId: 'admin-1' })
 }
 
 // ---- Tests ----------------------------------------------------------------
@@ -56,42 +56,60 @@ describe('deleteItem', () => {
     })
   })
 
-  describe('delete from each allowed table', () => {
+  describe('soft delete via RPC', () => {
     it.each(['easa_subjects', 'easa_topics', 'easa_subtopics'] as const)(
-      'deletes from %s and revalidates on success',
+      'calls soft_delete_syllabus_item for %s and revalidates on success',
       async (table) => {
-        mockAdminWithDeleteResult({ error: null })
+        mockAdminWithRpcResult({ error: null })
 
         const result = await deleteItem({ id: VALID_UUID, table })
 
         expect(result.success).toBe(true)
-        expect(mockFrom).toHaveBeenCalledWith(table)
+        expect(mockRpc).toHaveBeenCalledWith('soft_delete_syllabus_item', {
+          p_table: table,
+          p_id: VALID_UUID,
+        })
+        expect(mockFrom).not.toHaveBeenCalled()
         expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/syllabus')
       },
     )
   })
 
   describe('error paths', () => {
-    it('returns a referenced-by-questions message when delete violates FK constraint', async () => {
-      mockAdminWithDeleteResult({ error: { message: 'FK violation', code: '23503' } })
+    it('maps in_use to a still-in-use message', async () => {
+      mockAdminWithRpcResult({ error: { message: 'in_use: 3 live topics' } })
 
       const result = await deleteItem({ id: VALID_UUID, table: 'easa_subjects' })
 
       expect(result.success).toBe(false)
       if (result.success) return
-      expect(result.error).toBe('Cannot delete: questions reference this item')
+      expect(result.error).toBe('Cannot delete: this item is still in use')
       expect(mockRevalidatePath).not.toHaveBeenCalled()
     })
 
-    it('returns a sanitized error message for other delete failures', async () => {
-      mockAdminWithDeleteResult({ error: { message: 'row not found' } })
+    it('maps not_found to an item-not-found message', async () => {
+      mockAdminWithRpcResult({ error: { message: 'not_found' } })
+
+      const result = await deleteItem({ id: VALID_UUID, table: 'easa_topics' })
+
+      expect(result.success).toBe(false)
+      if (result.success) return
+      expect(result.error).toBe('Item not found')
+      expect(mockRevalidatePath).not.toHaveBeenCalled()
+    })
+
+    it('logs and returns a generic message for other failures', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+      mockAdminWithRpcResult({ error: { message: 'boom' } })
 
       const result = await deleteItem({ id: VALID_UUID, table: 'easa_topics' })
 
       expect(result.success).toBe(false)
       if (result.success) return
       expect(result.error).toBe('Could not delete syllabus item')
+      expect(consoleSpy).toHaveBeenCalled()
       expect(mockRevalidatePath).not.toHaveBeenCalled()
+      consoleSpy.mockRestore()
     })
   })
 

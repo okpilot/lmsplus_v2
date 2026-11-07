@@ -308,7 +308,12 @@ async function ensureUser(
 }
 
 async function lookupId(table: string, column: string, value: string): Promise<string> {
-  const { data, error } = await db.from(table).select('id').eq(column, value).single()
+  const { data, error } = await db
+    .from(table)
+    .select('id')
+    .eq(column, value)
+    .is('deleted_at', null)
+    .single()
   if (error || !data)
     throw new Error(`Lookup ${table}.${column}='${value}': ${error?.message ?? 'not found'}`)
   return data.id

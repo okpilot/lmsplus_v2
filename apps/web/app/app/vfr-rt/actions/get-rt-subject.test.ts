@@ -1,7 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
+import {
+  type ChainCall,
+  hasDeletedAtFilter,
+  recordChainCalls,
+} from '@/lib/test-support/record-chain-calls'
 
 // ---- Mocks ----------------------------------------------------------------
+
+const chainLog: ChainCall[] = []
 
 const { mockFrom, mockGetTopicsWithSubtopics, mockGetExamEnabledSubjects, mockGetCount } =
   vi.hoisted(() => ({
@@ -20,7 +27,9 @@ vi.mock('@/lib/queries/vfr-rt-exam-question-count', () => ({
 }))
 
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({ from: mockFrom }),
+  createServerSupabaseClient: async () => ({
+    from: (table: string) => recordChainCalls(table, mockFrom(table), chainLog),
+  }),
 }))
 
 vi.mock('@/lib/queries/quiz-subject-queries', () => ({
@@ -71,6 +80,7 @@ const TOPIC: TopicWithSubtopics = {
 
 beforeEach(() => {
   vi.resetAllMocks()
+  chainLog.length = 0
   mockGetTopicsWithSubtopics.mockResolvedValue([TOPIC])
   mockGetExamEnabledSubjects.mockResolvedValue([])
   mockGetCount.mockResolvedValue(null)
@@ -240,5 +250,15 @@ describe('getRtSubjectData — parallel reads', () => {
 
     release({ data: { id: SUBJECT_ID }, error: null })
     await result
+  })
+})
+
+describe('getRtSubjectData — soft-delete filter', () => {
+  it('looks up only a live RT subject', async () => {
+    mockFrom.mockReturnValue(buildChain({ data: { id: SUBJECT_ID }, error: null }))
+
+    await getRtSubjectData()
+
+    expect(hasDeletedAtFilter(chainLog, 'easa_subjects')).toBe(true)
   })
 })
