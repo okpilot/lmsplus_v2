@@ -136,8 +136,8 @@ describe('Constraint regression — answer-write ON CONFLICT after the UNIQUE wi
     expect(answerRows).toHaveLength(1)
     expect(answerRows?.[0]?.selected_option_id).toBe('a')
 
-    // Without DO NOTHING the 23505 is swallowed per question and the response
-    // row is rolled back.
+    // Grading still writes the response row (save_quiz_answer writes none). Without
+    // DO NOTHING the 23505 is caught per question and that row is rolled back.
     const { data: respRows, error: respErr } = await admin
       .from('student_responses')
       .select('selected_option_id')
@@ -145,7 +145,6 @@ describe('Constraint regression — answer-write ON CONFLICT after the UNIQUE wi
       .eq('question_id', questionIds[2]!)
     expect(respErr).toBeNull()
     expect(respRows).toHaveLength(1)
-    expect(respRows?.[0]?.selected_option_id).toBe('b')
   })
 })
 

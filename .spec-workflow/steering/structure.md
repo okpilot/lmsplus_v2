@@ -148,8 +148,8 @@ Directories prefixed with `_` (underscore) are not treated as route segments by 
 | Type/interface | `PascalCase` | `type QuizSession = ...` |
 | Constants | `SCREAMING_SNAKE_CASE` | `MAX_QUIZ_QUESTIONS` |
 | Variables | `camelCase` | `const studentId = ...` |
-| Zod schemas | `PascalCase` + `Schema` suffix | `SubmitAnswerSchema` |
-| Server Action results | `PascalCase` + `Result` suffix | `type SubmitAnswerResult` |
+| Zod schemas | `PascalCase` + `Schema` suffix | `CheckAnswerSchema` |
+| Server Action results | `PascalCase` + `Result` suffix | `type CheckAnswerResult` |
 | DB table names | `snake_case` (plural) | `quiz_sessions`, `student_responses` |
 | RPC function names | `snake_case` | `get_quiz_questions`, `finish_quiz_session` |
 
