@@ -30,6 +30,13 @@
         "a step with neither run: nor uses: parsed aborts naming its number; a uses: step does not"
       ],
       "note": "The `uses` flag is never set; a `uses:` step reads as a step with no run: or uses: and aborts."
+    },
+    {
+      "id": "ci-run-steps-job-runtime-keys",
+      "find": "          'container',\n          'services',\n          'strategy',\n",
+      "replace": "",
+      "expectRed": ["job-level container, services and strategy abort before any step runs"],
+      "note": "Job-level container, services and strategy are no longer flagged unsupported."
     }
   ]
 }

@@ -252,6 +252,19 @@ test('continue-on-error aborts before any step runs', () => {
   }
 })
 
+test('job-level container, services and strategy abort before any step runs', () => {
+  for (const key of [
+    'container: node:22',
+    'services:\n      db: x',
+    'strategy:\n      fail-fast: false',
+  ]) {
+    const r = run(withJob({ job: `    ${key}\n` }, '      - run: echo JOBKEY_RAN\n'))
+    assert.notEqual(r.status, 0, key)
+    assert.doesNotMatch(r.stdout, /JOBKEY_RAN/)
+    assert.match(r.stderr, new RegExp(`ABORT.*${key.split(':')[0]}`))
+  }
+})
+
 test('a quoted env value containing a backslash or a doubled quote aborts', () => {
   for (const v of ['"a\\nb"', "'it''s'"]) {
     const r = run(

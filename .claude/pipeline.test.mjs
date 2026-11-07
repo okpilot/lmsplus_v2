@@ -492,7 +492,7 @@ function setupCliVersions(text) {
   const lines = text.split('\n')
   const out = []
   lines.forEach((l, i) => {
-    const u = /^(\s*)(-\s+)?uses:\s*supabase\/setup-cli@/.exec(l)
+    const u = /^(\s*)(-\s+)?uses:\s*["']?supabase\/setup-cli@/.exec(l)
     if (!u) return
     const keyIndent = u[1].length + (u[2]?.length ?? 0)
     let v = null
@@ -559,6 +559,12 @@ setupCliVersions(
 )[0] === 'other'
   ? pass('setupCliVersions reads `version:` from `with:` only')
   : fail('setupCliVersions read a `version:` outside the step `with:` block')
+
+setupCliVersions(
+  'steps:\n  - uses: "supabase/setup-cli@abc"\n    with:\n      version: 1.2.3\n',
+)[0] === '1.2.3'
+  ? pass('setupCliVersions collects a quoted supabase/setup-cli use')
+  : fail('setupCliVersions missed a quoted supabase/setup-cli use')
 
 pinsCli('pnpm dlx supabase@latest # supabase@2.78.1', '2.78.1')
   ? fail('pinsCli accepts the pin inside a comment')

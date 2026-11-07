@@ -187,7 +187,8 @@ function keyBlocks(lines, indent) {
 /**
  * Workflow- and job-level scope of `jobs.<jobId>`: `env` = `[{ where, text }]` for every `env:`
  * block, `unsupported` =
- * `defaults:` / `working-directory` / `shell` / `continue-on-error` keys found at either level.
+ * `defaults:` / `working-directory` / `shell` / `continue-on-error` keys found at either level, and
+ * `container:` / `services:` / `strategy:` keys found at job level.
  */
 export function jobScope(text, jobId) {
   const lines = text.replace(/\r/g, '').split('\n')
@@ -200,7 +201,17 @@ export function jobScope(text, jobId) {
   ]) {
     for (const b of blocks) {
       if (b.key === 'env') scope.env.push({ where, text: [b.rest, ...b.body].join('\n') })
-      else if (['defaults', 'working-directory', 'shell', 'continue-on-error'].includes(b.key))
+      else if (
+        [
+          'defaults',
+          'working-directory',
+          'shell',
+          'continue-on-error',
+          'container',
+          'services',
+          'strategy',
+        ].includes(b.key)
+      )
         scope.unsupported.push(`${where} ${b.key}`)
     }
   }

@@ -13,11 +13,11 @@
 // Every step runs to completion with CI=true and TURBO_FORCE=true under `bash --noprofile --norc -eo pipefail`;
 // `pnpm install` steps run as written. Scalar `env:` entries (workflow, job, step) are exported; a quoted
 // value containing `\` or `''` aborts. `timeout-minutes` is not enforced locally (CI enforces it).
-// `continue-on-error` aborts.
+// `continue-on-error`, `container`, `services` and `strategy` abort.
 // `if:` is not evaluated — every step runs; the PR base becomes `origin/master` (run `git fetch origin` first).
 // `${{ github.event.pull_request.base.sha }}` is the only substituted expression; any other `${{ }}`
-// in a step's `run:` or an `env:`, a non-scalar `env:`, `defaults:`, `working-directory` or `shell`
-// aborts before anything runs.
+// in a step's `run:` or an `env:`, a non-scalar `env:`, `defaults:`, `working-directory`, `shell`,
+// `container`, `services` or `strategy` aborts before anything runs.
 
 import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
