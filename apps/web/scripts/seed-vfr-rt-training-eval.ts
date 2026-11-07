@@ -397,9 +397,8 @@ const ORDERING: Ordering[] = [
 type DiagramLabelQuestion = {
   num: string
   text: string
-  // The zone_id -> label_id answer key. This mapping lives ONLY here (a
-  // server-side seed script) — never in the frontend layout module (see the
-  // header of rwy-2709-answer-key.ts). Distractor labels (Go-around,
+  // The zone_id -> label_id answer key, built from rwy-2709-answer-key.ts
+  // (scripts-only; see its header). Distractor labels (Go-around,
   // Departure, Threshold) exist in RWY_2709_LABELS but are intentionally
   // absent from this mapping.
   answer: { zone_id: string; label_id: string }[]
