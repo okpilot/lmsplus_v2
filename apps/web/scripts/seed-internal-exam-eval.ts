@@ -12,7 +12,7 @@
  * So the student can log in, start the internal exam with code EXAMTEST, answer a
  * question, reload mid-exam, and verify the resume prompt reads "Internal Exam".
  *
- * Run AFTER `npx supabase db reset`. Idempotent (safe to re-run).
+ * Run AFTER `pnpm supabase db reset`. Idempotent (safe to re-run).
  * Usage: cd apps/web && npx tsx scripts/seed-internal-exam-eval.ts
  */
 

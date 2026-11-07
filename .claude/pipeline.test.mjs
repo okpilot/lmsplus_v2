@@ -491,12 +491,17 @@ for (const site of spec.modelLiteralSites) {
 {
   const want = spec.supabaseCli
   if (typeof want !== 'string' || !/^\d+\.\d+\.\d+$/.test(want)) {
-    fail(`pipeline.json supabaseCli must be an exact x.y.z version (got ${JSON.stringify(want)}); exit condition #1178`)
+    fail(
+      `pipeline.json supabaseCli must be an exact x.y.z version (got ${JSON.stringify(want)}); exit condition #1178`,
+    )
   } else {
-    const script = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).scripts?.supabase ?? ''
+    const script =
+      JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).scripts?.supabase ?? ''
     script.includes(`supabase@${want}`)
       ? pass(`package.json scripts.supabase pins supabase@${want}`)
-      : fail(`package.json scripts.supabase "${script}" must contain supabase@${want} (CI version, #1178 exit condition)`)
+      : fail(
+          `package.json scripts.supabase "${script}" must contain supabase@${want} (CI version, #1178 exit condition)`,
+        )
     const wfDir = join(ROOT, '.github/workflows')
     const versions = []
     for (const f of readdirSync(wfDir).filter((x) => /\.ya?ml$/.test(x))) {
@@ -515,7 +520,9 @@ for (const site of spec.modelLiteralSites) {
     const bad = versions.filter(([, v]) => v !== want)
     versions.length > 0 && bad.length === 0
       ? pass(`every supabase/setup-cli version equals ${want} (${versions.length})`)
-      : fail(`supabase/setup-cli versions != ${want}: ${bad.map(([f, v]) => `${f}=${v}`).join(', ') || 'none found'}`)
+      : fail(
+          `supabase/setup-cli versions != ${want}: ${bad.map(([f, v]) => `${f}=${v}`).join(', ') || 'none found'}`,
+        )
   }
 }
 

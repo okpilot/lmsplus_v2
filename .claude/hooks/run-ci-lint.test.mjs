@@ -20,7 +20,8 @@ function run(yaml, extra = []) {
   writeFileSync(wf, yaml)
   return runNode('run-ci-lint', [SCRIPT, '--workflow', wf, ...extra], { cwd: dir })
 }
-const wrap = (steps) => `name: t\non: pull_request\njobs:\n  lint:\n    runs-on: ubuntu-latest\n    steps:\n${steps}`
+const wrap = (steps) =>
+  `name: t\non: pull_request\njobs:\n  lint:\n    runs-on: ubuntu-latest\n    steps:\n${steps}`
 
 test('single-line run steps execute and print PASS per step name', () => {
   const r = run(wrap('      - name: Say hi\n        run: echo HELLO_ONE\n'))
@@ -30,7 +31,9 @@ test('single-line run steps execute and print PASS per step name', () => {
 })
 
 test('block scalar (|) run steps execute every line', () => {
-  const r = run(wrap('      - name: Multi\n        run: |\n          echo LINE_A\n          echo LINE_B\n'))
+  const r = run(
+    wrap('      - name: Multi\n        run: |\n          echo LINE_A\n          echo LINE_B\n'),
+  )
   assert.equal(r.status, 0, r.stderr)
   assert.match(r.stdout, /LINE_A/)
   assert.match(r.stdout, /LINE_B/)
@@ -38,14 +41,18 @@ test('block scalar (|) run steps execute every line', () => {
 })
 
 test('folded block scalar (>-) run step executes as one command', () => {
-  const r = run(wrap('      - name: Folded\n        run: >-\n          echo FOLD_A\n          FOLD_B\n'))
+  const r = run(
+    wrap('      - name: Folded\n        run: >-\n          echo FOLD_A\n          FOLD_B\n'),
+  )
   assert.equal(r.status, 0, r.stderr)
   assert.match(r.stdout, /FOLD_A FOLD_B/)
 })
 
 test('a failing step does not stop later steps, prints FAIL, and exits non-zero', () => {
   const r = run(
-    wrap('      - name: Bad\n        run: exit 1\n      - name: Good\n        run: echo SECOND_RAN\n'),
+    wrap(
+      '      - name: Bad\n        run: exit 1\n      - name: Good\n        run: echo SECOND_RAN\n',
+    ),
   )
   assert.notEqual(r.status, 0)
   assert.match(r.stdout, /FAIL.*Bad/)
@@ -54,7 +61,11 @@ test('a failing step does not stop later steps, prints FAIL, and exits non-zero'
 })
 
 test('pnpm install steps are skipped', () => {
-  const r = run(wrap('      - run: pnpm install --frozen-lockfile\n      - name: After\n        run: echo AFTER_RAN\n'))
+  const r = run(
+    wrap(
+      '      - run: pnpm install --frozen-lockfile\n      - name: After\n        run: echo AFTER_RAN\n',
+    ),
+  )
   assert.equal(r.status, 0, r.stdout + r.stderr)
   assert.doesNotMatch(r.stdout, /pnpm install/)
   assert.match(r.stdout, /AFTER_RAN/)
@@ -83,7 +94,9 @@ test('an unknown ${{ }} expression in run aborts non-zero and names the expressi
 
 test('a step env: containing ${{ }} aborts non-zero', () => {
   const r = run(
-    wrap('      - name: E\n        env:\n          X: ${{ env.FOO }}\n        run: echo ENV_STEP_RAN\n'),
+    wrap(
+      '      - name: E\n        env:\n          X: ${{ env.FOO }}\n        run: echo ENV_STEP_RAN\n',
+    ),
   )
   assert.notEqual(r.status, 0)
   assert.doesNotMatch(r.stdout, /ENV_STEP_RAN/)
