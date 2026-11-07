@@ -64,6 +64,7 @@ test.describe('Red Team: syllabus soft delete', () => {
         .from('easa_subjects')
         .select('id')
         .like('code', MARKER_LIKE)
+        .is('deleted_at', null)
       if (error) throw new Error(`marker subjects lookup: ${error.message}`)
       subjectIds = (data ?? []).map((r) => r.id as string)
       if (subjectIds.length > 0) {

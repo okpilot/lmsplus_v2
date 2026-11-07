@@ -4,7 +4,7 @@ import { UpsertSubjectSchema } from '@repo/db/schema'
 import { revalidatePath } from 'next/cache'
 import type { ActionResult } from '@/lib/action-result'
 import { requireAdmin } from '@/lib/auth/require-admin'
-import { writeFailure } from './check-live-parent'
+import { updateLiveRow, writeFailure } from './check-live-parent'
 
 const WRITE_CTX = {
   fn: 'upsertSubject',
@@ -23,18 +23,8 @@ export async function upsertSubject(input: unknown): Promise<ActionResult> {
 
   if (id) {
     // Update: sort_order is client-supplied (preserves existing order during code/name edits)
-    const { data: updated, error } = await supabase
-      .from('easa_subjects')
-      .update(data)
-      .eq('id', id)
-      .is('deleted_at', null)
-      .select('id')
-    if (error) {
-      return writeFailure({ ...WRITE_CTX, op: 'update' }, error.message, error.code)
-    }
-    if (!updated || updated.length === 0) {
-      return { success: false, error: 'Item not found' }
-    }
+    const failure = await updateLiveRow(supabase, { table: 'easa_subjects', id, data }, WRITE_CTX)
+    if (failure) return failure
   } else {
     // Compute sort_order server-side to avoid stale-prop collisions on rapid adds
     const { data: maxRow, error: maxRowError } = await supabase

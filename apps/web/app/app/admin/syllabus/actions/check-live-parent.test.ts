@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { checkLiveParent, writeFailure } from './check-live-parent'
+import { checkLiveParent, updateLiveRow, writeFailure } from './check-live-parent'
 
-type Result = { data: unknown; error: { message: string } | null }
+type Result = { data: unknown; error: { message: string; code?: string } | null }
 
 function supabaseReturning(result: Result) {
   const calls: Array<{ op: string; args: unknown[] }> = []
@@ -90,6 +90,74 @@ describe('writeFailure', () => {
     expect(writeFailure(ctx, 'P0001: parent_not_found', undefined)).toEqual({
       success: false,
       error: 'Item not found',
+    })
+  })
+})
+
+describe('updateLiveRow', () => {
+  const ctx = {
+    fn: 'upsertTopic',
+    entity: 'topic',
+    duplicate: 'A topic with this code already exists',
+  } as const
+
+  function updateSupabase(result: Result) {
+    const calls: Array<{ op: string; args: unknown[] }> = []
+    const proxy: unknown = new Proxy(
+      {},
+      {
+        get(_t, prop: string) {
+          if (prop === 'then') return (res: (v: Result) => unknown) => res(result)
+          return (...args: unknown[]) => {
+            calls.push({ op: prop, args })
+            return proxy
+          }
+        },
+      },
+    )
+    return { supabase: { from: () => proxy } as never, calls }
+  }
+
+  it('returns null and filters on deleted_at when a live row was updated', async () => {
+    const { supabase, calls } = updateSupabase({ data: [{ id: 'r1' }], error: null })
+    await expect(
+      updateLiveRow(supabase, { table: 'easa_topics', id: 'r1', data: { name: 'N' } }, ctx),
+    ).resolves.toBeNull()
+    expect(calls).toContainEqual({ op: 'is', args: ['deleted_at', null] })
+  })
+
+  it('returns Item not found when no live row matched', async () => {
+    const { supabase } = updateSupabase({ data: [], error: null })
+    await expect(
+      updateLiveRow(supabase, { table: 'easa_topics', id: 'r1', data: {} }, ctx),
+    ).resolves.toEqual({
+      success: false,
+      error: 'Item not found',
+    })
+  })
+
+  it('logs and returns a generic update failure on a database error', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { supabase } = updateSupabase({ data: null, error: { message: 'boom' } })
+    await expect(
+      updateLiveRow(supabase, { table: 'easa_topics', id: 'r1', data: {} }, ctx),
+    ).resolves.toEqual({
+      success: false,
+      error: 'Failed to update topic',
+    })
+    expect(spy).toHaveBeenCalledWith('[upsertTopic] update error:', 'boom')
+  })
+
+  it('returns the duplicate message on a unique violation', async () => {
+    const { supabase } = updateSupabase({
+      data: null,
+      error: { message: 'duplicate key', code: '23505' },
+    })
+    await expect(
+      updateLiveRow(supabase, { table: 'easa_topics', id: 'r1', data: {} }, ctx),
+    ).resolves.toEqual({
+      success: false,
+      error: ctx.duplicate,
     })
   })
 })

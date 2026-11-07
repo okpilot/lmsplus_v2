@@ -1,5 +1,5 @@
--- Readers must not act on a soft-deleted syllabus row (E3b). issue_internal_exam_code body from mig 20260606000003;
--- only the subject deleted_at filter (and search_path pg_temp, mig 20261026000100) changes.
+-- Readers must not act on a soft-deleted syllabus row (E3b). issue_internal_exam_code body is from mig 20260606000003, plus the subject deleted_at filter,
+-- FOR KEY SHARE on the subject row, and search_path pg_temp (mig 20261026000100).
 
 CREATE OR REPLACE FUNCTION public.issue_internal_exam_code(
   p_subject_id uuid,

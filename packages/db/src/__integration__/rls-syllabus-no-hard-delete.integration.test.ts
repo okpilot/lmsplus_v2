@@ -44,25 +44,28 @@ describe('syllabus soft delete: privileges and readers', () => {
       password: 'test-pass-123',
     })
     const code = `SDG${suffix}`
-    const { data: s } = await admin
+    const { data: s, error: sErr } = await admin
       .from('easa_subjects')
       .insert({ code, name: code, short: code, sort_order: 950 })
       .select('id')
       .single()
-    subjectId = s?.id as string
+    if (sErr || !s) throw new Error(`subject: ${sErr?.message}`)
+    subjectId = s.id as string
     subjectIds.push(subjectId)
-    const { data: t } = await admin
+    const { data: t, error: tErr } = await admin
       .from('easa_topics')
       .insert({ subject_id: subjectId, code: `${code}-T`, name: 'T', sort_order: 1 })
       .select('id')
       .single()
-    topicId = t?.id as string
-    const { data: st } = await admin
+    if (tErr || !t) throw new Error(`topic: ${tErr?.message}`)
+    topicId = t.id as string
+    const { data: st, error: stErr } = await admin
       .from('easa_subtopics')
       .insert({ topic_id: topicId, code: `${code}-ST`, name: 'ST', sort_order: 1 })
       .select('id')
       .single()
-    subtopicId = st?.id as string
+    if (stErr || !st) throw new Error(`subtopic: ${stErr?.message}`)
+    subtopicId = st.id as string
   })
 
   afterAll(async () => {

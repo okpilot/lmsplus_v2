@@ -129,9 +129,7 @@ describe.each([
   ],
 ] as const)('%s insert path', (_name, parentTable, table, run, noun) => {
   it('reads the parent with a deleted_at filter and refuses a missing/deleted parent', async () => {
-    const queries = fakeSupabase((q) =>
-      q.table === parentTable ? { data: null, error: null } : { data: null, error: null },
-    )
+    const queries = fakeSupabase(() => ({ data: null, error: null }))
 
     const result = await run()
 

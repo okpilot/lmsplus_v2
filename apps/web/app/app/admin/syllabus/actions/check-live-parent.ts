@@ -37,3 +37,25 @@ export function writeFailure(
     error: `Failed to ${ctx.op === 'insert' ? 'create' : 'update'} ${ctx.entity}`,
   }
 }
+
+/** Live-row update: error to writeFailure, no matching live row to "Item not found", else null. */
+export async function updateLiveRow(
+  supabase: AdminSupabase,
+  row: {
+    table: 'easa_subjects' | 'easa_topics' | 'easa_subtopics'
+    id: string
+    data: Record<string, unknown>
+  },
+  ctx: Omit<Parameters<typeof writeFailure>[0], 'op'>,
+): Promise<ActionResult | null> {
+  const { data: updated, error } = await supabase
+    .from(row.table)
+    // @ts-expect-error TS2769: row type resolves to `never` due to TypeScript inference depth limit
+    .update(row.data)
+    .eq('id', row.id)
+    .is('deleted_at', null)
+    .select('id')
+  if (error) return writeFailure({ ...ctx, op: 'update' }, error.message, error.code)
+  if (!updated || updated.length === 0) return { success: false, error: 'Item not found' }
+  return null
+}

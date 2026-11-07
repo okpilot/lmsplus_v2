@@ -4,7 +4,7 @@ import { UpsertSubtopicSchema } from '@repo/db/schema'
 import { revalidatePath } from 'next/cache'
 import type { ActionResult } from '@/lib/action-result'
 import { requireAdmin } from '@/lib/auth/require-admin'
-import { checkLiveParent, writeFailure } from './check-live-parent'
+import { checkLiveParent, updateLiveRow, writeFailure } from './check-live-parent'
 
 const WRITE_CTX = {
   fn: 'upsertSubtopic',
@@ -22,18 +22,8 @@ export async function upsertSubtopic(input: unknown): Promise<ActionResult> {
   const { id, ...data } = parsed.data
 
   if (id) {
-    const { data: updated, error } = await supabase
-      .from('easa_subtopics')
-      .update(data)
-      .eq('id', id)
-      .is('deleted_at', null)
-      .select('id')
-    if (error) {
-      return writeFailure({ ...WRITE_CTX, op: 'update' }, error.message, error.code)
-    }
-    if (!updated || updated.length === 0) {
-      return { success: false, error: 'Item not found' }
-    }
+    const failure = await updateLiveRow(supabase, { table: 'easa_subtopics', id, data }, WRITE_CTX)
+    if (failure) return failure
   } else {
     const parentFailure = await checkLiveParent(supabase, {
       table: 'easa_topics',
