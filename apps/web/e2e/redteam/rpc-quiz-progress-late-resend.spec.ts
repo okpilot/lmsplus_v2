@@ -7,6 +7,9 @@
  * save_quiz_position must refuse it: no grading payload, no progress row change.
  *
  * GT (race): the same calls that land on the open session are refused once ended_at is set.
+ * The short_answer arm (#1447) covers check_non_mc_answer (latest def mig 20261020000400): its
+ *     session guard `ended_at IS NULL` raises `session not found or not owned by this student`
+ *     before _save_progress_row, so the late resend grades nothing and writes no progress row.
  *
  * Status: Expected to PASS. The control arm proves each call writes on the open session.
  */
@@ -15,7 +18,7 @@ import { expect, test } from '@playwright/test'
 import { getAdminClient } from '../helpers/supabase'
 import { clearOpenSessions } from './helpers/clear-open-sessions'
 import { createAuthenticatedClient } from './helpers/redteam-client'
-import { E2E_REDTEAM_QP_MARKER } from './helpers/seed-markers'
+import { E2E_REDTEAM_GT_MARKER, E2E_REDTEAM_QP_MARKER } from './helpers/seed-markers'
 import { seedRedTeamUsers, VICTIM_EMAIL, VICTIM_PASSWORD } from './helpers/seed-users'
 
 type Client = Awaited<ReturnType<typeof createAuthenticatedClient>>
@@ -31,6 +34,8 @@ test.describe('Red Team: progress resend after session end (Vector GT)', () => {
   let victimUserId: string
   let q1: string
   let q2: string
+  let saId: string
+  const createdQuestionIds = new Set<string>()
   let q1Key: {
     correct_option_id: string
     explanation_text: string | null
@@ -100,6 +105,45 @@ test.describe('Red Team: progress resend after session end (Vector GT)', () => {
       p_device_id: DEVICE_A,
     })
 
+  /** A marked short_answer question cloned from `mcId`'s bank/subject/topic scaffolding. */
+  const insertShortAnswerQuestion = async (mcId: string): Promise<string> => {
+    const scaffold = await admin
+      .from('questions')
+      .select('bank_id, subject_id, topic_id, created_by')
+      .eq('id', mcId)
+      .single()
+    if (scaffold.error || !isRecord(scaffold.data))
+      throw new Error(`short_answer scaffold: ${scaffold.error?.message ?? 'none'}`)
+    const { bank_id, subject_id, topic_id, created_by } = scaffold.data
+    const { data, error } = await admin
+      .from('questions')
+      .insert({
+        organization_id: orgId,
+        bank_id,
+        subject_id,
+        topic_id,
+        created_by,
+        question_text: `${E2E_REDTEAM_GT_MARKER} short answer`,
+        question_number: `${E2E_REDTEAM_GT_MARKER}-SA-${Date.now()}`,
+        explanation_text: `${E2E_REDTEAM_GT_MARKER} explanation`,
+        difficulty: 'easy',
+        status: 'active',
+        question_type: 'short_answer',
+        options: [],
+        correct_option_id: null,
+        canonical_answer: 'QNH',
+        accepted_synonyms: [],
+        dialog_template: null,
+        blanks_config: [],
+      })
+      .select('id')
+      .single()
+    if (error || !isRecord(data) || typeof data.id !== 'string')
+      throw new Error(`insert short_answer: ${error?.message ?? 'bad shape'}`)
+    createdQuestionIds.add(data.id)
+    return data.id
+  }
+
   test.beforeAll(async () => {
     admin = getAdminClient()
     const seed = await seedRedTeamUsers()
@@ -128,6 +172,23 @@ test.describe('Red Team: progress resend after session end (Vector GT)', () => {
     if (key.error || typeof key.data?.correct_option_id !== 'string')
       throw new Error(`beforeAll q1 key: ${key.error?.message ?? 'bad shape'}`)
     q1Key = { ...key.data, correct_option_id: key.data.correct_option_id }
+    saId = await insertShortAnswerQuestion(q1)
+  })
+
+  test.afterAll(async () => {
+    if (createdQuestionIds.size === 0) return
+    try {
+      const { data, error } = await admin
+        .from('questions')
+        .update({ deleted_at: new Date().toISOString() })
+        .in('id', [...createdQuestionIds])
+        .is('deleted_at', null)
+        .select('id')
+      if (error) throw new Error(`afterAll soft-delete questions: ${error.message}`)
+      if ((data?.length ?? 0) > 0) console.info(`[GT] soft-deleted ${data?.length} questions`)
+    } finally {
+      createdQuestionIds.clear()
+    }
   })
 
   test.beforeEach(async () => {
@@ -190,5 +251,66 @@ test.describe('Red Team: progress resend after session end (Vector GT)', () => {
 
     expect(await readProgress(sessionId)).toEqual(before)
     expect((await readPosition(sessionId)).current_index).toBe(1)
+  })
+
+  test('GT: check_non_mc_answer on a short_answer question after the session ended is refused and changes nothing (#1447)', async () => {
+    const { data, error } = await admin
+      .from('quiz_sessions')
+      .insert({
+        organization_id: orgId,
+        student_id: victimUserId,
+        mode: 'quick_quiz',
+        total_questions: 2,
+        config: { question_ids: [q1, saId], e2e_marker: E2E_REDTEAM_QP_MARKER },
+      })
+      .select('id')
+      .single()
+    if (error || !isRecord(data) || typeof data.id !== 'string')
+      throw new Error(`seed short_answer session: ${error?.message ?? 'bad shape'}`)
+    const sessionId = data.id
+    const claim = await victim.rpc('claim_quiz_session', {
+      p_session_id: sessionId,
+      p_device_id: DEVICE_A,
+    })
+    expect(claim).toMatchObject({ data: null, error: null })
+
+    const gradeShort = (text: string) =>
+      victim.rpc('check_non_mc_answer', {
+        p_question_id: saId,
+        p_session_id: sessionId,
+        p_response_text: text,
+        p_device_id: DEVICE_A,
+        p_time_spent_ms: 500,
+      })
+
+    // Control: on the open session the call grades and writes the progress row.
+    const ok = await gradeShort('QNH')
+    expect(ok.error).toBeNull()
+    expect(ok.data).toEqual({
+      is_correct: true,
+      correct_answer: 'QNH',
+      blanks: null,
+      correct_order: null,
+      correct_mapping: null,
+      explanation_text: `${E2E_REDTEAM_GT_MARKER} explanation`,
+      explanation_image_url: null,
+    })
+    const before = await readProgress(sessionId)
+    expect(before).toEqual([{ question_id: saId, answer: { response_text: 'QNH' } }])
+
+    const { error: endErr } = await admin
+      .from('quiz_sessions')
+      .update({ ended_at: new Date().toISOString() })
+      .eq('id', sessionId)
+    if (endErr) throw new Error(`end session: ${endErr.message}`)
+    expect((await readPosition(sessionId)).ended_at).not.toBeNull()
+
+    // Identical resend, then changed input: both refused before grading or saving.
+    for (const text of ['QNH', 'QFE']) {
+      const late = await gradeShort(text)
+      expect(late.data).toBeNull()
+      expect(late.error?.message).toBe('session not found or not owned by this student')
+    }
+    expect(await readProgress(sessionId)).toEqual(before)
   })
 })
