@@ -4,26 +4,7 @@ import { UpsertSubtopicSchema } from '@repo/db/schema'
 import { revalidatePath } from 'next/cache'
 import type { ActionResult } from '@/lib/action-result'
 import { requireAdmin } from '@/lib/auth/require-admin'
-
-type AdminSupabase = Awaited<ReturnType<typeof requireAdmin>>['supabase']
-
-/** Null when the parent row exists and is not deleted; otherwise the failure to return. */
-async function checkLiveParent(
-  supabase: AdminSupabase,
-  parentId: string,
-): Promise<ActionResult | null> {
-  const { data, error } = await supabase
-    .from('easa_topics')
-    .select('id')
-    .eq('id', parentId)
-    .is('deleted_at', null)
-    .maybeSingle()
-  if (error) {
-    console.error('[upsertSubtopic] parent lookup error:', error.message)
-    return { success: false, error: 'Failed to create subtopic' }
-  }
-  return data ? null : { success: false, error: 'Item not found' }
-}
+import { checkLiveParent, writeFailure } from './check-live-parent'
 
 export async function upsertSubtopic(input: unknown): Promise<ActionResult> {
   const parsed = UpsertSubtopicSchema.safeParse(input)
@@ -42,14 +23,17 @@ export async function upsertSubtopic(input: unknown): Promise<ActionResult> {
       .is('deleted_at', null)
       .select('id')
     if (error) {
-      console.error('[upsertSubtopic] update error:', error.message)
-      return { success: false, error: 'Failed to update subtopic' }
+      return writeFailure({ fn: 'upsertSubtopic', op: 'update', entity: 'subtopic' }, error.message)
     }
     if (!updated || updated.length === 0) {
       return { success: false, error: 'Item not found' }
     }
   } else {
-    const parentFailure = await checkLiveParent(supabase, data.topic_id)
+    const parentFailure = await checkLiveParent(supabase, {
+      table: 'easa_topics',
+      id: data.topic_id,
+      label: 'subtopic',
+    })
     if (parentFailure) return parentFailure
 
     // Compute sort_order server-side to avoid stale-prop collisions on rapid adds
@@ -77,8 +61,7 @@ export async function upsertSubtopic(input: unknown): Promise<ActionResult> {
             'A subtopic with this code already exists in this topic (it may have been deleted)',
         }
       }
-      console.error('[upsertSubtopic] insert error:', error.message)
-      return { success: false, error: 'Failed to create subtopic' }
+      return writeFailure({ fn: 'upsertSubtopic', op: 'insert', entity: 'subtopic' }, error.message)
     }
   }
 

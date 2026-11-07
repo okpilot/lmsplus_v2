@@ -1,6 +1,5 @@
 -- Syllabus soft delete (E3b): easa_subjects / easa_topics / easa_subtopics.
 -- Hard DELETE is impossible for `authenticated`; soft_delete_syllabus_item is the only delete path.
--- Residual: a child inserted concurrently with a parent delete is not serialised (only the target row is locked).
 
 ALTER TABLE public.easa_subjects
   ADD COLUMN deleted_at timestamptz,
@@ -25,6 +24,80 @@ GRANT INSERT (subject_id, code, name, sort_order), UPDATE (subject_id, code, nam
 REVOKE INSERT, UPDATE ON public.easa_subtopics FROM authenticated;
 GRANT INSERT (topic_id, code, name, sort_order), UPDATE (topic_id, code, name, sort_order)
   ON public.easa_subtopics TO authenticated;
+
+-- Live-parent check: FOR KEY SHARE serialises with soft_delete_syllabus_item's FOR UPDATE on the parent.
+CREATE OR REPLACE FUNCTION public.trg_syllabus_live_parent()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  IF TG_TABLE_NAME = 'easa_topics' THEN
+    IF TG_OP = 'INSERT' OR NEW.subject_id IS DISTINCT FROM OLD.subject_id THEN
+      PERFORM 1 FROM public.easa_subjects s
+      WHERE s.id = NEW.subject_id AND s.deleted_at IS NULL
+      FOR KEY SHARE;
+      IF NOT FOUND THEN
+        RAISE EXCEPTION 'parent_not_found';
+      END IF;
+    END IF;
+  ELSE
+    IF TG_OP = 'INSERT' OR NEW.topic_id IS DISTINCT FROM OLD.topic_id THEN
+      PERFORM 1 FROM public.easa_topics t
+      WHERE t.id = NEW.topic_id AND t.deleted_at IS NULL
+      FOR KEY SHARE;
+      IF NOT FOUND THEN
+        RAISE EXCEPTION 'parent_not_found';
+      END IF;
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+REVOKE EXECUTE ON FUNCTION public.trg_syllabus_live_parent() FROM PUBLIC;
+
+-- Deleted rows are frozen except deleted_at / deleted_by.
+CREATE OR REPLACE FUNCTION public.trg_syllabus_deleted_row_frozen()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_old jsonb := jsonb_build_object('code', OLD.code, 'name', OLD.name, 'sort_order', OLD.sort_order);
+  v_new jsonb := jsonb_build_object('code', NEW.code, 'name', NEW.name, 'sort_order', NEW.sort_order);
+BEGIN
+  IF TG_TABLE_NAME = 'easa_topics' THEN
+    v_old := v_old || jsonb_build_object('parent', OLD.subject_id);
+    v_new := v_new || jsonb_build_object('parent', NEW.subject_id);
+  ELSIF TG_TABLE_NAME = 'easa_subtopics' THEN
+    v_old := v_old || jsonb_build_object('parent', OLD.topic_id);
+    v_new := v_new || jsonb_build_object('parent', NEW.topic_id);
+  END IF;
+  IF OLD.deleted_at IS NOT NULL AND v_new IS DISTINCT FROM v_old THEN
+    RAISE EXCEPTION 'item_deleted';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+REVOKE EXECUTE ON FUNCTION public.trg_syllabus_deleted_row_frozen() FROM PUBLIC;
+
+CREATE TRIGGER easa_topics_live_parent
+  BEFORE INSERT OR UPDATE ON public.easa_topics
+  FOR EACH ROW EXECUTE FUNCTION public.trg_syllabus_live_parent();
+CREATE TRIGGER easa_subtopics_live_parent
+  BEFORE INSERT OR UPDATE ON public.easa_subtopics
+  FOR EACH ROW EXECUTE FUNCTION public.trg_syllabus_live_parent();
+CREATE TRIGGER easa_subjects_deleted_row_frozen
+  BEFORE UPDATE ON public.easa_subjects
+  FOR EACH ROW EXECUTE FUNCTION public.trg_syllabus_deleted_row_frozen();
+CREATE TRIGGER easa_topics_deleted_row_frozen
+  BEFORE UPDATE ON public.easa_topics
+  FOR EACH ROW EXECUTE FUNCTION public.trg_syllabus_deleted_row_frozen();
+CREATE TRIGGER easa_subtopics_deleted_row_frozen
+  BEFORE UPDATE ON public.easa_subtopics
+  FOR EACH ROW EXECUTE FUNCTION public.trg_syllabus_deleted_row_frozen();
 
 CREATE OR REPLACE FUNCTION public.soft_delete_syllabus_item(p_table text, p_id uuid)
 RETURNS void

@@ -23,6 +23,9 @@ export async function upsertSubject(input: unknown): Promise<ActionResult> {
       .is('deleted_at', null)
       .select('id')
     if (error) {
+      if (error.message.includes('item_deleted')) {
+        return { success: false, error: 'Item not found' }
+      }
       console.error('[upsertSubject] update error:', error.message)
       return { success: false, error: 'Failed to update subject' }
     }

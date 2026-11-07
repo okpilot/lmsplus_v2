@@ -20,10 +20,11 @@ export async function deleteItem(input: unknown): Promise<ActionResult> {
   })
 
   if (error) {
-    if (error.message.includes('in_use')) {
+    const token = (error.message.split(':')[0] ?? '').trim()
+    if (token === 'in_use') {
       return { success: false, error: 'Cannot delete: this item is still in use' }
     }
-    if (error.message.includes('not_found')) {
+    if (token === 'not_found' || token === 'parent_not_found') {
       return { success: false, error: 'Item not found' }
     }
     console.error('[deleteItem] Delete failed:', { code: error.code, message: error.message })
