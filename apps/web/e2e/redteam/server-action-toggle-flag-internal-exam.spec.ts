@@ -6,6 +6,7 @@
  *   - question NOT flagged → no flag row becomes active;
  *   - question flagged     → the flag stays active.
  * CONTROL: once the exam is gone, the same replay unflags, then flags, the same question.
+ * The explicit `flagged` desired state is gated the same way; a non-boolean one is rejected (LC).
  *
  * flagged_questions has no text column for a marker: the spec snapshots the attacker's
  * (student_id, question_id) row before each test and restores it after.
@@ -263,5 +264,51 @@ test.describe('Red Team: toggleFlag during an active internal_exam (IS)', () => 
     expect(flagged).toContain('"success":true')
     expect(flagged).toContain('"flagged":true')
     expect(await isActiveFlag()).toBe(true)
+  })
+
+  test('IS: an active internal_exam blocks an explicit desired flag state', async () => {
+    await seedSession('internal_exam')
+
+    await setFlag(false)
+    const want = await invoke({ questionId: q1, flagged: true })
+    expect(want).toContain('cannot_flag_internal_exam')
+    expect(await isActiveFlag()).toBe(false)
+
+    await setFlag(true)
+    const drop = await invoke({ questionId: q1, flagged: false })
+    expect(drop).toContain('cannot_flag_internal_exam')
+    expect(await isActiveFlag()).toBe(true)
+    // Already in the requested state: the gate still answers before the no-op.
+    const same = await invoke({ questionId: q1, flagged: true })
+    expect(same).toContain('cannot_flag_internal_exam')
+
+    // CONTROL: with the exam gone the desired state is applied; a repeat writes nothing.
+    await cleanupStudentActiveSessions(ATTACKER_EMAIL)
+    const before = await readFlag()
+    const repeat = await invoke({ questionId: q1, flagged: true })
+    expect(repeat).toContain('"success":true')
+    expect(repeat).toContain('"flagged":true')
+    expect(await readFlag()).toEqual(before)
+    const off = await invoke({ questionId: q1, flagged: false })
+    expect(off).toContain('"flagged":false')
+    expect(await isActiveFlag()).toBe(false)
+    const offAgain = await invoke({ questionId: q1, flagged: false })
+    expect(offAgain).toContain('"success":true')
+    expect(offAgain).toContain('"flagged":false')
+    expect(await isActiveFlag()).toBe(false)
+  })
+
+  test('LC: a non-boolean desired flag state is rejected, never read as a toggle', async () => {
+    await setFlag(true)
+    for (const flagged of [null, 'false', 0, 'true'] as const) {
+      const res = await invoke({ questionId: q1, flagged })
+      expect(res).toContain('Invalid input')
+      expect(res).not.toContain('"success":true')
+      expect(await isActiveFlag()).toBe(true)
+    }
+    // CONTROL: the boolean form of the same request applies.
+    const res = await invoke({ questionId: q1, flagged: false })
+    expect(res).toContain('"success":true')
+    expect(await isActiveFlag()).toBe(false)
   })
 })
