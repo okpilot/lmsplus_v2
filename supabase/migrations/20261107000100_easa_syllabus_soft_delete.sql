@@ -82,8 +82,8 @@ DECLARE
 BEGIN
   FOR r IN
     SELECT * FROM (VALUES
-      ('easa_topics',               'subject_id',  'easa_subjects', false),
-      ('easa_subtopics',            'topic_id',    'easa_topics',   false),
+      ('easa_topics',               'subject_id',  'easa_subjects', true),
+      ('easa_subtopics',            'topic_id',    'easa_topics',   true),
       ('questions',                 'subject_id',  'easa_subjects', true),
       ('questions',                 'topic_id',    'easa_topics',   true),
       ('questions',                 'subtopic_id', 'easa_subtopics', true),
@@ -201,9 +201,10 @@ BEGIN
                   WHERE d.topic_id = p_id AND ec.deleted_at IS NULL)
        OR EXISTS (SELECT 1 FROM public.exam_configs ec
                   WHERE ec.subject_id = v_subject_id AND ec.deleted_at IS NULL
-                    AND v_topic_code IN (ec.parts_config->'part1'->>'topic_code',
-                                         ec.parts_config->'part2'->>'topic_code',
-                                         ec.parts_config->'part3'->>'topic_code'))
+                    -- defaults mirror start_vfr_rt_exam_session and apply to any subject's config
+                    AND v_topic_code IN (COALESCE(ec.parts_config->'part1'->>'topic_code', 'P1_ACRONYMS'),
+                                         COALESCE(ec.parts_config->'part2'->>'topic_code', 'P2_DIALOG'),
+                                         COALESCE(ec.parts_config->'part3'->>'topic_code', 'P3_MC')))
        OR EXISTS (SELECT 1 FROM public.quiz_sessions qs
                   WHERE qs.topic_id = p_id AND qs.ended_at IS NULL
                     AND (qs.deleted_at IS NULL OR qs.saved_at IS NOT NULL))

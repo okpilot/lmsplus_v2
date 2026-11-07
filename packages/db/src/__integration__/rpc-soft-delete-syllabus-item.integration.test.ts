@@ -294,6 +294,18 @@ describe('RPC: soft_delete_syllabus_item', () => {
       await expectInUse('easa_topics', tree.topicId)
     })
 
+    it('refuses topic P1_ACRONYMS when a live config lacks part1.topic_code (defaults apply to any subject)', async () => {
+      const tree = await newTree()
+      await stamp('easa_subtopics', tree.subtopicId)
+      const { error: codeErr } = await admin
+        .from('easa_topics')
+        .update({ code: 'P1_ACRONYMS' })
+        .eq('id', tree.topicId)
+      expect(codeErr).toBeNull()
+      await newConfig(tree.subjectId, {})
+      await expectInUse('easa_topics', tree.topicId)
+    })
+
     it('refuses a topic with an open quiz session', async () => {
       const tree = await newTree()
       await stamp('easa_subtopics', tree.subtopicId)

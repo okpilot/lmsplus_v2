@@ -288,6 +288,16 @@ describe('Triggers: syllabus live parent and deleted-row freeze', () => {
     expect(data?.deleted_at).not.toBeNull()
   })
 
+  it('rejects restoring a soft-deleted topic whose subject is soft-deleted', async () => {
+    const tree = await deadTree()
+    const { error } = await admin
+      .from('easa_topics')
+      .update({ deleted_at: null })
+      .eq('id', tree.topicId)
+    expect(error?.message).toContain('parent_not_found')
+    expect((await row('easa_topics', tree.topicId)).deleted_at).not.toBeNull()
+  })
+
   it('rejects an exam_configs insert for a soft-deleted subject', async () => {
     const dead = await deadTree()
     const { error } = await newConfig(dead.subjectId)
