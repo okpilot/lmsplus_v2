@@ -29,14 +29,14 @@ type AdminAuth = {
  * saving is redundant work and allocation, not network traffic — #1169's premise
  * that "every call performs a real network round-trip" does not hold as written.
  *
- * Scope, precisely, because this is an authorization gate: the memo lives in a Map
- * allocated per RSC flight request, so it cannot cross requests. In a Server Action
- * there is no resolvable React flight request — Next runs the action body under its
- * own `workUnitAsyncStorage`, not React's `requestStorage` — so the cache lookup
- * falls back to a throwaway Map and the body re-executes on every call. (Not
- * because the dispatcher is absent: it is installed on the first flight render in
- * the process and never cleared thereafter.) So every MUTATION still re-verifies
- * its caller on every call; only the render path is memoized.
+ * Scope, precisely, because this is an authorization gate: the memo is per server
+ * request (https://react.dev/reference/react/cache). Observed 2026-11-07, Next 16.4.3
+ * dev; method: temporary counter in the body. Admin page renders: 1 body execution
+ * each (`internal-exams`, `dashboard`, `syllabus`). One Server Action call
+ * (`upsertSubject`, which then re-renders `syllabus`): 2 body executions per call
+ * (the action's own plus the re-render's), the same on a second call. So every
+ * MUTATION still calls `requireAdmin()` itself and re-verifies its caller; only the
+ * render path is memoized.
  */
 export const requireAdmin = cache(async (): Promise<AdminAuth> => {
   const supabase = await createServerSupabaseClient()
