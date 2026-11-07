@@ -74,6 +74,9 @@ test.describe('Vector LC — password grant timing enumeration', () => {
 
     const knownMedian = median(known.map((a) => a.ms))
     const unknownMedian = median(unknown.map((a) => a.ms))
-    expect(knownMedian / unknownMedian).toBeLessThan(MAX_MEDIAN_RATIO)
+    // Either direction is a channel.
+    expect(
+      Math.max(knownMedian, unknownMedian) / Math.min(knownMedian, unknownMedian),
+    ).toBeLessThan(MAX_MEDIAN_RATIO)
   })
 })
