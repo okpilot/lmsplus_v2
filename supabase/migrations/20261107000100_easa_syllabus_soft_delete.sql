@@ -27,6 +27,8 @@ GRANT INSERT (topic_id, code, name, sort_order), UPDATE (topic_id, code, name, s
 
 -- Live-parent check, one function for every child column: TG_ARGV[0] = parent table, TG_ARGV[1] = column.
 -- FOR KEY SHARE serialises with soft_delete_syllabus_item's FOR UPDATE on the parent. NULL skips.
+-- Attached AFTER ROW: RLS WITH CHECK runs before AFTER triggers, so non-admins get 42501 and never
+-- learn whether a parent is deleted; UNIQUE/CHECK/FK errors also precede parent_not_found.
 CREATE OR REPLACE FUNCTION public.syllabus_live_parent()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -95,11 +97,11 @@ BEGIN
     v_restore := CASE WHEN r.restore
       THEN ' OR (OLD.deleted_at IS NOT NULL AND NEW.deleted_at IS NULL)' ELSE '' END;
     EXECUTE format(
-      'CREATE TRIGGER %I BEFORE INSERT ON public.%I FOR EACH ROW WHEN (NEW.%I IS NOT NULL) '
+      'CREATE TRIGGER %I AFTER INSERT ON public.%I FOR EACH ROW WHEN (NEW.%I IS NOT NULL) '
       'EXECUTE FUNCTION public.syllabus_live_parent(%L, %L)',
       r.child || '_' || r.col || '_live_parent_ins', r.child, r.col, r.parent, r.col);
     EXECUTE format(
-      'CREATE TRIGGER %I BEFORE UPDATE OF %I%s ON public.%I FOR EACH ROW '
+      'CREATE TRIGGER %I AFTER UPDATE OF %I%s ON public.%I FOR EACH ROW '
       'WHEN (NEW.%I IS NOT NULL AND (NEW.%I IS DISTINCT FROM OLD.%I%s)) '
       'EXECUTE FUNCTION public.syllabus_live_parent(%L, %L)',
       r.child || '_' || r.col || '_live_parent_upd', r.col,

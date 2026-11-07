@@ -19,6 +19,8 @@ describe('Triggers: syllabus live parent and deleted-row freeze', () => {
   const subjectIds: string[] = []
   let orgId: string
   let adminClient: SupabaseClient
+  let studentClient: SupabaseClient
+  let instructorClient: SupabaseClient
   let n = 0
 
   async function newTree(): Promise<Tree> {
@@ -109,6 +111,26 @@ describe('Triggers: syllabus live parent and deleted-row freeze', () => {
     userIds.push(adminId)
     adminClient = await getAuthenticatedClient({
       email: `lp-admin-${suffix}@test.local`,
+      password: 'test-pass-123',
+    })
+    for (const role of ['student', 'instructor'] as const) {
+      userIds.push(
+        await createTestUser({
+          admin,
+          orgId,
+          email: `lp-${role}-${suffix}@test.local`,
+          password: 'test-pass-123',
+          role,
+          courses: [],
+        }),
+      )
+    }
+    studentClient = await getAuthenticatedClient({
+      email: `lp-student-${suffix}@test.local`,
+      password: 'test-pass-123',
+    })
+    instructorClient = await getAuthenticatedClient({
+      email: `lp-instructor-${suffix}@test.local`,
       password: 'test-pass-123',
     })
   })
@@ -259,6 +281,58 @@ describe('Triggers: syllabus live parent and deleted-row freeze', () => {
     const tree = await newTree()
     await stamp('easa_subtopics', tree.subtopicId)
     await expect(seedOne(tree, true)).rejects.toThrow('parent_not_found')
+    const { data } = await admin.from('questions').select('id').eq('topic_id', tree.topicId)
+    expect(data).toHaveLength(0)
+  })
+
+  async function questionRow(tree: Tree) {
+    const live = await newTree()
+    await seedOne(live, false)
+    const { data: bank } = await admin
+      .from('question_banks')
+      .select('id')
+      .eq('organization_id', orgId)
+      .is('deleted_at', null)
+      .single()
+    return {
+      organization_id: orgId,
+      bank_id: bank?.id,
+      subject_id: tree.subjectId,
+      topic_id: tree.topicId,
+      subtopic_id: tree.subtopicId,
+      question_text: 'Denied?',
+      options: [
+        { id: 'a', text: 'A' },
+        { id: 'b', text: 'B' },
+      ],
+      correct_option_id: 'b',
+      explanation_text: 'x',
+      difficulty: 'medium',
+      status: 'active',
+      created_by: userIds[0],
+    }
+  }
+
+  it.each([
+    ['student', () => studentClient],
+    ['instructor', () => instructorClient],
+  ])('denies a %s question insert under a soft-deleted subtopic with 42501', async (_r, client) => {
+    const tree = await newTree()
+    const row = await questionRow(tree)
+    await stamp('easa_subtopics', tree.subtopicId)
+    const { error } = await client().from('questions').insert(row)
+    expect(error?.code).toBe('42501')
+    expect(error?.message ?? '').not.toContain('parent_not_found')
+    const { data } = await admin.from('questions').select('id').eq('topic_id', tree.topicId)
+    expect(data).toHaveLength(0)
+  })
+
+  it('lets an admin insert reach parent_not_found for a soft-deleted subtopic', async () => {
+    const tree = await newTree()
+    const row = await questionRow(tree)
+    await stamp('easa_subtopics', tree.subtopicId)
+    const { error } = await adminClient.from('questions').insert(row)
+    expect(error?.message).toContain('parent_not_found')
     const { data } = await admin.from('questions').select('id').eq('topic_id', tree.topicId)
     expect(data).toHaveLength(0)
   })
