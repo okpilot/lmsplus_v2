@@ -101,7 +101,7 @@ The layout does not gate its sibling page: Next renders them in one flight, and 
 A layout or page check does not protect a **Server Action**: it is reachable by a direct POST, and only the action's own `requireAdmin()` (Layer 2) stops it.
 
 **Layer 2 — Data placement (`apps/web/lib/auth/require-admin.ts`):**
-`requireAdmin()` verifies both auth (non-null session) and admin role, against a `deleted_at`-filtered read. Since #1169 it is wrapped in React `cache()`, so N calls in one RENDER perform one verification; Server Actions get no memo (no React flight request is resolvable there — Next runs the action under its own async storage), so every mutation still re-verifies. Called at the top of every admin Server Action — and, since #1167, at the top of every admin query helper — before any data access. If either check fails, it throws — the action never proceeds.
+`requireAdmin()` verifies both auth (non-null session) and admin role, against a `deleted_at`-filtered read. Since #1169 it is wrapped in React `cache()`, so N calls in one RENDER perform one verification; a Server Action call runs the verification again (see the `require-admin.ts` comment), so every mutation still re-verifies. Called at the top of every admin Server Action — and, since #1167, at the top of every admin query helper — before any data access. If either check fails, it throws — the action never proceeds.
 
 **Why both:** The render placement prevents UI rendering for non-admins. The Server Action and query-helper placement ensures admin actions and reads are self-defending even if a page or layout omits its call or is bypassed (e.g., direct API calls). Both layers call the same `cache()`d `requireAdmin()`; a defect inside `requireAdmin()` defeats both placements.
 
