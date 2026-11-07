@@ -1,7 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { type ProgressFixture, setupProgressFixture } from './quiz-progress-fixture'
 
-const NOT_FOUND = /could not find the function|does not exist|schema cache/i
 const ZERO_UUID = '00000000-0000-0000-0000-000000000000'
 
 describe('dropped RPCs submit_quiz_answer and get_student_profile_stats', () => {
@@ -23,15 +22,13 @@ describe('dropped RPCs submit_quiz_answer and get_student_profile_stats', () => 
     })
 
     expect(data).toBeNull()
-    expect(error).not.toBeNull()
-    expect(error?.message).toMatch(NOT_FOUND)
+    expect(error?.code).toBe('PGRST202')
   })
 
   it('get_student_profile_stats is not callable as an authenticated student', async () => {
     const { data, error } = await f.student.rpc('get_student_profile_stats')
 
     expect(data).toBeNull()
-    expect(error).not.toBeNull()
-    expect(error?.message).toMatch(NOT_FOUND)
+    expect(error?.code).toBe('PGRST202')
   })
 })

@@ -178,8 +178,8 @@ the two working branches return 2. (A grep showing the missing loop proves the
 STRUCTURE only — this finding asserts a runtime consequence, so it needs a run.)
 Fix: Add the same `for (const cookie of response.cookies.getAll())` loop.
 
-[ISSUE] apps/web/app/app/quiz/actions.ts:45 — no auth check before RPC call
-`checkAnswer` calls `supabase.rpc('check_quiz_answer')` without first
+[ISSUE] apps/web/app/app/<feature>/actions/<action>.ts:<line> — no auth check before RPC call
+`<action>` calls `supabase.rpc('<rpc>')` without first
 verifying `auth.uid()` is non-null. The RPC has its own auth check, but defense
 in depth requires the Server Action to check too.
 EVIDENCE: `sed -n '<range>p' <the file>` -> no `verifySessionUser` before the `.rpc(` call.

@@ -3,7 +3,6 @@ import {
   CreateStudentSchema,
   DeleteSyllabusItemSchema,
   StartQuizSessionSchema,
-  SubmitAnswerSchema,
   ToggleExamConfigSchema,
   UpdateStudentSchema,
   UpsertExamConfigSchema,
@@ -15,30 +14,6 @@ import {
 
 const VALID_UUID = '00000000-0000-4000-a000-000000000001'
 const INVALID_UUID = 'not-a-uuid'
-
-describe('SubmitAnswerSchema', () => {
-  const valid = {
-    sessionId: VALID_UUID,
-    questionId: VALID_UUID,
-    selectedOptionId: 'a',
-    responseTimeMs: 1000,
-  }
-
-  it('accepts a valid submission', () => {
-    expect(SubmitAnswerSchema.safeParse(valid).success).toBe(true)
-  })
-
-  it.each([
-    ['non-UUID sessionId', { ...valid, sessionId: INVALID_UUID }],
-    ['non-UUID questionId', { ...valid, questionId: INVALID_UUID }],
-    ['option outside enum', { ...valid, selectedOptionId: 'e' }],
-    ['zero responseTimeMs', { ...valid, responseTimeMs: 0 }],
-    ['negative responseTimeMs', { ...valid, responseTimeMs: -100 }],
-    ['fractional responseTimeMs', { ...valid, responseTimeMs: 1.5 }],
-  ])('rejects %s', (_, payload) => {
-    expect(SubmitAnswerSchema.safeParse(payload).success).toBe(false)
-  })
-})
 
 describe('StartQuizSessionSchema', () => {
   const valid = {
