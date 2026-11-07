@@ -323,6 +323,8 @@
 | KZ | flagged_questions-insert-update-question-not-visible-to-caller-and-quiz_drafts-org-update | HIGH | flagged-questions-question-scope.spec.ts | BLOCKED | #1177 | cross-tenant |
 | LA | get_vfr_rt_exam_questions-id-sort-and-label-position-oracle-and-key-column-select | HIGH | rpc-vfr-rt-exam-id-oracle.spec.ts | BLOCKED |  | answer-oracle |
 | LB | is_valid_diagram_config-derived-id-bypass-and-non-total-config-and-smuggled-config | HIGH | diagram-config-check-bypass.spec.ts | BLOCKED |  | input-injection |
+| LC | check_quiz_answer-p_selected_option_id-sql-fragment-and-control-character | HIGH | rpc-check-answer-option-injection.spec.ts | BLOCKED |  | input-injection |
+| LD | dropped-submit_quiz_answer-and-get_student_profile_stats-callable-by-student | HIGH | rpc-check-answer-option-injection.spec.ts | BLOCKED | #1494 | auth-bypass |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
