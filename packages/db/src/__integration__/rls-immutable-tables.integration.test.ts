@@ -72,13 +72,15 @@ describe('RLS: immutable tables', () => {
     questionIds = seeded.questionIds
 
     // Start session, save an answer and finish (writes quiz_session_answers + student_responses)
-    const { data } = await studentClient.rpc('start_quiz_session', {
+    const { data, error: startErr } = await studentClient.rpc('start_quiz_session', {
       p_mode: 'quick_quiz',
       p_subject_id: null,
       p_topic_id: null,
       p_question_ids: questionIds,
     })
-    sessionId = data as string
+    expect(startErr).toBeNull()
+    if (typeof data !== 'string') throw new Error('start_quiz_session did not return a string')
+    sessionId = data
 
     await saveAndFinish(studentClient, sessionId, [
       { questionId: questionIds[0]!, answer: P.mc('b'), timeSpentMs: 2000 },
