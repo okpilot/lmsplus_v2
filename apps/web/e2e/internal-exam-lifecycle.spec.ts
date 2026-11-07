@@ -72,6 +72,40 @@ async function issueCodeAsAdmin(adminPage: Page, subjectFragment: string): Promi
   return code
 }
 
+const UNKNOWN_SESSION_ID = '00000000-0000-4000-8000-00000000e2e4'
+
+async function expectAttemptsTab(adminPage: Page): Promise<void> {
+  await expect(adminPage).toHaveURL(/\/app\/admin\/internal-exams\?tab=attempts$/)
+  await expect(adminPage.getByRole('heading', { name: 'Internal Exams' })).toBeVisible()
+  await expect(adminPage.getByTestId('tab-attempts')).toHaveAttribute('aria-selected', 'true')
+}
+
+/** Admin opens the submitted attempt from the Attempts tab; the report survives a reload. */
+async function assertAdminAttemptReport(adminPage: Page, sessionId: string): Promise<void> {
+  await adminPage.goto('/app/admin/internal-exams?tab=attempts')
+  await expectAttemptsTab(adminPage)
+  await adminPage.locator(`a[href="/app/admin/internal-exams/report?session=${sessionId}"]`).click()
+
+  const reportUrl = new RegExp(`/app/admin/internal-exams/report\\?session=${sessionId}$`)
+  await expect(adminPage).toHaveURL(reportUrl)
+  await expect(
+    adminPage.getByRole('main').getByRole('link', { name: 'Internal Exams', exact: true }),
+  ).toBeVisible()
+  await expect(adminPage.getByText(/^(PASSED|FAILED)$/)).toBeVisible()
+  await expect(adminPage.getByRole('heading', { name: 'Question Breakdown' })).toBeVisible()
+
+  await adminPage.reload()
+  await expect(adminPage).toHaveURL(reportUrl)
+  await expect(adminPage.getByRole('heading', { name: 'Question Breakdown' })).toBeVisible()
+
+  // Unknown and missing ids both land on the Attempts tab (not on a report).
+  await adminPage.goto(`/app/admin/internal-exams/report?session=${UNKNOWN_SESSION_ID}`)
+  await expectAttemptsTab(adminPage)
+  await expect(adminPage.getByRole('heading', { name: 'Question Breakdown' })).toHaveCount(0)
+  await adminPage.goto('/app/admin/internal-exams/report')
+  await expectAttemptsTab(adminPage)
+}
+
 async function openStudentContext(browser: BrowserContext['browser']): Promise<{
   context: BrowserContext
   page: Page
@@ -152,6 +186,8 @@ test.describe('internal exam — lifecycle', () => {
       // Pass or fail badge — both valid outcomes; assert one of them is rendered.
       const badge = page.getByText(/^(PASSED|FAILED)$/)
       await expect(badge).toBeVisible({ timeout: 10_000 })
+      const sessionId = new URL(page.url()).searchParams.get('session')
+      if (!sessionId) throw new Error('report URL had no session id')
 
       // ── 5. Navigate to My Reports tab on /app/internal-exam ────────────────
       await page.goto('/app/internal-exam')
@@ -162,6 +198,9 @@ test.describe('internal exam — lifecycle', () => {
       await expect(page.locator('[data-testid^="report-row-"]').first()).toBeVisible({
         timeout: 10_000,
       })
+
+      // ── 6. Admin opens the attempt report, reloads, and unknown ids are refused ─
+      await assertAdminAttemptReport(adminPage, sessionId)
     } finally {
       await studentCtx.tracing
         .stop({ path: test.info().outputPath('student-trace.zip') })
