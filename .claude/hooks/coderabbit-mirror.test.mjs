@@ -37,9 +37,9 @@ export function missingAnchor(block) {
   return ANCHORS.find((a) => !hasAnchor(block, a)) ?? null
 }
 
-/** `a` occurs in `text` and is not the prefix of a longer number (`#814` vs `#8142`). */
+/** `a` occurs in `text`, not inside a longer number (`#814` vs `#8142`, `20260410000009` vs `120260410000009`) nor after a second `#`. */
 function hasAnchor(text, a) {
-  return new RegExp(`${a}(?!\\d)`).test(text)
+  return new RegExp(`(?<![\\d#])${a}(?!\\d)`).test(text)
 }
 
 /** Text from `start` to the next numbered suppression heading (or end of file). */
@@ -90,6 +90,15 @@ test('an anchor present only in a later suppression is reported missing', () => 
 test('an anchor followed by more digits does not satisfy it', () => {
   assert.equal(hasAnchor('see #8142', '#814'), false)
   assert.equal(hasAnchor('see #814.', '#814'), true)
+})
+
+test('an anchor preceded by more digits does not satisfy it', () => {
+  assert.equal(hasAnchor('x 120260410000009 y', '20260410000009'), false)
+  assert.equal(hasAnchor('x 20260410000009 y', '20260410000009'), true)
+})
+
+test('a doubled # does not satisfy an issue anchor', () => {
+  assert.equal(hasAnchor('see ##814', '#814'), false)
 })
 
 test('the migrations block of a last entry stops at the next top-level key', () => {

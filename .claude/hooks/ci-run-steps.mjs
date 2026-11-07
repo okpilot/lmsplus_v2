@@ -99,6 +99,7 @@ function parseItem(lines, keyIndent) {
       step.run = runText(lines, i, keyIndent, rm[2])
       if (foldedIrregular(lines, i, keyIndent, rm[2]))
         step.unsupported.push('folded run with a blank or more-indented line')
+      if (quotedEscape(rm[2])) step.unsupported.push('quoted run with a YAML escape')
       continue
     }
     const m = /^\s*([\w-]+):[ \t]?(.*)$/.exec(l)
@@ -117,6 +118,13 @@ function parseItem(lines, keyIndent) {
     }
   }
   return step
+}
+
+/** One-line quoted run whose text holds its quote's YAML escape (`\\` in "...", `''` in '...'). */
+function quotedEscape(rest) {
+  const q = /^(["'])(.*?)\1(\s+#.*)?$/.exec(rest.trim())
+  if (!q) return false
+  return q[1] === '"' ? q[2].includes('\\') : q[2].includes("''")
 }
 
 /** A folded (`>`) body whose blank or more-indented line YAML would not join with a space. */

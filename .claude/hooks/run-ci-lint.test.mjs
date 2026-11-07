@@ -387,3 +387,22 @@ test('a quoted env value containing a backslash or a doubled quote aborts', () =
     assert.match(r.stderr, /ABORT.*X/)
   }
 })
+
+test('a quoted run containing its quote type YAML escape aborts', () => {
+  for (const v of ['"echo \\"hi\\""', "'it''s'"]) {
+    const r = run(wrap(`      - name: Q\n        run: ${v}\n`))
+    assert.notEqual(r.status, 0)
+    assert.match(r.stdout + r.stderr, /quoted run with a YAML escape/)
+  }
+})
+
+test('a quoted run without its escape is listed as written', () => {
+  for (const [v, want] of [
+    ["'grep \\d'", 'grep \\d'],
+    ['"echo hi"', 'echo hi'],
+  ]) {
+    const r = run(wrap(`      - name: Q\n        run: ${v}\n`), ['--list'])
+    assert.equal(r.status, 0, r.stderr)
+    assert.ok(r.stdout.split('\n').includes(want), r.stdout)
+  }
+})
