@@ -89,6 +89,7 @@ function buildTableMocks({
   // .order() is the terminal for easa_subjects, easa_topics, easa_subtopics
   const makeOrderChain = (data: unknown[], error: FakeError) => ({
     select: vi.fn().mockReturnThis(),
+    is: vi.fn().mockReturnThis(),
     order: vi.fn().mockResolvedValue({ data, error }),
   })
 

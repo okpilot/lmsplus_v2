@@ -23,7 +23,7 @@ export async function pickSubjectWithQuestions(
   const minActiveQuestions = opts.minActiveQuestions ?? 1
   const topicMinQuestions = opts.topicMinQuestions ?? 1
 
-  // easa_subjects is shared reference data (no organization_id, no deleted_at).
+  // easa_subjects is shared reference data (no organization_id; soft-deleted via deleted_at).
   // Org scoping lives on `questions` and is enforced by countActiveQuestions below.
   const { data: subjects, error: subjectsError } = await admin
     .from('easa_subjects')
@@ -59,7 +59,7 @@ async function findTopicWithQuestions(
 ): Promise<string | null> {
   const { orgId, subjectId, subjectCode, topicMinQuestions } = opts
 
-  // easa_topics is shared reference data (no organization_id, no deleted_at).
+  // easa_topics is shared reference data (no organization_id; soft-deleted via deleted_at).
   // Org scoping is enforced by the countActiveQuestions call below.
   const { data: topics, error: topicsError } = await admin
     .from('easa_topics')

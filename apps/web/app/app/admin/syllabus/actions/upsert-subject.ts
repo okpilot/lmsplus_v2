@@ -16,10 +16,18 @@ export async function upsertSubject(input: unknown): Promise<ActionResult> {
 
   if (id) {
     // Update: sort_order is client-supplied (preserves existing order during code/name edits)
-    const { error } = await supabase.from('easa_subjects').update(data).eq('id', id)
+    const { data: updated, error } = await supabase
+      .from('easa_subjects')
+      .update(data)
+      .eq('id', id)
+      .is('deleted_at', null)
+      .select('id')
     if (error) {
       console.error('[upsertSubject] update error:', error.message)
       return { success: false, error: 'Failed to update subject' }
+    }
+    if (!updated || updated.length === 0) {
+      return { success: false, error: 'Item not found' }
     }
   } else {
     // Compute sort_order server-side to avoid stale-prop collisions on rapid adds
@@ -40,7 +48,10 @@ export async function upsertSubject(input: unknown): Promise<ActionResult> {
     const { error } = await supabase.from('easa_subjects').insert(data)
     if (error) {
       if (error.code === '23505') {
-        return { success: false, error: 'A subject with this code already exists' }
+        return {
+          success: false,
+          error: 'A subject with this code already exists (it may have been deleted)',
+        }
       }
       console.error('[upsertSubject] insert error:', error.message)
       return { success: false, error: 'Failed to create subject' }
