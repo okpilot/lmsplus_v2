@@ -111,7 +111,7 @@ jobs:
 
       # Fails if anon holds ANY table privilege, or authenticated's INSERT/UPDATE/DELETE
       # set diverges (either direction) from the mig 20260925000300 kept allowlist (narrowed by
-      # 20261002000900, 20261004000500 and 20261015000100), or
+      # 20261002000900, 20261004000500, 20261015000100 and 20261107000100), or
       # authenticated holds TRUNCATE/REFERENCES/TRIGGER/MAINTAIN, on any public relation
       # or postgres default privilege, or anon holds EXECUTE on any public function
       # (mig 20260925000400, any owner).

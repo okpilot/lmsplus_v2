@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { getAdminClient } from './supabase'
 
 /** Marker prefix on `easa_subjects.code` for rows created by syllabus E2E specs (code is max 10 chars). */
@@ -5,7 +6,7 @@ export const SYLLABUS_E2E_CODE_PREFIX = 'E2E-'
 
 /** Unique marked subject code, <= 10 chars. */
 export function makeSyllabusE2eCode(): string {
-  return `${SYLLABUS_E2E_CODE_PREFIX}${Math.random().toString(36).slice(2, 8).toUpperCase()}`
+  return `${SYLLABUS_E2E_CODE_PREFIX}${randomUUID().slice(0, 6).toUpperCase()}`
 }
 
 /** Soft-deletes still-active marked subjects (service role). Zero rows is fine. Returns the count. */
