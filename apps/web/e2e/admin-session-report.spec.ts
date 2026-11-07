@@ -8,7 +8,12 @@
 
 import { type Browser, expect, type Page, test } from '@playwright/test'
 import { startStudyQuiz, submitFirstOption } from './helpers/quiz-session'
-import { sessionIdFromUrl } from './helpers/quiz-session-id'
+import {
+  readAnsweredQuestionIds,
+  readSessionRow,
+  resetStudentQuizSessions,
+  sessionIdFromUrl,
+} from './helpers/quiz-session-id'
 import { getAdminClient, INTERNAL_EXAM_STUDENT_EMAIL } from './helpers/supabase'
 
 test.use({ storageState: 'e2e/.auth/admin.json' })
@@ -27,10 +32,11 @@ async function withStudentPage<T>(browser: Browser, run: (page: Page) => Promise
 
 /** Starts a study quiz as the student and answers one question; the session stays active. */
 async function startActiveSession(page: Page): Promise<string> {
-  await startStudyQuiz(page)
+  await startStudyQuiz(page, 10)
   const sessionId = sessionIdFromUrl(page.url())
   createdSessionIds.add(sessionId)
   await submitFirstOption(page)
+  await expect.poll(() => readAnsweredQuestionIds(sessionId), { timeout: 15_000 }).toHaveLength(1)
   return sessionId
 }
 
@@ -44,26 +50,15 @@ async function finishSession(page: Page): Promise<string> {
   return sessionId
 }
 
-async function readStudent(): Promise<{ id: string; fullName: string | null }> {
+async function readStudent(): Promise<{ id: string; fullName: string }> {
   const { data, error } = await getAdminClient()
     .from('users')
     .select('id, full_name')
     .eq('email', INTERNAL_EXAM_STUDENT_EMAIL)
     .single()
   if (error) throw new Error(`readStudent: ${error.message}`)
+  if (!data.full_name) throw new Error('readStudent: seeded student has no full_name')
   return { id: data.id, fullName: data.full_name }
-}
-
-async function readEndedAt(
-  sessionId: string,
-): Promise<{ exists: boolean; endedAt: string | null }> {
-  const { data, error } = await getAdminClient()
-    .from('quiz_sessions')
-    .select('id, ended_at')
-    .eq('id', sessionId)
-    .maybeSingle()
-  if (error) throw new Error(`readEndedAt: ${error.message}`)
-  return { exists: data !== null, endedAt: data?.ended_at ?? null }
 }
 
 async function softDeleteCreatedSessions(): Promise<void> {
@@ -85,6 +80,10 @@ async function softDeleteCreatedSessions(): Promise<void> {
 test.describe('admin session report', () => {
   test.setTimeout(90_000)
 
+  test.beforeEach(async () => {
+    await resetStudentQuizSessions(INTERNAL_EXAM_STUDENT_EMAIL)
+  })
+
   test.afterEach(async () => {
     await softDeleteCreatedSessions()
   })
@@ -104,7 +103,9 @@ test.describe('admin session report', () => {
     await expect(page.getByRole('heading', { name: 'Quiz Results' })).toBeVisible()
     await expect(page.getByText('Session Report')).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Question Breakdown' })).toBeVisible()
-    await expect(page.getByRole('link', { name: student.fullName ?? 'Student' })).toBeVisible()
+    await expect(page.getByText('1 question', { exact: true })).toBeVisible()
+    await expect(page.getByText('Not answered')).toHaveCount(0)
+    await expect(page.getByRole('link', { name: student.fullName, exact: true })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Back to Student' })).toHaveAttribute(
       'href',
       `/app/admin/dashboard/students/${student.id}`,
@@ -139,7 +140,7 @@ test.describe('admin session report', () => {
   }) => {
     const sessionId = await withStudentPage(browser, startActiveSession)
     // The session exists and is unfinished, so the redirect below is the loader's refusal.
-    expect(await readEndedAt(sessionId)).toEqual({ exists: true, endedAt: null })
+    expect(await readSessionRow(sessionId)).toMatchObject({ endedAt: null })
 
     await page.goto(`/app/admin/dashboard/sessions/${sessionId}`)
 

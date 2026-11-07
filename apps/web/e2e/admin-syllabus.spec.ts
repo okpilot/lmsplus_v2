@@ -1,9 +1,5 @@
 import { expect, type Locator, type Page, test } from '@playwright/test'
-import {
-  cleanupE2eSyllabus,
-  E2E_SYLLABUS_CODE_PREFIX,
-  newE2eSubjectCode,
-} from './helpers/syllabus-cleanup'
+import { cleanupE2eSyllabus, newE2eSubjectCode } from './helpers/syllabus-cleanup'
 
 test.use({ storageState: 'e2e/.auth/admin.json' })
 
@@ -43,6 +39,21 @@ function topicRoot(page: Page, n: Names): Locator {
   return page.getByRole('button', { name: `Toggle ${n.topicCode} ${n.topic}` }).locator('../..')
 }
 
+/**
+ * Waits until the client has hydrated: a seeded subject trigger flips `aria-expanded` on click.
+ * Clicks before hydration are lost, so retry; the flip is restored afterwards.
+ */
+async function waitForHydration(page: Page): Promise<void> {
+  const trigger = page.getByRole('button', { name: /^Toggle 050 / })
+  await expect(async () => {
+    const before = await trigger.getAttribute('aria-expanded')
+    await trigger.click()
+    await expect(trigger).not.toHaveAttribute('aria-expanded', before ?? '', { timeout: 500 })
+  }).toPass()
+  await trigger.click()
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false')
+}
+
 async function toggle(page: Page, name: string): Promise<void> {
   const button = page.getByRole('button', { name })
   await button.click()
@@ -79,6 +90,7 @@ test.describe('Admin Syllabus Manager', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/app/admin/syllabus')
     await expect(page.getByRole('heading', { name: 'Syllabus Manager' })).toBeVisible()
+    await waitForHydration(page)
   })
 
   // Syllabus tables have no deleted_at; rows carry the E2E- code marker and are hard-deleted here.
@@ -88,12 +100,12 @@ test.describe('Admin Syllabus Manager', () => {
 
   test('adds a subject, topic and subtopic that survive a reload', async ({ page }) => {
     const n = namesFor(newE2eSubjectCode())
-    expect(n.code.startsWith(E2E_SYLLABUS_CODE_PREFIX)).toBe(true)
 
     await createHierarchy(page, n)
 
     await page.reload()
     await expect(page.getByRole('heading', { name: 'Syllabus Manager' })).toBeVisible()
+    await waitForHydration(page)
     await expect(page.getByRole('button', { name: `Toggle ${n.code} ${n.subject}` })).toBeVisible()
     await expandAll(page, n)
     await expect(topicRoot(page, n).getByText(n.subtopic, { exact: true })).toBeVisible()
@@ -121,7 +133,8 @@ test.describe('Admin Syllabus Manager', () => {
     await page.getByRole('textbox', { name: 'Name', exact: true }).fill(`${n.topic} edited`)
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(page.getByText(`Topic "${n.topicCode}" updated`)).toBeVisible()
-    // The topic row remounts collapsed after an edit; reopen it to reach its subtopics.
+    // Editing the subject renders InlineForm instead of Collapsible, which unmounts TopicRow and
+    // drops its open state; reopen the topic to reach its subtopics.
     await toggle(page, `Toggle ${n.topicCode} ${n.topic} edited`)
 
     const subtopicRow = page.getByText(n.subtopic, { exact: true }).locator('..')
@@ -132,6 +145,7 @@ test.describe('Admin Syllabus Manager', () => {
 
     await page.reload()
     await expect(page.getByRole('heading', { name: 'Syllabus Manager' })).toBeVisible()
+    await waitForHydration(page)
     await toggle(page, `Toggle ${n.code} ${editedSubject}`)
     await toggle(page, `Toggle ${n.topicCode} ${n.topic} edited`)
     await expect(page.getByText(`${n.subtopic} edited`, { exact: true })).toBeVisible()
@@ -176,6 +190,7 @@ test.describe('Admin Syllabus Manager', () => {
 
     await page.reload()
     await expect(page.getByRole('heading', { name: 'Syllabus Manager' })).toBeVisible()
+    await waitForHydration(page)
     // Non-vacuous: seeded subjects still render, so the absence below is not an empty page.
     await expect(page.getByRole('button', { name: /^Toggle 050 / })).toBeVisible()
     await expect(page.getByRole('button', { name: `Toggle ${n.code} ${n.subject}` })).toHaveCount(0)
@@ -195,6 +210,7 @@ test.describe('Admin Syllabus Manager', () => {
     await expect(page.getByText('A subject with this code already exists')).toBeVisible()
     await page.reload()
     await expect(page.getByRole('heading', { name: 'Syllabus Manager' })).toBeVisible()
+    await waitForHydration(page)
     await expect(toggleButton).toHaveCount(1)
     await expect(
       page.getByRole('button', { name: `Toggle ${n.code} ${n.subject} duplicate` }),

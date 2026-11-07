@@ -2,7 +2,8 @@
  * E2E spec — Internal Exam end-to-end lifecycle.
  *
  * Covers: admin issues a code → student starts → submits → views report →
- * sees the attempt listed in My Reports.
+ * sees the attempt listed in My Reports → admin opens the attempt report;
+ * unknown and missing session ids are refused on the admin report.
  *
  * Seed dependency: apps/web/scripts/seed-exam-eval.ts. The CI seed
  * (apps/web/scripts/seed-e2e.ts) creates a MET exam_config which
@@ -97,13 +98,6 @@ async function assertAdminAttemptReport(adminPage: Page, sessionId: string): Pro
   await adminPage.reload()
   await expect(adminPage).toHaveURL(reportUrl)
   await expect(adminPage.getByRole('heading', { name: 'Question Breakdown' })).toBeVisible()
-
-  // Unknown and missing ids both land on the Attempts tab (not on a report).
-  await adminPage.goto(`/app/admin/internal-exams/report?session=${UNKNOWN_SESSION_ID}`)
-  await expectAttemptsTab(adminPage)
-  await expect(adminPage.getByRole('heading', { name: 'Question Breakdown' })).toHaveCount(0)
-  await adminPage.goto('/app/admin/internal-exams/report')
-  await expectAttemptsTab(adminPage)
 }
 
 async function openStudentContext(browser: BrowserContext['browser']): Promise<{
@@ -133,7 +127,7 @@ test.describe('internal exam — lifecycle', () => {
     await cleanupInternalExamStudentActiveSessions(adminClient)
   })
 
-  test('admin issues code, student starts + submits, attempt appears in My Reports', async ({
+  test('admin issues code, student starts + submits, attempt appears in My Reports and the admin report', async ({
     page: adminPage,
     context: adminCtx,
   }) => {
@@ -199,7 +193,7 @@ test.describe('internal exam — lifecycle', () => {
         timeout: 10_000,
       })
 
-      // ── 6. Admin opens the attempt report, reloads, and unknown ids are refused ─
+      // ── 6. Admin opens the attempt report and reloads it ─
       await assertAdminAttemptReport(adminPage, sessionId)
     } finally {
       await studentCtx.tracing
@@ -207,5 +201,14 @@ test.describe('internal exam — lifecycle', () => {
         .catch(() => {})
       await studentCtx.close()
     }
+  })
+
+  test('admin report refuses an unknown or missing session id', async ({ page }) => {
+    // Both land on the Attempts tab (not on a report).
+    await page.goto(`/app/admin/internal-exams/report?session=${UNKNOWN_SESSION_ID}`)
+    await expectAttemptsTab(page)
+    await expect(page.getByRole('heading', { name: 'Question Breakdown' })).toHaveCount(0)
+    await page.goto('/app/admin/internal-exams/report')
+    await expectAttemptsTab(page)
   })
 })

@@ -83,7 +83,7 @@ async function deleteSubjects(): Promise<void> {
 /**
  * Hard-deletes every syllabus row a spec created, children first (service role). The three tables
  * have no `deleted_at`; deleting by marker never touches seeded rows. Zero rows is silent.
- * A failed step skips the later ones (FK order) and every failure is reported at the end.
+ * The first failed step stops the later ones (FK order) and its error is thrown.
  */
 export async function cleanupE2eSyllabus(): Promise<void> {
   const errors: string[] = []

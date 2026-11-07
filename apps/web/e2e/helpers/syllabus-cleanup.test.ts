@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockGetAdminClient } = vi.hoisted(() => ({
   mockGetAdminClient: vi.fn(),
@@ -48,10 +48,6 @@ let logSpy: ReturnType<typeof vi.spyOn>
 beforeEach(() => {
   vi.resetAllMocks()
   logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
-})
-
-afterEach(() => {
-  logSpy.mockRestore()
 })
 
 function fromCalls(calls: Call[], table: string, method: string): Call[] {

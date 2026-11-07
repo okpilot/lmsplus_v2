@@ -132,7 +132,7 @@ CREATE TABLE users (
 
 ### easa_subjects / easa_topics / easa_subtopics
 ```sql
--- Reference data — seeded once, never deleted
+-- Reference data — seeded; admins may hard-delete a row no FK references
 CREATE TABLE easa_subjects (
   id    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   code  TEXT NOT NULL UNIQUE,   -- '050'
@@ -929,7 +929,7 @@ ORDER BY deleted_at DESC;
 | `fsrs_cards` | No | Updated in place; stores `last_was_correct` for incorrect-filter queries. `cleanupTestData` hard-deletes test rows under the integration-teardown exception below |
 | `audit_events` | No | Immutable compliance log |
 | `user_consents` | No | Append-only GDPR consent audit log (mig `20260327000057_user_consents.sql` — same pattern as `audit_events`): no `deleted_at` column, RLS blocks all UPDATE/DELETE, inserts only via `record_consent()` SECURITY DEFINER RPC |
-| `easa_subjects/topics/subtopics` | No | Reference data, never deleted |
+| `easa_subjects/topics/subtopics` | Hard DELETE | No `deleted_at`; admin `delete-item` removes a row no FK references, `23503` refuses the rest |
 | `courses` | No | Global reference data, never deleted |
 | `quiz_drafts` | Hard DELETE (approved exception) | Disposable temp storage; no recovery value |
 | `flagged_questions` | Yes (soft) | Unflag = set deleted_at; flags referenced in quiz filter queries |
