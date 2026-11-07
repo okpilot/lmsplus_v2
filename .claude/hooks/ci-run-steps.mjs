@@ -43,14 +43,8 @@ export function readRunBody(lines, i, baseIndent, rest) {
 const indentOf = (l) => l.length - l.trimStart().length
 const unquote = (s) => s.trim().replace(/^(["'])(.*)\1$/, '$2')
 
-/**
- * Steps of `jobs.<jobId>` as `{ name, ifCond, env, run, timeoutMinutes, unsupported }`: `env` = the
- * step's `env:` block text ('' when absent), `run` = the command string (literal `|` keeps
- * newlines, folded `>` joins with spaces) or null for a step without `run:`, `timeoutMinutes` =
- * the raw `timeout-minutes:` value or null, `unsupported` = step keys the caller cannot honor.
- */
-export function jobSteps(text, jobId) {
-  const lines = text.split('\n')
+/** Lines under `jobs.<jobId>` (comment lines, any column, never end the job) and the `jobs:` line index. */
+function jobBody(lines, jobId) {
   const jobsAt = lines.findIndex((l) => /^jobs:\s*$/.test(l))
   if (jobsAt === -1) throw new Error('no top-level `jobs:`')
   const start = lines.findIndex(
@@ -58,8 +52,22 @@ export function jobSteps(text, jobId) {
   )
   if (start === -1) throw new Error(`no job \`${jobId}\``)
   let end = start + 1
-  while (end < lines.length && (lines[end].trim() === '' || indentOf(lines[end]) > 2)) end++
-  const job = lines.slice(start + 1, end)
+  while (
+    end < lines.length &&
+    (lines[end].trim() === '' || /^\s*#/.test(lines[end]) || indentOf(lines[end]) > 2)
+  )
+    end++
+  return { jobsAt, job: lines.slice(start + 1, end) }
+}
+
+/**
+ * Steps of `jobs.<jobId>` as `{ name, env, run, timeoutMinutes, unsupported }`: `env` = the
+ * step's `env:` block text ('' when absent), `run` = the command string (literal `|` keeps
+ * newlines, folded `>` joins with spaces) or null for a step without `run:`, `timeoutMinutes` =
+ * the raw `timeout-minutes:` value or null, `unsupported` = step keys the caller cannot honor.
+ */
+export function jobSteps(text, jobId) {
+  const { job } = jobBody(text.split('\n'), jobId)
   const stepsAt = job.findIndex((l) => /^\s*steps:\s*$/.test(l))
   if (stepsAt === -1) throw new Error(`job \`${jobId}\` has no \`steps:\``)
   const body = job.slice(stepsAt + 1)
@@ -77,7 +85,6 @@ const UNSUPPORTED_STEP_KEYS = new Set(['working-directory', 'shell'])
 function parseItem(lines, keyIndent) {
   const step = {
     name: null,
-    ifCond: null,
     env: '',
     run: null,
     timeoutMinutes: null,
@@ -90,12 +97,13 @@ function parseItem(lines, keyIndent) {
     const rm = RUN_LINE_RE.exec(raw)
     if (rm) {
       step.run = runText(lines, i, keyIndent, rm[2])
+      if (foldedIrregular(lines, i, keyIndent, rm[2]))
+        step.unsupported.push('folded run with a blank or more-indented line')
       continue
     }
     const m = /^\s*([\w-]+):[ \t]?(.*)$/.exec(l)
     if (!m) continue
     if (m[1] === 'name') step.name = unquote(m[2])
-    else if (m[1] === 'if') step.ifCond = m[2].trim()
     else if (m[1] === 'timeout-minutes') step.timeoutMinutes = unquote(m[2].replace(/\s+#.*$/, ''))
     else if (UNSUPPORTED_STEP_KEYS.has(m[1])) step.unsupported.push(m[1])
     else if (m[1] === 'env') {
@@ -105,6 +113,15 @@ function parseItem(lines, keyIndent) {
     }
   }
   return step
+}
+
+/** A folded (`>`) body whose blank or more-indented line YAML would not join with a space. */
+function foldedIrregular(lines, i, keyIndent, rest) {
+  if (!rest.trim().startsWith('>') || !BLOCK_SCALAR_RE.test(rest.trim())) return false
+  const [body] = readRunBody(lines, i, keyIndent, rest)
+  const content = body.join('\n').replace(/\s+$/, '').split('\n')
+  const cut = Math.min(...content.filter((x) => x.trim() !== '').map(indentOf))
+  return content.some((x) => x.trim() === '' || indentOf(x) > cut)
 }
 
 function runText(lines, i, keyIndent, rest) {
@@ -138,15 +155,7 @@ function keyBlocks(lines, indent) {
  */
 export function jobScope(text, jobId) {
   const lines = text.split('\n')
-  const jobsAt = lines.findIndex((l) => /^jobs:\s*$/.test(l))
-  if (jobsAt === -1) throw new Error('no top-level `jobs:`')
-  const start = lines.findIndex(
-    (l, k) => k > jobsAt && l.trim() === `${jobId}:` && indentOf(l) === 2,
-  )
-  if (start === -1) throw new Error(`no job \`${jobId}\``)
-  let end = start + 1
-  while (end < lines.length && (lines[end].trim() === '' || indentOf(lines[end]) > 2)) end++
-  const job = lines.slice(start + 1, end)
+  const { jobsAt, job } = jobBody(lines, jobId)
   const jobIndent = indentOf(job.find((l) => l.trim() !== '' && !/^\s*#/.test(l)) ?? '')
   const scope = { env: [], unsupported: [] }
   for (const [where, blocks] of [

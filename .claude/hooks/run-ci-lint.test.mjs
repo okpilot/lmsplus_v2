@@ -3,6 +3,7 @@
 // `--list` parses and prints the commands to run (after substitution), one per line, without running.
 // Fixture workflows only; the live ci.yml is parse-only (`--list`). `lint:ci` is never invoked here.
 import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -211,4 +212,42 @@ test('a failing stage of a pipe fails the step (pipefail)', () => {
   const r = run(wrap('      - name: Pipe\n        run: false | true\n'))
   assert.notEqual(r.status, 0)
   assert.match(r.stdout, /FAIL.*Pipe/)
+})
+
+test('a column-0 # comment inside the job does not drop later steps', () => {
+  const r = run(
+    wrap(
+      '      - name: A\n        run: echo STEP_A\n# note\n      - name: B\n        run: echo STEP_B\n',
+    ),
+  )
+  assert.equal(r.status, 0, r.stdout + r.stderr)
+  assert.match(r.stdout, /STEP_B/)
+})
+
+test('a chained pnpm install aborts before any step runs', () => {
+  const r = run(
+    wrap('      - run: pnpm install && echo CHAINED_RAN\n      - run: echo AFTER_CHAINED\n'),
+  )
+  assert.notEqual(r.status, 0)
+  assert.doesNotMatch(r.stdout, /CHAINED_RAN|AFTER_CHAINED/)
+  assert.match(r.stderr, /ABORT/)
+})
+
+test('a folded > body with a blank line aborts', () => {
+  const r = run(
+    wrap('      - name: F\n        run: >\n          echo FOLD_A\n\n          echo FOLD_B\n'),
+  )
+  assert.notEqual(r.status, 0)
+  assert.doesNotMatch(r.stdout, /FOLD_A/)
+  assert.match(r.stderr, /ABORT/)
+})
+
+test('timeout-minutes kills a backgrounded grandchild', () => {
+  const r = run(
+    wrap('      - name: Slow\n        timeout-minutes: 0.01\n        run: (sleep 31337 & wait)\n'),
+  )
+  assert.notEqual(r.status, 0)
+  assert.match(r.stdout, /FAIL.*Slow/)
+  const left = spawnSync('pgrep', ['-f', 'sleep 31337'], { encoding: 'utf8' })
+  assert.equal(left.stdout.trim(), '')
 })

@@ -507,6 +507,10 @@ function setupCliVersions(text) {
   return out
 }
 
+/** True when `script` contains `supabase@<want>` followed by whitespace or end. */
+const pinsCli = (script, want) =>
+  new RegExp(`supabase@${want.replaceAll('.', '\\.')}(\\s|$)`).test(script)
+
 // Local supabase CLI = CI CLI (#1726). Exit condition: #1178 — drop the pin when baseline DML grants are fixed.
 {
   const want = spec.supabaseCli
@@ -517,7 +521,7 @@ function setupCliVersions(text) {
   } else {
     const script =
       JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).scripts?.supabase ?? ''
-    script.includes(`supabase@${want}`)
+    pinsCli(script, want)
       ? pass(`package.json scripts.supabase pins supabase@${want}`)
       : fail(
           `package.json scripts.supabase "${script}" must contain supabase@${want} (CI version, #1178 exit condition)`,
@@ -540,6 +544,10 @@ function setupCliVersions(text) {
       : fail('setupCliVersions ignores a supabase/setup-cli use without `version:`')
   }
 }
+
+pinsCli('npx supabase@2.78.10 x', '2.78.1')
+  ? fail('pinsCli accepts supabase@2.78.10 for 2.78.1')
+  : pass('pinsCli rejects a longer version with the wanted one as prefix')
 
 console.log(`\nResults: ${passed} passed, ${failed} failed`)
 if (failed > 0) process.exit(1)
