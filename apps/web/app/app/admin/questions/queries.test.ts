@@ -633,6 +633,47 @@ describe('getQuestionsList single-query pagination', () => {
     expect(lastPage.range).toHaveBeenCalledWith(PAGE_SIZE, PAGE_SIZE * 2 - 1)
   })
 
+  it('returns an empty page with the recount total when the re-read is also past the end', async () => {
+    const pastEnd = { message: 'range', code: 'PGRST103' }
+    wire([
+      resultChain({ data: null, count: null, error: pastEnd }),
+      resultChain({ data: null, count: 30, error: null }),
+      resultChain({ data: null, count: null, error: pastEnd }),
+    ])
+
+    const result = await getQuestionsList({ page: 99 })
+
+    expect(result).toEqual({ ok: true, questions: [], totalCount: 30 })
+  })
+
+  it('returns early after the recount when the count is 0', async () => {
+    wire([
+      resultChain({ data: null, count: null, error: { message: 'range', code: 'PGRST103' } }),
+      resultChain({ data: null, count: 0, error: null }),
+    ])
+
+    const result = await getQuestionsList({ page: 99 })
+
+    expect(mockFrom).toHaveBeenCalledTimes(2)
+    expect(result).toEqual({ ok: true, questions: [], totalCount: 0 })
+  })
+
+  it('reads page 2 after a concurrent insert grows the total', async () => {
+    const lastPage = resultChain({ data: [makeRow()], count: 60, error: null })
+    wire([
+      resultChain({ data: [], count: 25, error: null }),
+      resultChain({ data: null, count: 60, error: null }),
+      lastPage,
+    ])
+
+    const result = await getQuestionsList({ page: 2 })
+
+    if (!result.ok) throw new Error('Expected ok result')
+    expect(result.totalCount).toBe(60)
+    expect(result.questions).toHaveLength(1)
+    expect(lastPage.range).toHaveBeenCalledWith(PAGE_SIZE, PAGE_SIZE * 2 - 1)
+  })
+
   it('fails and logs when the questions query errors with anything other than a past-the-end range', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     wire([resultChain({ data: null, count: null, error: { message: 'boom', code: '57014' } })])

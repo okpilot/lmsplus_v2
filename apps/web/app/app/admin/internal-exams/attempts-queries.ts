@@ -77,6 +77,8 @@ export async function listInternalExamAttempts(
       selectAttemptsPage(organizationId, filters, (lastPage - 1) * PAGE_SIZE),
       ctx,
     )
+    // A concurrent delete can leave the re-read past the end too: empty page, recount total.
+    if (result.pastEnd) return { rows: [], totalCount: total }
   }
   const { rows: raw, count: totalCount } = result
   if (totalCount === 0) {

@@ -641,6 +641,31 @@ describe('listInternalExamAttempts single-query pagination', () => {
     expect(lastPage.range).toHaveBeenCalledWith(0, 24)
   })
 
+  it('returns empty rows with the recount total when the re-read is also past the end', async () => {
+    mockAdmin()
+    mockFrom([
+      buildChain(null, pastEnd, null),
+      buildChain([], null, 40),
+      buildChain(null, pastEnd, null),
+    ])
+
+    const result = await listInternalExamAttempts({ page: 99 })
+
+    expect(result).toEqual({ rows: [], totalCount: 40 })
+  })
+
+  it('reads page 2 after a concurrent insert grows the total', async () => {
+    mockAdmin()
+    const lastPage = buildChain([row], null, 60)
+    mockFrom([buildChain([], null, 25), buildChain([], null, 60), lastPage])
+
+    const result = await listInternalExamAttempts({ page: 2 })
+
+    expect(result.totalCount).toBe(60)
+    expect(result.rows).toHaveLength(1)
+    expect(lastPage.range).toHaveBeenCalledWith(25, 49)
+  })
+
   it('throws the generic message when the last-page re-read fails after a successful count', async () => {
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {

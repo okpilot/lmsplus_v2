@@ -40,8 +40,9 @@ type QueryContext = { tag: string; failMessage: string }
 
 /**
  * Runs a `head: true, count: 'exact'` select and returns the row count. Logs the raw
- * error server-side and throws a generic message on failure (count-first because
- * PostgREST returns 416 + a null count for an out-of-range `.range()` request).
+ * error server-side and throws a generic message on failure. Used count-first by the
+ * codes list and as the recount after a past-end page read by the attempts list
+ * (PostgREST returns 416 + a null count for an out-of-range `.range()` request).
  */
 export async function runOffsetCount(
   builder: OffsetChainBuilder,

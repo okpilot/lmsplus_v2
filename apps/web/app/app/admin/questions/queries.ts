@@ -79,9 +79,13 @@ async function loadQuestionsPage(supabase: Supabase, filters: QuestionFilters) {
 
   const { count, error: countError } = await countQuestions(supabase, filters)
   if (countError) return { data: null, count: null, error: countError }
-  const totalPages = Math.max(1, Math.ceil((count ?? 0) / PAGE_SIZE))
-  const lastPage = Math.min(requested, totalPages)
-  return fetchQuestionsPage(supabase, filters, (lastPage - 1) * PAGE_SIZE)
+  const total = count ?? 0
+  if (total === 0) return { data: [], count: 0, error: null }
+  const lastPage = Math.min(requested, Math.ceil(total / PAGE_SIZE))
+  const reread = await fetchQuestionsPage(supabase, filters, (lastPage - 1) * PAGE_SIZE)
+  // A concurrent delete can leave the re-read past the end too: empty page, recount total.
+  if (isPastEndPage(reread)) return { data: [], count: total, error: null }
+  return reread
 }
 
 export async function getQuestionsList(filters: QuestionFilters): Promise<QuestionsListResult> {
