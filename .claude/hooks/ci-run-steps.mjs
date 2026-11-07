@@ -80,7 +80,7 @@ export function jobSteps(text, jobId) {
   return items.map((item) => parseItem(item, itemIndent + 2))
 }
 
-const UNSUPPORTED_STEP_KEYS = new Set(['working-directory', 'shell'])
+const UNSUPPORTED_STEP_KEYS = new Set(['working-directory', 'shell', 'continue-on-error'])
 
 function parseItem(lines, keyIndent) {
   const step = {
@@ -151,20 +151,23 @@ function keyBlocks(lines, indent) {
 
 /**
  * Workflow- and job-level scope of `jobs.<jobId>`: `env` = `[{ where, text }]` for every `env:`
- * block, `unsupported` = `defaults:` / `working-directory` / `shell` keys found at either level.
+ * block, `timeoutMinutes` = the job's raw `timeout-minutes:` value or null, `unsupported` =
+ * `defaults:` / `working-directory` / `shell` / `continue-on-error` keys found at either level.
  */
 export function jobScope(text, jobId) {
   const lines = text.split('\n')
   const { jobsAt, job } = jobBody(lines, jobId)
   const jobIndent = indentOf(job.find((l) => l.trim() !== '' && !/^\s*#/.test(l)) ?? '')
-  const scope = { env: [], unsupported: [] }
+  const scope = { env: [], timeoutMinutes: null, unsupported: [] }
   for (const [where, blocks] of [
     ['workflow', keyBlocks(lines.slice(0, jobsAt), 0)],
     ['job', keyBlocks(job, jobIndent)],
   ]) {
     for (const b of blocks) {
       if (b.key === 'env') scope.env.push({ where, text: [b.rest, ...b.body].join('\n') })
-      else if (['defaults', 'working-directory', 'shell'].includes(b.key))
+      else if (b.key === 'timeout-minutes' && where === 'job')
+        scope.timeoutMinutes = unquote(b.rest.replace(/\s+#.*$/, ''))
+      else if (['defaults', 'working-directory', 'shell', 'continue-on-error'].includes(b.key))
         scope.unsupported.push(`${where} ${b.key}`)
     }
   }
@@ -173,7 +176,7 @@ export function jobScope(text, jobId) {
 
 /**
  * Parse an `env:` block text into `{ vars, problems }`. Only scalar `KEY: value` lines export;
- * a non-scalar shape or a `${{ }}` value is a problem.
+ * a non-scalar shape, a `${{ }}` value or a quoted value containing `\` or `''` is a problem.
  */
 export function parseEnv(blockText) {
   const vars = {}
@@ -190,6 +193,10 @@ export function parseEnv(blockText) {
     }
     const q = /^(["'])(.*)\1\s*(#.*)?$/.exec(m[2])
     const value = q ? q[2] : m[2].replace(/\s+#.*$/, '')
+    if (q && /\\|''/.test(q[2])) {
+      problems.push(`env ${m[1]} is a quoted value with a YAML escape: ${m[2].trim()}`)
+      continue
+    }
     const expr = /\$\{\{.*?\}\}/.exec(value)
     if (expr) problems.push(`env ${m[1]} contains ${expr[0]}`)
     else vars[m[1]] = value

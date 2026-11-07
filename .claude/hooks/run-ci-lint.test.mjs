@@ -69,15 +69,16 @@ test('a failing step does not stop later steps, prints FAIL, and exits non-zero'
   assert.match(r.stdout, /PASS.*Good/)
 })
 
-test('pnpm install steps are skipped', () => {
+test('a frozen pnpm install step is listed with --lockfile-only appended', () => {
   const r = run(
     wrap(
       '      - run: pnpm install --frozen-lockfile\n      - name: After\n        run: echo AFTER_RAN\n',
     ),
+    ['--list'],
   )
   assert.equal(r.status, 0, r.stdout + r.stderr)
-  assert.doesNotMatch(r.stdout, /pnpm install/)
-  assert.match(r.stdout, /AFTER_RAN/)
+  assert.match(r.stdout, /^pnpm install --frozen-lockfile --lockfile-only$/m)
+  assert.match(r.stdout, /echo AFTER_RAN/)
 })
 
 test('every step runs with TURBO_FORCE=true', () => {
@@ -124,7 +125,7 @@ test('live ci.yml lint job parses to include the decisions-ledger guard with bas
   const r = runNode('run-ci-lint --list', [SCRIPT, '--list'], { cwd: ROOT })
   assert.equal(r.status, 0, r.stderr)
   assert.match(r.stdout, /check-decisions-ledger\.mjs --base origin\/master/)
-  assert.doesNotMatch(r.stdout, /pnpm install/)
+  assert.match(r.stdout, /^pnpm install --frozen-lockfile --lockfile-only$/m)
 })
 
 test('package.json lint:ci script runs run-ci-lint.mjs', () => {
@@ -251,4 +252,63 @@ test('timeout-minutes kills a backgrounded grandchild', () => {
   assert.match(r.stdout, /FAIL.*Slow/)
   const left = spawnSync('pgrep', ['-f', 'sleep 31337'], { encoding: 'utf8' })
   assert.equal(left.stdout.trim(), '')
+})
+
+test('a non-frozen pnpm install step aborts before any step runs', () => {
+  const r = run(wrap('      - run: pnpm install\n      - run: echo AFTER_BARE\n'))
+  assert.notEqual(r.status, 0)
+  assert.doesNotMatch(r.stdout, /AFTER_BARE/)
+  assert.match(r.stderr, /ABORT.*pnpm install/)
+})
+
+test('a step `pnpm install-x` is listed unchanged, not treated as pnpm install', () => {
+  const r = run(wrap('      - run: pnpm install-x\n'), ['--list'])
+  assert.equal(r.status, 0, r.stdout + r.stderr)
+  assert.match(r.stdout, /^pnpm install-x$/m)
+})
+
+test('a step without timeout-minutes uses the job timeout-minutes', () => {
+  const r = run(
+    withJob(
+      { job: '    timeout-minutes: 0.01 # job cap\n' },
+      '      - name: Slow\n        run: exec sleep 30\n',
+    ),
+  )
+  assert.notEqual(r.status, 0)
+  assert.match(r.stdout, /FAIL.*Slow/)
+  assert.match(r.stdout, /timeout-minutes exceeded/)
+})
+
+test('a step timeout-minutes wins over the job timeout-minutes', () => {
+  const r = run(
+    withJob(
+      { job: '    timeout-minutes: 0.01\n' },
+      '      - name: Long\n        timeout-minutes: 1\n        run: sleep 1; echo STEP_WON\n',
+    ),
+  )
+  assert.equal(r.status, 0, r.stdout + r.stderr)
+  assert.match(r.stdout, /STEP_WON/)
+})
+
+test('continue-on-error aborts before any step runs', () => {
+  for (const yaml of [
+    wrap('      - name: C\n        continue-on-error: true\n        run: echo COE_RAN\n'),
+    withJob({ job: '    continue-on-error: true\n' }, '      - run: echo COE_RAN\n'),
+  ]) {
+    const r = run(yaml)
+    assert.notEqual(r.status, 0)
+    assert.doesNotMatch(r.stdout, /COE_RAN/)
+    assert.match(r.stderr, /ABORT.*continue-on-error/)
+  }
+})
+
+test('a quoted env value containing a backslash or a doubled quote aborts', () => {
+  for (const v of ['"a\\nb"', "'it''s'"]) {
+    const r = run(
+      wrap(`      - name: Q\n        env:\n          X: ${v}\n        run: echo QUOTED_RAN\n`),
+    )
+    assert.notEqual(r.status, 0)
+    assert.doesNotMatch(r.stdout, /QUOTED_RAN/)
+    assert.match(r.stderr, /ABORT.*X/)
+  }
 })

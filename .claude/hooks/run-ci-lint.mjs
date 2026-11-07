@@ -10,8 +10,11 @@
 //         2 = usage error or unreadable workflow
 //
 // Every step runs to completion with TURBO_FORCE=true under `bash --noprofile --norc -eo pipefail`;
-// a single-line `pnpm install ...` step is skipped (a chained one aborts). Scalar `env:` entries (workflow, job, step) are exported;
-// `timeout-minutes` is enforced by GNU `timeout -k 5` over the process group (a timeout is a FAIL).
+// a single-line `pnpm install --frozen-lockfile` step runs with `--lockfile-only` appended (lockfile
+// check, node_modules untouched); any other `pnpm install` step aborts. Scalar `env:` entries
+// (workflow, job, step) are exported; a quoted value containing `\` or `''` aborts.
+// `timeout-minutes` (the step's, else the job's) is enforced by GNU `timeout -k 5` over the process
+// group (a timeout is a FAIL). `continue-on-error` aborts.
 // `if:` is not evaluated — every step runs; the PR base becomes `origin/master` (run `git fetch origin` first).
 // `${{ github.event.pull_request.base.sha }}` is the only substituted expression; any other `${{ }}`
 // in a step's `run:` or an `env:`, a non-scalar `env:`, `defaults:`, `working-directory` or `shell`
@@ -65,20 +68,22 @@ for (const { where, text } of scope.env) {
 for (const s of steps) {
   if (s.run === null) continue
   const name = s.name ?? s.run.split('\n')[0].trim()
-  if (/^pnpm install\b/.test(s.run.trim())) {
+  let cmd = s.run.replace(BASE_EXPR, 'origin/master')
+  if (/^pnpm install(\s|$)/.test(s.run.trim())) {
     if (/[;&|\n`]|\$\(/.test(s.run.trim()))
       problems.push(`step "${name}": chained pnpm install is not supported`)
-    continue
+    else if (/\s--frozen-lockfile(\s|$)/.test(s.run.trim())) cmd += ' --lockfile-only'
+    else problems.push(`step "${name}": pnpm install without --frozen-lockfile is not supported`)
   }
   for (const k of s.unsupported) problems.push(`step "${name}": ${k} is not supported`)
   const { vars, problems: ps } = parseEnv(s.env)
   for (const p of ps) problems.push(`step "${name}": ${p}`)
   let timeoutSecs = null
-  if (s.timeoutMinutes !== null) {
-    if (/^\d+(\.\d+)?$/.test(s.timeoutMinutes)) timeoutSecs = Number(s.timeoutMinutes) * 60
-    else problems.push(`step "${name}": unsupported timeout-minutes ${s.timeoutMinutes}`)
+  const minutes = s.timeoutMinutes ?? scope.timeoutMinutes
+  if (minutes !== null) {
+    if (/^\d+(\.\d+)?$/.test(minutes)) timeoutSecs = Number(minutes) * 60
+    else problems.push(`step "${name}": unsupported timeout-minutes ${minutes}`)
   }
-  const cmd = s.run.replace(BASE_EXPR, 'origin/master')
   for (const e of cmd.match(ANY_EXPR) ?? [])
     problems.push(`step "${name}": unsupported expression ${e}`)
   plan.push({ name, cmd, env: vars, timeoutSecs })
