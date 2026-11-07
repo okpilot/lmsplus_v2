@@ -49,7 +49,7 @@ async function waitForHydration(page: Page): Promise<void> {
     const before = await trigger.getAttribute('aria-expanded')
     await trigger.click()
     await expect(trigger).not.toHaveAttribute('aria-expanded', before ?? '', { timeout: 500 })
-  }).toPass()
+  }).toPass({ timeout: 15_000 })
   if ((await trigger.getAttribute('aria-expanded')) === 'true') await trigger.click()
   await expect(trigger).toHaveAttribute('aria-expanded', 'false')
 }

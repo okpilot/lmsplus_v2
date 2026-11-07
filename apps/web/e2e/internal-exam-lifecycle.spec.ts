@@ -5,11 +5,10 @@
  * sees the attempt listed in My Reports → admin opens the attempt report;
  * unknown and missing session ids are refused on the admin report.
  *
- * Seed dependency: apps/web/scripts/seed-exam-eval.ts. The CI seed
- * (apps/web/scripts/seed-e2e.ts) creates a MET exam_config which
+ * Seed dependency: the CI seed (apps/web/scripts/seed-e2e.ts) creates a MET exam_config which
  * `start_internal_exam_session` reuses (same time/total/passmark fields).
- * This spec assumes the existing admin/student fixture (admin@lmsplus.local
- * + student@lmsplus.local) is loaded; it does not seed its own users.
+ * This spec assumes the existing admin and internal-exam student fixtures
+ * (admin@lmsplus.local + INTERNAL_EXAM_STUDENT_EMAIL) are loaded; it does not seed its own users.
  *
  * NOTE: requires migrations 057a..065 (internal_exam_codes table, RPCs
  *       issue_internal_exam_code / start_internal_exam_session /
@@ -29,8 +28,6 @@ import {
   cleanupInternalExamStudentActiveSessions,
   INTERNAL_EXAM_STUDENT_EMAIL,
 } from './helpers/supabase'
-
-test.describe.configure({ mode: 'serial' })
 
 // Default to admin storage; we open a separate student context inside each test.
 test.use({ storageState: 'e2e/.auth/admin.json' })
