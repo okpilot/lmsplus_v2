@@ -25,9 +25,14 @@ export async function QuizReportView({ sessionId, pageParam, namespace }: Readon
   if (!sessionId || !UUID_RE.test(sessionId)) redirect(namespaceHome(namespace))
 
   const page = parsePageParam(pageParam)
-  const [summary, questionsResult] = await Promise.all([
+  const questionsPromise = getQuizReportQuestions({ sessionId, page })
+  // The flagged read needs the page's question ids, so it starts as soon as they arrive.
+  const [summary, questionsResult, flaggedIds] = await Promise.all([
     getQuizReportSummary(sessionId),
-    getQuizReportQuestions({ sessionId, page }),
+    questionsPromise,
+    questionsPromise.then((r) =>
+      r.ok ? getFlaggedQuestionIds(r.questions.map((q) => q.questionId)) : [],
+    ),
   ])
   if (!summary) redirect(namespaceHome(namespace))
 
@@ -37,7 +42,6 @@ export async function QuizReportView({ sessionId, pageParam, namespace }: Readon
 
   redirectOnPageOverflow(basePath, sessionId, page, questionsResult.totalCount, PAGE_SIZE)
 
-  const flaggedIds = await getFlaggedQuestionIds(questionsResult.questions.map((q) => q.questionId))
   const ctx = getReportContext(summary.mode, summary.subjectCode)
 
   return (

@@ -218,6 +218,7 @@ describe('QuizReportView', () => {
         QuizReportView({ sessionId: VALID_SESSION_ID, namespace: 'quiz' }),
       ).rejects.toThrow()
       expect(mockRedirect).toHaveBeenCalledWith('/app/quiz')
+      expect(mockGetFlaggedQuestionIds).not.toHaveBeenCalled()
     })
   })
 
@@ -236,6 +237,27 @@ describe('QuizReportView', () => {
         sessionId: VALID_SESSION_ID,
         page: 1,
       })
+
+      release(makeSummary({ subjectCode: null }))
+      await view
+    })
+
+    it('reads flagged ids for the page questions while the summary fetch is still pending', async () => {
+      let release!: (v: QuizReportSummary | null) => void
+      mockGetQuizReportSummary.mockReturnValue(
+        new Promise((resolve) => {
+          release = resolve
+        }),
+      )
+      mockGetQuizReportQuestions.mockResolvedValue({
+        ok: true,
+        questions: [{ questionId: 'q1' }, { questionId: 'q2' }],
+        totalCount: 2,
+      })
+
+      const view = QuizReportView({ sessionId: VALID_SESSION_ID, namespace: 'quiz' })
+      await new Promise((r) => setTimeout(r, 10))
+      expect(mockGetFlaggedQuestionIds).toHaveBeenCalledWith(['q1', 'q2'])
 
       release(makeSummary({ subjectCode: null }))
       await view
