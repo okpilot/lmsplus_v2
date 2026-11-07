@@ -69,6 +69,7 @@ test('a failing step does not stop later steps, prints FAIL, and exits non-zero'
   assert.match(r.stdout, /PASS.*Good/)
 })
 
+// GROUP: ci-run-steps-list-item
 test('a frozen pnpm install step is listed with --lockfile-only appended', () => {
   const r = run(
     wrap(
@@ -121,6 +122,7 @@ test('only the lint job runs', () => {
   assert.doesNotMatch(r.stdout, /IN_OTHER/)
 })
 
+// GROUP: ci-run-steps-list-item
 test('live ci.yml lint job parses to include the decisions-ledger guard with base origin/master', () => {
   const r = runNode('run-ci-lint --list', [SCRIPT, '--list'], { cwd: ROOT })
   assert.equal(r.status, 0, r.stderr)
@@ -254,6 +256,7 @@ test('timeout-minutes kills a backgrounded grandchild', () => {
   assert.equal(left.stdout.trim(), '')
 })
 
+// GROUP: ci-run-steps-list-item
 test('a non-frozen pnpm install step aborts before any step runs', () => {
   const r = run(wrap('      - run: pnpm install\n      - run: echo AFTER_BARE\n'))
   assert.notEqual(r.status, 0)
@@ -261,6 +264,7 @@ test('a non-frozen pnpm install step aborts before any step runs', () => {
   assert.match(r.stderr, /ABORT.*pnpm install/)
 })
 
+// GROUP: ci-run-steps-list-item
 test('a step `pnpm install-x` is listed unchanged, not treated as pnpm install', () => {
   const r = run(wrap('      - run: pnpm install-x\n'), ['--list'])
   assert.equal(r.status, 0, r.stdout + r.stderr)

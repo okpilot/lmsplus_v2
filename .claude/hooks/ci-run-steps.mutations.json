@@ -9,7 +9,11 @@
       "replace": "export const RUN_LINE_RE = /^(\\s*)run:[ \\t]?(.*)$/",
       "expectRed": [
         "a compact `- run:` list-item step executes",
-        "a chained pnpm install aborts before any step runs"
+        "a chained pnpm install aborts before any step runs",
+        "a frozen pnpm install step is listed with --lockfile-only appended",
+        "live ci.yml lint job parses to include the decisions-ledger guard with base origin/master",
+        "a non-frozen pnpm install step aborts before any step runs",
+        "a step `pnpm install-x` is listed unchanged, not treated as pnpm install"
       ],
       "note": "Drops the optional `- ` list-item prefix from the run-line regex; a compact `- run:` step is no longer parsed."
     }
