@@ -161,6 +161,27 @@ test('step, job and workflow env scalars are exported; step overrides job overri
   assert.match(r.stdout, /V=wf,job,st,step/)
 })
 
+test('a column-0 comment inside a step env block keeps the vars after it', () => {
+  const r = run(
+    wrap(
+      '      - name: C\n        env:\n          A: one\n# note\n          B: two\n        run: echo "V=$A,$B"\n',
+    ),
+  )
+  assert.equal(r.status, 0, r.stdout + r.stderr)
+  assert.match(r.stdout, /V=one,two/)
+})
+
+test('a column-0 comment inside a workflow env block keeps the vars after it', () => {
+  const r = run(
+    withJob(
+      { workflow: 'env:\n  A: one\n# note\n  B: two\n' },
+      '      - name: C\n        run: echo "V=$A,$B"\n',
+    ),
+  )
+  assert.equal(r.status, 0, r.stdout + r.stderr)
+  assert.match(r.stdout, /V=one,two/)
+})
+
 test('a non-scalar env block aborts before any step runs', () => {
   for (const env of ['        env: {A: b}\n', '        env:\n          A: |\n            x\n']) {
     const r = run(wrap(`      - name: N\n${env}        run: echo NONSCALAR_RAN\n`))

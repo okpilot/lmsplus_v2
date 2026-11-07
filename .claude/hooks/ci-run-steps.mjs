@@ -108,7 +108,11 @@ function parseItem(lines, keyIndent) {
     else if (UNSUPPORTED_STEP_KEYS.has(m[1])) step.unsupported.push(m[1])
     else if (m[1] === 'env') {
       let j = i + 1
-      while (j < lines.length && (lines[j].trim() === '' || indentOf(lines[j]) > keyIndent)) j++
+      while (
+        j < lines.length &&
+        (lines[j].trim() === '' || /^\s*#/.test(lines[j]) || indentOf(lines[j]) > keyIndent)
+      )
+        j++
       step.env = [m[2], ...lines.slice(i + 1, j)].join('\n')
     }
   }
@@ -143,7 +147,11 @@ function keyBlocks(lines, indent) {
     const m = /^\s*([\w-]+):[ \t]?(.*)$/.exec(lines[i])
     if (!m || indentOf(lines[i]) !== indent || /^\s*#/.test(lines[i])) continue
     let j = i + 1
-    while (j < lines.length && (lines[j].trim() === '' || indentOf(lines[j]) > indent)) j++
+    while (
+      j < lines.length &&
+      (lines[j].trim() === '' || /^\s*#/.test(lines[j]) || indentOf(lines[j]) > indent)
+    )
+      j++
     out.push({ key: m[1], rest: m[2], body: lines.slice(i + 1, j) })
   }
   return out

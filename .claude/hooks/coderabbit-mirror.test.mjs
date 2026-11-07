@@ -26,6 +26,7 @@ export function migrationsBlock(yaml) {
   while (end < lines.length) {
     const l = lines[end]
     if (/^\s*-\s*path:/.test(l) && l.search(/\S/) <= indent) break
+    if (l.trim() !== '' && !l.trim().startsWith('#') && l.search(/\S/) < indent) break
     end++
   }
   return lines.slice(start, end).join('\n')
@@ -33,7 +34,12 @@ export function migrationsBlock(yaml) {
 
 /** First anchor missing from `block`, or null. */
 export function missingAnchor(block) {
-  return ANCHORS.find((a) => !block.includes(a)) ?? null
+  return ANCHORS.find((a) => !hasAnchor(block, a)) ?? null
+}
+
+/** `a` occurs in `text` and is not the prefix of a longer number (`#814` vs `#8142`). */
+function hasAnchor(text, a) {
+  return new RegExp(`${a}(?!\\d)`).test(text)
 }
 
 /** Text from `start` to the next numbered suppression heading (or end of file). */
@@ -55,7 +61,7 @@ test('every anchor fact appears in security-auditor.md suppression 12', () => {
   const i = auditor.indexOf('12. **Do NOT flag the `question-images`')
   assert.notEqual(i, -1, 'suppression 12 not found')
   const sec = suppressionSection(auditor, i)
-  const missing = ANCHORS.find((a) => !sec.includes(a))
+  const missing = ANCHORS.find((a) => !hasAnchor(sec, a))
   assert.equal(missing, undefined, `suppression 12 lacks anchor token ${missing}`)
 })
 
@@ -79,4 +85,26 @@ test('an anchor present only in a later suppression is reported missing', () => 
     ANCHORS.find((a) => !sec.includes(a)),
     '20260324000053',
   )
+})
+
+test('an anchor followed by more digits does not satisfy it', () => {
+  assert.equal(hasAnchor('see #8142', '#814'), false)
+  assert.equal(hasAnchor('see #814.', '#814'), true)
+})
+
+test('the migrations block of a last entry stops at the next top-level key', () => {
+  const y = [
+    'reviews:',
+    '  path_instructions:',
+    '    - path: "supabase/migrations/**"',
+    '      instructions: |',
+    '        body',
+    '# top comment',
+    'chat:',
+    '  note: "#814 elsewhere"',
+    '',
+  ].join('\n')
+  const block = migrationsBlock(y)
+  assert.match(block, /body/)
+  assert.doesNotMatch(block, /#814/)
 })
