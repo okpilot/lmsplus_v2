@@ -13,6 +13,13 @@
         "a trailing YAML comment on a frozen pnpm install is stripped from the listed command"
       ],
       "note": "Drops the optional `- ` list-item prefix from the run-line regex; a compact `- run:` step is no longer parsed."
+    },
+    {
+      "id": "ci-run-steps-multiline-run-truncated",
+      "find": "      if (continuesDeeper(lines, i, keyIndent, rm[2]))",
+      "replace": "      if (false)",
+      "expectRed": ["a run scalar continued on a deeper line aborts"],
+      "note": "A plain or quoted `run:` continued on a deeper line no longer aborts; only its first line runs."
     }
   ]
 }

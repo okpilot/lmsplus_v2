@@ -97,6 +97,8 @@ function parseItem(lines, keyIndent) {
       if (foldedIrregular(lines, i, keyIndent, rm[2]))
         step.unsupported.push('folded run with a blank or more-indented line')
       if (quotedEscape(rm[2])) step.unsupported.push('quoted run with a YAML escape')
+      if (continuesDeeper(lines, i, keyIndent, rm[2]))
+        step.unsupported.push('multi-line plain or quoted run')
       continue
     }
     const m = /^\s*([\w-]+):[ \t]?(.*)$/.exec(l)
@@ -114,6 +116,16 @@ function parseItem(lines, keyIndent) {
     }
   }
   return step
+}
+
+/** A non-block-scalar `run:` (empty value included) followed by a deeper content line: YAML folds it into the scalar. */
+function continuesDeeper(lines, i, keyIndent, rest) {
+  if (BLOCK_SCALAR_RE.test(rest.trim())) return false
+  for (const l of lines.slice(i + 1)) {
+    if (l.trim() === '' || /^\s*#/.test(l)) continue
+    return indentOf(l) > keyIndent
+  }
+  return false
 }
 
 /** One-line quoted run whose text holds its quote's YAML escape (`\\` in "...", `''` in '...'). */

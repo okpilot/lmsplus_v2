@@ -487,16 +487,25 @@ for (const site of spec.modelLiteralSites) {
     : fail(`agent memory is tracked: ${trackedMemory.join(', ')}`)
 }
 
-/** `version:` of each setup-cli use (the supabase action) in a workflow text; null when the step has none. */
+/** `version:` of each setup-cli use (the supabase action) in a workflow text, read from the step's `with:` block only; null when absent. */
 function setupCliVersions(text) {
   const lines = text.split('\n')
   const out = []
   lines.forEach((l, i) => {
-    if (!/uses:\s*supabase\/setup-cli@/.test(l)) return
+    const u = /^(\s*)(-\s+)?uses:\s*supabase\/setup-cli@/.exec(l)
+    if (!u) return
+    const keyIndent = u[1].length + (u[2]?.length ?? 0)
     let v = null
-    for (const n of lines.slice(i + 1, i + 6)) {
-      if (/^\s*-\s/.test(n)) break
-      const m = /^\s*version:\s*['"]?([^'"\s#]+)/.exec(n)
+    let inWith = false
+    for (const n of lines.slice(i + 1)) {
+      if (n.trim() === '' || /^\s*#/.test(n)) continue
+      const indent = n.length - n.trimStart().length
+      if (indent < keyIndent) break
+      if (indent === keyIndent) {
+        inWith = /^\s*with:\s*(#.*)?$/.test(n)
+        continue
+      }
+      const m = inWith && /^\s*version:\s*['"]?([^'"\s#]+)/.exec(n)
       if (m) {
         v = m[1]
         break
@@ -507,9 +516,9 @@ function setupCliVersions(text) {
   return out
 }
 
-/** True when `script` contains `supabase@<want>` followed by whitespace or end. */
+/** True when `script` is `pnpm dlx supabase@<want>` followed by whitespace or end. */
 const pinsCli = (script, want) =>
-  new RegExp(`supabase@${want.replaceAll('.', '\\.')}(\\s|$)`).test(script)
+  new RegExp(`^pnpm dlx supabase@${want.replaceAll('.', '\\.')}(\\s|$)`).test(script)
 
 // Local supabase CLI = CI CLI (#1726). Exit condition: #1178 — drop the pin when baseline DML grants are fixed.
 {
@@ -544,6 +553,16 @@ const pinsCli = (script, want) =>
       : fail('setupCliVersions ignores a supabase/setup-cli use without `version:`')
   }
 }
+
+setupCliVersions(
+  'steps:\n  - uses: supabase/setup-cli@abc\n    env:\n      version: 2.78.1\n    with:\n      version: other\n',
+)[0] === 'other'
+  ? pass('setupCliVersions reads `version:` from `with:` only')
+  : fail('setupCliVersions read a `version:` outside the step `with:` block')
+
+pinsCli('pnpm dlx supabase@latest # supabase@2.78.1', '2.78.1')
+  ? fail('pinsCli accepts the pin inside a comment')
+  : pass('pinsCli rejects the pin inside a comment')
 
 pinsCli('npx supabase@2.78.10 x', '2.78.1')
   ? fail('pinsCli accepts supabase@2.78.10 for 2.78.1')

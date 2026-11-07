@@ -271,6 +271,31 @@ test('a quoted run containing its quote type YAML escape aborts', () => {
   }
 })
 
+// GROUP: ci-run-steps-multiline-run-truncated
+test('a run scalar continued on a deeper line aborts', () => {
+  for (const body of [
+    '        run: echo A\n          echo B\n',
+    '        run: "echo A\n          echo B"\n',
+    '        run:\n          echo B\n',
+  ]) {
+    const r = run(wrap(`      - name: M\n${body}`))
+    assert.notEqual(r.status, 0, body)
+    assert.match(r.stdout + r.stderr, /multi-line plain or quoted run/, body)
+  }
+})
+
+test('block scalars and deeper comments after a run are not multi-line', () => {
+  for (const body of [
+    '        run: |\n          echo A\n',
+    '        run: >-\n          echo A\n',
+    '        run: echo A\n          # note\n',
+    '        run: echo A\n\n',
+  ]) {
+    const r = run(wrap(`      - name: M\n${body}`), ['--list'])
+    assert.equal(r.status, 0, body + r.stderr)
+  }
+})
+
 test('a quoted run without its escape is listed as written', () => {
   for (const [v, want] of [
     ["'grep \\d'", 'grep \\d'],
