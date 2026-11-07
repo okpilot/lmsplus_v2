@@ -91,10 +91,12 @@ async function assertAdminAttemptReport(adminPage: Page, sessionId: string): Pro
   ).toBeVisible()
   await expect(adminPage.getByText(/^(PASSED|FAILED)$/)).toBeVisible()
   await expect(adminPage.getByRole('heading', { name: 'Question Breakdown' })).toBeVisible()
+  await expect(adminPage.getByRole('img', { name: /^(Correct|Incorrect)$/ }).first()).toBeVisible()
 
   await adminPage.reload()
   await expect(adminPage).toHaveURL(reportUrl)
   await expect(adminPage.getByRole('heading', { name: 'Question Breakdown' })).toBeVisible()
+  await expect(adminPage.getByRole('img', { name: /^(Correct|Incorrect)$/ }).first()).toBeVisible()
 }
 
 async function openStudentContext(browser: BrowserContext['browser']): Promise<{
@@ -185,10 +187,7 @@ test.describe('internal exam — lifecycle', () => {
       await expect(page.getByRole('heading', { name: 'Internal Exam' })).toBeVisible()
       await page.getByTestId('tab-reports').click()
       await expect(page.getByTestId('tabpanel-reports')).toBeVisible()
-      // At least one attempt row should exist.
-      await expect(page.locator('[data-testid^="report-row-"]').first()).toBeVisible({
-        timeout: 10_000,
-      })
+      await expect(page.getByTestId(`report-row-${sessionId}`)).toBeVisible({ timeout: 10_000 })
 
       // ── 6. Admin opens the attempt report and reloads it ─
       await assertAdminAttemptReport(adminPage, sessionId)

@@ -121,6 +121,7 @@ test.describe('admin session report', () => {
     await expect(page).toHaveURL(new RegExp(`/app/admin/dashboard/sessions/${sessionId}$`))
     await expect(page.getByRole('heading', { name: 'Quiz Results' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Question Breakdown' })).toBeVisible()
+    await expect(page.getByRole('img', { name: /^(Correct|Incorrect)$/ })).toHaveCount(1)
   })
 
   test('sends an unknown session id back to the admin dashboard', async ({ page }) => {

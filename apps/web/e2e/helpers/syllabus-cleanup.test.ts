@@ -67,6 +67,7 @@ describe('cleanupE2eSyllabus', () => {
     const deletes = calls.filter((c) => c.method === 'delete').map((c) => c.table)
     expect(deletes).toEqual(['easa_subtopics', 'easa_topics', 'easa_subjects'])
     expect(fromCalls(calls, 'easa_subjects', 'like')[0]?.args).toEqual(['code', 'E2E-%'])
+    expect(fromCalls(calls, 'easa_subjects', 'like')[1]?.args).toEqual(['code', 'E2E-%'])
     expect(fromCalls(calls, 'easa_topics', 'or')[0]?.args[0]).toBe(
       'subject_id.in.(s1,s2),code.like.E2E-%',
     )
