@@ -244,7 +244,7 @@ that set is open — any migration adding or replacing a policy can change it, s
 the query in `docs/database.md` §3 rather than trusting this line. (It is
 not the only soft-deletable table read without one — `flagged_questions` filters via the
 `active_flagged_questions` view and an explicit `.is('deleted_at', null)` in
-`_flag-guard.ts:82`, and `quiz_sessions`' student SELECT policy omits it; `docs/database.md` §3
+`unflagQuestion` (`_flag-guard.ts`), and `quiz_sessions`' student SELECT policy omits it; `docs/database.md` §3
 carries the query that derives the current set), and a SECURITY
 INVOKER reader of it must filter `deleted_at` explicitly rather than relying on RLS.
 
