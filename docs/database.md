@@ -1438,7 +1438,7 @@ Admin-only. Generates a single-use 8-char code (Crockford-style alphabet, exclud
 
 Student-facing. Validates the code, atomically consumes it, and creates a fresh `quiz_sessions` row with `mode = 'internal_exam'`. Question selection mirrors `start_exam_session` exactly — same `exam_config_distributions` algorithm, same `q.status = 'active'` and soft-delete filters.
 
-**Validation order (each raises a distinct domain error string):** `not_authenticated`, active-user gate (`user not found or inactive`, mig `20261109000200`, #1024), then `code_not_found`, `code_not_yours`, `code_voided`, `code_already_used`, `code_expired`, org-vs-code (`code_not_yours`), `not_enrolled` (mig `20261028001000`), exam config (`exam_config_required`, `insufficient_questions_for_exam`).
+**Validation order (each raises a distinct domain error string):** `not_authenticated`, active-user gate (`user not found or inactive`, mig `20261109000200`, #1024), then `code_not_found`, `code_not_yours`, `code_voided`, `code_already_used`, `code_expired`, org-vs-code (`code_not_yours`), `not_enrolled` (mig `20261028001000`), `another_session_active`, `active_session_exists`, exam config (`exam_config_required`, `insufficient_questions_for_exam`).
 
 **Race-safe consumption:** the row is `SELECT ... FOR UPDATE` locked; consumption is `UPDATE ... WHERE id = v_code_id AND consumed_at IS NULL` and raises `code_already_used` if `ROW_COUNT = 0`. Active duplicate-session guard (migration `20260429000010`): before issuing, the RPC looks up any same-subject `internal_exam` session past `(time_limit_seconds + 30)` seconds and calls `complete_overdue_exam_session` on it (mirrors `start_exam_session`).
 
