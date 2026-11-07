@@ -10,13 +10,20 @@
  * bcrypt compare. Measured locally: registered median 47 ms, unregistered 3 ms.
  */
 
+import { randomUUID } from 'node:crypto'
 import { type APIRequestContext, expect, test } from '@playwright/test'
-import { ensureLoginTestUser, LOGIN_TEST_EMAIL, LOGIN_TEST_PASSWORD } from '../helpers/supabase'
+import { findAuthUserByEmail } from '../helpers/auth-users'
+import {
+  ensureLoginTestUser,
+  getAdminClient,
+  LOGIN_TEST_EMAIL,
+  LOGIN_TEST_PASSWORD,
+} from '../helpers/supabase'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://localhost:54321'
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''
-// Never provisioned; a failed password grant creates no row for it.
-const UNKNOWN_EMAIL = 'e2e-redteam-lc-unknown@lmsplus.local'
+// Fresh per run; beforeAll asserts it is absent.
+const UNKNOWN_EMAIL = `e2e-redteam-lc-unknown-${randomUUID()}@lmsplus.local`
 const WRONG_PASSWORD = 'e2e-redteam-lc-wrong-password'
 const SAMPLES = 7
 const MAX_MEDIAN_RATIO = 3
@@ -48,6 +55,7 @@ test.describe('Vector LC — password grant timing enumeration', () => {
     expect(SUPABASE_URL).toMatch(/^http:\/\/(localhost|127\.0\.0\.1):54321/)
     expect(ANON_KEY).not.toBe('')
     await ensureLoginTestUser()
+    expect(await findAuthUserByEmail(getAdminClient(), UNKNOWN_EMAIL)).toBeUndefined()
   })
 
   test.skip('a registered and an unregistered email answer a wrong password in comparable time', async ({
