@@ -6,6 +6,12 @@ import type { ActionResult } from '@/lib/action-result'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { writeFailure } from './check-live-parent'
 
+const WRITE_CTX = {
+  fn: 'upsertSubject',
+  entity: 'subject',
+  duplicate: 'A subject with this code already exists (it may have been deleted)',
+} as const
+
 export async function upsertSubject(input: unknown): Promise<ActionResult> {
   const parsed = UpsertSubjectSchema.safeParse(input)
   if (!parsed.success) {
@@ -24,7 +30,7 @@ export async function upsertSubject(input: unknown): Promise<ActionResult> {
       .is('deleted_at', null)
       .select('id')
     if (error) {
-      return writeFailure({ fn: 'upsertSubject', op: 'update', entity: 'subject' }, error.message)
+      return writeFailure({ ...WRITE_CTX, op: 'update' }, error.message, error.code)
     }
     if (!updated || updated.length === 0) {
       return { success: false, error: 'Item not found' }
@@ -47,14 +53,7 @@ export async function upsertSubject(input: unknown): Promise<ActionResult> {
     // @ts-expect-error TS2769: row type resolves to `never` due to TypeScript inference depth limit
     const { error } = await supabase.from('easa_subjects').insert(data)
     if (error) {
-      if (error.code === '23505') {
-        return {
-          success: false,
-          error: 'A subject with this code already exists (it may have been deleted)',
-        }
-      }
-      console.error('[upsertSubject] insert error:', error.message)
-      return { success: false, error: 'Failed to create subject' }
+      return writeFailure({ ...WRITE_CTX, op: 'insert' }, error.message, error.code)
     }
   }
 

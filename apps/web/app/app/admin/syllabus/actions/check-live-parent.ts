@@ -21,11 +21,13 @@ export async function checkLiveParent(
   return data ? null : { success: false, error: 'Item not found' }
 }
 
-/** Live-parent / deleted-row trigger rejections map to "Item not found"; anything else is logged. */
+/** Unique violation maps to ctx.duplicate; live-parent / deleted-row trigger rejections to "Item not found"; anything else is logged. */
 export function writeFailure(
-  ctx: { fn: string; op: 'insert' | 'update'; entity: string },
+  ctx: { fn: string; op: 'insert' | 'update'; entity: string; duplicate: string },
   message: string,
+  code?: string,
 ): ActionResult {
+  if (code === '23505') return { success: false, error: ctx.duplicate }
   if (message.includes('parent_not_found') || message.includes('item_deleted')) {
     return { success: false, error: 'Item not found' }
   }

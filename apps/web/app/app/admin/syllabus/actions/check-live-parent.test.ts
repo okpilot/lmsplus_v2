@@ -50,7 +50,12 @@ describe('checkLiveParent', () => {
 })
 
 describe('writeFailure', () => {
-  const ctx = { fn: 'upsertTopic', op: 'insert', entity: 'topic' } as const
+  const ctx = {
+    fn: 'upsertTopic',
+    op: 'insert',
+    entity: 'topic',
+    duplicate: 'A topic with this code already exists',
+  } as const
 
   it.each(['parent_not_found', 'item_deleted'])(
     'maps %s trigger rejection to Item not found',
@@ -69,6 +74,22 @@ describe('writeFailure', () => {
     expect(writeFailure({ ...ctx, op: 'update' }, 'other')).toEqual({
       success: false,
       error: 'Failed to update topic',
+    })
+  })
+
+  it('returns the duplicate message without logging on a unique violation', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    expect(writeFailure(ctx, 'duplicate key', '23505')).toEqual({
+      success: false,
+      error: 'A topic with this code already exists',
+    })
+    expect(spy).not.toHaveBeenCalled()
+  })
+
+  it('maps a trigger rejection to Item not found when no error code is given', () => {
+    expect(writeFailure(ctx, 'P0001: parent_not_found', undefined)).toEqual({
+      success: false,
+      error: 'Item not found',
     })
   })
 })

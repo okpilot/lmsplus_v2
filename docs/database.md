@@ -1570,7 +1570,7 @@ Student-facing read. Returns the caller's currently usable internal-exam codes w
 - `iec.expires_at > now()` — within 24h validity window
 - `iec.deleted_at IS NULL` — not soft-deleted
 
-`easa_subjects` is joined without a `deleted_at` predicate: history keeps resolving deleted subject names.
+`easa_subjects` is joined without a `deleted_at` predicate: `soft_delete_syllabus_item` refuses a subject while an unconsumed, unvoided, unexpired code references it.
 
 Ordered by `expires_at ASC`, limited to 100 rows (the issuance ceiling is well below this — the cap is defensive).
 

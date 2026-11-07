@@ -186,6 +186,18 @@ describe('upsertTopic', () => {
       expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/syllabus')
     })
 
+    it('returns the duplicate-code message when renaming to a code already in use', async () => {
+      mockAdminWithResult({ error: { message: 'duplicate key', code: '23505' } })
+
+      const result = await upsertTopic({ ...validInput, id: VALID_UUID })
+
+      expect(result).toEqual({
+        success: false,
+        error: 'A topic with this code already exists in this subject (it may have been deleted)',
+      })
+      expect(mockRevalidatePath).not.toHaveBeenCalled()
+    })
+
     it('returns failure when update fails with a DB error', async () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
       mockAdminWithResult({ error: { message: 'update failed' } })
