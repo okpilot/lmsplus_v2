@@ -323,6 +323,10 @@
 | KZ | flagged_questions-insert-update-question-not-visible-to-caller-and-quiz_drafts-org-update | HIGH | flagged-questions-question-scope.spec.ts | BLOCKED | #1177 | cross-tenant |
 | LA | get_vfr_rt_exam_questions-id-sort-and-label-position-oracle-and-key-column-select | HIGH | rpc-vfr-rt-exam-id-oracle.spec.ts | BLOCKED |  | answer-oracle |
 | LB | is_valid_diagram_config-derived-id-bypass-and-non-total-config-and-smuggled-config | HIGH | diagram-config-check-bypass.spec.ts | BLOCKED |  | input-injection |
+| LC | soft_delete_syllabus_item-non-admin-caller-and-non-syllabus-p_table | HIGH | syllabus-soft-delete.spec.ts | BLOCKED |  | privilege-escalation |
+| LD | easa_subjects-topics-subtopics-admin-hard-delete-and-direct-deleted_at-deleted_by-write | HIGH | syllabus-soft-delete.spec.ts | BLOCKED |  | rls-bypass |
+| LE | easa_topics-subtopics-child-insert-or-move-under-deleted-parent-and-deleted-row-rename | MEDIUM | syllabus-soft-delete.spec.ts | BLOCKED |  | soft-delete-bypass |
+| LF | exam_configs-and-exam_config_distributions-reference-to-deleted-subject-or-topic | MEDIUM | syllabus-soft-delete.spec.ts | BLOCKED |  | sibling-guard-gap |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
