@@ -958,6 +958,9 @@ reviews:
           - An `ordering` item id not equal to `ordering_item_id(text)` (fixtures included), or
             an ordering delivery that is not a uniform `ORDER BY random()` shuffle — the stored
             array order IS the answer key (docs/security.md, #1045)
+          - A `diagram_label` label id not equal to `'l1' || substr(ordering_item_id(text), 3)`, or
+            a zone id not equal to the `deriveZoneId` derivation (fixtures included) — a hand id
+            can encode the answer key (docs/security.md, #1215)
           EXCEPTION: Post-session report queries (e.g. getQuizReport) that SELECT
           questions server-side and strip the correct field before returning to the
           client are acceptable. The student has already answered — showing the correct

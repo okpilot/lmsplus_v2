@@ -1,7 +1,14 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { diagramLabelId, diagramZoneId } from './diagram-ids'
 import { requireRpcResult } from './guards'
 import { orderingItem } from './ordering-item-id'
 import { seedQuestions, type seedReferenceData } from './seed'
+
+const DIAGRAM_IMAGE_REF = 'rwy-27-09-lh-pattern'
+const DIAGRAM_ZONE_ID = diagramZoneId(DIAGRAM_IMAGE_REF, 0)
+export const DIAGRAM_LABEL_ID = diagramLabelId('Downwind')
+/** The one-zone diagram's correct mapping. */
+export const DIAGRAM_MAPPING = [{ zone_id: DIAGRAM_ZONE_ID, label_id: DIAGRAM_LABEL_ID }]
 
 export const ORDER_ITEMS = [orderingItem('first call'), orderingItem('second call')]
 
@@ -89,10 +96,10 @@ const TYPED_SPECS: Record<string, Record<string, unknown>> = {
     question_type: 'diagram_label',
     question_text: 'Label the circuit',
     diagram_config: {
-      image_ref: 'rwy-27-09-lh-pattern',
-      zones: [{ id: 'zone-1', x: 0.1, y: 0.1, w: 0.1, h: 0.1 }],
-      labels: [{ id: 'lbl-1', text: 'Downwind' }],
-      answer: [{ zone_id: 'zone-1', label_id: 'lbl-1' }],
+      image_ref: DIAGRAM_IMAGE_REF,
+      zones: [{ id: DIAGRAM_ZONE_ID, x: 0.1, y: 0.1, w: 0.1, h: 0.1 }],
+      labels: [{ id: DIAGRAM_LABEL_ID, text: 'Downwind' }],
+      answer: DIAGRAM_MAPPING,
     },
     explanation_text: 'Diagram explanation',
   },

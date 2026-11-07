@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupTestData } from './cleanup'
+import { diagramLabelId, diagramZoneId } from './diagram-ids'
 import { fixtureSuffix } from './fixture-suffix'
 import { orderingItem } from './ordering-item-id'
 import {
@@ -10,6 +11,8 @@ import {
   getAnonClient,
   getAuthenticatedClient,
 } from './setup'
+
+const IMG = 'rwy-27-09-lh-pattern'
 
 // The _grade_record_* helpers (mc, short_answer, dialog_fill, ordering, diagram_label) and the
 // session-level helpers (_grade_session_progress, _score_graded_session) are internal helpers —
@@ -25,10 +28,10 @@ import {
 const DUMMY_ID = '00000000-0000-0000-0000-000000000000'
 const ORDERING_ITEMS = [orderingItem('MAYDAY MAYDAY MAYDAY'), orderingItem('callsign Golf Bravo')]
 const DIAGRAM_CONFIG = {
-  image_ref: 'rwy-27-09-lh-pattern',
-  zones: [{ id: 'zone-nw', x: 0.1, y: 0.1, w: 0.2, h: 0.2 }],
-  labels: [{ id: 'lbl-alpha', text: 'Upwind Leg' }],
-  answer: [{ zone_id: 'zone-nw', label_id: 'lbl-alpha' }],
+  image_ref: IMG,
+  zones: [{ id: diagramZoneId(IMG, 0), x: 0.1, y: 0.1, w: 0.2, h: 0.2 }],
+  labels: [{ id: diagramLabelId('Upwind Leg'), text: 'Upwind Leg' }],
+  answer: [{ zone_id: diagramZoneId(IMG, 0), label_id: diagramLabelId('Upwind Leg') }],
 }
 
 type Ids = { studentId: string; orgId: string }
@@ -93,8 +96,8 @@ const HELPERS: Array<{ fn: string; args: (ids: Ids) => Record<string, unknown> }
       p_student_id: studentId,
       p_org_id: orgId,
       p_question_id: DUMMY_ID,
-      p_zone_id: 'zone-nw',
-      p_label_id: 'lbl-alpha',
+      p_zone_id: diagramZoneId(IMG, 0),
+      p_label_id: diagramLabelId('Upwind Leg'),
       p_diagram_config: DIAGRAM_CONFIG,
       p_response_time: 0,
     }),

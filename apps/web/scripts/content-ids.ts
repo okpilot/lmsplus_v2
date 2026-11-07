@@ -21,6 +21,9 @@
  * id would no longer match the stored `answer.zone_id`, and the question becomes ungradeable).
  * The version prefix makes such a change visible in the data rather than silent.
  *
+ * The `l`/`z` diagram ids are derived from `o` in SQL (`20261106000100_diagram_config_derived_ids.sql`);
+ * the fixture copy is `packages/db/src/__integration__/diagram-ids.ts`.
+ *
  * For the `o` (ordering-item) prefix specifically: since #1045, the database CHECK-enforces
  * `id = ordering_item_id(text)` (migration `20260928000100_ordering_items_derived_ids.sql`,
  * `is_valid_ordering_items`), a SQL re-implementation of this exact `normalizeForId` + SHA-256 +
@@ -91,8 +94,9 @@ export function normalizeForId(text: string): string {
  * normalization, which would be the wrong lead. Tracked as #1229. If that day comes, join with
  * `\u0000` and bump ID_VERSION in the same change — and note that the bump changes EVERY derived
  * id string (ID_VERSION is a prefix component, not hashed input), so it must be paired with a
- * content re-import. `quiz_sessions.config.question_ids` is unaffected — those are question ROW
- * uuids, and `--replace` updates rows in place — but the ids INSIDE a row change, so a session
+ * migration of the SQL derivation (`ordering_item_id`, plus the `l1`/`z1` literals and `' '` join
+ * in `20261106000100`) and a content re-import. `quiz_sessions.config.question_ids` is
+ * unaffected — those are question ROW uuids, and `--replace` updates rows in place — but the ids INSIDE a row change, so a session
  * already holding the old `ordering_items[].id` / `diagram_config` zone and label ids submits
  * them against re-derived ones.
  */

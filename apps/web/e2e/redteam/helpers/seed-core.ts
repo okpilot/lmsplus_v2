@@ -74,6 +74,7 @@ export async function upsertUser(
   // parallel workers can't race an insert into a duplicate-key failure and a
   // drifted org/role is realigned. deleted_at is intentionally NOT in the
   // payload: the EN/EO soft-delete throwaway students must stay soft-deleted.
+  // seedRedTeamUsers resets the shared attacker's deleted_at and Auth ban itself.
   const { error: upsertError } = await admin.from('users').upsert(
     {
       id: userId,

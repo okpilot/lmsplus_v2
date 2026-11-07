@@ -1,7 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { diagramLabelId, diagramZoneId } from './diagram-ids'
 import { requireRpcResult } from './guards'
 import type { ProgressFixture } from './quiz-progress-fixture'
-import { ORDER_ITEMS } from './quiz-progress-questions'
+import { DIAGRAM_MAPPING, ORDER_ITEMS } from './quiz-progress-questions'
 
 export const DEVICE = '11111111-1111-4111-8111-111111111111'
 export const OTHER_DEVICE = '22222222-2222-4222-8222-222222222222'
@@ -27,7 +28,7 @@ export const RIGHT = {
   short: { response_text: 'wilco' },
   dialog: { blanks: [{ blank_index: 0, response_text: 'cleared' }] },
   ordering: { order: ORDER_ITEMS.map((i) => i.id) },
-  diagram: { mapping: [{ zone_id: 'zone-1', label_id: 'lbl-1' }] },
+  diagram: { mapping: DIAGRAM_MAPPING },
 }
 export const WRONG_MC = { selected_option_id: 'a' }
 
@@ -158,23 +159,29 @@ export const insertTwoBlankDialog = (f: ProgressFixture) =>
     ],
   })
 
+const TWO_ZONE_IMAGE_REF = 'rwy-27-09-lh-pattern'
+export const ZN_A = diagramZoneId(TWO_ZONE_IMAGE_REF, 0)
+export const ZN_B = diagramZoneId(TWO_ZONE_IMAGE_REF, 1)
+export const LB_A = diagramLabelId('Upwind')
+export const LB_B = diagramLabelId('Downwind')
+
 export const insertTwoZoneDiagram = (f: ProgressFixture) =>
   insertExtraQuestion(f, {
     question_type: 'diagram_label',
     question_text: 'Label two zones',
     diagram_config: {
-      image_ref: 'rwy-27-09-lh-pattern',
+      image_ref: TWO_ZONE_IMAGE_REF,
       zones: [
-        { id: 'zn-a', x: 0.1, y: 0.1, w: 0.1, h: 0.1 },
-        { id: 'zn-b', x: 0.6, y: 0.6, w: 0.1, h: 0.1 },
+        { id: ZN_A, x: 0.1, y: 0.1, w: 0.1, h: 0.1 },
+        { id: ZN_B, x: 0.6, y: 0.6, w: 0.1, h: 0.1 },
       ],
       labels: [
-        { id: 'lb-a', text: 'Upwind' },
-        { id: 'lb-b', text: 'Downwind' },
+        { id: LB_A, text: 'Upwind' },
+        { id: LB_B, text: 'Downwind' },
       ],
       answer: [
-        { zone_id: 'zn-a', label_id: 'lb-a' },
-        { zone_id: 'zn-b', label_id: 'lb-b' },
+        { zone_id: ZN_A, label_id: LB_A },
+        { zone_id: ZN_B, label_id: LB_B },
       ],
     },
   })

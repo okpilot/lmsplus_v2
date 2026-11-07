@@ -7,7 +7,7 @@ import {
   setupProgressFixture,
   startPractice,
 } from './quiz-progress-fixture'
-import { ORDER_ITEMS } from './quiz-progress-questions'
+import { DIAGRAM_MAPPING, ORDER_ITEMS } from './quiz-progress-questions'
 import { getAnonClient } from './setup'
 
 type FeedbackElement = Record<string, unknown> & { question_id: string; question_type: string }
@@ -75,7 +75,7 @@ describe('RPC: get_restored_feedback', () => {
     expected.set(
       f.diagramId,
       await check(sessionId, f.diagramId, {
-        p_mapping: [{ zone_id: 'zone-1', label_id: 'lbl-1' }],
+        p_mapping: DIAGRAM_MAPPING,
       }),
     )
     return { sessionId, expected }

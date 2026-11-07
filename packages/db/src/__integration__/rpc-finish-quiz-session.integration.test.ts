@@ -13,11 +13,15 @@ import {
   insertRawProgress,
   insertTwoBlankDialog,
   insertTwoZoneDiagram,
+  LB_A,
+  LB_B,
   RIGHT,
   saveAnswer,
   saveAnswers,
   saveViewedOnly,
   WRONG_MC,
+  ZN_A,
+  ZN_B,
 } from './finish-fixture'
 import {
   answerRows,
@@ -34,6 +38,7 @@ import {
   setupProgressFixture,
   startPractice,
 } from './quiz-progress-fixture'
+import { DIAGRAM_LABEL_ID } from './quiz-progress-questions'
 
 describe('RPC: finish_quiz_session — grades the saved answers', () => {
   let f: ProgressFixture
@@ -262,7 +267,7 @@ describe('RPC: finish_quiz_session — grades the saved answers', () => {
         'a diagram zone the question does not have',
         () => ({
           questionId: f.diagramId,
-          answer: { mapping: [{ zone_id: 'zone-9', label_id: 'lbl-1' }] },
+          answer: { mapping: [{ zone_id: 'zone-9', label_id: DIAGRAM_LABEL_ID }] },
         }),
       ],
       [
@@ -271,8 +276,8 @@ describe('RPC: finish_quiz_session — grades the saved answers', () => {
           questionId: diagram2Id,
           answer: {
             mapping: [
-              { zone_id: 'zn-a', label_id: 'lb-a' },
-              { zone_id: 'zn-b', label_id: 'lb-a' },
+              { zone_id: ZN_A, label_id: LB_A },
+              { zone_id: ZN_B, label_id: LB_A },
             ],
           },
         }),
@@ -302,8 +307,8 @@ describe('RPC: finish_quiz_session — grades the saved answers', () => {
           questionId: diagram2Id,
           answer: {
             mapping: [
-              { zone_id: 'zn-a', label_id: 'lb-a' },
-              { zone_id: 'zone-9', label_id: 'lb-b' },
+              { zone_id: ZN_A, label_id: LB_A },
+              { zone_id: 'zone-9', label_id: LB_B },
             ],
           },
         }),

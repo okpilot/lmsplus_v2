@@ -26,6 +26,22 @@ export async function seedRedTeamUsers(): Promise<{
 
   // Create attacker user (idempotent)
   const attackerUserId = await upsertUser(admin, ATTACKER_EMAIL, ATTACKER_PASSWORD, orgId)
+  // Only the specs that deliberately deactivate the shared attacker leave it soft-deleted or
+  // banned; reset both so every other denial spec starts from a live student. Throwaway users are
+  // not touched.
+  const { data: revived, error: reviveError } = await admin
+    .from('users')
+    .update({ deleted_at: null })
+    .eq('id', attackerUserId)
+    .select('id')
+  if (reviveError) throw new Error(`Could not reset attacker deleted_at: ${reviveError.message}`)
+  if (!revived?.length) {
+    throw new Error(`Could not reset attacker deleted_at: no row for ${attackerUserId}`)
+  }
+  const { error: unbanError } = await admin.auth.admin.updateUserById(attackerUserId, {
+    ban_duration: 'none',
+  })
+  if (unbanError) throw new Error(`Could not clear attacker Auth ban: ${unbanError.message}`)
 
   // Create victim user (idempotent)
   const victimUserId = await upsertUser(admin, VICTIM_EMAIL, VICTIM_PASSWORD, orgId)
