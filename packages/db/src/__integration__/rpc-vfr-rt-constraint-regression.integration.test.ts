@@ -5,7 +5,7 @@
  *
  * The UNIQUE on quiz_session_answers was widened from (session_id, question_id)
  * to (session_id, question_id, blank_index) NULLS NOT DISTINCT. The ON CONFLICT
- * clause in submit_quiz_answer (mig 095b) was updated to match.
+ * clause in the answer-write path (finish_quiz_session) was updated to match.
  *
  * The critical failure mode is invisible to `db reset` / `db push`: plpgsql
  * resolves ON CONFLICT inference at EXECUTION time, not at CREATE OR REPLACE time
@@ -28,6 +28,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData, clearActiveSessions } from './cleanup'
 import { fixtureSuffix } from './fixture-suffix'
+import { P, saveAndFinish } from './save-and-finish'
 import { seedQuestions, seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 
@@ -91,14 +92,13 @@ describe('Constraint regression — answer-write idempotency after mig 095/095b'
     await cleanupReferenceData({ admin, refs: [refs] })
   })
 
-  // Single-active-session invariant (#1011): submit_quiz_answer leaves its
-  // session active, so clear it before the next test's start_quiz_session
-  // raises `another_session_active`.
+  // Single-active-session invariant (#1011): clear any open session before the
+  // next test's start_quiz_session raises `another_session_active`.
   beforeEach(async () => {
     if (orgId) await clearActiveSessions({ admin, orgId })
   })
 
-  it('submit_quiz_answer called twice for the same question does not duplicate quiz_session_answers rows', async () => {
+  it('save_quiz_answer twice + finish_quiz_session once yields exactly one quiz_session_answers row', async () => {
     const { data: sessionData, error: startErr } = await studentClient.rpc('start_quiz_session', {
       p_mode: 'quick_quiz',
       p_subject_id: refs.subjectId,
@@ -110,23 +110,10 @@ describe('Constraint regression — answer-write idempotency after mig 095/095b'
       throw new Error('start_quiz_session did not return a string')
     const sessionId = sessionData
 
-    // First submit
-    const { error: err1 } = await studentClient.rpc('submit_quiz_answer', {
-      p_session_id: sessionId,
-      p_question_id: questionIds[2]!,
-      p_selected_option: 'b',
-      p_response_time_ms: 1000,
-    })
-    expect(err1).toBeNull()
-
-    // Second submit — same question, ON CONFLICT DO NOTHING
-    const { error: err2 } = await studentClient.rpc('submit_quiz_answer', {
-      p_session_id: sessionId,
-      p_question_id: questionIds[2]!,
-      p_selected_option: 'b',
-      p_response_time_ms: 1000,
-    })
-    expect(err2).toBeNull()
+    // Save twice for the same question, then finish: the finish path's
+    // ON CONFLICT inference must hold against the widened UNIQUE.
+    const answer = { questionId: questionIds[2]!, answer: P.mc('b'), timeSpentMs: 1000 }
+    await saveAndFinish(studentClient, sessionId, [answer, answer])
 
     const { data: answerRows, error: rowsErr } = await admin
       .from('quiz_session_answers')

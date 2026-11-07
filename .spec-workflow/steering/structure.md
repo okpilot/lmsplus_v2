@@ -113,8 +113,8 @@ feature/
 │   ├── use-feature.ts
 │   └── use-feature.test.ts
 ├── actions/              # Server Actions (one file per action or actions.ts)
-│   ├── submit.ts
-│   └── submit.test.ts
+│   ├── check-answer.ts
+│   └── check-answer.test.ts
 ├── types.ts              # Feature-scoped type definitions
 ├── page.tsx              # Route page (composition only)
 └── loading.tsx           # Suspense fallback
@@ -132,7 +132,7 @@ Directories prefixed with `_` (underscore) are not treated as route segments by 
 |----------|-----------|---------|
 | React component | `kebab-case.tsx` | `question-card.tsx` |
 | Hook | `use-*.ts` | `use-quiz-session.ts` |
-| Server Action | `actions.ts` or `kebab-case.ts` in `actions/` | `actions/submit.ts` |
+| Server Action | `actions.ts` or `kebab-case.ts` in `actions/` | `actions/check-answer.ts` |
 | Utility/helper | `kebab-case.ts` | `format-score.ts` |
 | Type definitions | `types.ts` | per feature folder |
 | Test file | `*.test.ts` or `*.test.tsx` | `question-card.test.tsx` |
@@ -151,7 +151,7 @@ Directories prefixed with `_` (underscore) are not treated as route segments by 
 | Zod schemas | `PascalCase` + `Schema` suffix | `SubmitAnswerSchema` |
 | Server Action results | `PascalCase` + `Result` suffix | `type SubmitAnswerResult` |
 | DB table names | `snake_case` (plural) | `quiz_sessions`, `student_responses` |
-| RPC function names | `snake_case` | `get_quiz_questions`, `submit_quiz_answer` |
+| RPC function names | `snake_case` | `get_quiz_questions`, `finish_quiz_session` |
 
 ### Prefer `type` over `interface`
 
@@ -291,8 +291,8 @@ Group by feature (quiz, dashboard, admin/students), not by type (components, hoo
 Every test file lives next to its source file. No `__tests__/` directories.
 
 ```
-actions/submit.ts
-actions/submit.test.ts
+actions/check-answer.ts
+actions/check-answer.test.ts
 _components/question-card.tsx
 _components/question-card.test.tsx
 ```
