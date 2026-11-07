@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
-// Runs the `run:` steps of the CI `lint` job locally (#1296), so /fullpush grades what CI grades.
+// Runs the `run:` steps of the CI `lint` job locally (#1296), so /fullpush runs what CI runs; `uses:` steps are skipped,
+// so the local Node/pnpm versions are not compared with CI's.
 // Only the named job's steps run; other jobs (mutation-plan, mutation-harness, lint-gate) do not.
 //
 // Usage:  node .claude/hooks/run-ci-lint.mjs [--workflow <file>] [--job <id>] [--list]
@@ -64,7 +65,7 @@ function runsPnpmInstall(run) {
       .trim()
       .replace(/^(\w+=\S*\s+)+/, '')
       .replace(/^corepack\s+/, '')
-    return /^pnpm(\s+-{1,2}[\w-]+(=\S+)?(\s+[^-\s]\S*)??)*\s+(install|i)(\s|$)/.test(c)
+    return /^pnpm(\s+--?\w[\w-]*(=\S+)?(\s+[^-\s]\S*)??)*\s+(install|i)(\s|$)/.test(c)
   })
 }
 

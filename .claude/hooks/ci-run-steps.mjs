@@ -104,7 +104,7 @@ function parseItem(lines, keyIndent) {
     }
     const m = /^\s*([\w-]+):[ \t]?(.*)$/.exec(l)
     if (!m) continue
-    if (m[1] === 'name') step.name = unquote(m[2])
+    if (m[1] === 'name') step.name = scalarText(m[2])
     else if (m[1] === 'timeout-minutes') step.timeoutMinutes = unquote(m[2].replace(/\s+#.*$/, ''))
     else if (UNSUPPORTED_STEP_KEYS.has(m[1])) step.unsupported.push(m[1])
     else if (m[1] === 'env') {
@@ -136,12 +136,17 @@ function foldedIrregular(lines, i, keyIndent, rest) {
   return content.some((x) => x.trim() === '' || indentOf(x) > cut)
 }
 
+/** One-line scalar: a quoted value (lazy match, optional trailing comment), else with ` #…` stripped. */
+function scalarText(raw) {
+  const v = raw.trim()
+  const q = /^(["'])(.*?)\1(\s+#.*)?$/.exec(v)
+  return /^["']/.test(v) && q ? q[2] : v.replace(/\s+#.*$/, '')
+}
+
 function runText(lines, i, keyIndent, rest) {
   const [body] = readRunBody(lines, i, keyIndent, rest)
   if (!BLOCK_SCALAR_RE.test(rest.trim())) {
-    const v = rest.trim()
-    const q = /^(["'])(.*?)\1(\s+#.*)?$/.exec(v)
-    return /^["']/.test(v) && q ? q[2] : v.replace(/\s+#.*$/, '')
+    return scalarText(rest)
   }
   const content = body.filter((x) => x.trim() !== '')
   const cut = Math.min(...content.map(indentOf))

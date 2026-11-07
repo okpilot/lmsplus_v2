@@ -406,3 +406,26 @@ test('a quoted run without its escape is listed as written', () => {
     assert.ok(r.stdout.split('\n').includes(want), r.stdout)
   }
 })
+
+test('a trailing comment on a step name is not part of the name', () => {
+  const a = run(wrap('      - name: "Lint" # why\n        run: echo X\n'))
+  assert.match(a.stdout, /PASS.*Lint$/m)
+  assert.doesNotMatch(a.stdout, /# why/)
+  const b = run(wrap('      - name: "Lint #1" # why\n        run: echo X\n'))
+  assert.match(b.stdout, /PASS.*Lint #1$/m)
+})
+
+test('a pnpm run with many flag tokens lists without regex blowup', () => {
+  const wf = join(dir, `wf${n++}.yml`)
+  writeFileSync(wf, wrap(`      - name: Flags\n        run: pnpm${' --flag-x'.repeat(40)} run\n`))
+  const t0 = Date.now()
+  const r = spawnSync('node', [SCRIPT, '--workflow', wf, '--list'], {
+    cwd: dir,
+    encoding: 'utf8',
+    timeout: 5000,
+  })
+  const elapsed = Date.now() - t0
+  assert.equal(r.status, 0, `${r.stderr} ${r.error ?? ''}`)
+  assert.equal(r.signal, null)
+  assert.ok(elapsed < 2000, `took ${elapsed}ms`)
+})
