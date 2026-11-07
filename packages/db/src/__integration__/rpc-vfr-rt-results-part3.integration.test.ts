@@ -4,6 +4,7 @@
  * the new types, and an overdue auto-completion scores them through the shared part-score helper.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { diagramLabelId, diagramZoneId } from './diagram-ids'
 import { finishSeedSession } from './finish-fixture'
 import { requireRpcResult } from './guards'
 import { P, type SeedAnswer, saveAndFinish } from './save-and-finish'
@@ -129,15 +130,22 @@ describe('get_vfr_rt_exam_results — Part 3 ordering and diagram', () => {
       .single()
     if (readErr) throw new Error(`diagram read: ${readErr.message}`)
     const original = before.diagram_config as {
+      image_ref: string
       zones: unknown[]
       labels: unknown[]
       answer: unknown[]
     }
     const edited = {
       ...original,
-      zones: [...original.zones, { id: 'zx', x: 0, y: 0, w: 0.1, h: 0.1 }],
-      labels: [...original.labels, { id: 'lx', text: 'Extra' }],
-      answer: [...original.answer, { zone_id: 'zx', label_id: 'lx' }],
+      zones: [
+        ...original.zones,
+        { id: diagramZoneId(original.image_ref, 3), x: 0, y: 0, w: 0.1, h: 0.1 },
+      ],
+      labels: [...original.labels, { id: diagramLabelId('Extra'), text: 'Extra' }],
+      answer: [
+        ...original.answer,
+        { zone_id: diagramZoneId(original.image_ref, 3), label_id: diagramLabelId('Extra') },
+      ],
     }
     const { error: editErr } = await admin
       .from('questions')

@@ -632,7 +632,7 @@ const DIAGRAM_LAYOUTS: Record<string, DiagramLayout> = {
 type AuthoredDiagram = { image_ref: string; answer_by_zone: Record<string, string> }
 
 /** What gets stored in `questions.diagram_config`, mirroring `is_valid_diagram_config`'s exact
- *  key set (mig `20260702000100`). */
+ *  key set and derived ids (mig `20261106000100`). */
 type ResolvedDiagramConfig = {
   image_ref: string
   zones: DiagramZone[]

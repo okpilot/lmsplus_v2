@@ -3,6 +3,7 @@
  * mig 20260929000200). Split from vfr-rt-helpers.ts. Not a test
  * file — Vitest does not collect it.
  */
+import { diagramLabelId, diagramZoneId } from './diagram-ids'
 import { orderingItem } from './ordering-item-id'
 import { admin, insertMcQuestion, suffix } from './vfr-rt-helpers'
 
@@ -91,16 +92,18 @@ export type DiagramFixture = {
   answer: Array<{ zone_id: string; label_id: string }>
 }
 
-function buildDiagramConfig(idx: number): Omit<DiagramFixture, 'id'> {
-  const n = `${idx}-${suffix}`
-  const zoneA = { id: `zone-a-${n}`, x: 0.1, y: 0.1, w: 0.2, h: 0.2 }
-  const zoneB = { id: `zone-b-${n}`, x: 0.6, y: 0.1, w: 0.2, h: 0.2 }
-  const zoneC = { id: `zone-c-${n}`, x: 0.1, y: 0.6, w: 0.2, h: 0.2 }
-  const one = { id: `lbl-one-${n}`, text: `Upwind ${idx}` }
-  const two = { id: `lbl-two-${n}`, text: `Crosswind ${idx}` }
-  const three = { id: `lbl-three-${n}`, text: `Downwind ${idx}` }
-  const four = { id: `lbl-four-${n}`, text: `Base ${idx} (unused)` }
+function buildDiagramConfig(idx: number): Omit<DiagramFixture, 'id'> & { imageRef: string } {
+  const imageRef = `rwy-pattern-${idx}`
+  const zoneA = { id: diagramZoneId(imageRef, 0), x: 0.1, y: 0.1, w: 0.2, h: 0.2 }
+  const zoneB = { id: diagramZoneId(imageRef, 1), x: 0.6, y: 0.1, w: 0.2, h: 0.2 }
+  const zoneC = { id: diagramZoneId(imageRef, 2), x: 0.1, y: 0.6, w: 0.2, h: 0.2 }
+  const label = (text: string) => ({ id: diagramLabelId(text), text })
+  const one = label(`Upwind ${idx}`)
+  const two = label(`Crosswind ${idx}`)
+  const three = label(`Downwind ${idx}`)
+  const four = label(`Base ${idx} (unused)`)
   return {
+    imageRef,
     zones: [zoneA, zoneB, zoneC],
     labels: [one, two, three, four],
     answer: [
@@ -115,7 +118,7 @@ function buildDiagramConfig(idx: number): Omit<DiagramFixture, 'id'> {
 export async function insertDiagramQuestion(
   opts: OrgFixture & { topicId: string; subtopicId: string; idx: number },
 ): Promise<DiagramFixture> {
-  const { zones, labels, answer } = buildDiagramConfig(opts.idx)
+  const { imageRef, zones, labels, answer } = buildDiagramConfig(opts.idx)
   const { data, error } = await admin
     .from('questions')
     .insert({
@@ -127,7 +130,7 @@ export async function insertDiagramQuestion(
       question_text: `DIAG question ${opts.idx} ${suffix}?`,
       explanation_text: `DIAG explanation ${opts.idx}`,
       question_type: 'diagram_label',
-      diagram_config: { image_ref: `rwy-pattern-${opts.idx}`, zones, labels, answer },
+      diagram_config: { image_ref: imageRef, zones, labels, answer },
       difficulty: 'medium',
       status: 'active',
       created_by: opts.adminId,

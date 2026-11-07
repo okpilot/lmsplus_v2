@@ -211,3 +211,4 @@
 ## 216 — 2026-11-05 — `question-table.tsx` selection checkboxes use `ui/checkbox`; the #1678 per-line ignores are gone. #1678
 ## 217 — 2026-11-05 — Admin student and question dialogs disable submit until the required fields are present (student: full name, plus email on create; question: subject, topic, question text, every option text, correct option, explanation); format errors still return the server toast. #888
 ## 218 — 2026-11-05 — `flagged_questions` INSERT and undelete require a question visible to the caller (RESTRICTIVE, mirrors `question_comments` #1637); a trigger makes `question_id` immutable; unflag stays allowed on an invisible question. #1177
+## 219 — 2026-11-06 — `is_valid_diagram_config` requires label id = derived from its text and zone id = derived from (image_ref, canonical index), zones ascending, via `ordering_item_id`; no new function, no backfill (prod rows already derived). #1215
