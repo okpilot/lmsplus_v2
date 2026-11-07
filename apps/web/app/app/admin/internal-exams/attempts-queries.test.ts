@@ -382,6 +382,26 @@ describe('listInternalExamAttempts', () => {
       expect(lastPage.range).toHaveBeenCalledWith(25, 49)
     })
 
+    it("keeps the past-end recount and re-read within the caller's organization", async () => {
+      mockAdmin()
+      const chains = [
+        buildChain(null, { message: 'range', code: 'PGRST103' }, null),
+        buildChain(null, null, 40),
+        buildChain([makeRow(1)], null, 40),
+      ]
+      mockFrom(chains)
+
+      const result = await listInternalExamAttempts({ page: 99 })
+
+      expect(result.rows).toHaveLength(1)
+      for (const chain of chains) {
+        const orgCalls = (chain.eq?.mock.calls ?? []).filter(
+          ([column]) => column === 'organization_id',
+        )
+        expect(orgCalls).toEqual([['organization_id', ORG_ID]])
+      }
+    })
+
     it('snaps to the last page when the offset equals the total (empty page, count > 0)', async () => {
       mockAdmin()
       // 50 rows, page 3 → offset 50 == total: 200 with [] and count 50, no error.

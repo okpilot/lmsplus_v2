@@ -82,8 +82,9 @@ export async function runOffsetRows<T>(
 /**
  * Runs a data select that carries `count: 'exact'` and returns the rows with the total.
  * `pastEnd` is true when the requested range starts at or past the end (PGRST103, or
- * empty rows with a positive count; see `isPastEndPage`) and carries the real count; any
- * other error is logged server-side and thrown as the generic message.
+ * empty rows with a positive count; see `isPastEndPage`) and carries the response count,
+ * 0 when PGRST103 returns a null count; any other error is logged server-side and thrown
+ * as the generic message.
  */
 export async function runOffsetPage<T>(
   builder: OffsetChainBuilder,
