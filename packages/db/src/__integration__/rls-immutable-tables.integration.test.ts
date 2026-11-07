@@ -167,6 +167,7 @@ describe('RLS: immutable tables', () => {
       .eq('session_id', sessionId)
       .eq('question_id', questionIds[0])
     expect(beforeErr).toBeNull()
+    expect(before).toHaveLength(1)
 
     const { error } = await studentClient
       .from('student_responses')
@@ -181,7 +182,7 @@ describe('RLS: immutable tables', () => {
       .eq('session_id', sessionId)
       .eq('question_id', questionIds[0])
     expect(afterErr).toBeNull()
-    expect(after).toHaveLength(before?.length ?? 0)
+    expect(after).toHaveLength(1)
   })
 
   it('cannot UPDATE audit_events (data unchanged)', async () => {

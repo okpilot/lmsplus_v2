@@ -4,15 +4,15 @@
  * ## mig 095/095b/095c — quiz_session_answers UNIQUE widening
  *
  * The UNIQUE on quiz_session_answers was widened from (session_id, question_id)
- * to (session_id, question_id, blank_index) NULLS NOT DISTINCT. The ON CONFLICT
- * clause in the answer-write path (the grading helpers called by
- * finish_quiz_session: _grade_session_progress / _grade_record_mc) was updated
- * to match.
+ * to (session_id, question_id, blank_index) NULLS NOT DISTINCT. Every answer-write
+ * ON CONFLICT targets that 3-column key.
  *
- * The critical failure mode is invisible to `db reset` / `db push`: plpgsql
- * resolves ON CONFLICT inference at EXECUTION time, not at CREATE OR REPLACE time
- * (code-style.md §5 / design.md § Migrations 095b+095c). A 42P10 only surfaces
- * when a student actually submits — which is exactly what these tests exercise.
+ * plpgsql resolves ON CONFLICT inference at EXECUTION time, not at CREATE OR
+ * REPLACE time (code-style.md §5), so a 42P10 only surfaces when the statement
+ * runs. The test below runs the quick_quiz path (`_grade_record_mc`) with a
+ * pre-existing row, so its DO NOTHING branch fires. The vfr_rt_exam inline
+ * inserts in `_grade_session_progress` run in the vfr_rt_exam finish test of
+ * rpc-finish-quiz-session.integration.test.ts.
  *
  * ## mig 094 — questions_question_type_columns_check (accepted_synonyms tightening)
  *
@@ -37,7 +37,7 @@ import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient }
 const admin = getAdminClient()
 const suffix = fixtureSuffix()
 
-describe('Constraint regression — answer-write idempotency after mig 095/095b', () => {
+describe('Constraint regression — answer-write ON CONFLICT after the UNIQUE widening', () => {
   let orgId: string
   let adminUserId: string
   let studentClient: SupabaseClient
