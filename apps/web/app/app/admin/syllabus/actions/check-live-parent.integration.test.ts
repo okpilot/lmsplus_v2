@@ -76,9 +76,24 @@ describe('checkLiveParent (app-layer integration)', () => {
     const errors: string[] = []
     const topicIds = [liveTopicId, deletedTopicId].filter(Boolean)
     const subjectIds = [liveSubjectId, deletedSubjectId].filter(Boolean)
+    const now = new Date().toISOString()
     const steps: Array<[string, PromiseLike<{ error: { message: string } | null }>]> = [
-      ['topics', admin.from('easa_topics').delete().in('id', topicIds)],
-      ['subjects', admin.from('easa_subjects').delete().in('id', subjectIds)],
+      [
+        'topics',
+        admin
+          .from('easa_topics')
+          .update({ deleted_at: now })
+          .in('id', topicIds)
+          .is('deleted_at', null),
+      ],
+      [
+        'subjects',
+        admin
+          .from('easa_subjects')
+          .update({ deleted_at: now })
+          .in('id', subjectIds)
+          .is('deleted_at', null),
+      ],
     ]
     try {
       await cleanupTestData({ admin, orgId, userIds: [adminId] })

@@ -148,18 +148,41 @@ describe('Triggers: syllabus live parent and deleted-row freeze', () => {
     await admin.from('questions').delete().eq('organization_id', orgId)
     await admin.from('exam_configs').delete().eq('organization_id', orgId)
     await cleanupTestData({ admin, orgId, userIds })
+    const now = new Date().toISOString()
+    const errors: string[] = []
     for (const id of subjectIds) {
-      const topics = (await admin.from('easa_topics').select('id').eq('subject_id', id)).data ?? []
-      await admin
+      const { data: topics, error: lookupErr } = await admin
+        .from('easa_topics')
+        .select('id')
+        .eq('subject_id', id)
+      if (lookupErr) errors.push(`topic lookup: ${lookupErr.message}`)
+      const { error: stErr } = await admin
         .from('easa_subtopics')
-        .delete()
+        .update({ deleted_at: now })
         .in(
           'topic_id',
-          topics.map((r) => r.id as string),
+          (topics ?? []).map((r) => r.id as string),
         )
-      await admin.from('easa_topics').delete().eq('subject_id', id)
-      await admin.from('easa_subjects').delete().eq('id', id)
+        .is('deleted_at', null)
+      if (stErr) errors.push(`subtopics: ${stErr.message}`)
+      if (errors.length === 0) {
+        const { error: tErr } = await admin
+          .from('easa_topics')
+          .update({ deleted_at: now })
+          .eq('subject_id', id)
+          .is('deleted_at', null)
+        if (tErr) errors.push(`topics: ${tErr.message}`)
+      }
+      if (errors.length === 0) {
+        const { error: sErr } = await admin
+          .from('easa_subjects')
+          .update({ deleted_at: now })
+          .eq('id', id)
+          .is('deleted_at', null)
+        if (sErr) errors.push(`subjects: ${sErr.message}`)
+      }
     }
+    if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
   })
 
   it('rejects a topic insert under a soft-deleted subject', async () => {

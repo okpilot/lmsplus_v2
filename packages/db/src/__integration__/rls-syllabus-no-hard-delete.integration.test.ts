@@ -72,9 +72,31 @@ describe('syllabus soft delete: privileges and readers', () => {
     await admin.from('internal_exam_codes').delete().eq('organization_id', orgId)
     await admin.from('exam_configs').delete().eq('organization_id', orgId)
     await cleanupTestData({ admin, orgId, userIds })
-    await admin.from('easa_subtopics').delete().eq('topic_id', topicId)
-    await admin.from('easa_topics').delete().eq('subject_id', subjectId)
-    await admin.from('easa_subjects').delete().eq('id', subjectId)
+    const now = new Date().toISOString()
+    const errors: string[] = []
+    const { error: stErr } = await admin
+      .from('easa_subtopics')
+      .update({ deleted_at: now })
+      .eq('topic_id', topicId)
+      .is('deleted_at', null)
+    if (stErr) errors.push(`subtopics: ${stErr.message}`)
+    if (errors.length === 0) {
+      const { error: tErr } = await admin
+        .from('easa_topics')
+        .update({ deleted_at: now })
+        .eq('subject_id', subjectId)
+        .is('deleted_at', null)
+      if (tErr) errors.push(`topics: ${tErr.message}`)
+    }
+    if (errors.length === 0) {
+      const { error: sErr } = await admin
+        .from('easa_subjects')
+        .update({ deleted_at: now })
+        .eq('id', subjectId)
+        .is('deleted_at', null)
+      if (sErr) errors.push(`subjects: ${sErr.message}`)
+    }
+    if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
   })
 
   const tables = () =>

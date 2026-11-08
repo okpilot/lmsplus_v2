@@ -60,10 +60,13 @@ describe('deleteItem (app-layer integration)', () => {
     } catch (e) {
       errors.push(`cleanupTestData: ${e instanceof Error ? e.message : String(e)}`)
     }
+    const now = new Date().toISOString()
+    const live = (table: 'easa_subtopics' | 'easa_topics' | 'easa_subjects', id: string) =>
+      admin.from(table).update({ deleted_at: now }).eq('id', id).is('deleted_at', null)
     const steps: Array<[string, PromiseLike<{ error: { message: string } | null }>]> = [
-      ['subtopics', admin.from('easa_subtopics').delete().eq('id', subtopicId)],
-      ['topics', admin.from('easa_topics').delete().eq('id', topicId)],
-      ['subjects', admin.from('easa_subjects').delete().eq('id', subjectId)],
+      ['subtopics', live('easa_subtopics', subtopicId)],
+      ['topics', live('easa_topics', topicId)],
+      ['subjects', live('easa_subjects', subjectId)],
     ]
     for (const [label, step] of steps) {
       const { error } = await step
