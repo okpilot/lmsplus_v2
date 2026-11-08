@@ -1,14 +1,14 @@
 import { expect, test } from '@playwright/test'
 import {
+  cleanupE2eSyllabus,
   getSubjectDeletedAt,
   makeSyllabusE2eCode,
-  softDeleteMarkedSyllabusSubjects,
 } from './helpers/syllabus-cleanup'
 
 test.use({ storageState: 'e2e/.auth/admin.json' })
 
 test.afterEach(async () => {
-  await softDeleteMarkedSyllabusSubjects()
+  await cleanupE2eSyllabus()
 })
 
 test.describe('Admin Syllabus — soft delete', () => {
@@ -51,6 +51,6 @@ test.describe('Admin Syllabus — soft delete', () => {
   })
 
   test('cleanup helper is a no-op when no marked subject is active', async () => {
-    expect(await softDeleteMarkedSyllabusSubjects()).toBe(0)
+    expect(await cleanupE2eSyllabus()).toBe(0)
   })
 })
