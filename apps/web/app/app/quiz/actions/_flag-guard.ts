@@ -112,3 +112,28 @@ export async function flagQuestion(
   }
   return { success: true, flagged: true }
 }
+
+/**
+ * Applies the requested state, or toggles when `desired` is absent. A request for the state
+ * the question is already in writes nothing, so a resent call cannot flip it back.
+ */
+export async function applyFlagState(
+  supabase: ServerSupabaseClient,
+  {
+    userId,
+    questionId,
+    current,
+    desired,
+  }: {
+    userId: string
+    questionId: string
+    current: boolean
+    desired: boolean | undefined
+  },
+): Promise<FlagResult> {
+  const target = desired ?? !current
+  if (target === current) return { success: true, flagged: current }
+  return target
+    ? flagQuestion(supabase, userId, questionId)
+    : unflagQuestion(supabase, userId, questionId)
+}
