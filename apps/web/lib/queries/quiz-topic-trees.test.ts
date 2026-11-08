@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  type ChainCall,
+  hasDeletedAtFilter,
+  recordChainCalls,
+} from '@/lib/test-support/record-chain-calls'
 
 // ---- Mocks ----------------------------------------------------------------
+
+const chainLog: ChainCall[] = []
 
 const { mockFrom, mockRpc, mockSelect } = vi.hoisted(() => ({
   mockFrom: vi.fn(),
@@ -9,7 +16,10 @@ const { mockFrom, mockRpc, mockSelect } = vi.hoisted(() => ({
 }))
 
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({ from: mockFrom, rpc: mockRpc }),
+  createServerSupabaseClient: async () => ({
+    from: (table: string) => recordChainCalls(table, mockFrom(table), chainLog),
+    rpc: mockRpc,
+  }),
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -63,6 +73,7 @@ const COUNTS = [
 
 beforeEach(() => {
   vi.resetAllMocks()
+  chainLog.length = 0
   mockRpc.mockResolvedValue({ data: COUNTS, error: null })
   mockTables({
     topics: { data: TOPICS, error: null, count: TOPICS.length },
@@ -214,5 +225,14 @@ describe('buildTopicTree', () => {
     expect(buildTopicTree({ topics: [], subtopics: [], counts: COUNTS, subjectId: 's1' })).toEqual(
       [],
     )
+  })
+})
+
+describe('getAllTopicTrees soft-delete filters', () => {
+  it('reads only live topics and subtopics', async () => {
+    await getAllTopicTrees()
+
+    expect(hasDeletedAtFilter(chainLog, 'easa_topics')).toBe(true)
+    expect(hasDeletedAtFilter(chainLog, 'easa_subtopics')).toBe(true)
   })
 })

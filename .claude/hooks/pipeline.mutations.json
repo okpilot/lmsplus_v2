@@ -15,7 +15,10 @@
         "a non-boolean skill flag in pipeline.json blocks",
         "a skill agent whose tools omit Skill blocks",
         "a security path glob matching no tracked file blocks",
-        "a declared glob git ls-files rejects blocks"
+        "a declared glob git ls-files rejects blocks",
+        "a workflow supabase/setup-cli version differing from supabaseCli blocks",
+        "a package.json supabase script pinning the CLI only in a comment blocks",
+        "a non x.y.z supabaseCli in pipeline.json blocks"
       ],
       "note": "The final blocking exit, dropped: every mismatch still prints FAIL, but the process exits 0 regardless — a lefthook.yml/pipeline.json mismatch, a stray frontmatter `memory:` key, or a tracked agent-memory file would no longer fail the CI step."
     },
@@ -87,6 +90,30 @@
       "replace": "${err.message}`)\n    return 1\n",
       "expectRed": ["a declared glob git ls-files rejects blocks"],
       "note": "A git ls-files error counts as one tracked match, so the glob also reports as found."
+    },
+    {
+      "id": "pipeline-supabase-cli-ignores-mismatch",
+      "find": "const bad = versions.filter(([, v]) => v !== want)",
+      "replace": "const bad = []",
+      "expectRed": ["a workflow supabase/setup-cli version differing from supabaseCli blocks"],
+      "note": "Workflow setup-cli versions are no longer compared with supabaseCli; a drifted `version:` would pass."
+    },
+    {
+      "id": "pipeline-supabase-cli-pin-in-comment",
+      "find": "`^pnpm dlx supabase@${want",
+      "replace": "`supabase@${want",
+      "expectRed": [
+        "a pristine worktree of HEAD passes",
+        "a package.json supabase script pinning the CLI only in a comment blocks"
+      ],
+      "note": "Drops the `pnpm dlx` anchor from the pin match; a pin inside a comment would pass."
+    },
+    {
+      "id": "pipeline-supabase-cli-format-unchecked",
+      "find": "!/^\\d+\\.\\d+\\.\\d+$/.test(want)",
+      "replace": "false",
+      "expectRed": ["a non x.y.z supabaseCli in pipeline.json blocks"],
+      "note": "Drops the exact x.y.z check on supabaseCli; a loose version such as 2.78 would pass."
     }
   ]
 }

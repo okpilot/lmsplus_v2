@@ -114,6 +114,7 @@ async function getSubjectProgress(
   const subjectsQuery = supabase
     .from('easa_subjects')
     .select('id, code, name, short, sort_order')
+    .is('deleted_at', null)
     .order('sort_order')
   const [subjectsResult, masteryResult] = await Promise.all([
     courseId ? subjectsQuery.eq('course_id', courseId) : subjectsQuery,

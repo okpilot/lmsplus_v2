@@ -111,7 +111,7 @@ jobs:
 
       # Fails if anon holds ANY table privilege, or authenticated's INSERT/UPDATE/DELETE
       # set diverges (either direction) from the mig 20260925000300 kept allowlist (narrowed by
-      # 20261002000900, 20261004000500 and 20261015000100), or
+      # 20261002000900, 20261004000500, 20261015000100 and 20261107000100), or
       # authenticated holds TRUNCATE/REFERENCES/TRIGGER/MAINTAIN, on any public relation
       # or postgres default privilege, or anon holds EXECUTE on any public function
       # (mig 20260925000400, any owner).
@@ -121,9 +121,9 @@ jobs:
           ROWS=$(PGPASSWORD=postgres psql -h localhost -p 54322 -U postgres -d postgres -tA -F' | ' -c "
             WITH allow(relname, priv) AS (
               VALUES
-                ('easa_subjects','INSERT'), ('easa_subjects','UPDATE'), ('easa_subjects','DELETE'),
-                ('easa_topics','INSERT'), ('easa_topics','UPDATE'), ('easa_topics','DELETE'),
-                ('easa_subtopics','INSERT'), ('easa_subtopics','UPDATE'), ('easa_subtopics','DELETE'),
+                ('easa_subjects','INSERT'), ('easa_subjects','UPDATE'),
+                ('easa_topics','INSERT'), ('easa_topics','UPDATE'),
+                ('easa_subtopics','INSERT'), ('easa_subtopics','UPDATE'),
                 ('exam_configs','INSERT'), ('exam_configs','UPDATE'),
                 ('exam_config_distributions','INSERT'), ('exam_config_distributions','DELETE'),
                 ('flagged_questions','INSERT'), ('flagged_questions','UPDATE'),

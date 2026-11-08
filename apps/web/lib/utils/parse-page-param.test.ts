@@ -41,4 +41,16 @@ describe('parsePageParam', () => {
   it('returns the correct value for large page numbers', () => {
     expect(parsePageParam('999')).toBe(999)
   })
+
+  it('keeps Number.MAX_SAFE_INTEGER', () => {
+    expect(parsePageParam('9007199254740991')).toBe(Number.MAX_SAFE_INTEGER)
+  })
+
+  it('caps a page above Number.MAX_SAFE_INTEGER', () => {
+    expect(parsePageParam('1000000000000000000000')).toBe(Number.MAX_SAFE_INTEGER)
+  })
+
+  it('reads exponent notation as its leading integer', () => {
+    expect(parsePageParam('1e21')).toBe(1)
+  })
 })

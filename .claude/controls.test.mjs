@@ -20,6 +20,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { forEachRunStep } from './hooks/ci-run-steps.mjs'
 import { parseSuite } from './hooks/run-mutations.mjs'
 
 const ROOT = process.argv[2] ?? join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -89,47 +90,9 @@ function fromCi(root) {
   const found = new Set()
   for (const entry of readdirSync(dir).sort()) {
     if (!/\.ya?ml$/.test(entry)) continue
-    collectRunSteps(readFileSync(join(dir, entry), 'utf8'), found)
+    forEachRunStep(readFileSync(join(dir, entry), 'utf8'), (block) => addBlockPaths(block, found))
   }
   return found
-}
-
-const RUN_LINE_RE = /^(\s*)(?:-\s*)?run:[ \t]?(.*)$/
-const BLOCK_SCALAR_RE = /^[>|][-+0-9]*\s*(#.*)?$/
-
-/** Walk every `run:` step in a workflow file's text, feeding each one's full body to `addBlockPaths`. */
-function collectRunSteps(text, found) {
-  const lines = text.split('\n')
-  let i = 0
-  while (i < lines.length) {
-    const raw = lines[i]
-    if (/^\s*#/.test(raw)) {
-      i++
-      continue
-    }
-    const m = RUN_LINE_RE.exec(raw)
-    if (!m) {
-      i++
-      continue
-    }
-    const [block, next] = readRunBody(lines, i, m[1].length, m[2])
-    addBlockPaths(block, found)
-    i = next
-  }
-}
-
-/** Read a `run:` step's body — the rest of its own line, or a block-scalar's indented lines. */
-function readRunBody(lines, i, baseIndent, rest) {
-  if (!BLOCK_SCALAR_RE.test(rest.trim())) return [[rest], i + 1]
-  const collected = []
-  let j = i + 1
-  while (j < lines.length) {
-    const l = lines[j]
-    if (l.trim() !== '' && l.length - l.trimStart().length <= baseIndent) break
-    collected.push(l)
-    j++
-  }
-  return [collected, j]
 }
 
 /** Collect every non-excluded `.claude/...` path in a run step's body. */

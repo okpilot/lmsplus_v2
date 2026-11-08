@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  type ChainCall,
+  hasDeletedAtFilter,
+  recordChainCalls,
+} from '@/lib/test-support/record-chain-calls'
 
 // ---- Mocks ----------------------------------------------------------------
+
+const chainLog: ChainCall[] = []
 
 const { mockFrom, mockRpc } = vi.hoisted(() => ({
   mockFrom: vi.fn(),
@@ -9,7 +16,7 @@ const { mockFrom, mockRpc } = vi.hoisted(() => ({
 
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => ({
-    from: mockFrom,
+    from: (table: string) => recordChainCalls(table, mockFrom(table), chainLog),
     rpc: mockRpc,
   }),
 }))
@@ -55,6 +62,7 @@ function mockFromSequence(...responses: unknown[]) {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  chainLog.length = 0
   mockRpc.mockResolvedValue({ data: [], error: null })
 })
 
@@ -311,5 +319,27 @@ describe('getTopicsWithSubtopics — RPC error from get_question_counts', () => 
       'rpc boom',
     )
     consoleSpy.mockRestore()
+  })
+})
+
+describe('quiz subject queries soft-delete filters', () => {
+  it('reads only live subjects when listing subjects', async () => {
+    mockFromSequence({ data: [] })
+
+    await getSubjectsWithCounts()
+
+    expect(hasDeletedAtFilter(chainLog, 'easa_subjects')).toBe(true)
+  })
+
+  it('reads only live topics and subtopics when loading a subject tree', async () => {
+    mockFromSequence(
+      { data: [{ id: 't1', code: '050-01', name: 'Aerodynamics', sort_order: 1 }] },
+      { data: [] },
+    )
+
+    await getTopicsWithSubtopics('s1')
+
+    expect(hasDeletedAtFilter(chainLog, 'easa_topics')).toBe(true)
+    expect(hasDeletedAtFilter(chainLog, 'easa_subtopics')).toBe(true)
   })
 })

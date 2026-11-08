@@ -1,8 +1,8 @@
 /**
- * Red Team Spec — Vectors LC, LD (mig 20261108000100 dropped submit_quiz_answer and
+ * Red Team Spec — Vectors LE, LD (mig 20261108000100 dropped submit_quiz_answer and
  * get_student_profile_stats).
  *
- * LC (input-injection): check_quiz_answer.p_selected_option_id is the surviving MC text parameter
+ * LE (input-injection): check_quiz_answer.p_selected_option_id is the surviving MC text parameter
  *     (retired BQ fuzzed submit_quiz_answer.p_selected_option). Every SQL-fragment payload must
  *     raise invalid_answer and save no progress row. CONTROL: option 'a' grades and saves.
  * LD (auth-bypass): the dropped RPCs are unreachable for an authenticated student (PGRST202).
@@ -26,7 +26,7 @@ const DEVICE = '00000000-0000-4000-8000-00000000001c'
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null
 
-test.describe('Red Team: check_quiz_answer option injection + dropped RPCs (LC, LD)', () => {
+test.describe('Red Team: check_quiz_answer option injection + dropped RPCs (LE, LD)', () => {
   let admin: ReturnType<typeof getAdminClient>
   let student: Client
   let orgId: string
@@ -97,7 +97,7 @@ test.describe('Red Team: check_quiz_answer option injection + dropped RPCs (LC, 
     if ((data?.length ?? 0) > 0) console.info(`[lc] soft-deleted ${data?.length}`)
   })
 
-  test('LC control: a legitimate option grades and saves progress', async () => {
+  test('LE control: a legitimate option grades and saves progress', async () => {
     const sessionId = await seedSession()
     const ok = await student.rpc('check_quiz_answer', {
       p_question_id: q1,
@@ -114,7 +114,7 @@ test.describe('Red Team: check_quiz_answer option injection + dropped RPCs (LC, 
   })
 
   for (const payload of DB_LAYER_PAYLOADS) {
-    test(`LC: SQL-fragment p_selected_option_id (${payload.name}) raises invalid_answer, saves nothing`, async () => {
+    test(`LE: SQL-fragment p_selected_option_id (${payload.name}) raises invalid_answer, saves nothing`, async () => {
       const sessionId = await seedSession()
       const { data, error } = await student.rpc('check_quiz_answer', {
         p_question_id: q1,
@@ -130,7 +130,7 @@ test.describe('Red Team: check_quiz_answer option injection + dropped RPCs (LC, 
   }
 
   for (const payload of TRANSPORT_LAYER_PAYLOADS) {
-    test(`LC: control-character p_selected_option_id (${payload.name}) is refused, saves nothing`, async () => {
+    test(`LE: control-character p_selected_option_id (${payload.name}) is refused, saves nothing`, async () => {
       const sessionId = await seedSession()
       const { data, error } = await student.rpc('check_quiz_answer', {
         p_question_id: q1,

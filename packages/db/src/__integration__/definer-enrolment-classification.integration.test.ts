@@ -40,6 +40,7 @@ const CLASSIFIED: Record<string, string[]> = {
     'get_question_authoring_fields',
     'issue_internal_exam_code',
     'set_user_enrolments',
+    'soft_delete_syllabus_item',
   ],
   internal: ['_grade_session_progress', '_score_graded_session'],
 }

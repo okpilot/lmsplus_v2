@@ -182,6 +182,8 @@ export type Database = {
         Row: {
           code: string
           course_id: string
+          deleted_at: string | null
+          deleted_by: string | null
           id: string
           name: string
           short: string
@@ -190,6 +192,8 @@ export type Database = {
         Insert: {
           code: string
           course_id?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           id?: string
           name: string
           short: string
@@ -198,6 +202,8 @@ export type Database = {
         Update: {
           code?: string
           course_id?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           id?: string
           name?: string
           short?: string
@@ -211,11 +217,20 @@ export type Database = {
             referencedRelation: 'courses'
             referencedColumns: ['id']
           },
+          {
+            foreignKeyName: 'easa_subjects_deleted_by_fkey'
+            columns: ['deleted_by']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
         ]
       }
       easa_subtopics: {
         Row: {
           code: string
+          deleted_at: string | null
+          deleted_by: string | null
           id: string
           name: string
           sort_order: number
@@ -223,6 +238,8 @@ export type Database = {
         }
         Insert: {
           code: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           id?: string
           name: string
           sort_order: number
@@ -230,12 +247,21 @@ export type Database = {
         }
         Update: {
           code?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           id?: string
           name?: string
           sort_order?: number
           topic_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: 'easa_subtopics_deleted_by_fkey'
+            columns: ['deleted_by']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
           {
             foreignKeyName: 'easa_subtopics_topic_id_fkey'
             columns: ['topic_id']
@@ -248,6 +274,8 @@ export type Database = {
       easa_topics: {
         Row: {
           code: string
+          deleted_at: string | null
+          deleted_by: string | null
           id: string
           name: string
           sort_order: number
@@ -255,6 +283,8 @@ export type Database = {
         }
         Insert: {
           code: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           id?: string
           name: string
           sort_order: number
@@ -262,12 +292,21 @@ export type Database = {
         }
         Update: {
           code?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           id?: string
           name?: string
           sort_order?: number
           subject_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: 'easa_topics_deleted_by_fkey'
+            columns: ['deleted_by']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
           {
             foreignKeyName: 'easa_topics_subject_id_fkey'
             columns: ['subject_id']
@@ -1902,6 +1941,10 @@ export type Database = {
       }
       set_user_enrolments: {
         Args: { p_course_ids?: string[]; p_user_id: string }
+        Returns: undefined
+      }
+      soft_delete_syllabus_item: {
+        Args: { p_id: string; p_table: string }
         Returns: undefined
       }
       start_discovery: {

@@ -1,8 +1,9 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Set the required env var before the module under test is evaluated
 vi.hoisted(() => {
   process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key'
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key'
 })
 
 import { CURRENT_PRIVACY_VERSION, CURRENT_TOS_VERSION } from '../../lib/consent/versions'
@@ -49,6 +50,8 @@ type MockClientOptions = {
   }
   insertError?: { message: string } | null
   updateError?: { message: string } | null
+  signIn?: { error: { code?: string; message: string; status?: number } | null }
+  updateUserByIdError?: { message: string } | null
 }
 
 function buildMockClient(opts: MockClientOptions) {
@@ -59,6 +62,8 @@ function buildMockClient(opts: MockClientOptions) {
     userRow = { data: null, error: { message: 'no rows found', code: 'PGRST116' } },
     insertError = null,
     updateError = null,
+    signIn = { error: null },
+    updateUserByIdError = null,
   } = opts
 
   return {
@@ -77,10 +82,11 @@ function buildMockClient(opts: MockClientOptions) {
       return buildChain({ data: null })
     },
     auth: {
+      signInWithPassword: vi.fn().mockResolvedValue(signIn),
       admin: {
         listUsers: vi.fn().mockResolvedValue(listUsers),
         createUser: vi.fn().mockResolvedValue(createUser),
-        updateUserById: vi.fn().mockResolvedValue({ error: null }),
+        updateUserById: vi.fn().mockResolvedValue({ error: updateUserByIdError }),
       },
     },
   }
@@ -94,8 +100,8 @@ vi.mock('@supabase/supabase-js', () => ({
   createClient: mockCreateClient,
 }))
 
-afterEach(() => {
-  vi.clearAllMocks()
+beforeEach(() => {
+  vi.resetAllMocks()
 })
 
 // ---------------------------------------------------------------------------
@@ -172,6 +178,76 @@ describe('ensureTestUser', () => {
 
     const result = await ensureTestUser()
     expect(result).toEqual({ orgId: 'org-123', userId: 'existing-user' })
+  })
+
+  it('does not reset the password when the existing user already authenticates', async () => {
+    const mockClient = buildMockClient({
+      listUsers: { data: { users: [{ id: 'existing-user', email: TEST_EMAIL }] } },
+      userRow: { data: { id: 'existing-user', organization_id: 'org-123' }, error: null },
+      signIn: { error: null },
+    })
+    mockCreateClient.mockReturnValue(mockClient)
+
+    await ensureTestUser()
+
+    expect(mockClient.auth.signInWithPassword).toHaveBeenCalledWith({
+      email: TEST_EMAIL,
+      password: TEST_PASSWORD,
+    })
+    expect(mockClient.auth.admin.updateUserById).not.toHaveBeenCalled()
+  })
+
+  it('resets the password when the probe fails with invalid_credentials', async () => {
+    const mockClient = buildMockClient({
+      listUsers: { data: { users: [{ id: 'existing-user', email: TEST_EMAIL }] } },
+      userRow: { data: { id: 'existing-user', organization_id: 'org-123' }, error: null },
+      signIn: { error: { code: 'invalid_credentials', message: 'Invalid login credentials' } },
+    })
+    mockCreateClient.mockReturnValue(mockClient)
+
+    await ensureTestUser()
+
+    expect(mockClient.auth.admin.updateUserById).toHaveBeenCalledWith('existing-user', {
+      password: TEST_PASSWORD,
+    })
+  })
+
+  it('throws when the password reset fails after a failed probe', async () => {
+    mockCreateClient.mockReturnValue(
+      buildMockClient({
+        listUsers: { data: { users: [{ id: 'existing-user', email: TEST_EMAIL }] } },
+        signIn: { error: { code: 'invalid_credentials', message: 'Invalid login credentials' } },
+        updateUserByIdError: { message: 'update auth failed' },
+      }),
+    )
+
+    await expect(ensureTestUser()).rejects.toThrow(
+      'ensureTestUser reset password: update auth failed',
+    )
+  })
+
+  it('throws without resetting when the probe fails with a non-credential error', async () => {
+    const mockClient = buildMockClient({
+      listUsers: { data: { users: [{ id: 'existing-user', email: TEST_EMAIL }] } },
+      signIn: { error: { code: 'over_request_rate_limit', message: 'rate limited', status: 429 } },
+    })
+    mockCreateClient.mockReturnValue(mockClient)
+
+    await expect(ensureTestUser()).rejects.toThrow('passwordAuthenticates: rate limited')
+    expect(mockClient.auth.admin.updateUserById).not.toHaveBeenCalled()
+  })
+
+  it('does not probe or reset on the create path', async () => {
+    const mockClient = buildMockClient({
+      listUsers: { data: { users: [] } },
+      createUser: { data: { user: { id: 'new-user-id' } }, error: null },
+    })
+    mockCreateClient.mockReturnValue(mockClient)
+
+    await ensureTestUser()
+
+    expect(mockClient.auth.signInWithPassword).not.toHaveBeenCalled()
+    expect(mockClient.auth.admin.updateUserById).not.toHaveBeenCalled()
   })
 
   it('creates a new auth user when no matching auth user exists', async () => {
