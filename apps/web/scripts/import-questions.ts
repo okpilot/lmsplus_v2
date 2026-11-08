@@ -227,7 +227,12 @@ function parseFolderPath(baseDir: string) {
 }
 
 async function lookupSubject(db: AdminClient, code: string) {
-  const { data, error } = await db.from('easa_subjects').select('id').eq('code', code).single()
+  const { data, error } = await db
+    .from('easa_subjects')
+    .select('id')
+    .eq('code', code)
+    .is('deleted_at', null)
+    .single()
 
   if (error || !data) {
     throw new Error(
@@ -243,6 +248,7 @@ async function lookupTopic(db: AdminClient, subjectId: string, code: string) {
     .select('id')
     .eq('subject_id', subjectId)
     .eq('code', code)
+    .is('deleted_at', null)
     .single()
 
   if (error || !data) {
@@ -259,6 +265,7 @@ async function lookupSubtopic(db: AdminClient, topicId: string, code: string) {
     .select('id')
     .eq('topic_id', topicId)
     .eq('code', code)
+    .is('deleted_at', null)
     .single()
 
   if (error || !data) {
