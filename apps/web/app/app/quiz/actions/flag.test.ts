@@ -346,7 +346,7 @@ describe('toggleFlag with a desired state', () => {
     vi.resetAllMocks()
   })
 
-  function spyOnWrites(active: boolean) {
+  function spyOnWrites(active: boolean, activeExam = false) {
     const methods: string[] = []
     const spy = (value: unknown): unknown =>
       new Proxy(
@@ -366,7 +366,11 @@ describe('toggleFlag with a desired state', () => {
         },
       )
     mockFrom.mockImplementation((table: string) => {
-      if (table === 'quiz_sessions') return buildChain({ data: null, error: null })
+      if (table === 'quiz_sessions')
+        return buildChain({
+          data: activeExam ? { id: '00000000-0000-4000-a000-000000000099' } : null,
+          error: null,
+        })
       if (table === 'active_flagged_questions')
         return buildChain({ data: active ? { student_id: USER_ID } : null, error: null })
       return spy({ error: null })
@@ -418,12 +422,7 @@ describe('toggleFlag with a desired state', () => {
   it('still rejects during an active internal exam when flagged is given', async () => {
     setupAuthenticatedUser()
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const methods = spyOnWrites(false)
-    mockFrom.mockImplementation((table: string) =>
-      table === 'quiz_sessions'
-        ? buildChain({ data: { id: '00000000-0000-4000-a000-000000000099' }, error: null })
-        : buildChain({ data: null, error: null }),
-    )
+    const methods = spyOnWrites(false, true)
     const result = await toggleFlag({ questionId: QUESTION_ID_A, flagged: true })
     errorSpy.mockRestore()
     expect(result).toEqual({ success: false, error: 'cannot_flag_internal_exam' })
