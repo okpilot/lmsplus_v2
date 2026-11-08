@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockVerifySessionUser, mockRpc, mockClient } = vi.hoisted(() => {
   const mockRpc = vi.fn()
@@ -14,6 +14,10 @@ import { checkAnswer } from './check-answer'
 
 const QUESTION_ID = '00000000-0000-4000-a000-000000000011'
 const SESSION_ID = '00000000-0000-4000-a000-000000000099'
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
 
 beforeEach(() => {
   vi.resetAllMocks()
@@ -34,6 +38,5 @@ describe('checkAnswer malformed RPC result', () => {
       questionId: QUESTION_ID,
       sessionId: SESSION_ID,
     })
-    consoleSpy.mockRestore()
   })
 })
