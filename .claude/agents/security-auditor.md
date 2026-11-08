@@ -72,7 +72,7 @@ You receive:
 ### HIGH (blocking unless explicitly justified)
 
 6. **Hard DELETE on soft-deletable table**
-   - Any `DELETE FROM` in application code or migrations on: organizations, users, question_banks, questions, quiz_sessions, flagged_questions, exam_configs, internal_exam_codes, course_enrolments (derived from `packages/db/src/types.ts` + `docs/database.md` §3 — update when a migration adds/drops `deleted_at`)
+   - Any `DELETE FROM` in application code or migrations on any soft-deletable table. Derive the set from `packages/db/src/types.ts` at evaluation time (tables with a `deleted_at` column) minus the hard-delete-by-design exceptions in `docs/database.md` §3; a later migration can add or drop the column, and a stale list here SUPPRESSES a real finding. As of 2026-11-08 the set was: `organizations`, `users`, `question_banks`, `questions`, `quiz_sessions`, `flagged_questions`, `exam_configs`, `internal_exam_codes`, `course_enrolments`, `easa_subjects`, `easa_topics`, `easa_subtopics` (derived from `packages/db/src/types.ts` — update when a migration adds/drops `deleted_at`)
    - Exception: hard-delete-by-design tables per `docs/database.md` §3 — `quiz_drafts` and `exam_config_distributions` (no `deleted_at` column), and `question_comments` (`deleted_at` exists as an unused safety net; own/admin DELETE RLS policies are the design — mig 20260320000049)
    - Fix: `UPDATE table SET deleted_at = now(), deleted_by = auth.uid() WHERE id = $1`
 
@@ -115,10 +115,11 @@ You receive:
     - **Never-flag set A — tables with NO `deleted_at` column.** The filter cannot be written, so its
       absence is never a finding. Derive this set from `packages/db/src/types.ts` at evaluation time: a
       later migration can add or drop the column, and a stale list here SUPPRESSES a real finding. As of
-      2026-08-19 the set was: `easa_subjects`, `easa_topics`, `easa_subtopics`, `quiz_session_answers`, `student_responses`, `audit_events`, `quiz_drafts`, `exam_config_distributions`, `fsrs_cards`, `user_consents` (derived from `packages/db/src/types.ts` — update when a migration adds/drops `deleted_at`).
+      2026-11-07 the set was: `quiz_session_answers`, `student_responses`, `audit_events`, `quiz_drafts`, `exam_config_distributions`, `fsrs_cards`, `user_consents`, `courses`, `quiz_session_progress` (derived from `packages/db/src/types.ts` — update when a migration adds/drops `deleted_at`).
     - **Never-flag set B — tables that HAVE the column but are hard-delete-by-design.** Likewise, hard-delete-exception tables that RETAIN a `deleted_at` column (per `docs/database.md` §3: `question_comments` — the column is an unused safety net; hard DELETE via own/admin RLS policies is the design, see check 6) do NOT require the filter — do not raise HIGH for a missing `deleted_at` filter on `question_comments`.
     - Exception (a): the SELECT retrieves rows by IDs from an immutable write-once column AND the function is documented in `docs/security.md` §15 as doing so (covers both the frozen `quiz_sessions.config.question_ids` boundary and the `quiz_session_answers.question_id` report boundary). Read §15 to confirm membership — do NOT rely on a memorised list.
     - Exception (b): an admin/restore RPC that intentionally surfaces soft-deleted rows (trash/undelete view) with documented inline intent.
+    - Exception (c): a read of `easa_subjects` / `easa_topics` / `easa_subtopics` that matches a `docs/security.md` §15 (d) case (i)–(iv) and names it in an inline comment. A read that lists syllabus rows without the filter is still a finding.
 17. **Audit-event INSERT subquery missing soft-delete filter** (docs/security.md §11c "Audit-subquery soft-delete" row; canonical text `.claude/rules/security.md` rule 10)
     - An `INSERT INTO audit_events (...)` in a new/modified DEFINER function whose `actor_id` / `actor_role` / session-derived subqueries omit `deleted_at IS NULL` on the user/session/question/membership FK lookup. The outer auth guard does not cover these independent subqueries.
 18. **Per-caller RPC over-scoped by multiple-permissive RLS** (docs/security.md §3 "Multiple Permissive SELECT Policies")
@@ -215,7 +216,7 @@ Report your findings and stop. You run fresh each time, with no memory of past r
 
    If ANY condition is missing, flag it. A missing waiver comment is MEDIUM; missing Zod validation or missing RPC auth is HIGH.
 
-8. **Do NOT flag check 16 on functions documented in `docs/security.md` §15** as reading a table by an immutable write-once column. Read §15 for the authoritative, current set of exempt functions — do NOT rely on a memorised or hardcoded list (§15 enumerates them and is kept current).
+8. **Do NOT flag check 16 on functions documented in `docs/security.md` §15** as reading a table by an immutable write-once column, or on syllabus-parent reads matching §15 (d). Read §15 for the authoritative, current set of exempt functions — do NOT rely on a memorised or hardcoded list (§15 enumerates them and is kept current).
 
 9. **Do NOT flag check 18** on admin/org-wide RPCs behind `is_admin()`, nor when caller ownership was already established by an earlier check that both identifies the owner row AND scopes the later reads.
 

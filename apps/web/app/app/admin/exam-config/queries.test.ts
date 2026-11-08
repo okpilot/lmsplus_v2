@@ -1,6 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  type ChainCall,
+  hasDeletedAtFilter,
+  recordChainCalls,
+} from '@/lib/test-support/record-chain-calls'
 
 // ---- Mocks ----------------------------------------------------------------
+
+const chainLog: ChainCall[] = []
 
 const mockRequireAdmin = vi.hoisted(() => vi.fn())
 const mockFrom = vi.hoisted(() => vi.fn())
@@ -89,6 +96,7 @@ function buildTableMocks({
   // .order() is the terminal for easa_subjects, easa_topics, easa_subtopics
   const makeOrderChain = (data: unknown[], error: FakeError) => ({
     select: vi.fn().mockReturnThis(),
+    is: vi.fn().mockReturnThis(),
     order: vi.fn().mockResolvedValue({ data, error }),
   })
 
@@ -132,7 +140,10 @@ function buildTableMocks({
 
 function mockAdmin() {
   mockRequireAdmin.mockResolvedValue({
-    supabase: { from: mockFrom, rpc: mockRpc },
+    supabase: {
+      from: (table: string) => recordChainCalls(table, mockFrom(table), chainLog),
+      rpc: mockRpc,
+    },
     organizationId: ORG_ID,
   })
 }
@@ -141,6 +152,7 @@ function mockAdmin() {
 
 beforeEach(() => {
   vi.resetAllMocks()
+  chainLog.length = 0
 })
 
 describe('getExamConfigData', () => {
@@ -506,5 +518,18 @@ describe('getExamConfigData', () => {
 
       await expect(getExamConfigData()).rejects.toThrow('Forbidden: admin role required')
     })
+  })
+})
+
+describe('getExamConfigData soft-delete filters', () => {
+  it('reads only live subjects, topics and subtopics', async () => {
+    mockAdmin()
+    buildTableMocks()
+
+    await getExamConfigData()
+
+    expect(hasDeletedAtFilter(chainLog, 'easa_subjects')).toBe(true)
+    expect(hasDeletedAtFilter(chainLog, 'easa_topics')).toBe(true)
+    expect(hasDeletedAtFilter(chainLog, 'easa_subtopics')).toBe(true)
   })
 })

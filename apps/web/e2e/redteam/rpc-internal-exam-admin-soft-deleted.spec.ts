@@ -37,6 +37,7 @@
  */
 
 import { expect, test } from '@playwright/test'
+import { findAuthUserByEmail } from '../helpers/auth-users'
 import { getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
 import { ensureExamConfig, pickSubjectWithQuestions } from './helpers/seed-quiz'
@@ -75,10 +76,7 @@ test.describe('Red Team: soft-deleted admin cannot call internal-exam admin RPCs
     await ensureExamConfig(orgId, subjectId, topicId)
 
     // Create (or realign) the dedicated throwaway admin user.
-    const { data: authList, error: listError } = await admin.auth.admin.listUsers()
-    if (listError) throw new Error(`beforeAll: listUsers failed: ${listError.message}`)
-
-    const existing = authList.users.find((u) => u.email === SOFTDEL_ADMIN_EMAIL)
+    const existing = await findAuthUserByEmail(admin, SOFTDEL_ADMIN_EMAIL)
     if (existing) {
       softDelAdminId = existing.id
       // Ensure the public.users row exists, has the correct org + role, and is

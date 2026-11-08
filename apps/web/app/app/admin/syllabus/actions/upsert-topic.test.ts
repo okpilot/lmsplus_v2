@@ -28,20 +28,22 @@ function buildChain(
     error: null,
   },
 ) {
+  // select() serves the sort_order lookup and the live-parent lookup; update() resolves via .select('id').
+  const selectChain: Record<string, ReturnType<typeof vi.fn>> = {}
+  for (const m of ['eq', 'is', 'order', 'limit'])
+    selectChain[m] = vi.fn().mockReturnValue(selectChain)
+  selectChain.single = vi.fn().mockResolvedValue(sortOrderResult)
+  selectChain.maybeSingle = vi.fn().mockResolvedValue({ data: { id: 'parent-1' }, error: null })
+  const updated = leafResult.error
+    ? { data: null, error: leafResult.error }
+    : { data: [{ id: 'row-1' }], error: null }
+  const updateChain: Record<string, ReturnType<typeof vi.fn>> = {}
+  for (const m of ['eq', 'is']) updateChain[m] = vi.fn().mockReturnValue(updateChain)
+  updateChain.select = vi.fn().mockResolvedValue(updated)
   const chain = {
     insert: vi.fn().mockResolvedValue(leafResult),
-    update: vi.fn().mockReturnValue({
-      eq: vi.fn().mockResolvedValue(leafResult),
-    }),
-    select: vi.fn().mockReturnValue({
-      eq: vi.fn().mockReturnValue({
-        order: vi.fn().mockReturnValue({
-          limit: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue(sortOrderResult),
-          }),
-        }),
-      }),
-    }),
+    update: vi.fn().mockReturnValue(updateChain),
+    select: vi.fn().mockReturnValue(selectChain),
   }
   return chain
 }
@@ -135,7 +137,9 @@ describe('upsertTopic', () => {
 
       expect(result.success).toBe(false)
       if (result.success) return
-      expect(result.error).toBe('A topic with this code already exists in this subject')
+      expect(result.error).toBe(
+        'A topic with this code already exists in this subject (it may have been deleted)',
+      )
     })
 
     it('returns failure when the sort_order lookup returns a real DB error', async () => {
@@ -180,6 +184,18 @@ describe('upsertTopic', () => {
       expect(result.success).toBe(true)
       expect(chain.update).toHaveBeenCalled()
       expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/syllabus')
+    })
+
+    it('returns the duplicate-code message when renaming to a code already in use', async () => {
+      mockAdminWithResult({ error: { message: 'duplicate key', code: '23505' } })
+
+      const result = await upsertTopic({ ...validInput, id: VALID_UUID })
+
+      expect(result).toEqual({
+        success: false,
+        error: 'A topic with this code already exists in this subject (it may have been deleted)',
+      })
+      expect(mockRevalidatePath).not.toHaveBeenCalled()
     })
 
     it('returns failure when update fails with a DB error', async () => {

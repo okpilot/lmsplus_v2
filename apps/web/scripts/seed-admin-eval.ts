@@ -3,7 +3,7 @@
  * Creates: admin user, student user, 3 subjects with topics/subtopics,
  * and a few questions referencing one subtopic (to test delete protection).
  *
- * Run AFTER `npx supabase db reset` (which applies all migrations).
+ * Run AFTER `pnpm supabase db reset` (repo root; applies all migrations).
  * Env vars: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
  *
  * Usage: cd apps/web && npx tsx scripts/seed-admin-eval.ts

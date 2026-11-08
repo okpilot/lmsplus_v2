@@ -79,10 +79,12 @@ async function fetchTopicTreeRows(supabase: Supabase) {
     supabase
       .from('easa_topics')
       .select('id, subject_id, code, name, sort_order', { count: 'exact' })
+      .is('deleted_at', null)
       .order('sort_order'),
     supabase
       .from('easa_subtopics')
       .select('id, code, name, sort_order, topic_id', { count: 'exact' })
+      .is('deleted_at', null)
       .order('sort_order'),
     getActiveQuestionCounts(),
   ])

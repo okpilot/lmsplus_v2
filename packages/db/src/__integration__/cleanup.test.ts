@@ -229,7 +229,8 @@ const adminForTestData = {
 describe('cleanupTestData', () => {
   // The from() call order in cleanupTestData: fsrs_cards, audit_events,
   // student_responses, quiz_sessions (id lookup), quiz_session_answers,
-  // quiz_sessions (delete), questions, question_banks, exam_configs, users, organizations.
+  // quiz_sessions (delete), questions, question_banks, exam_configs, easa_subjects,
+  // easa_topics, easa_subtopics (deleted_by resets), users, organizations.
   function queueAllDeletesOk() {
     mockFrom
       .mockReturnValueOnce(buildChain({ data: [], error: null })) // fsrs_cards
@@ -241,6 +242,9 @@ describe('cleanupTestData', () => {
       .mockReturnValueOnce(buildChain({ data: [], error: null })) // questions
       .mockReturnValueOnce(buildChain({ data: [], error: null })) // question_banks
       .mockReturnValueOnce(buildChain({ data: [], error: null })) // exam_configs
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // easa_subjects deleted_by reset
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // easa_topics deleted_by reset
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // easa_subtopics deleted_by reset
       .mockReturnValueOnce(buildChain({ data: [], error: null })) // users
       .mockReturnValueOnce(buildChain({ data: [], error: null })) // organizations
   }
@@ -256,7 +260,8 @@ describe('cleanupTestData', () => {
     expect(mockFrom).toHaveBeenNthCalledWith(4, 'quiz_sessions') // id lookup before child delete
     expect(mockFrom).toHaveBeenNthCalledWith(5, 'quiz_session_answers')
     expect(mockFrom).toHaveBeenNthCalledWith(9, 'exam_configs') // exam_configs before users/org
-    expect(mockFrom).toHaveBeenNthCalledWith(11, 'organizations') // org deleted last
+    expect(mockFrom).toHaveBeenNthCalledWith(13, 'users') // after the syllabus deleted_by resets
+    expect(mockFrom).toHaveBeenNthCalledWith(14, 'organizations') // org deleted last
     expect(mockDeleteUser).toHaveBeenCalledTimes(2)
     expect(mockDeleteUser).toHaveBeenNthCalledWith(1, 'u-1')
     expect(mockDeleteUser).toHaveBeenNthCalledWith(2, 'u-2')
@@ -301,6 +306,25 @@ describe('cleanupTestData', () => {
       cleanupTestData({ admin: adminForTestData, orgId: 'org-1', userIds: [] }),
     ).resolves.toBeUndefined()
     expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('audit_events delete failed'))
+    consoleSpy.mockRestore()
+  })
+
+  it('logs and continues when a syllabus deleted_by reset errors', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    mockFrom
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // fsrs_cards
+      .mockReturnValueOnce(buildChain({ data: null, error: { message: 'reset boom' } })) // easa_subjects
+      .mockReturnValue(buildChain({ data: [], error: null })) // every later step
+    mockDeleteUser.mockResolvedValue({ error: null })
+
+    await expect(
+      cleanupTestData({ admin: adminForTestData, orgId: undefined, userIds: ['u-1'] }),
+    ).resolves.toBeUndefined()
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining('easa_subjects deleted_by reset failed'),
+      'reset boom',
+    )
+    expect(mockFrom).toHaveBeenCalledWith('users')
     consoleSpy.mockRestore()
   })
 
@@ -379,7 +403,13 @@ describe('cleanupTestData with ids a failed beforeAll never assigned', () => {
 
     await cleanupTestData({ admin: adminForTestData, orgId: undefined, userIds: ['u-1'] })
 
-    expect(recorded.map((r) => r.table)).toEqual(['fsrs_cards', 'users'])
+    expect(recorded.map((r) => r.table)).toEqual([
+      'fsrs_cards',
+      'easa_subjects',
+      'easa_topics',
+      'easa_subtopics',
+      'users',
+    ])
     expect(mockDeleteUser).toHaveBeenCalledTimes(1)
     expect(mockDeleteUser).toHaveBeenCalledWith('u-1')
   })

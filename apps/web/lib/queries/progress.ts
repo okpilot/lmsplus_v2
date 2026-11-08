@@ -44,10 +44,15 @@ export async function getProgressData(): Promise<SubjectDetail[]> {
   if (!user) throw new Error('Not authenticated')
 
   const [subjectsRes, topicsRes, masteryResult] = await Promise.all([
-    supabase.from('easa_subjects').select('id, code, name, short, sort_order').order('sort_order'),
+    supabase
+      .from('easa_subjects')
+      .select('id, code, name, short, sort_order')
+      .is('deleted_at', null)
+      .order('sort_order'),
     supabase
       .from('easa_topics')
       .select('id, code, name, subject_id, sort_order')
+      .is('deleted_at', null)
       .order('sort_order'),
     supabase.rpc('get_student_mastery_stats'),
   ])
