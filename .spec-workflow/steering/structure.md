@@ -149,7 +149,7 @@ Directories prefixed with `_` (underscore) are not treated as route segments by 
 | Constants | `SCREAMING_SNAKE_CASE` | `MAX_QUIZ_QUESTIONS` |
 | Variables | `camelCase` | `const studentId = ...` |
 | Zod schemas | `PascalCase` + `Schema` suffix | `CheckAnswerSchema` |
-| Server Action results | `PascalCase` + `Result` suffix | `type CheckAnswerResult` |
+| Server Action results | `PascalCase` + `Result` suffix | `type ScoreAnswerResult` |
 | DB table names | `snake_case` (plural) | `quiz_sessions`, `student_responses` |
 | RPC function names | `snake_case` | `get_quiz_questions`, `finish_quiz_session` |
 
@@ -319,8 +319,8 @@ No Route Handler mutates (R5), except `apps/web/app/auth/**` handlers and webhoo
 Export result types alongside the function that produces them, in the same file:
 
 ```ts
-export type CheckAnswerResult = { isCorrect: boolean }
-export async function checkAnswer(...): Promise<CheckAnswerResult> { ... }
+export type ScoreAnswerResult = { isCorrect: boolean }
+export async function scoreAnswer(...): Promise<ScoreAnswerResult> { ... }
 ```
 
 ## Module Boundaries

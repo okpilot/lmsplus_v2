@@ -124,7 +124,7 @@ Enforced by prevention (Decision 111) and a class-scan guard for class tokens (D
 If a function is longer than 30 lines, extract steps into named helper functions. Named helpers are self-documenting. Biome enforces 50 lines/function and 3 params (`biome.json`; tests, e2e, `__integration__`, `lib/integration-support`, `apps/web/scripts`, `.claude/**` excluded); the 30-line target is reviewer-judged.
 ```ts
 // ❌ WRONG — 60-line function doing everything
-export async function submitAnswer(input: unknown) {
+export async function checkAnswer(input: unknown) {
   // validation (10 lines)
   // auth check (8 lines)
   // fetch question (6 lines)
@@ -142,7 +142,7 @@ export async function checkAnswer(input: unknown) {
   const supabase = await createServerSupabaseClient()
   const student = await verifySessionUser(supabase)
   if (!student) return { success: false, error: 'Not authenticated' }
-  const isCorrect = await checkAnswer(questionId, selectedOptionId)
+  const isCorrect = await isCorrectOption(questionId, selectedOptionId)
   await updateFsrsState(student.id, questionId, isCorrect)
   await logAuditEvent({ type: 'quiz.answer_submitted', actorId: student.id, ... })
   return { isCorrect, explanation: await getExplanation(questionId) }
@@ -487,9 +487,9 @@ Never hardcode Supabase project-ref URLs. Derive from `process.env.NEXT_PUBLIC_S
 ### Export Types Next to Their Functions
 ```ts
 // actions.ts
-export type CheckAnswerResult = { isCorrect: boolean; explanation: string }
+export type ScoreAnswerResult = { isCorrect: boolean; explanation: string }
 
-export async function checkAnswer(...): Promise<CheckAnswerResult> { ... }
+export async function scoreAnswer(...): Promise<ScoreAnswerResult> { ... }
 ```
 
 ---
