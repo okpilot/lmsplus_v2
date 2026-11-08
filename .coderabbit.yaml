@@ -577,8 +577,8 @@ reviews:
           instance must (a) cite the immutable write-once column, (b) include that citation in
           an inline comment at the call site, and (c) cross-reference docs/database.md §3
           "Scoring Soft-Deleted Questions" (per docs/security.md §15). Syllabus-parent carve-out (docs/security.md §15 (d)): a read of
-          easa_subjects/easa_topics/easa_subtopics may omit the filter only as (i) the parent of a live
-          row, (ii) a history name lookup, (iii) set_user_enrolments sweeping a course's subjects, or
+          easa_subjects/easa_topics/easa_subtopics may omit the filter only as (i) the FK parent of a live
+          row (a lookup by code, e.g. parts_config topic codes, still filters), (ii) a history name lookup, (iii) set_user_enrolments sweeping a course's subjects, or
           (iv) private.accessible_subject_ids() membership; it names the case inline, and a read that
           LISTS syllabus rows still filters; (a)-(c) above do not apply to it. Flag any SECURITY DEFINER
           SELECT on a soft-deletable table missing AND deleted_at IS NULL that lacks a cited

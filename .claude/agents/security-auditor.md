@@ -72,7 +72,7 @@ You receive:
 ### HIGH (blocking unless explicitly justified)
 
 6. **Hard DELETE on soft-deletable table**
-   - Any `DELETE FROM` in application code or migrations on: organizations, users, question_banks, questions, quiz_sessions, flagged_questions, exam_configs, internal_exam_codes, course_enrolments, easa_subjects, easa_topics, easa_subtopics (derived from `packages/db/src/types.ts` + `docs/database.md` §3 — update when a migration adds/drops `deleted_at`)
+   - Any `DELETE FROM` in application code or migrations on any soft-deletable table. Derive the set from `packages/db/src/types.ts` at evaluation time (tables with a `deleted_at` column) minus the hard-delete-by-design exceptions in `docs/database.md` §3; a later migration can add or drop the column, and a stale list here SUPPRESSES a real finding. As of 2026-11-08 the set was: `organizations`, `users`, `question_banks`, `questions`, `quiz_sessions`, `flagged_questions`, `exam_configs`, `internal_exam_codes`, `course_enrolments`, `easa_subjects`, `easa_topics`, `easa_subtopics` (derived from `packages/db/src/types.ts` — update when a migration adds/drops `deleted_at`)
    - Exception: hard-delete-by-design tables per `docs/database.md` §3 — `quiz_drafts` and `exam_config_distributions` (no `deleted_at` column), and `question_comments` (`deleted_at` exists as an unused safety net; own/admin DELETE RLS policies are the design — mig 20260320000049)
    - Fix: `UPDATE table SET deleted_at = now(), deleted_by = auth.uid() WHERE id = $1`
 

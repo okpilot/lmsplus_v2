@@ -78,7 +78,9 @@ test.describe('Red Team: syllabus soft delete', () => {
     if (errors.length > 0) throw new Error(`afterEach: ${errors.join('; ')}`)
     if (subjectIds.length === 0) return
 
-    const steps: Array<[string, () => PromiseLike<{ error: { message: string } | null }>]> = [
+    const steps: Array<
+      [string, () => PromiseLike<{ error: { message: string } | null }>, dependent: boolean]
+    > = [
       [
         'exam_configs',
         () =>
@@ -88,6 +90,7 @@ test.describe('Red Team: syllabus soft delete', () => {
             .in('subject_id', subjectIds)
             .is('deleted_at', null)
             .select('id'),
+        false,
       ],
       [
         'easa_subtopics',
@@ -101,6 +104,7 @@ test.describe('Red Team: syllabus soft delete', () => {
             )
             .is('deleted_at', null)
             .select('id'),
+        false,
       ],
       [
         'easa_topics',
@@ -111,6 +115,7 @@ test.describe('Red Team: syllabus soft delete', () => {
             .in('subject_id', subjectIds)
             .is('deleted_at', null)
             .select('id'),
+        true,
       ],
       [
         'easa_subjects',
@@ -121,9 +126,11 @@ test.describe('Red Team: syllabus soft delete', () => {
             .in('id', subjectIds)
             .is('deleted_at', null)
             .select('id'),
+        true,
       ],
     ]
-    for (const [label, run] of steps) {
+    for (const [label, run, dependent] of steps) {
+      if (dependent && errors.length > 0) continue
       try {
         const { error } = await run()
         if (error) throw new Error(`${label} soft-delete: ${error.message}`)

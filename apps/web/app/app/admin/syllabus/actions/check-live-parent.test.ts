@@ -57,12 +57,12 @@ describe('writeFailure', () => {
     duplicate: 'A topic with this code already exists',
   } as const
 
-  it.each(['parent_not_found', 'item_deleted'])(
-    'maps %s trigger rejection to Item not found',
-    (m) => {
-      expect(writeFailure(ctx, `P0001: ${m}`)).toEqual({ success: false, error: 'Item not found' })
-    },
-  )
+  it.each([
+    ['a deleted parent', 'parent_not_found'],
+    ['a deleted row', 'item_deleted'],
+  ])('shows Item not found for a write against %s', (_case, m) => {
+    expect(writeFailure(ctx, `P0001: ${m}`)).toEqual({ success: false, error: 'Item not found' })
+  })
 
   it('maps an insert failure to a create message', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
