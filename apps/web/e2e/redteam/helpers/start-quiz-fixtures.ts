@@ -10,6 +10,7 @@
  */
 
 import { enrolStudent } from '@repo/db/enrol-students'
+import { findAuthUserByEmail } from '../../helpers/auth-users'
 import { getAdminClient } from '../../helpers/supabase'
 import { createAuthenticatedClient } from './redteam-client'
 import {
@@ -282,33 +283,14 @@ export async function cleanupEoFixtures(
 }
 
 // Create (or realign) the dedicated throwaway EO-SD student, ensuring it is NOT
-// soft-deleted from a prior aborted run, and return its user id. Pages through
-// listUsers (a single page caps at perPage, so a reused student on a later page must
-// not be missed — that would wrongly fall through to createUser and fail on the
-// duplicate email). The reuse path also resets the auth password + confirmation so
-// signInWithPassword succeeds even if the password constant or auth record drifted.
+// soft-deleted from a prior aborted run, and return its user id. The reuse path also
+// resets the auth password + confirmation so signInWithPassword succeeds even if the
+// password constant or auth record drifted.
 export async function ensureEoSoftDelStudent(
   admin: ReturnType<typeof getAdminClient>,
   orgId: string,
 ): Promise<string> {
-  let existingId: string | undefined
-  for (let page = 1; ; page++) {
-    // Belt-and-suspenders ceiling: if the SDK ever ignores `page` and returns a full
-    // page every call, fail loudly instead of hanging until the beforeAll timeout.
-    if (page > 50)
-      throw new Error('EO-SD beforeAll: listUsers exceeded 50 pages — possible API bug')
-    const { data: authList, error: listError } = await admin.auth.admin.listUsers({
-      page,
-      perPage: 200,
-    })
-    if (listError) throw new Error(`EO-SD beforeAll: listUsers failed: ${listError.message}`)
-    const match = authList.users.find((u) => u.email === E2E_REDTEAM_EO_SOFTDEL_STUDENT_EMAIL)
-    if (match) {
-      existingId = match.id
-      break
-    }
-    if (authList.users.length < 200) break
-  }
+  const existingId = (await findAuthUserByEmail(admin, E2E_REDTEAM_EO_SOFTDEL_STUDENT_EMAIL))?.id
 
   if (existingId) {
     const { data: userRow, error: userRowErr } = await admin
