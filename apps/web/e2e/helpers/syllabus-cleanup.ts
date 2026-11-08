@@ -1,13 +1,14 @@
+import { randomUUID } from 'node:crypto'
 import { getAdminClient } from './supabase'
 
-/** Marker prefix of every syllabus code a spec creates. Subject codes cap at 10 chars: prefix + 6. */
-export const E2E_SYLLABUS_CODE_PREFIX = 'E2E-'
+/** Marker prefix on syllabus `code` for rows created by syllabus E2E specs (subject code is max 10 chars). */
+export const SYLLABUS_E2E_CODE_PREFIX = 'E2E-'
 
-const CODE_LIKE = `${E2E_SYLLABUS_CODE_PREFIX}%`
+const CODE_LIKE = `${SYLLABUS_E2E_CODE_PREFIX}%`
 
-/** A fresh, marked subject code (`E2E-` + 6 chars, within the `UpsertSubjectSchema` max of 10). */
-export function newE2eSubjectCode(): string {
-  return `${E2E_SYLLABUS_CODE_PREFIX}${Date.now().toString(36).slice(-6).toUpperCase()}`
+/** Unique marked subject code, <= 10 chars. Random: a deleted code stays reserved. */
+export function makeSyllabusE2eCode(): string {
+  return `${SYLLABUS_E2E_CODE_PREFIX}${randomUUID().slice(0, 6).toUpperCase()}`
 }
 
 function errorMessage(e: unknown): string {
@@ -29,7 +30,7 @@ async function runStep(errors: string[], label: string, fn: () => Promise<void>)
 }
 
 function logDeleted(table: string, count: number): void {
-  if (count > 0) console.log(`cleanupE2eSyllabus: deleted ${count} ${table} row(s)`)
+  if (count > 0) console.log(`cleanupE2eSyllabus: soft-deleted ${count} ${table} row(s)`)
 }
 
 async function findMarkedSubjectIds(): Promise<string[]> {
@@ -37,6 +38,7 @@ async function findMarkedSubjectIds(): Promise<string[]> {
     .from('easa_subjects')
     .select('id')
     .like('code', CODE_LIKE)
+    .is('deleted_at', null)
   if (error) throw new Error(error.message)
   return (data ?? []).map((r) => r.id)
 }
@@ -46,49 +48,60 @@ async function findTopicIds(subjectIds: string[]): Promise<string[]> {
     .from('easa_topics')
     .select('id')
     .or(scopeFilter('subject_id', subjectIds))
+    .is('deleted_at', null)
   if (error) throw new Error(error.message)
   return (data ?? []).map((r) => r.id)
 }
 
-async function deleteSubtopics(topicIds: string[]): Promise<void> {
+async function softDeleteSubtopics(topicIds: string[]): Promise<number> {
   const { data, error } = await getAdminClient()
     .from('easa_subtopics')
-    .delete()
+    .update({ deleted_at: new Date().toISOString() })
     .or(scopeFilter('topic_id', topicIds))
+    .is('deleted_at', null)
     .select('id')
   if (error) throw new Error(error.message)
-  logDeleted('easa_subtopics', data?.length ?? 0)
+  const count = data?.length ?? 0
+  logDeleted('easa_subtopics', count)
+  return count
 }
 
-async function deleteTopics(subjectIds: string[]): Promise<void> {
+async function softDeleteTopics(subjectIds: string[]): Promise<number> {
   const { data, error } = await getAdminClient()
     .from('easa_topics')
-    .delete()
+    .update({ deleted_at: new Date().toISOString() })
     .or(scopeFilter('subject_id', subjectIds))
+    .is('deleted_at', null)
     .select('id')
   if (error) throw new Error(error.message)
-  logDeleted('easa_topics', data?.length ?? 0)
+  const count = data?.length ?? 0
+  logDeleted('easa_topics', count)
+  return count
 }
 
-async function deleteSubjects(): Promise<void> {
+async function softDeleteSubjects(): Promise<number> {
   const { data, error } = await getAdminClient()
     .from('easa_subjects')
-    .delete()
+    .update({ deleted_at: new Date().toISOString() })
     .like('code', CODE_LIKE)
+    .is('deleted_at', null)
     .select('id')
   if (error) throw new Error(error.message)
-  logDeleted('easa_subjects', data?.length ?? 0)
+  const count = data?.length ?? 0
+  logDeleted('easa_subjects', count)
+  return count
 }
 
 /**
- * Hard-deletes every syllabus row a spec created, children first (service role). The three tables
- * have no `deleted_at`; deleting by marker never touches seeded rows. Zero rows is silent.
+ * Soft-deletes every still-active syllabus row a spec created, children first (service role).
+ * Scoped by marker; seeded rows are never touched. Zero rows is silent. Returns the total count.
  * The first failed step stops the later ones (FK order) and its error is thrown.
  */
-export async function cleanupE2eSyllabus(): Promise<void> {
+export async function cleanupE2eSyllabus(): Promise<number> {
   const errors: string[] = []
   let subjectIds: string[] = []
   let topicIds: string[] = []
+  let total = 0
 
   await runStep(errors, 'find subjects', async () => {
     subjectIds = await findMarkedSubjectIds()
@@ -98,10 +111,34 @@ export async function cleanupE2eSyllabus(): Promise<void> {
       topicIds = await findTopicIds(subjectIds)
     })
   }
-  if (errors.length === 0)
-    await runStep(errors, 'delete subtopics', () => deleteSubtopics(topicIds))
-  if (errors.length === 0) await runStep(errors, 'delete topics', () => deleteTopics(subjectIds))
-  if (errors.length === 0) await runStep(errors, 'delete subjects', deleteSubjects)
+  if (errors.length === 0) {
+    await runStep(errors, 'delete subtopics', async () => {
+      total += await softDeleteSubtopics(topicIds)
+    })
+  }
+  if (errors.length === 0) {
+    await runStep(errors, 'delete topics', async () => {
+      total += await softDeleteTopics(subjectIds)
+    })
+  }
+  if (errors.length === 0) {
+    await runStep(errors, 'delete subjects', async () => {
+      total += await softDeleteSubjects()
+    })
+  }
 
   if (errors.length > 0) throw new Error(`cleanupE2eSyllabus: ${errors.join('; ')}`)
+  return total
+}
+
+/** Reads a marked subject's `deleted_at` by code (service role). `undefined` when no row exists. */
+export async function getSubjectDeletedAt(code: string): Promise<string | null | undefined> {
+  const admin = getAdminClient()
+  const { data, error } = await admin
+    .from('easa_subjects')
+    .select('deleted_at')
+    .eq('code', code)
+    .maybeSingle()
+  if (error) throw new Error(`getSubjectDeletedAt: ${error.message}`)
+  return data ? data.deleted_at : undefined
 }

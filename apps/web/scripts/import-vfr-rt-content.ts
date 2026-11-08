@@ -463,7 +463,12 @@ async function ensureBank(orgId: string, adminId: string): Promise<{ id: string;
 
 async function lookupSubjectByCode(code: string): Promise<string> {
   // easa_subjects.code is globally UNIQUE (mig 20260311000001), so a bare code is exact.
-  const { data, error } = await db.from('easa_subjects').select('id').eq('code', code).single()
+  const { data, error } = await db
+    .from('easa_subjects')
+    .select('id')
+    .eq('code', code)
+    .is('deleted_at', null)
+    .single()
   if (error || !data)
     throw new Error(`easa_subjects code='${code}': ${error?.message ?? 'not found'}`)
   return data.id
@@ -480,6 +485,7 @@ async function lookupTopicByCode(subjectId: string, code: string): Promise<strin
     .select('id')
     .eq('subject_id', subjectId)
     .eq('code', code)
+    .is('deleted_at', null)
     .single()
   if (error || !data)
     throw new Error(
@@ -494,13 +500,11 @@ async function lookupTopicByCode(subjectId: string, code: string): Promise<strin
  * what went wrong instead of replacing the caller's error with its own.
  */
 async function describeSubtopicCodes(topicId: string): Promise<string> {
-  // No `.is('deleted_at', null)`: easa_subtopics has no such column, so filtering it would be a
-  // 42703 at runtime (code-style §5). The drift-proof source is the generated
-  // `packages/db/src/types.ts` (`public.Tables.easa_subtopics.Row` — id/topic_id/code/name/
-  // sort_order), which is also what the mechanical soft-delete guard parses; the original
-  // CREATE TABLE in `20260311000001_initial_schema.sql` agrees, and no later migration ALTERs
-  // the table except to enable RLS.
-  const { data, error } = await db.from('easa_subtopics').select('code').eq('topic_id', topicId)
+  const { data, error } = await db
+    .from('easa_subtopics')
+    .select('code')
+    .eq('topic_id', topicId)
+    .is('deleted_at', null)
   if (error) return `<could not list existing codes: ${error.message}>`
   const codes = (data ?? []).map((r) => r.code as string)
   return codes.length > 0 ? codes.join(', ') : '<none — the topic has no subtopics seeded>'
@@ -517,6 +521,7 @@ async function lookupSubtopicByCode(topicId: string, code: string, at: string): 
     .select('id')
     .eq('topic_id', topicId)
     .eq('code', code)
+    .is('deleted_at', null)
     .single()
   if (error || !data) {
     // Throwing, never a silent NULL: an unfiled question is invisible to the subarea picker,
@@ -632,7 +637,7 @@ const DIAGRAM_LAYOUTS: Record<string, DiagramLayout> = {
 type AuthoredDiagram = { image_ref: string; answer_by_zone: Record<string, string> }
 
 /** What gets stored in `questions.diagram_config`, mirroring `is_valid_diagram_config`'s exact
- *  key set (mig `20260702000100`). */
+ *  key set and derived ids (mig `20261106000100`). */
 type ResolvedDiagramConfig = {
   image_ref: string
   zones: DiagramZone[]

@@ -1,10 +1,13 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { diagramLabelId, diagramZoneId } from './diagram-ids'
 import { fixtureSuffix } from './fixture-suffix'
 import { requireRpcResult, requireRpcRows } from './guards'
 import { seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
+
+const IMG = 'rwy-27-09-lh-pattern'
 
 // get_quiz_questions delivers the `diagram_label` question type (mig 152, #697
 // Phase 6). The public delivery is {image_ref, zones, labels(shuffled)} — the
@@ -43,26 +46,26 @@ describe('RPC: get_quiz_questions — diagram_label delivery (answer stripped, l
   let diagramId: string
   let mcId: string
 
-  // Zone ids and label ids use UNRELATED naming schemes (mig 150 header
-  // security invariant) — no zone_id == label_id, no parallel naming.
+  // Zone ids and label ids are derived (mig 20261106000100) and disjoint —
+  // no zone_id == label_id.
   const ZONES: Zone[] = [
-    { id: 'zone-nw', x: 0.1, y: 0.1, w: 0.2, h: 0.2 },
-    { id: 'zone-ne', x: 0.6, y: 0.1, w: 0.2, h: 0.2 },
-    { id: 'zone-sw', x: 0.1, y: 0.6, w: 0.2, h: 0.2 },
+    { id: diagramZoneId(IMG, 0), x: 0.1, y: 0.1, w: 0.2, h: 0.2 },
+    { id: diagramZoneId(IMG, 1), x: 0.6, y: 0.1, w: 0.2, h: 0.2 },
+    { id: diagramZoneId(IMG, 2), x: 0.1, y: 0.6, w: 0.2, h: 0.2 },
   ]
   const LABELS: Label[] = [
-    { id: 'lbl-alpha', text: 'Upwind Leg' },
-    { id: 'lbl-bravo', text: 'Crosswind Leg' },
-    { id: 'lbl-charlie', text: 'Downwind Leg' },
-    { id: 'lbl-distract', text: 'Base Leg (unused)' },
+    { id: diagramLabelId('Upwind Leg'), text: 'Upwind Leg' },
+    { id: diagramLabelId('Crosswind Leg'), text: 'Crosswind Leg' },
+    { id: diagramLabelId('Downwind Leg'), text: 'Downwind Leg' },
+    { id: diagramLabelId('Base Leg (unused)'), text: 'Base Leg (unused)' },
   ]
   const ANSWER: AnswerEntry[] = [
-    { zone_id: 'zone-nw', label_id: 'lbl-alpha' },
-    { zone_id: 'zone-ne', label_id: 'lbl-bravo' },
-    { zone_id: 'zone-sw', label_id: 'lbl-charlie' },
+    { zone_id: diagramZoneId(IMG, 0), label_id: diagramLabelId('Upwind Leg') },
+    { zone_id: diagramZoneId(IMG, 1), label_id: diagramLabelId('Crosswind Leg') },
+    { zone_id: diagramZoneId(IMG, 2), label_id: diagramLabelId('Downwind Leg') },
   ]
   const DIAGRAM_CONFIG: DiagramConfig = {
-    image_ref: 'rwy-27-09-lh-pattern',
+    image_ref: IMG,
     zones: ZONES,
     labels: LABELS,
     answer: ANSWER,
@@ -252,10 +255,10 @@ describe('RPC: get_quiz_questions — diagram_label delivery (answer stripped, l
     // exactly the re-projected field set for a valid config (the re-projection is
     // defense-in-depth against any future write-path that bypasses the CHECK).
     const validConfig = {
-      image_ref: 'rwy-27-09-lh-pattern',
-      zones: [{ id: 'zone-shape', x: 0.3, y: 0.3, w: 0.15, h: 0.15 }],
-      labels: [{ id: 'lbl-solo', text: 'Solo Label' }],
-      answer: [{ zone_id: 'zone-shape', label_id: 'lbl-solo' }],
+      image_ref: IMG,
+      zones: [{ id: diagramZoneId(IMG, 0), x: 0.3, y: 0.3, w: 0.15, h: 0.15 }],
+      labels: [{ id: diagramLabelId('Solo Label'), text: 'Solo Label' }],
+      answer: [{ zone_id: diagramZoneId(IMG, 0), label_id: diagramLabelId('Solo Label') }],
     }
     const shapeId = await insertQuestion(admin, {
       organization_id: orgId,

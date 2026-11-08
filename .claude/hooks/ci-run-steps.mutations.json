@@ -1,0 +1,42 @@
+{
+  "_": "Grades the shared run-step parser through run-ci-lint.test.mjs. Not a guard: ci-run-steps.mjs is imported, never wired.",
+  "target": ".claude/hooks/ci-run-steps.mjs",
+  "suites": [".claude/hooks/run-ci-lint.test.mjs"],
+  "mutations": [
+    {
+      "id": "ci-run-steps-list-item",
+      "find": "export const RUN_LINE_RE = /^(\\s*)(?:-\\s*)?run:[ \\t]?(.*)$/",
+      "replace": "export const RUN_LINE_RE = /^(\\s*)run:[ \\t]?(.*)$/",
+      "expectRed": [
+        "a compact `- run:` list-item step executes",
+        "live ci.yml lint job parses to include the decisions-ledger guard with base origin/master",
+        "a trailing YAML comment on a frozen pnpm install is stripped from the listed command"
+      ],
+      "note": "Drops the optional `- ` list-item prefix from the run-line regex; a compact `- run:` step is no longer parsed."
+    },
+    {
+      "id": "ci-run-steps-multiline-run-truncated",
+      "find": "      if (continuesDeeper(lines, i, keyIndent, rm[2]))",
+      "replace": "      if (false)",
+      "expectRed": ["a run scalar continued on a deeper line aborts"],
+      "note": "A plain or quoted `run:` continued on a deeper line no longer aborts; only its first line runs."
+    },
+    {
+      "id": "ci-run-steps-uses-ignored",
+      "find": "    else if (m[1] === 'uses') step.uses = true\n",
+      "replace": "",
+      "expectRed": [
+        "live ci.yml lint job parses to include the decisions-ledger guard with base origin/master",
+        "a step with neither run: nor uses: parsed aborts naming its number; a uses: step does not"
+      ],
+      "note": "The `uses` flag is never set; a `uses:` step reads as a step with no run: or uses: and aborts."
+    },
+    {
+      "id": "ci-run-steps-job-runtime-keys",
+      "find": "          'container',\n          'services',\n          'strategy',\n",
+      "replace": "",
+      "expectRed": ["job-level container, services and strategy abort before any step runs"],
+      "note": "Job-level container, services and strategy are no longer flagged unsupported."
+    }
+  ]
+}

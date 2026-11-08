@@ -4,6 +4,13 @@ import { UpsertSubtopicSchema } from '@repo/db/schema'
 import { revalidatePath } from 'next/cache'
 import type { ActionResult } from '@/lib/action-result'
 import { requireAdmin } from '@/lib/auth/require-admin'
+import { checkLiveParent, updateLiveRow, writeFailure } from './check-live-parent'
+
+const WRITE_CTX = {
+  fn: 'upsertSubtopic',
+  entity: 'subtopic',
+  duplicate: 'A subtopic with this code already exists in this topic (it may have been deleted)',
+} as const
 
 export async function upsertSubtopic(input: unknown): Promise<ActionResult> {
   const parsed = UpsertSubtopicSchema.safeParse(input)
@@ -15,12 +22,16 @@ export async function upsertSubtopic(input: unknown): Promise<ActionResult> {
   const { id, ...data } = parsed.data
 
   if (id) {
-    const { error } = await supabase.from('easa_subtopics').update(data).eq('id', id)
-    if (error) {
-      console.error('[upsertSubtopic] update error:', error.message)
-      return { success: false, error: 'Failed to update subtopic' }
-    }
+    const failure = await updateLiveRow(supabase, { table: 'easa_subtopics', id, data }, WRITE_CTX)
+    if (failure) return failure
   } else {
+    const parentFailure = await checkLiveParent(supabase, {
+      table: 'easa_topics',
+      id: data.topic_id,
+      label: 'subtopic',
+    })
+    if (parentFailure) return parentFailure
+
     // Compute sort_order server-side to avoid stale-prop collisions on rapid adds
     const { data: maxRow, error: maxRowError } = await supabase
       .from('easa_subtopics')
@@ -39,11 +50,7 @@ export async function upsertSubtopic(input: unknown): Promise<ActionResult> {
     // @ts-expect-error TS2769: row type resolves to `never` due to TypeScript inference depth limit
     const { error } = await supabase.from('easa_subtopics').insert(data)
     if (error) {
-      if (error.code === '23505') {
-        return { success: false, error: 'A subtopic with this code already exists in this topic' }
-      }
-      console.error('[upsertSubtopic] insert error:', error.message)
-      return { success: false, error: 'Failed to create subtopic' }
+      return writeFailure({ ...WRITE_CTX, op: 'insert' }, error.message, error.code)
     }
   }
 

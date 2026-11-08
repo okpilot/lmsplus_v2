@@ -219,6 +219,7 @@ const TOP_LEVEL_KEYS = [
   'modelLiteralSites',
   'hooks',
   'guards',
+  'supabaseCli',
 ]
 const strayTopKeys = Object.keys(spec).filter((k) => !TOP_LEVEL_KEYS.includes(k))
 strayTopKeys.length === 0
@@ -485,6 +486,93 @@ for (const site of spec.modelLiteralSites) {
     ? pass('no agent memory is tracked')
     : fail(`agent memory is tracked: ${trackedMemory.join(', ')}`)
 }
+
+/** `version:` of each setup-cli use (the supabase action) in a workflow text, read from the step's `with:` block only; null when absent. */
+function setupCliVersions(text) {
+  const lines = text.split('\n')
+  const out = []
+  lines.forEach((l, i) => {
+    const u = /^(\s*)(-\s+)?uses:\s*["']?supabase\/setup-cli@/.exec(l)
+    if (!u) return
+    const keyIndent = u[1].length + (u[2]?.length ?? 0)
+    let v = null
+    let inWith = false
+    for (const n of lines.slice(i + 1)) {
+      if (n.trim() === '' || /^\s*#/.test(n)) continue
+      const indent = n.length - n.trimStart().length
+      if (indent < keyIndent) break
+      if (indent === keyIndent) {
+        inWith = /^\s*with:\s*(#.*)?$/.test(n)
+        continue
+      }
+      const m = inWith && /^\s*version:\s*['"]?([^'"\s#]+)/.exec(n)
+      if (m) {
+        v = m[1]
+        break
+      }
+    }
+    out.push(v)
+  })
+  return out
+}
+
+/** True when `script` is `pnpm dlx supabase@<want>` followed by whitespace or end. */
+const pinsCli = (script, want) =>
+  new RegExp(`^pnpm dlx supabase@${want.replaceAll('.', '\\.')}(\\s|$)`).test(script)
+
+// Local supabase CLI = CI CLI (#1726). Exit condition: #1178 — drop the pin when baseline DML grants are fixed.
+{
+  const want = spec.supabaseCli
+  if (typeof want !== 'string' || !/^\d+\.\d+\.\d+$/.test(want)) {
+    fail(
+      `pipeline.json supabaseCli must be an exact x.y.z version (got ${JSON.stringify(want)}); exit condition #1178`,
+    )
+  } else {
+    const script =
+      JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).scripts?.supabase ?? ''
+    pinsCli(script, want)
+      ? pass(`package.json scripts.supabase pins supabase@${want}`)
+      : fail(
+          `package.json scripts.supabase "${script}" must contain supabase@${want} (CI version, #1178 exit condition)`,
+        )
+    const wfDir = join(ROOT, '.github/workflows')
+    const versions = []
+    for (const f of readdirSync(wfDir).filter((x) => /\.ya?ml$/.test(x))) {
+      for (const v of setupCliVersions(readFileSync(join(wfDir, f), 'utf8'))) versions.push([f, v])
+    }
+    const bad = versions.filter(([, v]) => v !== want)
+    versions.length > 0 && bad.length === 0
+      ? pass(`every supabase/setup-cli version equals ${want} (${versions.length})`)
+      : fail(
+          `supabase/setup-cli versions != ${want}: ${bad.map(([f, v]) => `${f}=${v}`).join(', ') || 'none found'}`,
+        )
+    const noVersion =
+      'x: 1\nsteps:\n  - uses: supabase/setup-cli@abc\n  - run: echo hi\n    version: 2.78.1\n'
+    setupCliVersions(noVersion).includes(null)
+      ? pass('a supabase/setup-cli use without `version:` is reported')
+      : fail('setupCliVersions ignores a supabase/setup-cli use without `version:`')
+  }
+}
+
+setupCliVersions(
+  'steps:\n  - uses: supabase/setup-cli@abc\n    env:\n      version: 2.78.1\n    with:\n      version: other\n',
+)[0] === 'other'
+  ? pass('setupCliVersions reads `version:` from `with:` only')
+  : fail('setupCliVersions read a `version:` outside the step `with:` block')
+
+setupCliVersions(
+  'steps:\n  - uses: "supabase/setup-cli@abc"\n    with:\n      version: 1.2.3\n',
+)[0] === '1.2.3'
+  ? pass('setupCliVersions collects a quoted supabase/setup-cli use')
+  : fail('setupCliVersions missed a quoted supabase/setup-cli use')
+
+pinsCli('pnpm dlx supabase@latest # supabase@2.78.1', '2.78.1')
+  ? fail('pinsCli accepts the pin inside a comment')
+  : pass('pinsCli rejects the pin inside a comment')
+
+pinsCli('npx supabase@2.78.10 x', '2.78.1')
+  ? fail('pinsCli accepts supabase@2.78.10 for 2.78.1')
+  : pass('pinsCli rejects a longer version with the wanted one as prefix')
 
 console.log(`\nResults: ${passed} passed, ${failed} failed`)
 if (failed > 0) process.exit(1)

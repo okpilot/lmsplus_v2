@@ -32,7 +32,12 @@ vi.mock('../_utils/quiz-session-storage', () => ({
 
 // ---- Subject under test ---------------------------------------------------
 
-import { _resetRunnerExit, isRunnerExiting } from '../_utils/runner-exit'
+import {
+  _resetRunnerExit,
+  isRunnerExiting,
+  resetRunnerExit,
+  runnerToken,
+} from '../_utils/runner-exit'
 import {
   handleDiscardSession,
   handleSaveSession,
@@ -383,5 +388,107 @@ describe('discardQuizSession', () => {
     // clearActiveSessionIfCurrent is called before the Server Action — discard intent is respected
     expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID, SESSION_ID)
     expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
+  })
+})
+
+// ---- late exit from an unmounted runner -------------------------------------
+
+function deferred<T>() {
+  let resolve!: (v: T) => void
+  const promise = new Promise<T>((res) => {
+    resolve = res
+  })
+  return { promise, resolve }
+}
+
+function exitOpts() {
+  return {
+    userId: USER_ID,
+    sessionId: SESSION_ID,
+    router: makeRouter() as never,
+    setSubmitting: vi.fn(),
+    setError: vi.fn(),
+  }
+}
+
+describe('exit paths after the runner unmounts', () => {
+  it('does not mark exit or navigate when the runner unmounts while the save is in flight', async () => {
+    const gate = deferred<{ success: boolean }>()
+    mockSaveQuizForLater.mockReturnValue(gate.promise)
+    const run = handleSaveSession(exitOpts())
+    resetRunnerExit()
+    gate.resolve({ success: true })
+    await run
+    expect(isRunnerExiting()).toBe(false)
+    expect(mockRouterReplace).not.toHaveBeenCalled()
+  })
+
+  it('does not mark exit or navigate when the runner unmounts while the discard is in flight', async () => {
+    const gate = deferred<{ success: boolean }>()
+    mockDiscardQuiz.mockReturnValue(gate.promise)
+    const run = handleDiscardSession(exitOpts())
+    resetRunnerExit()
+    gate.resolve({ success: true })
+    await run
+    expect(isRunnerExiting()).toBe(false)
+    expect(mockRouterReplace).not.toHaveBeenCalled()
+  })
+
+  it('does not mark exit, call onSuccess or navigate when the runner unmounts while the finish is in flight', async () => {
+    const gate = deferred<{ success: boolean }>()
+    mockFinishQuizSession.mockReturnValue(gate.promise)
+    const onSuccess = vi.fn()
+    const run = handleSubmitSession({ ...exitOpts(), answers: TWO_ANSWERS, onSuccess })
+    resetRunnerExit()
+    gate.resolve({ success: true })
+    await run
+    expect(isRunnerExiting()).toBe(false)
+    expect(onSuccess).not.toHaveBeenCalled()
+    expect(mockRouterReplace).not.toHaveBeenCalled()
+  })
+
+  it('skips the save exit when the caller passes a token taken before the unmount', async () => {
+    mockSaveQuizForLater.mockResolvedValue({ success: true })
+    const token = runnerToken()
+    resetRunnerExit()
+    await handleSaveSession({ ...exitOpts(), token })
+    expect(isRunnerExiting()).toBe(false)
+    expect(mockRouterReplace).not.toHaveBeenCalled()
+  })
+
+  it('skips the discard exit when the caller passes a token taken before the unmount', async () => {
+    mockDiscardQuiz.mockResolvedValue({ success: true })
+    const token = runnerToken()
+    resetRunnerExit()
+    await handleDiscardSession({ ...exitOpts(), token })
+    expect(isRunnerExiting()).toBe(false)
+    expect(mockRouterReplace).not.toHaveBeenCalled()
+  })
+
+  it('skips the submit exit when the caller passes a token taken before the unmount', async () => {
+    const onSuccess = vi.fn()
+    const token = runnerToken()
+    resetRunnerExit()
+    await handleSubmitSession({ ...exitOpts(), answers: TWO_ANSWERS, onSuccess, token })
+    expect(isRunnerExiting()).toBe(false)
+    expect(onSuccess).not.toHaveBeenCalled()
+    expect(mockRouterReplace).not.toHaveBeenCalled()
+  })
+
+  it('still reports success from discardQuizSession when the runner is gone', async () => {
+    const gate = deferred<{ success: boolean }>()
+    mockDiscardQuiz.mockReturnValue(gate.promise)
+    const { discardQuizSession } = await import('./quiz-submit')
+    const run = discardQuizSession(SESSION_ID, makeRouter() as never, USER_ID)
+    resetRunnerExit()
+    gate.resolve({ success: true })
+    await expect(run).resolves.toEqual({ success: true })
+    expect(mockRouterReplace).not.toHaveBeenCalled()
+  })
+
+  it('navigates normally when the runner stays mounted', async () => {
+    mockSaveQuizForLater.mockResolvedValue({ success: true })
+    await handleSaveSession({ ...exitOpts(), token: runnerToken() })
+    expect(mockRouterReplace).toHaveBeenCalledWith('/app/quiz')
   })
 })

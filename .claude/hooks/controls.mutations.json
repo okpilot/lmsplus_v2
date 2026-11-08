@@ -38,15 +38,6 @@
       "note": "Unconditional exit 1, even when `failed` is 0 — a fully consistent registry would still read as broken. Reddens every test in controls.repo.test.mjs that asserts status 0, not only the CONTROL: green one."
     },
     {
-      "id": "controls-ci-list-item",
-      "find": "const RUN_LINE_RE = /^(\\s*)(?:-\\s*)?run:[ \\t]?(.*)$/",
-      "replace": "const RUN_LINE_RE = /^(\\s*)run:[ \\t]?(.*)$/",
-      "expectRed": [
-        "a guard wired only via a compact `- run:` list-item CI step is still discovered"
-      ],
-      "note": "Drops the optional `- ` list-item prefix from the run-line regex — a compact `- run: node <guard>` step no longer matches, so a guard wired only that way goes undiscoverable."
-    },
-    {
       "id": "controls-ci-bash-wrapper",
       "find": "  const nodeDirect = /^\\s*node\\s+(?!--test\\b)\\S/.test(firstContent)",
       "replace": "  const nodeDirect = /^\\s*node\\s+(?!--test\\b)\\S/.test(firstContent)\n  if (!/^\\s*node\\b/.test(firstContent)) return",
@@ -64,8 +55,8 @@
     },
     {
       "id": "controls-scan-all-workflows",
-      "find": "  for (const entry of readdirSync(dir).sort()) {\n    if (!/\\.ya?ml$/.test(entry)) continue\n    collectRunSteps(readFileSync(join(dir, entry), 'utf8'), found)\n  }",
-      "replace": "  collectRunSteps(readFileSync(join(dir, 'ci.yml'), 'utf8'), found)",
+      "find": "  for (const entry of readdirSync(dir).sort()) {\n    if (!/\\.ya?ml$/.test(entry)) continue\n    forEachRunStep(readFileSync(join(dir, entry), 'utf8'), (block) => addBlockPaths(block, found))\n  }",
+      "replace": "  forEachRunStep(readFileSync(join(dir, 'ci.yml'), 'utf8'), (block) => addBlockPaths(block, found))",
       "expectRed": [
         "a guard wired only via a second, non-ci.yml workflow file is still discovered"
       ],

@@ -53,6 +53,12 @@ export const E2E_REDTEAM_FK_MARKER = '[E2E_REDTEAM_FK]'
 // ordering derived-id CHECK spec (Vector FX, #1045): marks the ordering fixture questions it
 // inserts so cleanup/maintenance can target them by question_number.
 export const E2E_REDTEAM_FX_MARKER = '[E2E_REDTEAM_FX]'
+// get_quiz_questions id-oracle spec (Vector EY, #1215): marks the diagram_label / ordering
+// fixture questions it inserts so cleanup/maintenance can target them by question_number.
+export const E2E_REDTEAM_EY_MARKER = '[E2E_REDTEAM_EY]'
+// is_valid_diagram_config bypass spec (Vector LB, #1215): marks the fixture questions it inserts
+// so cleanup/maintenance can target them by question_number.
+export const E2E_REDTEAM_LB_MARKER = '[E2E_REDTEAM_LB]'
 // quiz-progress spec (Vectors GG-GJ, #1026): written into fixture quiz_sessions as `config.e2e_marker`.
 export const E2E_REDTEAM_QP_MARKER = '[E2E_REDTEAM_QP]'
 // quiz_sessions direct-INSERT spec (Vectors GK/GL): written into the attacker's probe rows as
@@ -62,6 +68,8 @@ export const E2E_REDTEAM_SI_MARKER = '[E2E_REDTEAM_SI]'
 export const E2E_REDTEAM_SQ_MARKER = '[E2E_REDTEAM_SQ]'
 // exam-revive spec (Vector GP): written into the fixture mock_exam as `config.e2e_marker`.
 export const E2E_REDTEAM_ER_MARKER = '[E2E_REDTEAM_ER]'
+// late-resend spec (Vector GT short_answer arm, #1447): marks the throwaway short_answer question it inserts.
+export const E2E_REDTEAM_GT_MARKER = '[E2E_REDTEAM_GT]'
 // quiz-progress Server Action spec (Vectors GQ-GS, #1026 PR 2a): written into fixture quiz_sessions as `config.e2e_marker`.
 export const E2E_REDTEAM_QA_MARKER = '[E2E_REDTEAM_QA]'
 // finish-quiz-session spec (Vectors GU-GZ, #1026 PR 2c): written into fixture quiz_sessions as `config.e2e_marker`.
@@ -140,8 +148,17 @@ export const E2E_REDTEAM_KH_STUDENT_PASSWORD = 'redteam-kh-enrolments-2026!'
 export const E2E_REDTEAM_KS_RT_ONLY_EMAIL = 'redteam-ks-chips-rt-only@lmsplus.local'
 export const E2E_REDTEAM_KS_FULL_EMAIL = 'redteam-ks-chips-full@lmsplus.local'
 export const E2E_REDTEAM_KS_PASSWORD = 'redteam-ks-chips-2026!'
+// Admin dashboard KPI / weak-topics RPC spec (Vector KX, #1251): the dedicated, reused throwaway admin
+// whose soft-delete proves the active-admin gate.
+export const E2E_REDTEAM_KX_SOFTDEL_ADMIN_EMAIL =
+  'redteam-softdel-dashboard-kpis-admin@lmsplus.local'
+export const E2E_REDTEAM_KX_SOFTDEL_ADMIN_PASSWORD = 'redteam-softdel-dashboard-kpis-admin-2026!'
+// admin dashboard RPC cross-org spec (Vector KY): written into fixture quiz_sessions as `config.e2e_marker`.
+export const E2E_REDTEAM_KY_MARKER = '[E2E_REDTEAM_KY]'
 // flagged_questions question-scope spec (Vector KZ, #1177): questions `question_text` prefix and
 // quiz_drafts `session_config.e2e_marker`. Dedicated throwaway student for the not-enrolled arm.
 export const E2E_REDTEAM_KZ_MARKER = '[E2E_REDTEAM_KZ]'
 export const E2E_REDTEAM_KZ_RT_ONLY_EMAIL = 'redteam-kz-rt-only@lmsplus.local'
 export const E2E_REDTEAM_KZ_RT_ONLY_PASSWORD = 'redteam-kz-rt-only-2026!'
+// Syllabus soft-delete spec (Vectors LN–LQ): easa_subjects.code prefix of the throwaway subjects it creates.
+export const E2E_REDTEAM_SYLLABUS_CODE_PREFIX = 'RTSYL-'

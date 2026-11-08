@@ -8,7 +8,7 @@ import {
   setupProgressFixture,
   startPractice,
 } from './quiz-progress-fixture'
-import { ORDER_ITEMS } from './quiz-progress-questions'
+import { DIAGRAM_MAPPING, ORDER_ITEMS } from './quiz-progress-questions'
 
 type Progress = {
   status: string
@@ -136,7 +136,7 @@ describe('RPC: quiz progress — save answer, position and read', () => {
       [f.shortId, { response_text: 'wilco' }],
       [f.dialogId, { blanks: [{ blank_index: 0, response_text: 'cleared' }] }],
       [f.orderingId, { order: ORDER_ITEMS.map((i) => i.id) }],
-      [f.diagramId, { mapping: [{ zone_id: 'zone-1', label_id: 'lbl-1' }] }],
+      [f.diagramId, { mapping: DIAGRAM_MAPPING }],
     ]
     for (const [questionId, answer] of answers) {
       const { error } = await save(sessionId, questionId, answer)

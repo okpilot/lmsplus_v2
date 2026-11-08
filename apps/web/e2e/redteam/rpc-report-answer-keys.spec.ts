@@ -35,6 +35,8 @@
 import { expect, test } from '@playwright/test'
 import { createClient } from '@supabase/supabase-js'
 import { deriveContentId } from '../../scripts/content-ids'
+import { deriveLabelId, deriveZoneId } from '../../scripts/diagram-content'
+import { findAuthUserByEmail } from '../helpers/auth-users'
 import { getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
 import {
@@ -98,31 +100,37 @@ const ORDER_CANONICAL_TEXTS = ORDER_ITEMS.map((i) => i.text)
 // blank_index = the zone's 0-based ordinal in diagram_config.zones, answer_key = a 2-HOP
 // resolve (zone -> answer entry by zone_id -> label by label_id -> label.text). zone ids
 // and label ids MUST be disjoint and the answer must cover every zone exactly once with a
-// distinct label per zone (mig 150 is_valid_diagram_config). Shape mirrors the integration
+// distinct label per zone; ids derived (mig 20261106000100 is_valid_diagram_config). Shape mirrors the integration
 // test rpc-report-answer-keys-diagram.integration.test.ts.
+const DIAGRAM_IMAGE_REF = 'rwy-27-09-lh-pattern'
 const DIAGRAM_ZONES = [
-  { id: 'zone-nw', x: 0.1, y: 0.1, w: 0.2, h: 0.2 },
-  { id: 'zone-ne', x: 0.6, y: 0.1, w: 0.2, h: 0.2 },
-  { id: 'zone-sw', x: 0.1, y: 0.6, w: 0.2, h: 0.2 },
+  { id: deriveZoneId(DIAGRAM_IMAGE_REF, 0), x: 0.1, y: 0.1, w: 0.2, h: 0.2 },
+  { id: deriveZoneId(DIAGRAM_IMAGE_REF, 1), x: 0.6, y: 0.1, w: 0.2, h: 0.2 },
+  { id: deriveZoneId(DIAGRAM_IMAGE_REF, 2), x: 0.1, y: 0.6, w: 0.2, h: 0.2 },
 ]
+const LBL = {
+  alpha: deriveLabelId('Upwind Leg'),
+  bravo: deriveLabelId('Crosswind Leg'),
+  charlie: deriveLabelId('Downwind Leg'),
+}
 const DIAGRAM_CONFIG = {
-  image_ref: 'rwy-27-09-lh-pattern',
+  image_ref: DIAGRAM_IMAGE_REF,
   zones: DIAGRAM_ZONES,
   labels: [
-    { id: 'lbl-alpha', text: 'Upwind Leg' },
-    { id: 'lbl-bravo', text: 'Crosswind Leg' },
-    { id: 'lbl-charlie', text: 'Downwind Leg' },
-    { id: 'lbl-distract', text: 'Base Leg (unused)' },
+    { id: LBL.alpha, text: 'Upwind Leg' },
+    { id: LBL.bravo, text: 'Crosswind Leg' },
+    { id: LBL.charlie, text: 'Downwind Leg' },
+    { id: deriveLabelId('Base Leg (unused)'), text: 'Base Leg (unused)' },
   ],
   answer: [
-    { zone_id: 'zone-sw', label_id: 'lbl-charlie' },
-    { zone_id: 'zone-nw', label_id: 'lbl-alpha' },
-    { zone_id: 'zone-ne', label_id: 'lbl-bravo' },
+    { zone_id: DIAGRAM_ZONES[2].id, label_id: LBL.charlie },
+    { zone_id: DIAGRAM_ZONES[0].id, label_id: LBL.alpha },
+    { zone_id: DIAGRAM_ZONES[1].id, label_id: LBL.bravo },
   ],
 }
 // Expected canonical label text per zone ORDINAL (the 2-hop resolve target):
-// zone-nw(0)->lbl-alpha='Upwind Leg', zone-ne(1)->lbl-bravo='Crosswind Leg',
-// zone-sw(2)->lbl-charlie='Downwind Leg'.
+// zone 0->alpha='Upwind Leg', zone 1->bravo='Crosswind Leg',
+// zone 2->charlie='Downwind Leg'.
 const DIAGRAM_CANONICAL_TEXTS = ['Upwind Leg', 'Crosswind Leg', 'Downwind Leg']
 
 test.describe('Red Team: get_report_answer_keys RPC (Vector EN)', () => {
@@ -575,15 +583,7 @@ test.describe('Red Team: get_report_answer_keys RPC (Vector EN)', () => {
     test.beforeAll(async () => {
       // Create (or realign) the dedicated throwaway student, ensuring it is NOT
       // soft-deleted from a prior aborted run.
-      // perPage default is 50; once the shared local auth.users list grows past that,
-      // the reused throwaway student could land on a later page and be missed, wrongly
-      // falling through to createUser (which then fails on the duplicate email). Use a
-      // ceiling well above any test-env user count.
-      const { data: authList, error: listError } = await admin.auth.admin.listUsers({
-        perPage: 1000,
-      })
-      if (listError) throw new Error(`EN4 beforeAll: listUsers failed: ${listError.message}`)
-      const existing = authList.users.find((u) => u.email === SOFTDEL_STUDENT_EMAIL)
+      const existing = await findAuthUserByEmail(admin, SOFTDEL_STUDENT_EMAIL)
 
       if (existing) {
         softDelStudentId = existing.id

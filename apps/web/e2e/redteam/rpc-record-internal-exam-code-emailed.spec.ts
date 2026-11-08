@@ -29,6 +29,7 @@
 
 import { expect, test } from '@playwright/test'
 import { getAdminClient } from '../helpers/supabase'
+import { expectLiveStudent } from './helpers/attacker-pin'
 import { createAuthenticatedClient } from './helpers/redteam-client'
 import { E2E_REDTEAM_CODE_PREFIX } from './helpers/seed-markers'
 import { ensureExamConfig, pickSubjectWithQuestions } from './helpers/seed-quiz'
@@ -145,6 +146,8 @@ test.describe('Red Team: record_internal_exam_code_emailed RPC', () => {
     const crossOrg = await seedCrossOrgAdmin()
 
     attackerStudentClient = await createAuthenticatedClient(ATTACKER_EMAIL, ATTACKER_PASSWORD)
+    // The not_admin arm must be role-gated: a soft-deleted attacker would fail the same guard (#1252).
+    await expectLiveStudent(admin, ATTACKER_EMAIL)
     adminClientAuthed = await createAuthenticatedClient(adminEmail, adminPassword)
     crossOrgAdminClient = await createAuthenticatedClient(crossOrg.email, crossOrg.password)
 

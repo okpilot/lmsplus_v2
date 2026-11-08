@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page, test } from '@playwright/test'
-import { cleanupE2eSyllabus, newE2eSubjectCode } from './helpers/syllabus-cleanup'
+import { cleanupE2eSyllabus, makeSyllabusE2eCode } from './helpers/syllabus-cleanup'
 
 test.use({ storageState: 'e2e/.auth/admin.json' })
 
@@ -95,13 +95,13 @@ test.describe('Admin Syllabus Manager', () => {
     await waitForHydration(page)
   })
 
-  // Syllabus tables have no deleted_at; rows carry the E2E- code marker and are hard-deleted here.
+  // Rows carry the E2E- code marker and are soft-deleted here.
   test.afterEach(async () => {
     await cleanupE2eSyllabus()
   })
 
   test('adds a subject, topic and subtopic that survive a reload', async ({ page }) => {
-    const n = namesFor(newE2eSubjectCode())
+    const n = namesFor(makeSyllabusE2eCode())
 
     await createHierarchy(page, n)
 
@@ -116,7 +116,7 @@ test.describe('Admin Syllabus Manager', () => {
   test('edits the subject, topic and subtopic names and keeps them after a reload', async ({
     page,
   }) => {
-    const n = namesFor(newE2eSubjectCode())
+    const n = namesFor(makeSyllabusE2eCode())
     await createHierarchy(page, n)
 
     const subjectHeader = page
@@ -157,7 +157,7 @@ test.describe('Admin Syllabus Manager', () => {
   test('deletes a subtopic, topic and subject only after the confirmation dialog', async ({
     page,
   }) => {
-    const n = namesFor(newE2eSubjectCode())
+    const n = namesFor(makeSyllabusE2eCode())
     await createHierarchy(page, n)
 
     const subtopicRow = page.getByText(n.subtopic, { exact: true }).locator('..')
@@ -201,7 +201,7 @@ test.describe('Admin Syllabus Manager', () => {
   test('refuses a second subject with an existing code and keeps a single row', async ({
     page,
   }) => {
-    const n = namesFor(newE2eSubjectCode())
+    const n = namesFor(makeSyllabusE2eCode())
     await addSubject(page, n)
     await expect(page.getByText(`Subject "${n.code}" added`)).toBeVisible()
     const toggleButton = page.getByRole('button', { name: `Toggle ${n.code} ${n.subject}` })
