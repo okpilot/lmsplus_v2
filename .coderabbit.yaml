@@ -997,6 +997,8 @@ reviews:
           questions, courses, lessons, quiz_sessions, flagged_questions, exam_configs,
           internal_exam_codes. As of 2026-10-26 (UTC, mig 20261027000100) lessons is dropped,
           courses is recreated without deleted_at, and course_enrolments is added.
+          As of 2026-11-08 (UTC, mig 20261107000100) easa_subjects, easa_topics and
+          easa_subtopics are added (soft-deleted via soft_delete_syllabus_item).
           Hard-delete-by-design (docs/database.md §3): quiz_drafts,
           exam_config_distributions, question_comments — the last of these DOES have a
           deleted_at column, so it is absent from the set above by policy, not by oversight;
