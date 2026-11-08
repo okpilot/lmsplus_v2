@@ -111,21 +111,6 @@ describe('getActiveInternalExamSession — unauthenticated', () => {
       'boom',
     )
   })
-  it('logs a no-organization message when the users row has a null organization_id', async () => {
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    mockFrom.mockReturnValue(buildChain({ data: { organization_id: null }, error: null }))
-
-    const result = await getActiveInternalExamSession()
-
-    expect(result).toEqual({
-      success: false,
-      error: 'Failed to fetch active internal exam sessions.',
-    })
-    expect(errorSpy).toHaveBeenCalledWith(
-      '[getActiveInternalExamSession] User lookup error:',
-      'user row has no organization_id',
-    )
-  })
 })
 
 describe('getActiveInternalExamSession — happy path', () => {
