@@ -6,7 +6,7 @@ import {
   type OffsetChainBuilder,
   offsetAdminClient,
   runOffsetCount,
-  runOffsetRows,
+  runOffsetPage,
 } from './_offset-query'
 import { type AttemptRowRaw, mapAttemptRow } from './_row-mappers'
 import { clampPage, PAGE_SIZE } from './pagination'
@@ -27,50 +27,64 @@ function applyAttemptFilters(
   return b
 }
 
+const SELECT_COLUMNS = `id, student_id, subject_id, started_at, ended_at, total_questions,
+       correct_count, score_percentage, passed,
+       easa_subjects!subject_id(name),
+       users!student_id(full_name, email),
+       internal_exam_codes!consumed_session_id(void_reason)`
+
+function selectAttemptsPage(organizationId: string, filters: ListAttemptsFilters, from: number) {
+  return (
+    applyAttemptFilters(
+      offsetAdminClient.from('quiz_sessions').select(SELECT_COLUMNS, { count: 'exact' }),
+      organizationId,
+      filters,
+    )
+      // id tiebreaker keeps pages stable — started_at is not unique.
+      .order('started_at', { ascending: false })
+      .order('id', { ascending: false })
+      .range(from, from + PAGE_SIZE - 1)
+  )
+}
+
 export async function listInternalExamAttempts(
   filters: ListAttemptsFilters = {},
 ): Promise<{ rows: InternalExamAttemptRow[]; totalCount: number }> {
   const { organizationId } = await requireAdmin()
   const page = clampPage(filters.page)
-  const client = offsetAdminClient
-
-  const countBuilder = applyAttemptFilters(
-    client.from('quiz_sessions').select('id', { count: 'exact', head: true }),
-    organizationId,
-    filters,
-  )
   const ctx = {
     tag: 'listInternalExamAttempts',
     failMessage: 'Failed to load internal exam attempts',
   }
-  const totalCount = await runOffsetCount(countBuilder, ctx)
+
+  // The requested page is read with its exact total in one query.
+  let result = await runOffsetPage<AttemptRowRaw>(
+    selectAttemptsPage(organizationId, filters, (page - 1) * PAGE_SIZE),
+    ctx,
+  )
+  if (result.pastEnd) {
+    // Snap-to-last-page (#1041): a page past the end returns the last page's rows instead of
+    // an empty list, matching PaginationBar's clamped display.
+    const countBuilder = applyAttemptFilters(
+      offsetAdminClient.from('quiz_sessions').select('id', { count: 'exact', head: true }),
+      organizationId,
+      filters,
+    )
+    const total = await runOffsetCount(countBuilder, ctx)
+    if (total === 0) return { rows: [], totalCount: 0 }
+    const lastPage = Math.min(page, Math.max(1, Math.ceil(total / PAGE_SIZE)))
+    result = await runOffsetPage<AttemptRowRaw>(
+      selectAttemptsPage(organizationId, filters, (lastPage - 1) * PAGE_SIZE),
+      ctx,
+    )
+    // A concurrent delete can leave the re-read past the end too: empty page, recount total.
+    if (result.pastEnd) return { rows: [], totalCount: total }
+  }
+  const { rows: raw, count: totalCount } = result
   if (totalCount === 0) {
     return { rows: [], totalCount }
   }
-  // Snap-to-last-page (#1041): an out-of-range page returns the last page's rows instead of
-  // an empty list, matching PaginationBar's clamped display. Count-first fetches the count before querying the effective page.
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
-  const effectivePage = Math.min(page, totalPages)
-  const from = (effectivePage - 1) * PAGE_SIZE
-  const to = from + PAGE_SIZE - 1
 
-  const dataBuilder = applyAttemptFilters(
-    client.from('quiz_sessions').select(
-      `id, student_id, subject_id, started_at, ended_at, total_questions,
-       correct_count, score_percentage, passed,
-       easa_subjects!subject_id(name),
-       users!student_id(full_name, email),
-       internal_exam_codes!consumed_session_id(void_reason)`,
-    ),
-    organizationId,
-    filters,
-  )
-    // id tiebreaker keeps pages stable — started_at is not unique.
-    .order('started_at', { ascending: false })
-    .order('id', { ascending: false })
-    .range(from, to)
-
-  const raw = await runOffsetRows<AttemptRowRaw>(dataBuilder, ctx)
   const { data: itemCounts, error: itemCountsError } = await fetchAnsweredItemCounts(
     raw.map((r) => r.id),
     adminClient as unknown as AnswerCountClient,
