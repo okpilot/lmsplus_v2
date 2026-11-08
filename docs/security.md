@@ -747,6 +747,7 @@ CREATE POLICY "audit_read_instructors" ON audit_events
 | `question.created` | Instructor adds a question |
 | `question.edited` | Instructor modifies a question |
 | `question.deleted` | Instructor deletes a question |
+| `syllabus.item_deleted` | Admin soft-deletes an `easa_subjects` / `easa_topics` / `easa_subtopics` row (`soft_delete_syllabus_item()` RPC, migration `20261107000100`; metadata `{code, name}`) |
 
 ---
 
