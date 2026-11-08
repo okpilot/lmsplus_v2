@@ -2,8 +2,8 @@
 // Mechanical guard (#925 Phase 3, schema-derived per #933): forbid `.is('<col>', …)`
 // on a `.from('<table>')` where `<col>` is NOT an actual column of `<table>`, per the
 // generated Supabase types (`packages/db/src/types.ts`, `public.Tables.<name>.Row`).
-// The original RT bug — `.is('deleted_at', null)` on `easa_subjects` — reached
-// production code and escaped every other gate; this guard makes that class of
+// The original RT bug — `.is('deleted_at', null)` on `easa_subjects` before it gained the
+// column — reached production code and escaped every other gate; this guard makes that class of
 // schema-contract bug impossible to reintroduce, and — being schema-derived rather
 // than a hardcoded 7-table list — automatically protects any FUTURE no-`deleted_at`
 // table (or any other column, not just `deleted_at`) without a guard update.
@@ -22,7 +22,7 @@
 // Chain-aware: a file may legitimately filter a real column on a soft-deletable (or
 // any) table. A violation is only a query CHAIN that pairs a KNOWN table's
 // `.from('<table>')` with an `.is('<col>'` in the SAME chain where `<col>` is absent
-// from that table's Row columns. Adjacent chains (e.g. an `easa_topics` read next to
+// from that table's Row columns. Adjacent chains (e.g. a `courses` read next to
 // an `exam_configs` read in one Promise.all) are correctly separated.
 //
 // Known limitations (acceptable for a mechanical guard):

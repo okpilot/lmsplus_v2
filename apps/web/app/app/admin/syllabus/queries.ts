@@ -12,9 +12,9 @@ export async function getSyllabusTree(): Promise<SyllabusTree> {
   const { supabase } = await requireAdmin()
 
   const [subjectsRes, topicsRes, subtopicsRes, countsRes] = await Promise.all([
-    supabase.from('easa_subjects').select('*').order('sort_order'),
-    supabase.from('easa_topics').select('*').order('sort_order'),
-    supabase.from('easa_subtopics').select('*').order('sort_order'),
+    supabase.from('easa_subjects').select('*').is('deleted_at', null).order('sort_order'),
+    supabase.from('easa_topics').select('*').is('deleted_at', null).order('sort_order'),
+    supabase.from('easa_subtopics').select('*').is('deleted_at', null).order('sort_order'),
     supabase.rpc('get_question_counts'),
   ])
 

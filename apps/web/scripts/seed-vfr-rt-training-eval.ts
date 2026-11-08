@@ -19,7 +19,7 @@
  * The RT subject (code 'RT') and its three topics (P1_ACRONYMS / P2_DIALOG / P3_MC)
  * are seeded by migrations 097/098, so this script only looks them up.
  *
- * Run AFTER `npx supabase db reset` (+ the local grant fix). Idempotent (safe to re-run).
+ * Run AFTER `pnpm supabase db reset` (repo root) (+ the local grant fix). Idempotent (safe to re-run).
  * Usage: cd apps/web && npx tsx scripts/seed-vfr-rt-training-eval.ts
  */
 
@@ -308,7 +308,12 @@ async function ensureUser(
 }
 
 async function lookupId(table: string, column: string, value: string): Promise<string> {
-  const { data, error } = await db.from(table).select('id').eq(column, value).single()
+  const { data, error } = await db
+    .from(table)
+    .select('id')
+    .eq(column, value)
+    .is('deleted_at', null)
+    .single()
   if (error || !data)
     throw new Error(`Lookup ${table}.${column}='${value}': ${error?.message ?? 'not found'}`)
   return data.id

@@ -14,14 +14,18 @@ export async function deleteItem(input: unknown): Promise<ActionResult> {
   const { supabase } = await requireAdmin()
   const { id, table } = parsed.data
 
-  const { error } = await supabase.from(table).delete().eq('id', id)
+  const { error } = await supabase.rpc('soft_delete_syllabus_item', {
+    p_table: table,
+    p_id: id,
+  })
 
   if (error) {
-    if (error.code === '23503') {
-      return {
-        success: false,
-        error: 'Cannot delete: questions reference this item',
-      }
+    const token = (error.message.split(':')[0] ?? '').trim()
+    if (token === 'in_use') {
+      return { success: false, error: 'Cannot delete: this item is still in use' }
+    }
+    if (token === 'not_found') {
+      return { success: false, error: 'Item not found' }
     }
     console.error('[deleteItem] Delete failed:', { code: error.code, message: error.message })
     return { success: false, error: 'Could not delete syllabus item' }

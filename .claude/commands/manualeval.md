@@ -13,7 +13,7 @@ Prepare the local environment for manual testing of the current feature branch.
 2. **Reset local Supabase**
 
    ```bash
-   npx supabase db reset
+   pnpm supabase db reset
    ```
 
    This reapplies all migrations from scratch on a clean database.

@@ -24,9 +24,11 @@ import { getSyllabusTree } from './queries'
 function makeOrderedChain(data: unknown[]) {
   const chain = {
     select: vi.fn(),
+    is: vi.fn(),
     order: vi.fn().mockResolvedValue({ data, error: null }),
   }
   chain.select.mockReturnValue(chain)
+  chain.is.mockReturnValue(chain)
   return chain
 }
 
@@ -152,9 +154,11 @@ describe('getSyllabusTree', () => {
     const makeNullOrderedChain = () => {
       const chain = {
         select: vi.fn(),
+        is: vi.fn(),
         order: vi.fn().mockResolvedValue({ data: null, error: null }),
       }
       chain.select.mockReturnValue(chain)
+      chain.is.mockReturnValue(chain)
       return chain
     }
 
@@ -180,9 +184,11 @@ describe('getSyllabusTree', () => {
       // subjects query returns an error; the other three are healthy
       const errorChain = {
         select: vi.fn(),
+        is: vi.fn(),
         order: vi.fn().mockResolvedValue({ data: null, error: { message: 'connection refused' } }),
       }
       errorChain.select.mockReturnValue(errorChain)
+      errorChain.is.mockReturnValue(errorChain)
 
       mockFrom
         .mockReturnValueOnce(errorChain)
