@@ -21,10 +21,7 @@ type Props = Readonly<{
   namespace: ReportNamespace
 }>
 
-export async function QuizReportView({ sessionId, pageParam, namespace }: Readonly<Props>) {
-  if (!sessionId || !UUID_RE.test(sessionId)) redirect(namespaceHome(namespace))
-
-  const page = parsePageParam(pageParam)
+async function loadReportData(sessionId: string, page: number) {
   const questionsPromise = getQuizReportQuestions({ sessionId, page })
   // The flagged read needs the page's question ids, so it starts as soon as they arrive.
   const [summary, questionsResult, flaggedIds] = await Promise.all([
@@ -34,6 +31,14 @@ export async function QuizReportView({ sessionId, pageParam, namespace }: Readon
       r.ok ? getFlaggedQuestionIds(r.questions.map((q) => q.questionId)) : [],
     ),
   ])
+  return { summary, questionsResult, flaggedIds }
+}
+
+export async function QuizReportView({ sessionId, pageParam, namespace }: Readonly<Props>) {
+  if (!sessionId || !UUID_RE.test(sessionId)) redirect(namespaceHome(namespace))
+
+  const page = parsePageParam(pageParam)
+  const { summary, questionsResult, flaggedIds } = await loadReportData(sessionId, page)
   if (!summary) redirect(namespaceHome(namespace))
 
   const basePath = canonicalReportBasePath(summary, namespace, pageParam)
