@@ -502,9 +502,8 @@ describe('getQuestionsList', () => {
   })
 
   it('surfaces a failure when the page fetch fails after the count succeeds', async () => {
-    // code-style §7 "Paginated Fetch Needs a Caller-Level Page-Error Test": the
-    // count-error path is covered above, but a page/range error AFTER a successful
-    // non-zero count is the one that regresses silently — it would otherwise return
+    // code-style §7 "Paginated Fetch Needs a Caller-Level Page-Error Test": a
+    // page/range error AFTER a successful non-zero count is the one that regresses silently — it would otherwise return
     // a truncated list that looks complete. Three chains: the requested page is past
     // the end (PGRST103), the count succeeds, the re-read of the last page fails.
     const countChain: Record<string, unknown> = {}
@@ -644,6 +643,21 @@ describe('getQuestionsList single-query pagination', () => {
     const result = await getQuestionsList({ page: 99 })
 
     expect(result).toEqual({ ok: true, questions: [], totalCount: 30 })
+  })
+
+  it('surfaces a failure when the recount after a past-end page fails', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    wire([
+      resultChain({ data: null, count: null, error: { message: 'range', code: 'PGRST103' } }),
+      resultChain({ data: null, count: null, error: { message: 'count failed' } }),
+    ])
+
+    const result = await getQuestionsList({ page: 99 })
+
+    expect(mockFrom).toHaveBeenCalledTimes(2)
+    expect(result).toEqual({ ok: false, error: 'Failed to load questions' })
+    expect(consoleSpy).toHaveBeenCalledWith('[getQuestionsList] query error:', 'count failed')
+    consoleSpy.mockRestore()
   })
 
   it('returns early after the recount when the count is 0', async () => {

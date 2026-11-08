@@ -417,8 +417,8 @@ describe('listInternalExamAttempts', () => {
 
     it('returns an empty rows array when the rows query yields null data', async () => {
       mockAdmin()
-      // Count reports rows exist, but the data query returns null (e.g. transport quirk).
-      mockFrom([buildChain(null, null, 5), buildChain(null, null, 5)])
+      // The page query returns a positive count with null data (e.g. transport quirk).
+      mockFrom([buildChain(null, null, 5)])
 
       const result = await listInternalExamAttempts()
 
