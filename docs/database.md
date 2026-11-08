@@ -663,7 +663,7 @@ WITH (security_invoker = true) AS
 Created in migration 051 to centralize the soft-delete filter and provide RLS enforcement via `security_invoker`, removing the per-callsite `.is('deleted_at', null)` requirement. **All read-path callsites now query this view** (migrated in issue #467):
 
 - `apps/web/app/app/quiz/actions/flag.ts` — ID list in `getFlaggedIds`
-- `apps/web/app/app/quiz/actions/_flag-guard.ts` — existing-flag lookup in `lookupActiveFlag`; `flag.ts` decides flag vs unflag
+- `apps/web/app/app/quiz/actions/_flag-guard.ts` — existing-flag lookup in `lookupActiveFlag`; `applyFlagState` decides flag vs unflag
 - `apps/web/lib/queries/flagged-questions.ts` — quiz setup flagged filter
 - `apps/web/lib/gdpr/collect-user-data-queries.ts` — GDPR data export
 
@@ -887,7 +887,7 @@ and nothing else, with the org predicate and (where present) the `deleted_at IS 
 byte-identical to what mig 001 declared — so soft-delete filtering on reads is unchanged.
 See `docs/security.md` §3.
 
-**Exception:** `flagged_questions` filters `deleted_at IS NULL` outside RLS — via the `active_flagged_questions` view (`20260323000050:34-35`) and an explicit `.is('deleted_at', null)` at `_flag-guard.ts:75`; note `flag.ts` itself contains no `deleted_at` — to avoid `FORCE ROW LEVEL SECURITY` violations when soft-deleting rows. See the `flagged_questions` table docs (§2) for details.
+**Exception:** `flagged_questions` filters `deleted_at IS NULL` outside RLS — via the `active_flagged_questions` view (`20260323000050:34-35`) and an explicit `.is('deleted_at', null)` in `unflagQuestion` (`_flag-guard.ts`); note `flag.ts` itself contains no `deleted_at` — to avoid `FORCE ROW LEVEL SECURITY` violations when soft-deleting rows. See the `flagged_questions` table docs (§2) for details.
 
 ### Scoring Soft-Deleted Questions
 

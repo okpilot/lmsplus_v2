@@ -101,7 +101,7 @@ The layout does not gate its sibling page: Next renders them in one flight, and 
 A layout or page check does not protect a **Server Action**: it is reachable by a direct POST, and only the action's own `requireAdmin()` (Layer 2) stops it.
 
 **Layer 2 — Data placement (`apps/web/lib/auth/require-admin.ts`):**
-`requireAdmin()` verifies both auth (non-null session) and admin role, against a `deleted_at`-filtered read. Since #1169 it is wrapped in React `cache()`, so N calls in one RENDER perform one verification; Server Actions get no memo (no React flight request is resolvable there — Next runs the action under its own async storage), so every mutation still re-verifies. Called at the top of every admin Server Action — and, since #1167, at the top of every admin query helper — before any data access. If either check fails, it throws — the action never proceeds.
+`requireAdmin()` verifies both auth (non-null session) and admin role, against a `deleted_at`-filtered read. Since #1169 it is wrapped in React `cache()`, so N calls in one RENDER perform one verification; the memo is relied on only within a render: every admin Server Action calls `requireAdmin()` itself, so every mutation re-verifies. Called at the top of every admin Server Action — and, since #1167, at the top of every admin query helper — before any data access. If either check fails, it throws — the action never proceeds.
 
 **Why both:** The render placement prevents UI rendering for non-admins. The Server Action and query-helper placement ensures admin actions and reads are self-defending even if a page or layout omits its call or is bypassed (e.g., direct API calls). Both layers call the same `cache()`d `requireAdmin()`; a defect inside `requireAdmin()` defeats both placements.
 
@@ -244,7 +244,7 @@ that set is open — any migration adding or replacing a policy can change it, s
 the query in `docs/database.md` §3 rather than trusting this line. (It is
 not the only soft-deletable table read without one — `flagged_questions` filters via the
 `active_flagged_questions` view and an explicit `.is('deleted_at', null)` in
-`_flag-guard.ts:75`, and `quiz_sessions`' student SELECT policy omits it; `docs/database.md` §3
+`unflagQuestion` (`_flag-guard.ts`), and `quiz_sessions`' student SELECT policy omits it; `docs/database.md` §3
 carries the query that derives the current set), and a SECURITY
 INVOKER reader of it must filter `deleted_at` explicitly rather than relying on RLS.
 

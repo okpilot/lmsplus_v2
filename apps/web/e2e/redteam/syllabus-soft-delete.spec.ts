@@ -1,11 +1,11 @@
 /**
  * Red Team Spec — syllabus soft delete (migs 20261107000100 / 000200 / 000300).
  *
- *  - LC: non-admin calls soft_delete_syllabus_item → not_admin; non-allowlisted p_table → invalid_table.
- *  - LD: admin bypasses the RPC — hard DELETE, or a direct deleted_at / deleted_by write → 42501.
- *  - LE: admin writes against a soft-deleted row — child under a deleted parent, move under a
+ *  - LN: non-admin calls soft_delete_syllabus_item → not_admin; non-allowlisted p_table → invalid_table.
+ *  - LO: admin bypasses the RPC — hard DELETE, or a direct deleted_at / deleted_by write → 42501.
+ *  - LP: admin writes against a soft-deleted row — child under a deleted parent, move under a
  *        deleted parent, rename a deleted row → parent_not_found / item_deleted.
- *  - LF: exam_configs / exam_config_distributions pointing at a deleted subject / topic → parent_not_found.
+ *  - LQ: exam_configs / exam_config_distributions pointing at a deleted subject / topic → parent_not_found.
  *
  * Every arm carries a control proving the same write succeeds against a live row.
  */
@@ -197,7 +197,7 @@ test.describe('Red Team: syllabus soft delete', () => {
     if (error) throw new Error(`admin soft delete ${table}: ${error.message}`)
   }
 
-  test('LC: a student cannot soft-delete a syllabus item; an admin can', async () => {
+  test('LN: a student cannot soft-delete a syllabus item; an admin can', async () => {
     const subjectId = await seedSubject()
     const topicId = await seedTopic(subjectId)
     const before = await readRow('easa_topics', topicId)
@@ -218,7 +218,7 @@ test.describe('Red Team: syllabus soft delete', () => {
     expect(await deleteAuditCount(topicId)).toBe(1)
   })
 
-  test('LC: an admin cannot point soft_delete_syllabus_item at a non-syllabus table', async () => {
+  test('LN: an admin cannot point soft_delete_syllabus_item at a non-syllabus table', async () => {
     const { data: self, error: selfErr } = await admin
       .from('users')
       .select('id, deleted_at')
@@ -242,7 +242,7 @@ test.describe('Red Team: syllabus soft delete', () => {
     expect(still?.deleted_at).toBeNull()
   })
 
-  test('LD: an admin cannot hard-delete a syllabus row', async () => {
+  test('LO: an admin cannot hard-delete a syllabus row', async () => {
     const subjectId = await seedSubject()
     const topicId = await seedTopic(subjectId)
     const subtopicId = await seedSubtopic(topicId)
@@ -258,7 +258,7 @@ test.describe('Red Team: syllabus soft delete', () => {
     }
   })
 
-  test('LD: an admin cannot write deleted_at / deleted_by directly', async () => {
+  test('LO: an admin cannot write deleted_at / deleted_by directly', async () => {
     const subjectId = await seedSubject()
     const topicId = await seedTopic(subjectId)
     const subtopicId = await seedSubtopic(topicId)
@@ -301,7 +301,7 @@ test.describe('Red Team: syllabus soft delete', () => {
     expect(renamed).toHaveLength(1)
   })
 
-  test('LE: an admin cannot write against a soft-deleted syllabus row', async () => {
+  test('LP: an admin cannot write against a soft-deleted syllabus row', async () => {
     const liveSubjectId = await seedSubject()
     const deadSubjectId = await seedSubject()
     const liveTopicId = await seedTopic(liveSubjectId, 'LIVE')
@@ -358,7 +358,7 @@ test.describe('Red Team: syllabus soft delete', () => {
     expect(ok.data).toHaveLength(1)
   })
 
-  test('LF: an exam config cannot reference a soft-deleted subject or topic', async () => {
+  test('LQ: an exam config cannot reference a soft-deleted subject or topic', async () => {
     const liveSubjectId = await seedSubject()
     const deadSubjectId = await seedSubject()
     const liveTopicId = await seedTopic(liveSubjectId, 'LIVE')

@@ -22,6 +22,7 @@
  */
 
 import { expect, type Page, test } from '@playwright/test'
+import { findAuthUserByEmail } from './helpers/auth-users'
 import { readServerAnsweredCount } from './helpers/quiz-session'
 import { SESSION_ID_URL } from './helpers/quiz-session-id'
 import { getAdminClient, TEST_EMAIL } from './helpers/supabase'
@@ -115,10 +116,7 @@ test.describe('practice exam — refresh recovery', () => {
     // Step 1: resolve the test user
     let userId: string | undefined
     try {
-      const { data: existingUsers, error: listError } = await admin.auth.admin.listUsers()
-      if (listError) throw new Error(`afterEach listUsers: ${listError.message}`)
-      const user = existingUsers?.users.find((u: { email?: string }) => u.email === TEST_EMAIL)
-      userId = user?.id
+      userId = (await findAuthUserByEmail(admin, TEST_EMAIL))?.id
     } catch (e) {
       errors.push(e instanceof Error ? e.message : String(e))
     }

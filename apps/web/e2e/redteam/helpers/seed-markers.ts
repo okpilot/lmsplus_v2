@@ -160,5 +160,5 @@ export const E2E_REDTEAM_KY_MARKER = '[E2E_REDTEAM_KY]'
 export const E2E_REDTEAM_KZ_MARKER = '[E2E_REDTEAM_KZ]'
 export const E2E_REDTEAM_KZ_RT_ONLY_EMAIL = 'redteam-kz-rt-only@lmsplus.local'
 export const E2E_REDTEAM_KZ_RT_ONLY_PASSWORD = 'redteam-kz-rt-only-2026!'
-// Syllabus soft-delete spec (Vectors LC–LF): easa_subjects.code prefix of the throwaway subjects it creates.
+// Syllabus soft-delete spec (Vectors LN–LQ): easa_subjects.code prefix of the throwaway subjects it creates.
 export const E2E_REDTEAM_SYLLABUS_CODE_PREFIX = 'RTSYL-'

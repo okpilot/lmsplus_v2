@@ -1,11 +1,11 @@
 /**
  * Red Team Spec — syllabus soft delete vs. dependent rows (migs 20261107000100 / 000200).
  *
- *  - LG: a cross-org admin deletes a topic referenced only by another org's live question → in_use.
- *  - LH: an admin moves a question under a deleted subtopic → parent_not_found; a deleted
+ *  - LR: a cross-org admin deletes a topic referenced only by another org's live question → in_use.
+ *  - LS: an admin moves a question under a deleted subtopic → parent_not_found; a deleted
  *        question under a deleted topic is restored (admin: RLS 0 rows; service role: parent_not_found).
- *  - LI: issue_internal_exam_code on a soft-deleted subject → subject_not_found.
- *  - LJ: concurrent topic delete and question insert → exactly one wins, never both.
+ *  - LT: issue_internal_exam_code on a soft-deleted subject → subject_not_found.
+ *  - LU: concurrent topic delete and question insert → exactly one wins, never both.
  *
  * Every arm carries a control proving the same write succeeds when the parent is live / unused.
  */
@@ -233,7 +233,7 @@ test.describe('Red Team: syllabus soft delete vs dependent rows', () => {
     return client.rpc('soft_delete_syllabus_item', { p_table, p_id })
   }
 
-  test('LG: a cross-org admin cannot delete a topic another org still uses', async () => {
+  test('LR: a cross-org admin cannot delete a topic another org still uses', async () => {
     const subjectId = await seedSubject()
     const topicId = await seedTopic(subjectId)
     const questionId = await seedQuestion(subjectId, topicId)
@@ -252,7 +252,7 @@ test.describe('Red Team: syllabus soft delete vs dependent rows', () => {
     expect(await deleteAudits(topicId)).toEqual([{ organization_id: crossOrgId }])
   })
 
-  test('LH: an admin cannot restore or move a question under a deleted syllabus row', async () => {
+  test('LS: an admin cannot restore or move a question under a deleted syllabus row', async () => {
     const subjectId = await seedSubject()
     const liveTopicId = await seedTopic(subjectId, 'LIVE')
     const deadTopicId = await seedTopic(subjectId, 'DEAD')
@@ -313,7 +313,7 @@ test.describe('Red Team: syllabus soft delete vs dependent rows', () => {
     expect((await readQuestion(liveOrphanId)).deleted_at).toBeNull()
   })
 
-  test('LI: an admin cannot issue an internal exam code for a deleted subject', async () => {
+  test('LT: an admin cannot issue an internal exam code for a deleted subject', async () => {
     const deadSubjectId = await seedSubject()
     const liveSubjectId = await seedSubject()
     const del = await softDelete(adminClient, 'easa_subjects', deadSubjectId)
@@ -340,7 +340,7 @@ test.describe('Red Team: syllabus soft delete vs dependent rows', () => {
     expect(count).toBe(0)
   })
 
-  test('LJ: a topic delete racing a question insert never leaves a live question on a deleted topic', async () => {
+  test('LU: a topic delete racing a question insert never leaves a live question on a deleted topic', async () => {
     const subjectId = await seedSubject()
     const outcomes = { deleteWon: 0, insertWon: 0 }
     for (let i = 0; i < RACE_ROUNDS; i++) {

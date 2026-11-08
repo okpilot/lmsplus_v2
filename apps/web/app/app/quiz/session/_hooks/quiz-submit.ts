@@ -8,7 +8,7 @@ import { saveQuizForLater } from '../../actions/saved-quiz'
 import type { DraftAnswer } from '../../types'
 import { getQuizDeviceId } from '../_utils/quiz-device-id'
 import { clearActiveSessionIfCurrent } from '../_utils/quiz-session-storage'
-import { markRunnerExiting } from '../_utils/runner-exit'
+import { isCurrentRunner, markRunnerExiting, runnerToken } from '../_utils/runner-exit'
 
 type AppRouterInstance = ReturnType<typeof useRouter>
 
@@ -27,15 +27,30 @@ export async function submitQuizSession(sessionId: string, userId: string) {
   }
 }
 
-export async function discardQuizSession(
+export function discardQuizSession(
   sessionId: string,
   router: AppRouterInstance,
   userId: string,
 ): Promise<ActionResult> {
+  return discardWithToken({ sessionId, router, userId, token: runnerToken() })
+}
+
+async function discardWithToken({
+  sessionId,
+  router,
+  userId,
+  token,
+}: {
+  sessionId: string
+  router: AppRouterInstance
+  userId: string
+  token: number
+}): Promise<ActionResult> {
   clearActiveSessionIfCurrent(userId, sessionId) // Always clear — respect discard intent even if Server Action fails
   try {
     const result = await discardQuiz({ sessionId })
     if (!result.success) return result
+    if (!isCurrentRunner(token)) return { success: true }
     markRunnerExiting()
     router.replace('/app/quiz')
     return { success: true }
@@ -54,6 +69,7 @@ export async function handleSubmitSession(opts: {
   onSuccess: () => void
   isExam?: boolean
   examMode?: DbQuizMode
+  token?: number
 }) {
   if (opts.answers.size === 0 && !opts.isExam) {
     opts.setError('No answers to submit.')
@@ -63,10 +79,12 @@ export async function handleSubmitSession(opts: {
     opts.setSubmitting(false)
     return
   }
+  const token = opts.token ?? runnerToken()
   opts.setSubmitting(true)
   opts.setError(null)
   const r = await submitQuizSession(opts.sessionId, opts.userId)
   if (r.success) {
+    if (!isCurrentRunner(token)) return
     opts.onSuccess()
     markRunnerExiting()
     opts.router.replace(reportUrl(opts.examMode, opts.sessionId))
@@ -83,7 +101,9 @@ export async function handleSaveSession(opts: {
   router: AppRouterInstance
   setSubmitting: SetSubmitting
   setError: SetError
+  token?: number
 }) {
+  const token = opts.token ?? runnerToken()
   opts.setSubmitting(true)
   opts.setError(null)
   try {
@@ -93,6 +113,7 @@ export async function handleSaveSession(opts: {
     })
     if (r.success) {
       clearActiveSessionIfCurrent(opts.userId, opts.sessionId)
+      if (!isCurrentRunner(token)) return
       markRunnerExiting()
       opts.router.replace('/app/quiz')
       return
@@ -110,10 +131,17 @@ export async function handleDiscardSession(opts: {
   router: AppRouterInstance
   setSubmitting: SetSubmitting
   setError: SetError
+  token?: number
 }) {
+  const token = opts.token ?? runnerToken()
   opts.setSubmitting(true)
   opts.setError(null)
-  const r = await discardQuizSession(opts.sessionId, opts.router, opts.userId)
+  const r = await discardWithToken({
+    sessionId: opts.sessionId,
+    router: opts.router,
+    userId: opts.userId,
+    token,
+  })
   if (!r.success) {
     opts.setError(r.error)
     opts.setSubmitting(false)

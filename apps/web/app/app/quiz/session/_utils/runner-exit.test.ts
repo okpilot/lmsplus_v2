@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   _resetRunnerExit,
+  isCurrentRunner,
   isRunnerExiting,
   markRunnerExiting,
   resetRunnerExit,
+  runnerToken,
   subscribeRunnerExit,
 } from './runner-exit'
 
@@ -37,5 +39,38 @@ describe('runner exit flag', () => {
     off()
     markRunnerExiting()
     expect(listener).not.toHaveBeenCalled()
+  })
+})
+
+describe('runner token', () => {
+  it('keeps the token current while the runner stays mounted', () => {
+    const token = runnerToken()
+    expect(isCurrentRunner(token)).toBe(true)
+  })
+
+  it('invalidates a token when the runner unmounts', () => {
+    const token = runnerToken()
+    resetRunnerExit()
+    expect(isCurrentRunner(token)).toBe(false)
+  })
+
+  it('invalidates a token on reset even when the exit flag was already clear', () => {
+    expect(isRunnerExiting()).toBe(false)
+    const token = runnerToken()
+    resetRunnerExit()
+    expect(runnerToken()).not.toBe(token)
+  })
+
+  it('treats a token taken after the reset as current', () => {
+    resetRunnerExit()
+    expect(isCurrentRunner(runnerToken())).toBe(true)
+  })
+
+  it('returns the token to its initial value on the test reset', () => {
+    const initial = runnerToken()
+    resetRunnerExit()
+    resetRunnerExit()
+    _resetRunnerExit()
+    expect(runnerToken()).toBe(initial)
   })
 })
