@@ -8,7 +8,7 @@
  * - Flagged questions (for "flagged" filter)
  * - A saved quiz draft (for "Saved Quizzes" tab)
  *
- * Run AFTER `npx supabase db reset`.
+ * Run AFTER `pnpm supabase db reset` (repo root).
  * Usage: cd apps/web && npx tsx scripts/seed-quiz-setup-eval.ts
  */
 
