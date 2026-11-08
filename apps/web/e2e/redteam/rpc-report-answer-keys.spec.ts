@@ -36,6 +36,7 @@ import { expect, test } from '@playwright/test'
 import { createClient } from '@supabase/supabase-js'
 import { deriveContentId } from '../../scripts/content-ids'
 import { deriveLabelId, deriveZoneId } from '../../scripts/diagram-content'
+import { findAuthUserByEmail } from '../helpers/auth-users'
 import { getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
 import {
@@ -582,15 +583,7 @@ test.describe('Red Team: get_report_answer_keys RPC (Vector EN)', () => {
     test.beforeAll(async () => {
       // Create (or realign) the dedicated throwaway student, ensuring it is NOT
       // soft-deleted from a prior aborted run.
-      // perPage default is 50; once the shared local auth.users list grows past that,
-      // the reused throwaway student could land on a later page and be missed, wrongly
-      // falling through to createUser (which then fails on the duplicate email). Use a
-      // ceiling well above any test-env user count.
-      const { data: authList, error: listError } = await admin.auth.admin.listUsers({
-        perPage: 1000,
-      })
-      if (listError) throw new Error(`EN4 beforeAll: listUsers failed: ${listError.message}`)
-      const existing = authList.users.find((u) => u.email === SOFTDEL_STUDENT_EMAIL)
+      const existing = await findAuthUserByEmail(admin, SOFTDEL_STUDENT_EMAIL)
 
       if (existing) {
         softDelStudentId = existing.id
