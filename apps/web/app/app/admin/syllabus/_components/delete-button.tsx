@@ -70,7 +70,7 @@ export function DeleteButton({ id, table, label, questionCount }: Readonly<Delet
         <AlertDialogHeader>
           <AlertDialogTitle>Delete {label}?</AlertDialogTitle>
           <AlertDialogDescription>
-            This action cannot be undone. This will permanently delete this item from the syllabus.
+            This removes the item from the syllabus. Its history is kept.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

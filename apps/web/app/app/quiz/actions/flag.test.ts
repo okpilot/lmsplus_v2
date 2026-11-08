@@ -20,6 +20,7 @@ vi.mock('@/lib/auth/verify-session-user', () => ({
 // ---- Subject under test ----------------------------------------------------
 
 import { getFlaggedIds, toggleFlag } from './flag'
+import { SIGN_IN } from './progress-error-messages'
 
 // ---- Helpers ---------------------------------------------------------------
 
@@ -84,10 +85,10 @@ describe('toggleFlag', () => {
 
   // ---- auth ----------------------------------------------------------------
 
-  it('returns not-authenticated when the session has no verified user', async () => {
+  it('returns the sign-in message when the session has no verified user', async () => {
     mockVerifySessionUser.mockResolvedValue(null)
     const result = await toggleFlag({ questionId: QUESTION_ID_A })
-    expect(result).toEqual({ success: false, error: 'Not authenticated' })
+    expect(result).toEqual({ success: false, error: SIGN_IN })
     expect(mockVerifySessionUser).toHaveBeenCalledWith(mockClient)
   })
 
@@ -337,6 +338,95 @@ describe('toggleFlag', () => {
 
     consoleSpy.mockRestore()
     expect(result).toEqual({ success: false, error: 'Failed to unflag' })
+  })
+})
+
+describe('toggleFlag with a desired state', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+  })
+
+  function spyOnWrites(active: boolean, activeExam = false) {
+    const methods: string[] = []
+    const spy = (value: unknown): unknown =>
+      new Proxy(
+        {
+          // biome-ignore lint/suspicious/noThenProperty: intentional thenable for Supabase chain mock
+          then: (resolve: (v: unknown) => void, reject: (e: unknown) => void) =>
+            Promise.resolve(value).then(resolve, reject),
+        } as Record<string, unknown>,
+        {
+          get(target, prop) {
+            if (prop === 'then') return target.then
+            return () => {
+              if (typeof prop === 'string') methods.push(prop)
+              return spy(value)
+            }
+          },
+        },
+      )
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'quiz_sessions')
+        return buildChain({
+          data: activeExam ? { id: '00000000-0000-4000-a000-000000000099' } : null,
+          error: null,
+        })
+      if (table === 'active_flagged_questions')
+        return buildChain({ data: active ? { student_id: USER_ID } : null, error: null })
+      return spy({ error: null })
+    })
+    return methods
+  }
+
+  it('rejects a flagged value that is not a boolean', async () => {
+    setupAuthenticatedUser()
+    spyOnWrites(false)
+    const result = await toggleFlag({ questionId: QUESTION_ID_A, flagged: 'yes' })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
+  })
+
+  it('flags the question when flagged is true and it is not flagged', async () => {
+    setupAuthenticatedUser()
+    const methods = spyOnWrites(false)
+    const result = await toggleFlag({ questionId: QUESTION_ID_A, flagged: true })
+    expect(result).toEqual({ success: true, flagged: true })
+    expect(methods).toContain('upsert')
+  })
+
+  it('keeps the question flagged without a write when flagged is true and it is already flagged', async () => {
+    setupAuthenticatedUser()
+    const methods = spyOnWrites(true)
+    const result = await toggleFlag({ questionId: QUESTION_ID_A, flagged: true })
+    expect(result).toEqual({ success: true, flagged: true })
+    expect(methods).not.toContain('upsert')
+    expect(methods).not.toContain('update')
+  })
+
+  it('unflags the question when flagged is false and it is flagged', async () => {
+    setupAuthenticatedUser()
+    const methods = spyOnWrites(true)
+    const result = await toggleFlag({ questionId: QUESTION_ID_A, flagged: false })
+    expect(result).toEqual({ success: true, flagged: false })
+    expect(methods).toContain('update')
+  })
+
+  it('keeps the question unflagged without a write when flagged is false and it is not flagged', async () => {
+    setupAuthenticatedUser()
+    const methods = spyOnWrites(false)
+    const result = await toggleFlag({ questionId: QUESTION_ID_A, flagged: false })
+    expect(result).toEqual({ success: true, flagged: false })
+    expect(methods).not.toContain('upsert')
+    expect(methods).not.toContain('update')
+  })
+
+  it('still rejects during an active internal exam when flagged is given', async () => {
+    setupAuthenticatedUser()
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const methods = spyOnWrites(false, true)
+    const result = await toggleFlag({ questionId: QUESTION_ID_A, flagged: true })
+    errorSpy.mockRestore()
+    expect(result).toEqual({ success: false, error: 'cannot_flag_internal_exam' })
+    expect(methods).toEqual([])
   })
 })
 

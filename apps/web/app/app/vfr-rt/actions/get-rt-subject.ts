@@ -23,11 +23,11 @@ export type RtSubjectData = {
  * (code-style §5 — never embed Postgres error strings, which can leak schema detail). */
 async function fetchRtSubjectId(): Promise<string | null> {
   const supabase = await createServerSupabaseClient()
-  // easa_subjects has no deleted_at column (defined in mig 001, no soft-delete) — read-scope is enforced by RLS.
   const { data: subject, error } = await supabase
     .from('easa_subjects')
     .select('id')
     .eq('code', 'RT')
+    .is('deleted_at', null)
     .maybeSingle()
   if (error) {
     console.error('[getRtSubjectData] Subject lookup failed:', error.message)

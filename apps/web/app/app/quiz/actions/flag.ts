@@ -3,14 +3,10 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 import { verifySessionUser } from '@/lib/auth/verify-session-user'
-import {
-  findActiveInternalExamSession,
-  flagQuestion,
-  lookupActiveFlag,
-  unflagQuestion,
-} from './_flag-guard'
+import { applyFlagState, findActiveInternalExamSession, lookupActiveFlag } from './_flag-guard'
+import { SIGN_IN } from './progress-error-messages'
 
-const ToggleFlagSchema = z.object({ questionId: z.uuid() })
+const ToggleFlagSchema = z.object({ questionId: z.uuid(), flagged: z.boolean().optional() })
 const GetFlaggedIdsSchema = z.object({ questionIds: z.array(z.uuid()) })
 
 type FlagResult = { success: true; flagged: boolean } | { success: false; error: string }
@@ -19,7 +15,7 @@ type GetFlaggedResult = { success: true; flaggedIds: string[] } | { success: fal
 export async function toggleFlag(raw: unknown): Promise<FlagResult> {
   const supabase = await createServerSupabaseClient()
   const user = await verifySessionUser(supabase)
-  if (!user) return { success: false, error: 'Not authenticated' }
+  if (!user) return { success: false, error: SIGN_IN }
 
   let parsed: z.infer<typeof ToggleFlagSchema>
   try {
@@ -27,7 +23,7 @@ export async function toggleFlag(raw: unknown): Promise<FlagResult> {
   } catch {
     return { success: false, error: 'Invalid input' }
   }
-  const { questionId } = parsed
+  const { questionId, flagged } = parsed
 
   // Independent reads run together; the exam gate is evaluated first, so an active exam
   // never reaches a write.
@@ -43,9 +39,12 @@ export async function toggleFlag(raw: unknown): Promise<FlagResult> {
 
   if ('error' in lookup) return { success: false, error: 'Failed to toggle flag' }
 
-  return lookup.flagged
-    ? unflagQuestion(supabase, user.id, questionId)
-    : flagQuestion(supabase, user.id, questionId)
+  return applyFlagState(supabase, {
+    userId: user.id,
+    questionId,
+    current: lookup.flagged,
+    desired: flagged,
+  })
 }
 
 export async function getFlaggedIds(raw: unknown): Promise<GetFlaggedResult> {

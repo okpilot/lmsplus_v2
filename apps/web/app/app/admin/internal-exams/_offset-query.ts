@@ -1,4 +1,5 @@
 import { adminClient } from '@repo/db/admin'
+import { isPastEndPage } from '@/lib/utils/past-end-page'
 
 /**
  * The PostgREST query-builder surface used by the admin internal-exams offset
@@ -12,7 +13,7 @@ import { adminClient } from '@repo/db/admin'
 export type OffsetChainBuilder = {
   select: {
     (cols: string): OffsetChainBuilder
-    (cols: string, opts: { count: 'exact'; head: boolean }): OffsetChainBuilder
+    (cols: string, opts: { count: 'exact'; head?: boolean }): OffsetChainBuilder
   }
   eq: (col: string, val: unknown) => OffsetChainBuilder
   is: (col: string, val: null) => OffsetChainBuilder
@@ -39,8 +40,9 @@ type QueryContext = { tag: string; failMessage: string }
 
 /**
  * Runs a `head: true, count: 'exact'` select and returns the row count. Logs the raw
- * error server-side and throws a generic message on failure (count-first because
- * PostgREST returns 416 + a null count for an out-of-range `.range()` request).
+ * error server-side and throws a generic message on failure. Used count-first by the
+ * codes list and as the recount after a past-end page read by the attempts list
+ * (PostgREST returns 416 + a null count for an out-of-range `.range()` request).
  */
 export async function runOffsetCount(
   builder: OffsetChainBuilder,
@@ -75,4 +77,28 @@ export async function runOffsetRows<T>(
     throw new Error(ctx.failMessage)
   }
   return Array.isArray(data) ? (data as T[]) : []
+}
+
+/**
+ * Runs a data select that carries `count: 'exact'` and returns the rows with the total.
+ * `pastEnd` is true when the requested range starts at or past the end (PGRST103, or
+ * empty rows with a positive count; see `isPastEndPage`) and carries the response count,
+ * 0 when PGRST103 returns a null count; any other error is logged server-side and thrown
+ * as the generic message.
+ */
+export async function runOffsetPage<T>(
+  builder: OffsetChainBuilder,
+  ctx: QueryContext,
+): Promise<{ rows: T[]; count: number; pastEnd: boolean }> {
+  const { data, count, error } = (await (builder as unknown as PromiseLike<{
+    data: unknown
+    count: number | null
+    error: { message: string; code?: string } | null
+  }>)) ?? { data: null, count: null, error: null }
+  if (isPastEndPage({ data, count, error })) return { rows: [], count: count ?? 0, pastEnd: true }
+  if (error) {
+    console.error(`[${ctx.tag}] DB error:`, error.message)
+    throw new Error(ctx.failMessage)
+  }
+  return { rows: Array.isArray(data) ? (data as T[]) : [], count: count ?? 0, pastEnd: false }
 }

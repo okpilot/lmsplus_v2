@@ -49,6 +49,7 @@ import {
   CURRENT_PRIVACY_VERSION,
   CURRENT_TOS_VERSION,
 } from '../../lib/consent/versions'
+import { findAuthUserByEmail } from '../helpers/auth-users'
 import { getAdminClient } from '../helpers/supabase'
 import { seedConsentRecords } from './helpers/seed-consent'
 import { ATTACKER_EMAIL, ATTACKER_PASSWORD, seedRedTeamUsers } from './helpers/seed-users'
@@ -405,10 +406,7 @@ async function upsertConsentGateUser(
   password: string,
   orgId: string,
 ): Promise<string> {
-  const { data: list, error: listError } = await admin.auth.admin.listUsers()
-  if (listError) throw new Error(`upsertConsentGateUser listUsers: ${listError.message}`)
-
-  const existing = list.users.find((u) => u.email === email)
+  const existing = await findAuthUserByEmail(admin, email)
   if (existing) {
     const { data: row, error: rowErr } = await admin
       .from('users')

@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  type ChainCall,
+  hasDeletedAtFilter,
+  recordChainCalls,
+} from '@/lib/test-support/record-chain-calls'
 
 // ---- Mocks ----------------------------------------------------------------
+
+const chainLog: ChainCall[] = []
 
 const { mockGetSessionUser, mockFrom, mockRpc } = vi.hoisted(() => ({
   mockGetSessionUser: vi.fn(),
@@ -14,7 +21,7 @@ vi.mock('@/lib/auth/get-session-user', () => ({
 
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => ({
-    from: mockFrom,
+    from: (table: string) => recordChainCalls(table, mockFrom(table), chainLog),
     rpc: mockRpc,
   }),
 }))
@@ -41,6 +48,7 @@ function buildChain(returnValue: unknown) {
 
 beforeEach(() => {
   vi.resetAllMocks()
+  chainLog.length = 0
   mockGetSessionUser.mockResolvedValue({ id: 'u1' })
   mockRpc.mockResolvedValue({ data: [], error: null })
 })
@@ -434,5 +442,16 @@ describe('getProgressData', () => {
     expect(met.totalQuestions).toBe(0)
     expect(met.answeredCorrectly).toBe(2)
     expect(met.masteryPercentage).toBe(0)
+  })
+})
+
+describe('getProgressData soft-delete filters', () => {
+  it('reads only live subjects and topics', async () => {
+    mockFrom.mockImplementation(() => buildChain({ data: [] }))
+
+    await getProgressData()
+
+    expect(hasDeletedAtFilter(chainLog, 'easa_subjects')).toBe(true)
+    expect(hasDeletedAtFilter(chainLog, 'easa_topics')).toBe(true)
   })
 })

@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { resetPasswordIfDrifted } from './auth-users'
 import { ensureConsentRecords, getAdminClient } from './supabase'
 
 export const ADMIN_TEST_EMAIL = 'admin@lmsplus.local'
@@ -74,16 +75,12 @@ export async function ensureAdminTestUser() {
     .single()
 
   if (userRow) {
-    // Ensure password matches
-    // Intentional unconditional reset (#593, won't-fix): GoTrue stores only a password
-    // hash so equality can't be compared; the write is idempotent + cheap (setup workers=1).
-    // NOT side-effect-free, despite "idempotent": it revokes every existing session for
-    // this account. Never call this once that account's storageState has been written —
-    // doing so is what broke all 34 admin-e2e specs in #1143. See #1146.
-    const { error: resetError } = await admin.auth.admin.updateUserById(userRow.id, {
+    await resetPasswordIfDrifted(admin, {
+      id: userRow.id,
+      email: ADMIN_TEST_EMAIL,
       password: ADMIN_TEST_PASSWORD,
+      tag: 'ensureAdminTestUser',
     })
-    if (resetError) throw new Error(`ensureAdminTestUser reset password: ${resetError.message}`)
 
     // Ensure role and org are correct
     if (userRow.role !== 'admin' || userRow.organization_id !== org.id) {

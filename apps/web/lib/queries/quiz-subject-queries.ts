@@ -18,7 +18,11 @@ export const getSubjectsWithCounts = cache(async (): Promise<SubjectOption[]> =>
   // Intentional asymmetry: a subjects read error throws (page-critical data), while
   // getActiveQuestionCounts degrades to [] internally (counts are non-fatal).
   const [subjectsRes, countsData] = await Promise.all([
-    supabase.from('easa_subjects').select('id, code, name, short, sort_order').order('sort_order'),
+    supabase
+      .from('easa_subjects')
+      .select('id, code, name, short, sort_order')
+      .is('deleted_at', null)
+      .order('sort_order'),
     getActiveQuestionCounts(),
   ])
 
@@ -59,6 +63,7 @@ export async function getTopicsWithSubtopics(subjectId: string): Promise<TopicWi
     .from('easa_topics')
     .select('id, code, name, sort_order')
     .eq('subject_id', subjectId)
+    .is('deleted_at', null)
     .order('sort_order')
 
   if (topicsRes.error) {
@@ -75,6 +80,7 @@ export async function getTopicsWithSubtopics(subjectId: string): Promise<TopicWi
       .from('easa_subtopics')
       .select('id, code, name, sort_order, topic_id')
       .in('topic_id', topicIds)
+      .is('deleted_at', null)
       .order('sort_order'),
     fetchActiveQuestionCounts(supabase),
   ])

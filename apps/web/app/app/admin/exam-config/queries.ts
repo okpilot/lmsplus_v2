@@ -14,9 +14,21 @@ export async function getExamConfigData(): Promise<SubjectWithConfig[]> {
   // Fetch all data in parallel
   const [subjectsRes, topicsRes, subtopicsRes, configsRes, distributionsRes, questionCountsRes] =
     await Promise.all([
-      supabase.from('easa_subjects').select('id, code, name, short').order('sort_order'),
-      supabase.from('easa_topics').select('id, subject_id, code, name').order('sort_order'),
-      supabase.from('easa_subtopics').select('id, topic_id, code, name').order('sort_order'),
+      supabase
+        .from('easa_subjects')
+        .select('id, code, name, short')
+        .is('deleted_at', null)
+        .order('sort_order'),
+      supabase
+        .from('easa_topics')
+        .select('id, subject_id, code, name')
+        .is('deleted_at', null)
+        .order('sort_order'),
+      supabase
+        .from('easa_subtopics')
+        .select('id, topic_id, code, name')
+        .is('deleted_at', null)
+        .order('sort_order'),
       supabase
         .from('exam_configs')
         .select('id, subject_id, enabled, total_questions, time_limit_seconds, pass_mark')
