@@ -156,3 +156,45 @@ test('a declared glob git ls-files rejects blocks', () =>
     assert.match(stderr, /git ls-files failed/)
     assert.doesNotMatch(stdout, /declared path exists: \.\.\/outside/)
   }))
+
+// GROUP: pipeline-supabase-cli-ignores-mismatch
+test('a workflow supabase/setup-cli version differing from supabaseCli blocks', () =>
+  withWorktree(({ wt }) => {
+    const path = join(wt, '.github/workflows/db-deploy.yml')
+    const text = readFileSync(path, 'utf8')
+    const anchor = '          version: 2.78.1\n'
+    assertSingleOccurrence(text, anchor, 'pipeline-repo-setup-cli-version-mismatch')
+    writeFileSync(path, text.replace(anchor, '          version: 2.79.0\n'))
+    const { status, stderr } = run(wt)
+    assert.equal(status, 1)
+    assert.match(stderr, /supabase\/setup-cli versions != 2\.78\.1/)
+  }))
+
+// GROUP: pipeline-supabase-cli-pin-in-comment
+test('a package.json supabase script pinning the CLI only in a comment blocks', () =>
+  withWorktree(({ wt }) => {
+    const path = join(wt, 'package.json')
+    const text = readFileSync(path, 'utf8')
+    const anchor = '"supabase": "pnpm dlx supabase@2.78.1"'
+    assertSingleOccurrence(text, anchor, 'pipeline-repo-supabase-pin-in-comment')
+    writeFileSync(
+      path,
+      text.replace(anchor, '"supabase": "pnpm dlx supabase@latest # supabase@2.78.1"'),
+    )
+    const { status, stderr } = run(wt)
+    assert.equal(status, 1)
+    assert.match(stderr, /scripts\.supabase .* must contain supabase@2\.78\.1/)
+  }))
+
+// GROUP: pipeline-supabase-cli-format-unchecked
+test('a non x.y.z supabaseCli in pipeline.json blocks', () =>
+  withWorktree(({ wt }) => {
+    const path = join(wt, '.claude/pipeline.json')
+    const text = readFileSync(path, 'utf8')
+    const anchor = '"supabaseCli": "2.78.1"'
+    assertSingleOccurrence(text, anchor, 'pipeline-repo-supabase-cli-format')
+    writeFileSync(path, text.replace(anchor, '"supabaseCli": "2.78"'))
+    const { status, stderr } = run(wt)
+    assert.equal(status, 1)
+    assert.match(stderr, /supabaseCli must be an exact x\.y\.z version/)
+  }))
