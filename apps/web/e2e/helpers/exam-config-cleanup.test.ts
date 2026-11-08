@@ -72,6 +72,48 @@ describe('softDeleteSubjectExamConfigs', () => {
     await expect(softDeleteSubjectExamConfigs('100', SINCE)).resolves.not.toThrow()
   })
 
+  it('throws when the subject lookup fails', async () => {
+    mockTables({ easa_subjects: { data: null, error: { message: 'lookup boom' } } })
+    await expect(softDeleteSubjectExamConfigs('100', SINCE)).rejects.toThrow(
+      'softDeleteSubjectExamConfigs subject: lookup boom',
+    )
+  })
+
+  it('returns silently without touching exam_configs when the subject is not found', async () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+    const calls = mockTables({ easa_subjects: { data: null, error: null } })
+
+    await expect(softDeleteSubjectExamConfigs('100', SINCE)).resolves.toBeUndefined()
+
+    expect(calls.some((c) => c.table === 'exam_configs')).toBe(false)
+    expect(log).not.toHaveBeenCalled()
+  })
+
+  it('logs the soft-deleted count when rows were soft-deleted', async () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+    mockTables({
+      easa_subjects: { data: { id: 'subj-100' }, error: null },
+      exam_configs: { data: [{ id: 'cfg-1' }, { id: 'cfg-2' }], error: null },
+    })
+
+    await softDeleteSubjectExamConfigs('100', SINCE)
+
+    expect(log).toHaveBeenCalledTimes(1)
+    expect(log).toHaveBeenCalledWith('softDeleteSubjectExamConfigs: soft-deleted 2 config(s)')
+  })
+
+  it('stays silent when zero rows were soft-deleted', async () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+    mockTables({
+      easa_subjects: { data: { id: 'subj-100' }, error: null },
+      exam_configs: { data: [], error: null },
+    })
+
+    await softDeleteSubjectExamConfigs('100', SINCE)
+
+    expect(log).not.toHaveBeenCalled()
+  })
+
   it('throws when the update fails', async () => {
     mockTables({
       easa_subjects: { data: { id: 'subj-100' }, error: null },

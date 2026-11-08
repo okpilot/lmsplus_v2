@@ -30,8 +30,8 @@ export default defineConfig({
       testMatch: 'internal-exam-student-auth.setup.ts',
       // Ordered after admin-setup on purpose. This setup needs the admin user to
       // exist (it calls signInAsAdmin), but it must NOT provision one itself: an
-      // ensure*User() password reset revokes every existing session for that
-      // account, so provisioning the admin here would kill the session that
+      // ensureAdminTestUser() password reset (on drift) revokes every existing session for that
+      // account, so provisioning the admin here could kill the session that
       // admin-setup has already saved to e2e/.auth/admin.json.
       // Without this edge both setups sit in the same dependency phase with no
       // defined order between them, so whether the suite passed came down to
@@ -61,7 +61,7 @@ export default defineConfig({
       // caused by the prior `e2e` project's specs running against user.json.
       // `setup` is listed so admin-students.spec.ts's non-admin access tests can
       // log in as the shared student without provisioning it themselves — calling
-      // an ensure*User() helper here would reset that account's password and
+      // an ensureTestUser() call here would reset that account's password on drift and
       // revoke the session `setup` already saved to e2e/.auth/user.json.
       // (settings.spec.ts changes that password mid-run and restores it in its
       // own afterAll, so `setup` is the initial writer, not the only one.)

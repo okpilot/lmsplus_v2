@@ -6,7 +6,7 @@
  *   - question NOT flagged → no flag row becomes active;
  *   - question flagged     → the flag stays active.
  * CONTROL: once the exam is gone, the same replay unflags, then flags, the same question.
- * The explicit `flagged` desired state is gated the same way; a non-boolean one is rejected (LC).
+ * The explicit `flagged` desired state is gated the same way; a non-boolean one is rejected (LM).
  *
  * flagged_questions has no text column for a marker: the spec snapshots the attacker's
  * (student_id, question_id) row before each test and restores it after.
@@ -298,7 +298,7 @@ test.describe('Red Team: toggleFlag during an active internal_exam (IS)', () => 
     expect(await isActiveFlag()).toBe(false)
   })
 
-  test('LC: a non-boolean desired flag state is rejected, never read as a toggle', async () => {
+  test('LM: a non-boolean desired flag state is rejected, never read as a toggle', async () => {
     await setFlag(true)
     for (const flagged of [null, 'false', 0, 'true'] as const) {
       const res = await invoke({ questionId: q1, flagged })
