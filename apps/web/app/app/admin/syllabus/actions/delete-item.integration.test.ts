@@ -68,9 +68,14 @@ describe('deleteItem (app-layer integration)', () => {
       ['topics', live('easa_topics', topicId)],
       ['subjects', live('easa_subjects', subjectId)],
     ]
+    let prevFailed = false
     for (const [label, step] of steps) {
+      if (prevFailed) continue
       const { error } = await step
-      if (error) errors.push(`${label}: ${error.message}`)
+      if (error) {
+        errors.push(`${label}: ${error.message}`)
+        prevFailed = true
+      }
     }
     if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
   })

@@ -100,9 +100,14 @@ describe('checkLiveParent (app-layer integration)', () => {
     } catch (e) {
       errors.push(`cleanupTestData: ${e instanceof Error ? e.message : String(e)}`)
     }
+    let prevFailed = false
     for (const [label, step] of steps) {
+      if (prevFailed) continue
       const { error } = await step
-      if (error) errors.push(`${label}: ${error.message}`)
+      if (error) {
+        errors.push(`${label}: ${error.message}`)
+        prevFailed = true
+      }
     }
     if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
   })
