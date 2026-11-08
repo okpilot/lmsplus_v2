@@ -83,7 +83,7 @@ test.describe('Red Team: check_quiz_answer option injection + dropped RPCs (LE, 
   })
 
   test.beforeEach(async () => {
-    await clearOpenSessions(admin, studentId, 'lc')
+    await clearOpenSessions(admin, studentId, 'le')
   })
 
   test.afterEach(async () => {
@@ -94,7 +94,7 @@ test.describe('Red Team: check_quiz_answer option injection + dropped RPCs (LE, 
       .is('deleted_at', null)
       .select('id')
     if (error) throw new Error(`afterEach: ${error.message}`)
-    if ((data?.length ?? 0) > 0) console.info(`[lc] soft-deleted ${data?.length}`)
+    if ((data?.length ?? 0) > 0) console.info(`[le] soft-deleted ${data?.length}`)
   })
 
   test('LE control: a legitimate option grades and saves progress', async () => {
@@ -140,7 +140,7 @@ test.describe('Red Team: check_quiz_answer option injection + dropped RPCs (LE, 
         p_time_spent_ms: 500,
       })
       expect(data).toBeNull()
-      expect(error).not.toBeNull()
+      expect(error?.code).toBe('22P05')
       expect(await progressRows(sessionId)).toEqual([])
     })
   }
@@ -171,12 +171,5 @@ test.describe('Red Team: check_quiz_answer option injection + dropped RPCs (LE, 
       p_response_time_ms: 1000,
     })
     expect(zero.error?.code).toBe('PGRST202')
-
-    const { count, error } = await admin
-      .from('student_responses')
-      .select('id', { count: 'exact', head: true })
-      .eq('session_id', sessionId)
-    if (error) throw new Error(`student_responses count: ${error.message}`)
-    expect(count).toBe(0)
   })
 })

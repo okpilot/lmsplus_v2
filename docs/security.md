@@ -625,7 +625,7 @@ const CheckAnswerSchema = z.object({
   selectedOptionId: z.enum(['a', 'b', 'c', 'd']),
 })
 
-export async function submitAnswer(raw: unknown) {
+export async function checkAnswer(raw: unknown) {
   const parsed = CheckAnswerSchema.safeParse(raw)
   if (!parsed.success) return { success: false, error: 'Invalid input' }
   // ... proceed with parsed.data only

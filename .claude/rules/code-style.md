@@ -135,7 +135,7 @@ export async function submitAnswer(input: unknown) {
 }
 
 // ✅ CORRECT — orchestrator + focused helpers
-export async function submitAnswer(input: unknown) {
+export async function checkAnswer(input: unknown) {
   const parsed = CheckAnswerSchema.safeParse(input)
   if (!parsed.success) return { success: false, error: 'Invalid input' }
   const { questionId, sessionId, selectedOptionId } = parsed.data

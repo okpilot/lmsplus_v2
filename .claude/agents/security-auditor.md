@@ -170,7 +170,7 @@ RLS enabled but WITH CHECK clause missing on INSERT policy for '<table>' table.
 Fix: Add WITH CHECK (organization_id = (SELECT organization_id FROM users WHERE id = (select auth.uid())))
 
 [HIGH] apps/web/app/quiz/session/actions.ts — line 34
-Server Action 'submitAnswer' accepts raw FormData without Zod validation.
+Server Action 'checkAnswer' accepts raw FormData without Zod validation.
 Fix: Validate with CheckAnswerSchema.safeParse() before accessing fields.
 
 [MEDIUM] apps/web/app/dashboard/page.tsx — line 89
