@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockRpc } = vi.hoisted(() => ({ mockRpc: vi.fn() }))
 
@@ -14,10 +14,6 @@ const QUESTION_ID = '00000000-0000-4000-a000-000000000011'
 const SESSION_ID = '00000000-0000-4000-a000-000000000099'
 const FAKE_SUPABASE = { rpc: mockRpc } as unknown as SupabaseClient
 const base = { questionId: QUESTION_ID, sessionId: SESSION_ID }
-
-afterEach(() => {
-  vi.restoreAllMocks()
-})
 
 beforeEach(() => {
   vi.resetAllMocks()
