@@ -167,7 +167,7 @@ reviews:
         - A non-null assertion `!` carries a comment saying why it is safe (code-style.md §5; not in `*.test.*` or `*.spec.*` files — biome.json override).
         - Before adding a cache, TTL, timeout, retry or module-level store, the PR body must cite the Next/React/Supabase doc page that lacks the behaviour (code-style.md §6 R6).
         - No `any` type — use `unknown` with narrowing.
-        - No type casting of unvalidated external data via `as SubmitAnswerInput`.
+        - No type casting of unvalidated external data via a bare `as <InputType>` cast.
         - When casting DB/RPC results via `as unknown as T`, pair the cast with runtime guards (Array.isArray, typeof checks, etc).
         - Fan-out/dispatch functions that switch on a discriminated question-type tag and map an optional array-valued field into a submission row must guard the field with Array.isArray(x) (route the empty array to its own branch), never a bare truthy/length check (code-style.md §5).
         - All external inputs are Zod-validated (safeParse, or .parse() in try/catch) before use, not `as` casts.
@@ -561,7 +561,7 @@ reviews:
           even the owner is exempt; the bypass comes from the owner's BYPASSRLS attribute.) Two carve-outs. Write-once carve-out: SELECTs fetching records by IDs
           stored in an immutable, write-once column may omit the filter. Examples include
           (docs/security.md §15 is the authoritative list, not this enumeration): (a) finish_quiz_session (via _grade_session_progress and _score_graded_session),
-          submit_quiz_answer, check_quiz_answer, check_non_mc_answer, and save_quiz_answer reading
+          check_quiz_answer, check_non_mc_answer, and save_quiz_answer reading
           questions via quiz_sessions.config.question_ids (written once at session start), and
           get_restored_feedback reading questions via the same frozen config.question_ids for the
           caller's answered progress rows of an open practice session only;

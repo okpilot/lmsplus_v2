@@ -26,7 +26,7 @@ export async function checkAnswer(raw: unknown): Promise<CheckAnswerResult> {
     parsed = CheckAnswerSchema.parse(raw)
   } catch {
     // Bare string, no ZodError: its serialization is a library-internal detail a zod major
-    // bump or a custom error map can change. Matches lookup.ts / submit.ts. (This schema is
+    // bump or a custom error map can change. Matches lookup.ts. (This schema is
     // NOT `.strict()`, so unrecognized keys are stripped, not echoed — unlike the non-MC one.)
     console.error('[checkAnswer] Invalid input')
     return { success: false, error: 'Invalid input' }

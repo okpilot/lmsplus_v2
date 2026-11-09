@@ -4,13 +4,15 @@
  * ## mig 095/095b/095c — quiz_session_answers UNIQUE widening
  *
  * The UNIQUE on quiz_session_answers was widened from (session_id, question_id)
- * to (session_id, question_id, blank_index) NULLS NOT DISTINCT. The ON CONFLICT
- * clause in submit_quiz_answer (mig 095b) was updated to match.
+ * to (session_id, question_id, blank_index) NULLS NOT DISTINCT. Every answer-write
+ * ON CONFLICT targets that 3-column key.
  *
- * The critical failure mode is invisible to `db reset` / `db push`: plpgsql
- * resolves ON CONFLICT inference at EXECUTION time, not at CREATE OR REPLACE time
- * (code-style.md §5 / design.md § Migrations 095b+095c). A 42P10 only surfaces
- * when a student actually submits — which is exactly what these tests exercise.
+ * plpgsql resolves ON CONFLICT inference at EXECUTION time, not at CREATE OR
+ * REPLACE time (code-style.md §5), so a 42P10 only surfaces when the statement
+ * runs. The test below runs the quick_quiz path (`_grade_record_mc`) with a
+ * pre-existing row, so its DO NOTHING branch fires. The vfr_rt_exam inline
+ * inserts in `_grade_session_progress` run in the vfr_rt_exam finish test of
+ * rpc-finish-quiz-session.integration.test.ts.
  *
  * ## mig 094 — questions_question_type_columns_check (accepted_synonyms tightening)
  *
@@ -28,13 +30,14 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData, clearActiveSessions } from './cleanup'
 import { fixtureSuffix } from './fixture-suffix'
+import { P, saveAndFinish } from './save-and-finish'
 import { seedQuestions, seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 
 const admin = getAdminClient()
 const suffix = fixtureSuffix()
 
-describe('Constraint regression — answer-write idempotency after mig 095/095b', () => {
+describe('Constraint regression — answer-write ON CONFLICT after the UNIQUE widening', () => {
   let orgId: string
   let adminUserId: string
   let studentClient: SupabaseClient
@@ -91,14 +94,13 @@ describe('Constraint regression — answer-write idempotency after mig 095/095b'
     await cleanupReferenceData({ admin, refs: [refs] })
   })
 
-  // Single-active-session invariant (#1011): submit_quiz_answer leaves its
-  // session active, so clear it before the next test's start_quiz_session
-  // raises `another_session_active`.
+  // Single-active-session invariant (#1011): clear any open session before the
+  // next test's start_quiz_session raises `another_session_active`.
   beforeEach(async () => {
     if (orgId) await clearActiveSessions({ admin, orgId })
   })
 
-  it('submit_quiz_answer called twice for the same question does not duplicate quiz_session_answers rows', async () => {
+  it('keeps a pre-existing quiz_session_answers row and still records the grading response', async () => {
     const { data: sessionData, error: startErr } = await studentClient.rpc('start_quiz_session', {
       p_mode: 'quick_quiz',
       p_subject_id: refs.subjectId,
@@ -110,30 +112,39 @@ describe('Constraint regression — answer-write idempotency after mig 095/095b'
       throw new Error('start_quiz_session did not return a string')
     const sessionId = sessionData
 
-    // First submit
-    const { error: err1 } = await studentClient.rpc('submit_quiz_answer', {
-      p_session_id: sessionId,
-      p_question_id: questionIds[2]!,
-      p_selected_option: 'b',
-      p_response_time_ms: 1000,
+    // Pre-insert the answer row (blank_index NULL) so the grading write hits the
+    // UNIQUE conflict: ON CONFLICT DO NOTHING must keep this row and let the
+    // rest of grading (student_responses) proceed.
+    const { error: preErr } = await admin.from('quiz_session_answers').insert({
+      session_id: sessionId,
+      question_id: questionIds[2]!,
+      selected_option_id: 'a',
+      is_correct: false,
+      response_time_ms: 1000,
     })
-    expect(err1).toBeNull()
+    expect(preErr).toBeNull()
 
-    // Second submit — same question, ON CONFLICT DO NOTHING
-    const { error: err2 } = await studentClient.rpc('submit_quiz_answer', {
-      p_session_id: sessionId,
-      p_question_id: questionIds[2]!,
-      p_selected_option: 'b',
-      p_response_time_ms: 1000,
-    })
-    expect(err2).toBeNull()
+    await saveAndFinish(studentClient, sessionId, [
+      { questionId: questionIds[2]!, answer: P.mc('b'), timeSpentMs: 1000 },
+    ])
 
     const { data: answerRows, error: rowsErr } = await admin
       .from('quiz_session_answers')
-      .select('id')
+      .select('selected_option_id')
       .eq('session_id', sessionId)
     expect(rowsErr).toBeNull()
     expect(answerRows).toHaveLength(1)
+    expect(answerRows?.[0]?.selected_option_id).toBe('a')
+
+    // Grading still writes the response row (save_quiz_answer writes none). Without
+    // DO NOTHING the 23505 is caught per question and that row is rolled back.
+    const { data: respRows, error: respErr } = await admin
+      .from('student_responses')
+      .select('selected_option_id')
+      .eq('session_id', sessionId)
+      .eq('question_id', questionIds[2]!)
+    expect(respErr).toBeNull()
+    expect(respRows).toHaveLength(1)
   })
 })
 

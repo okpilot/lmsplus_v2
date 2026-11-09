@@ -276,10 +276,10 @@ describe('RPC: check_quiz_answer', () => {
   })
 
   it('rejects answer checks from soft-deleted accounts', async () => {
-    // The active-user gate (mirrors submit_quiz_answer, mig 112) must fail closed
-    // before the session read, so a soft-deleted account with a still-valid JWT
-    // cannot keep reading the answer key. Create a throwaway student, obtain its
-    // JWT while active, then soft-delete it and call with the live client.
+    // The active-user gate must fail closed before the session read, so a
+    // soft-deleted account with a still-valid JWT cannot keep reading the answer
+    // key. Create a throwaway student, obtain its JWT while active, then
+    // soft-delete it and call with the live client.
     const deletedStudentId = await createTestUser({
       admin,
       orgId,
