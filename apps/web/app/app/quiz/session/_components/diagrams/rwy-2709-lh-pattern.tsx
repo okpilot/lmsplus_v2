@@ -9,7 +9,7 @@
 // its true landscape proportions under UNIFORM scaling (preserveAspectRatio
 // default) — nothing is stretched. Because the drop-zone container has the same
 // 16:9 aspect and positions each zone at (x*100%, y*100%), the artwork and the
-// seeded `RWY_2709_ZONES` boxes line up by construction (fraction fx -> fx*160
+// seeded zone boxes (`scripts/rwy-2709-answer-key.ts`) line up by construction (fraction fx -> fx*160
 // in a 160-wide viewBox scaled to the container = fx of the container width;
 // likewise fy on height).
 
