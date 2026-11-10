@@ -23,14 +23,11 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import {
-  RWY_2709_IMAGE_REF,
-  RWY_2709_LABELS,
-  RWY_2709_ZONES,
-} from '../app/app/quiz/session/_components/diagrams/rwy-2709-layout'
+import { RWY_2709_IMAGE_REF } from '../app/app/quiz/session/_components/diagrams/rwy-2709-layout'
 import diagram from './content/vfr-rt-part3-diagram.json'
 import ordering from './content/vfr-rt-part3-ordering.json'
 import { assertOrderingItems, buildOrderingItems } from './ordering-content'
+import { RWY_2709_LABELS, RWY_2709_ZONES } from './rwy-2709-answer-key'
 
 const ORDERING_CORPORA: readonly (readonly [string, unknown, number])[] = [
   ['vfr-rt-part3-ordering.json', ordering, 12],

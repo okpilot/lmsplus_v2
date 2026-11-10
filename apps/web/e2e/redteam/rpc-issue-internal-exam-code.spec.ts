@@ -121,7 +121,7 @@ test.describe('Red Team: issue_internal_exam_code RPC', () => {
     }
     unconfiguredSubjectId = unconfPick.id
 
-    // Other red-team specs (e.g. rpc-question-membership) pick the second subject
+    // Other red-team specs pick the second subject
     // returned by `select('id').limit(2)` and expect it to have at least one topic
     // AND at least one question linked to that topic. When our subjects upsert above
     // runs in a CI Supabase that had only one pre-existing subject, RT-FIXTURE-2 ends
@@ -158,7 +158,7 @@ test.describe('Red Team: issue_internal_exam_code RPC', () => {
 
     // Seed an enabled exam_config for the configured subject in the egmont org.
 
-    // Ensure rpc-question-membership has at least one question on the unconfigured
+    // Ensure there is at least one question on the unconfigured
     // subject's topic. Idempotent — only inserts if no question exists.
     const { data: existingUnconfQ, error: existingUnconfQErr } = await admin
       .from('questions')
