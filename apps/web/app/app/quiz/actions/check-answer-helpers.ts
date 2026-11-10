@@ -45,7 +45,7 @@ export async function gradeAnswer(
   })
 
   if (error || !isCheckAnswerRpcResult(data)) {
-    console.error('[checkAnswer] RPC error:', error?.message, {
+    console.error('[checkAnswer] RPC error:', error?.message ?? 'malformed RPC result', {
       questionId: opts.questionId,
       sessionId: opts.sessionId,
     })

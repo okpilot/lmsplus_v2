@@ -119,6 +119,7 @@ describe('exportStudentData', () => {
 
     it('returns student-not-found when target belongs to a different org', async () => {
       mockAdmin()
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
       buildStudentLookupChain({ data: null, error: null })
 
       const result = await exportStudentData({ userId: STUDENT_ID })
@@ -126,6 +127,7 @@ describe('exportStudentData', () => {
       expect(result.success).toBe(false)
       if (result.success) return
       expect(result.error).toBe('Student not found')
+      expect(errorSpy).toHaveBeenCalledWith('[exportStudentData] Fetch error:', 'no row returned')
     })
 
     it('returns student-not-found for a generic fetch error', async () => {
