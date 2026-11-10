@@ -89,8 +89,6 @@ BEGIN
     -- 30 s grace, parity with batch_submit_quiz (20260702000600).
     v_expired := COALESCE(
       now() > v_row.started_at + (v_row.time_limit_seconds + 30) * interval '1 second', false);
-    -- Past the deadline no device can claim or save (_lock_session_for_progress raises
-    -- session_expired), so the takeover guard applies to a live session only.
     IF NOT v_expired AND v_row.active_device_id IS NOT NULL
        AND p_device_id IS DISTINCT FROM v_row.active_device_id THEN
       RAISE EXCEPTION 'session_taken_over';
