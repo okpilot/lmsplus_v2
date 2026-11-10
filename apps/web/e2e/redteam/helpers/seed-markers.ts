@@ -165,3 +165,5 @@ export const E2E_REDTEAM_KZ_RT_ONLY_PASSWORD = 'redteam-kz-rt-only-2026!'
 export const E2E_REDTEAM_CQA_INJ_MARKER = '[E2E_REDTEAM_CQA_INJ]'
 // Syllabus soft-delete spec (Vectors LN–LQ): easa_subjects.code prefix of the throwaway subjects it creates.
 export const E2E_REDTEAM_SYLLABUS_CODE_PREFIX = 'RTSYL-'
+// finish-expired-device spec (Vectors LV, LW, #1753): written into fixture quiz_sessions as `config.e2e_marker`.
+export const E2E_REDTEAM_ED_MARKER = '[E2E_REDTEAM_ED]'
