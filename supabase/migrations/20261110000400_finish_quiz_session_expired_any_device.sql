@@ -1,6 +1,6 @@
 -- finish_quiz_session: ends the caller's own session by grading its saved answers
 -- (quiz_session_progress); a session past deadline+30s is graded and flagged expired, from any
--- device of its owner (#1753); a live session must be finished from its claiming device.
+-- device of its owner (#1753); a live claimed session must be finished from its claiming device.
 -- A finished session returns its stored result; its part scores come from the latest terminal
 -- audit event carrying all three part keys (a JSON null is a frozen "not counted" part).
 
@@ -86,7 +86,7 @@ BEGIN
     IF v_row.mode NOT IN ('quick_quiz', 'smart_review', 'mock_exam', 'internal_exam', 'vfr_rt_exam') THEN
       RAISE EXCEPTION 'unsupported_session_mode';
     END IF;
-    -- 30 s grace, parity with batch_submit_quiz (20260702000600).
+    -- 30 s grace, parity with _lock_session_for_progress (20261003000300).
     v_expired := COALESCE(
       now() > v_row.started_at + (v_row.time_limit_seconds + 30) * interval '1 second', false);
     IF NOT v_expired AND v_row.active_device_id IS NOT NULL
