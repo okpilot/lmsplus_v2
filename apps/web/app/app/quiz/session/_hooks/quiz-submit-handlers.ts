@@ -1,6 +1,7 @@
 import type { useRouter } from 'next/navigation'
 import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
 import { reportUrl } from '@/lib/constants/report-paths'
+import { withTimeout } from '@/lib/utils/with-timeout'
 import type { DraftAnswer } from '../../types'
 import { getConnectionStatus } from '../_utils/connection-state'
 import { resendUnsavedAnswers } from '../_utils/progress-sync-saves'
@@ -50,6 +51,11 @@ export function buildSharedFor(deps: BaseDeps) {
   })
 }
 
+/** Whole-queue wait before Finish/Save/Discard; distinct from the per-request ATTEMPT_TIMEOUT_MS. */
+export const QUEUE_IDLE_TIMEOUT_MS = 15_000
+
+const TIMED_OUT = Symbol('timed-out')
+
 type SubmitDeps = Parameters<typeof buildHandleSubmit>[0]
 
 /** Runs the submit through handleSubmitSession, which finishes the session on the server. */
@@ -78,12 +84,32 @@ function dispatchSubmission({
   })
 }
 
-/** Shows the action as in flight, then waits for every queued save to settle, so the action
- * cannot reach Next.js's action queue ahead of them. */
-async function waitForQueuedSaves(shared: ReturnType<ReturnType<typeof buildSharedFor>>) {
+const UNSAVED_ANSWERS_ERROR =
+  'Some answers have not saved yet. Check your connection and try again.'
+
+/** Shows the unsaved-answers message unless the takeover or sign-in overlay already explains it. */
+function showUnsavedError(
+  deps: BaseDeps,
+  shared: ReturnType<ReturnType<typeof buildSharedFor>>,
+  message: string,
+) {
+  if (isTakenOver(deps.sessionId) || getConnectionStatus() === 'signed-out') return
+  shared.setError(message)
+}
+
+/** Shows the action as in flight, then waits up to QUEUE_IDLE_TIMEOUT_MS for every queued save to
+ * settle, so the action cannot reach Next.js's action queue ahead of them. False = gave up. */
+async function waitForQueuedSaves(
+  deps: BaseDeps,
+  shared: ReturnType<ReturnType<typeof buildSharedFor>>,
+) {
   shared.setSubmitting(true)
   shared.setError(null)
-  await whenQueueIdle()
+  const r = await withTimeout<unknown>(whenQueueIdle(), QUEUE_IDLE_TIMEOUT_MS, TIMED_OUT)
+  if (r !== TIMED_OUT) return true
+  showUnsavedError(deps, shared, UNSAVED_ANSWERS_ERROR)
+  shared.setSubmitting(false)
+  return false
 }
 
 /** Arms the hard-navigation fallback for a soft nav that never unmounts this component. */
@@ -116,7 +142,7 @@ export function buildHandleSubmit(
       deps.setShowFinishDialog(false)
     }
     const shared = sharedFor('submit')
-    await waitForQueuedSaves(shared)
+    if (!(await waitForQueuedSaves(deps, shared))) return
     if (!(await resendOrStop(deps, shared))) {
       deps.inFlight.current = false
       return
@@ -137,9 +163,6 @@ export function buildHandleSubmit(
   }
 }
 
-const UNSAVED_ANSWERS_ERROR =
-  'Some answers have not saved yet. Check your connection and try again.'
-
 /** Re-sends failed answer saves; stops the save when one still fails or the server sent a message. */
 async function resendOrStop(deps: BaseDeps, shared: ReturnType<ReturnType<typeof buildSharedFor>>) {
   let mapped: string | null = null
@@ -151,10 +174,7 @@ async function resendOrStop(deps: BaseDeps, shared: ReturnType<ReturnType<typeof
     onRejected: deps.dropAnswer,
   })
   if (saved && mapped === null) return true
-  // The takeover and sign-in overlays already explain why; no message behind them.
-  if (!isTakenOver(deps.sessionId) && getConnectionStatus() !== 'signed-out') {
-    shared.setError(mapped ?? UNSAVED_ANSWERS_ERROR)
-  }
+  showUnsavedError(deps, shared, mapped ?? UNSAVED_ANSWERS_ERROR)
   shared.setSubmitting(false)
   return false
 }
@@ -164,7 +184,7 @@ export function buildHandleSave(deps: BaseDeps) {
   return async function handleSave() {
     const token = runnerToken()
     const shared = sharedFor('save')
-    await waitForQueuedSaves(shared)
+    if (!(await waitForQueuedSaves(deps, shared))) return
     if (!(await resendOrStop(deps, shared))) return
     return handleSaveSession({ userId: deps.userId, sessionId: deps.sessionId, token, ...shared })
   }
@@ -174,7 +194,7 @@ export function buildHandleDiscard(deps: BaseDeps) {
   const sharedFor = buildSharedFor(deps)
   return async function handleDiscard() {
     const token = runnerToken()
-    await waitForQueuedSaves(sharedFor('discard'))
+    if (!(await waitForQueuedSaves(deps, sharedFor('discard')))) return
     return handleDiscardSession({
       userId: deps.userId,
       sessionId: deps.sessionId,
