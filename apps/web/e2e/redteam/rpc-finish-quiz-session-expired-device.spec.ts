@@ -192,6 +192,6 @@ test.describe('Red Team: finish_quiz_session expired-session device check (Vecto
     // Control: past the grace, the same caller and device finish it, flagged expired.
     await clearOpenSessions(admin, victimUserId, 'finish-expired-device')
     const expiredId = await seedClaimedExam(secondsAgo(LIMIT_S + 45))
-    await expectFinishedExpired(expiredId, null)
+    await expectFinishedExpired(expiredId, DEVICE_B)
   })
 })
