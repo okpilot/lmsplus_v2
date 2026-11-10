@@ -337,6 +337,8 @@
 | LU | soft_delete_syllabus_item-topic-delete-vs-question-insert-race | MEDIUM | syllabus-soft-delete-dependents.spec.ts | BLOCKED |  | race |
 | LE | check_quiz_answer-p_selected_option_id-sql-fragment-and-control-character | HIGH | rpc-check-answer-option-injection.spec.ts | BLOCKED |  | input-injection |
 | LD | dropped-submit_quiz_answer-and-get_student_profile_stats-callable-by-student | HIGH | rpc-check-answer-option-injection.spec.ts | BLOCKED | #1494 | auth-bypass |
+| LV | finish_quiz_session-forged-expiry-skips-device-check | MEDIUM | rpc-finish-quiz-session-expired-device.spec.ts | BLOCKED |  | auth-bypass |
+| LW | finish_quiz_session-non-claiming-device-inside-grace | LOW | rpc-finish-quiz-session-expired-device.spec.ts | BLOCKED |  | timing |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
