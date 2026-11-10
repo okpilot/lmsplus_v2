@@ -232,20 +232,6 @@ describe('RLS: student-owned reads require an active user', () => {
       expect(gone.data).toEqual([])
     })
 
-    it('get_student_profile_stats: sessions counted while active, zero after deactivation', async () => {
-      await setDeactivated(f.studentId, false)
-      const active = await f.student.rpc('get_student_profile_stats')
-      expect(active.error).toBeNull()
-      const row = (active.data as Array<{ total_sessions: number | string }>)[0]
-      expect(Number(row?.total_sessions)).toBeGreaterThanOrEqual(1)
-
-      await setDeactivated(f.studentId, true)
-      const gone = await f.student.rpc('get_student_profile_stats')
-      expect(gone.error).toBeNull()
-      const goneRow = (gone.data as Array<{ total_sessions: number | string }>)[0]
-      expect(Number(goneRow?.total_sessions ?? 0)).toBe(0)
-    })
-
     async function subjectIdOfFixture(): Promise<string> {
       const { data, error } = await f.admin
         .from('questions')

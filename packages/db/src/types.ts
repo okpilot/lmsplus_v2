@@ -1810,13 +1810,6 @@ export type Database = {
           total: number
         }[]
       }
-      get_student_profile_stats: {
-        Args: never
-        Returns: {
-          avg_score: number
-          total_sessions: number
-        }[]
-      }
       get_student_streak: {
         Args: never
         Returns: {
@@ -2002,20 +1995,6 @@ export type Database = {
       start_vfr_rt_exam_session: {
         Args: { p_subject_id: string }
         Returns: Json
-      }
-      submit_quiz_answer: {
-        Args: {
-          p_question_id: string
-          p_response_time_ms: number
-          p_selected_option: string
-          p_session_id: string
-        }
-        Returns: {
-          correct_option_id: string
-          explanation_image_url: string
-          explanation_text: string
-          is_correct: boolean
-        }[]
       }
       upsert_exam_config: {
         Args: {

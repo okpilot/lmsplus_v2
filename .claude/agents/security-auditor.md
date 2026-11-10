@@ -169,9 +169,9 @@ MEDIUM: [count]
 RLS enabled but WITH CHECK clause missing on INSERT policy for '<table>' table.
 Fix: Add WITH CHECK (organization_id = (SELECT organization_id FROM users WHERE id = (select auth.uid())))
 
-[HIGH] apps/web/app/quiz/session/actions.ts — line 34
-Server Action 'submitAnswer' accepts raw FormData without Zod validation.
-Fix: Validate with SubmitAnswerSchema.safeParse() before accessing fields.
+[HIGH] apps/web/app/app/<feature>/actions/<action>.ts — line 34
+Server Action '<action>' accepts raw FormData without Zod validation.
+Fix: Validate with <Action>Schema.safeParse() before accessing fields.
 
 [MEDIUM] apps/web/app/dashboard/page.tsx — line 89
 console.log prints user object which may contain email address.
