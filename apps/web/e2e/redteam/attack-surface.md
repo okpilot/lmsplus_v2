@@ -324,6 +324,7 @@
 | LA | get_vfr_rt_exam_questions-id-sort-and-label-position-oracle-and-key-column-select | HIGH | rpc-vfr-rt-exam-id-oracle.spec.ts | BLOCKED |  | answer-oracle |
 | LB | is_valid_diagram_config-derived-id-bypass-and-non-total-config-and-smuggled-config | HIGH | diagram-config-check-bypass.spec.ts | BLOCKED |  | input-injection |
 | LC | gotrue-password-grant-response-time-enumeration | MEDIUM | gotrue-password-grant-timing.spec.ts | GAP | #1389 | enumeration |
+| LK | start_internal_exam_session-soft-deleted-caller-code-state-oracle | MEDIUM | rpc-start-internal-exam-session-softdel-oracle.spec.ts | BLOCKED | #1024 | enumeration |
 | LM | toggleFlag-non-boolean-desired-flag-state | LOW | server-action-toggle-flag-internal-exam.spec.ts | BLOCKED |  | input-injection |
 | LN | soft_delete_syllabus_item-non-admin-caller-and-non-syllabus-p_table | HIGH | syllabus-soft-delete.spec.ts | BLOCKED |  | privilege-escalation |
 | LO | easa_subjects-topics-subtopics-admin-hard-delete-and-direct-deleted_at-deleted_by-write | HIGH | syllabus-soft-delete.spec.ts | BLOCKED |  | rls-bypass |
