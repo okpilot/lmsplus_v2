@@ -154,6 +154,40 @@
     },
     {
       "includes": [
+        "apps/web/**",
+        "packages/**",
+        "!apps/web/scripts/**",
+        "!apps/web/e2e/**",
+        "!apps/web/playwright.config.ts"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noCommonJs": "error",
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "@repo/db/test-helpers": "test-helpers wraps the service-role key (getAdminClient). Import it only from integration tests or a lib/integration-support/** dir \u2014 never production code (#925)."
+                },
+                "patterns": [
+                  {
+                    "group": ["next/dist/**"],
+                    "message": "Import from public next/* entry points."
+                  },
+                  {
+                    "group": ["**/scripts/**"],
+                    "message": "Only apps/web/scripts/**, e2e and tests may import apps/web/scripts/**: it holds seed-only data such as the RWY 27/09 answer key (#1218)."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
         "**/*.test.ts",
         "**/*.test.tsx",
         "**/*.spec.ts",
@@ -166,6 +200,7 @@
       "linter": {
         "rules": {
           "style": {
+            "noCommonJs": "off",
             "noRestrictedImports": {
               "level": "error",
               "options": {

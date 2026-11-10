@@ -9,17 +9,15 @@
  * the id DERIVED from its own content.
  *
  * That derived-id rule enforces the answer-oracle invariant documented at
- * apps/web/app/app/quiz/session/_components/diagrams/rwy-2709-layout.ts (its SECURITY
- * header block — cited without line numbers because they drift). Zone ids and label
+ * apps/web/scripts/rwy-2709-answer-key.ts (its header). Zone ids and label
  * ids are delivered to the student; the zone -> label mapping is not. With hand-authored ids
  * nothing stops a parallel naming scheme (zone `z_1` beside label `l_1`) from revealing that
  * mapping in the delivered payload, and no per-field check can see it. Derivation removes the
  * author's ability to write one: a zone id is a function of (image_ref, its position) and a
  * label id a function of its own text, so neither can hint at the other. `deriveZoneId` /
  * `deriveLabelId` are exported for the PIN TEST, which re-derives the literal ids stored in
- * `rwy-2709-layout.ts` and is what makes those literals trustworthy — neither the seed nor the
- * importer calls them, because both read the layout module's pre-computed literals, and that
- * module reaches the client bundle where `node:crypto` does not exist. Bounds are IMPORTED from `diagram-validation` rather than restated, so this
+ * `rwy-2709-answer-key.ts` and is what makes those literals trustworthy — neither the seed nor
+ * the importer calls them, because both read the key module's pre-computed literals. Bounds are IMPORTED from `diagram-validation` rather than restated, so this
  * gate cannot drift from the runtime guards.
  *
  * Keep this file flat in scripts/ — knip's apps/web entry glob is `scripts/*.ts`.

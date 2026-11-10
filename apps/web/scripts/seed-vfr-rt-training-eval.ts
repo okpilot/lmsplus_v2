@@ -27,13 +27,10 @@ import { resolve } from 'node:path'
 import { enrolStudent } from '@repo/db/enrol-students'
 import { createClient } from '@supabase/supabase-js'
 import { config } from 'dotenv'
-import {
-  RWY_2709_IMAGE_REF,
-  RWY_2709_LABELS,
-  RWY_2709_ZONES,
-} from '../app/app/quiz/session/_components/diagrams/rwy-2709-layout'
+import { RWY_2709_IMAGE_REF } from '../app/app/quiz/session/_components/diagrams/rwy-2709-layout'
 import { assertDiagramConfig } from './diagram-content'
 import { assertOrderingItems, buildOrderingItems } from './ordering-content'
+import { RWY_2709_LABELS, RWY_2709_ZONES } from './rwy-2709-answer-key'
 
 config({ path: resolve(__dirname, '../.env.local') })
 
@@ -405,9 +402,8 @@ const ORDERING: Ordering[] = [
 type DiagramLabelQuestion = {
   num: string
   text: string
-  // The zone_id -> label_id answer key. This mapping lives ONLY here (a
-  // server-side seed script) — never in the frontend layout module (see the
-  // SECURITY note atop rwy-2709-layout.ts). Distractor labels (Go-around,
+  // The zone_id -> label_id answer key, built from rwy-2709-answer-key.ts
+  // (scripts-only; see its header). Distractor labels (Go-around,
   // Departure, Threshold) exist in RWY_2709_LABELS but are intentionally
   // absent from this mapping.
   answer: { zone_id: string; label_id: string }[]
@@ -421,7 +417,7 @@ type DiagramLabelQuestion = {
  * nine labels are the nine correct ones (labels 9-11 are distractors and appear in no
  * answer entry). Ids are DERIVED from content — a zone's from (image_ref, index), a
  * label's from its own text — so any literal copied in here would go stale the moment
- * the layout module changed a text or a position, and would go stale SILENTLY: a wrong
+ * the answer-key module changed a text or a position, and would go stale SILENTLY: a wrong
  * pair still passes every structural check and only shows up as a question that cannot
  * be answered correctly.
  */
@@ -582,8 +578,8 @@ async function seed(): Promise<void> {
   }
 
   // Part 3 — diagram_label (answer key in diagram_config.answer; zones/labels
-  // come from the canonical layout module shared with the SVG runner so the
-  // seeded config always matches what's rendered — see rwy-2709-layout.ts)
+  // come from scripts/rwy-2709-answer-key.ts; geometry from the layout module
+  // shared with the SVG runner — see rwy-2709-layout.ts)
   for (const q of DIAGRAM_LABEL) {
     // Assembled BEFORE the insert so the shared gate sees exactly the object that will be
     // stored. assertDiagramConfig mirrors the DB CHECK is_valid_diagram_config (migration
