@@ -102,7 +102,14 @@ test.describe('Red Team: finish_quiz_session expired-session device check (Vecto
   const expectFinishedExpired = async (sessionId: string, device: string | null) => {
     const r = await finish(sessionId, device)
     expect(r.error).toBeNull()
-    expect(isRecord(r.data) && r.data.expired).toBe(true)
+    const out = r.data
+    if (!isRecord(out)) throw new Error('finish: bad shape')
+    expect(out.expired).toBe(true)
+    expect(out.total_questions).toBe(2)
+    expect(Number(out.answered_count)).toBe(1)
+    expect(Number(out.correct_count)).toBe(1)
+    expect(Number(out.score_percentage)).toBe(50)
+    expect(out.passed).toBe(false)
     expect((await readSession(sessionId)).ended_at).not.toBeNull()
     expect(await countAnswers(sessionId)).toBe(1)
   }
