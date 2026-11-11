@@ -4,6 +4,7 @@ import type { QuizPageData } from '../_loaders/load-quiz-page-data'
 import { QuizTabs } from './quiz-tabs'
 import { RefreshOnReturn } from './refresh-on-return'
 import { SavedDraftCard } from './saved-draft-card'
+import SubjectsErrorBoundary from './subjects-error-boundary'
 import { SubjectsSection } from './subjects-section'
 
 export function QuizPageTabs({
@@ -24,9 +25,11 @@ export function QuizPageTabs({
       <QuizTabs
         draftCount={savedTabCount}
         newQuizContent={
-          <Suspense fallback={<Skeleton className="h-skeleton-chart rounded-card" />}>
-            <SubjectsSection userId={userId} />
-          </Suspense>
+          <SubjectsErrorBoundary>
+            <Suspense fallback={<Skeleton className="h-skeleton-chart rounded-card" />}>
+              <SubjectsSection userId={userId} />
+            </Suspense>
+          </SubjectsErrorBoundary>
         }
         savedDraftContent={
           <SavedDraftCard
