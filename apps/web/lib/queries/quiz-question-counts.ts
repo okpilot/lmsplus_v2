@@ -36,8 +36,10 @@ function isQuestionCountRow(value: unknown): value is QuestionCountRow {
  * function in `quiz-subject-queries.ts` calls it to attach `questionCount` to subjects,
  * topics and subtopics. Extracted out of that file.
  *
- * Throws on an RPC error, a non-array payload, or when every row fails the shape check, so the
- * failure surfaces via the nearest error boundary + Sentry instead of an empty picker.
+ * Throws on an RPC error, a non-array payload, or when every row fails the shape check, so callers
+ * see the failure instead of zero counts: `SubjectsSection` (subject picker) reaches
+ * `apps/web/app/app/error.tsx` (Sentry); `lookup.ts`, `get-rt-subject.ts` and
+ * `quiz-setup-preload.ts` catch it and render empty.
  * An individual malformed row is logged and dropped; the remaining rows are returned.
  */
 export async function fetchActiveQuestionCounts(

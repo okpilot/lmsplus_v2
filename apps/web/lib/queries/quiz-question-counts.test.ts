@@ -109,7 +109,6 @@ describe('fetchActiveQuestionCounts', () => {
   })
 
   it('throws when every row has an unexpected shape', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {})
     mockRpc.mockResolvedValue({ data: [null], error: null })
 
     await expect(fetchActiveQuestionCounts(supabase)).rejects.toThrow(

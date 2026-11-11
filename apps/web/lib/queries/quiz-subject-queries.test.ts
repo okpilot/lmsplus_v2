@@ -280,7 +280,7 @@ describe('getSubjectsWithCounts — RPC error from get_question_counts', () => {
     mockFromSequence({
       data: [{ id: 's1', code: 'AGK', name: 'AGK', short: 'AGK', sort_order: 1 }],
     })
-    // data is a plain object (not an array) — the Array.isArray guard yields []
+    // data is a plain object (not an array) — the Array.isArray guard throws
     mockRpc.mockResolvedValue({ data: { unexpected: true }, error: null })
 
     await expect(getSubjectsWithCounts()).rejects.toThrow('Failed to fetch question counts')
