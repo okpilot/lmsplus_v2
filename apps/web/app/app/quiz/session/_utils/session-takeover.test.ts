@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { _resetQuizDeviceId, getQuizDeviceId } from './quiz-device-id'
+import { _resetRunnerExit, isRunnerExiting } from './runner-exit'
 import {
   _resetSessionTakeover,
   announceClaim,
@@ -30,6 +31,7 @@ beforeEach(() => {
   vi.resetAllMocks()
   sessionStorage.clear()
   _resetQuizDeviceId()
+  _resetRunnerExit()
   _resetSessionTakeover()
   FakeChannel.instances.clear()
   vi.stubGlobal('BroadcastChannel', FakeChannel)
@@ -69,6 +71,24 @@ describe('takeover state', () => {
     onTakenOver('s1', listener)()
     markTakenOver('s1')
     expect(listener).not.toHaveBeenCalled()
+  })
+
+  it('releases the leave guards when a session is marked taken over', () => {
+    expect(isRunnerExiting()).toBe(false)
+    markTakenOver('s1')
+    expect(isRunnerExiting()).toBe(true)
+  })
+
+  it('keeps the live listener when a stale unsubscribe runs after a resubscribe', () => {
+    const first = vi.fn()
+    const second = vi.fn()
+    const unsubscribeFirst = onTakenOver('s1', first)
+    unsubscribeFirst()
+    onTakenOver('s1', second)
+    unsubscribeFirst()
+    markTakenOver('s1')
+    expect(second).toHaveBeenCalledTimes(1)
+    expect(first).not.toHaveBeenCalled()
   })
 
   it('forgets the takeover once cleared', () => {

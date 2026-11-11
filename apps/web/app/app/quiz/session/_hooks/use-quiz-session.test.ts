@@ -123,8 +123,8 @@ describe('useQuizSession', () => {
   })
 
   it('wires the timer to open the finish dialog', () => {
-    run(state(), props({ startedAt: 'X' }))
-    expect(m.timer).toHaveBeenCalledWith('X', setShowFinishDialog)
+    run(state(), props({ startedAt: 'X', sessionId: 's1' }))
+    expect(m.timer).toHaveBeenCalledWith('X', 's1', setShowFinishDialog)
   })
 
   it('passes the effective tab to the keyboard', () => {

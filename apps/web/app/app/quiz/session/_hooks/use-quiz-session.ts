@@ -14,7 +14,7 @@ export function useQuizSession(props: Readonly<QuizSessionProps>) {
   const isDiscovery = props.mode === 'discovery'
   const ui = useQuizRunnerUI(s, { isDiscovery, questions: props.questions })
   const flags = useFlaggedQuestions(props.initialFlaggedIds ?? [])
-  const timer = useQuizTimer(props.startedAt, s.setShowFinishDialog)
+  const timer = useQuizTimer(props.startedAt, props.sessionId, s.setShowFinishDialog)
 
   const takenOver = useTakenOver(props.sessionId)
 
@@ -30,5 +30,5 @@ export function useQuizSession(props: Readonly<QuizSessionProps>) {
     activeTab: ui.effectiveTab,
   })
 
-  return { s, isDiscovery, ui, flags, timer, highlightedOptionId }
+  return { s, isDiscovery, ui, flags, timer, highlightedOptionId, takenOver }
 }

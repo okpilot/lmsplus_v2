@@ -101,6 +101,7 @@ test.describe('Quiz progress saved to the server', () => {
     // Second tab = new page load = new in-memory device id; loading the session claims it.
     const second = await context.newPage()
     await second.goto('/app/quiz')
+    await expect(second).toHaveURL(/\/app\/quiz$/)
     const resume = second.getByRole('link', { name: 'Resume', exact: true })
     await resume.waitFor({ state: 'visible', timeout: 10_000 })
     await resume.click()

@@ -56,6 +56,7 @@ describe('QuizFinishDialogHost', () => {
         isDiscovery={false}
         totalQuestions={3}
         timeExpired={false}
+        takenOver={false}
         pendingSelection
         discoveryConfirmOpen={false}
         onDiscoveryConfirmChange={vi.fn()}
@@ -74,6 +75,7 @@ describe('QuizFinishDialogHost', () => {
         isDiscovery={false}
         totalQuestions={3}
         timeExpired={false}
+        takenOver={false}
       />,
     )
     const dialog = screen.getByTestId('finish-dialog')
@@ -89,9 +91,36 @@ describe('QuizFinishDialogHost', () => {
         totalQuestions={3}
         examMode="internal_exam"
         timeExpired={false}
+        takenOver={false}
       />,
     )
     expect(screen.getByTestId('finish-dialog')).toHaveAttribute('data-exam-mode', 'internal_exam')
+  })
+
+  it('closes the finish dialog while the session is taken over', () => {
+    render(
+      <QuizFinishDialogHost
+        s={makeState({ showFinishDialog: true })}
+        isDiscovery={false}
+        totalQuestions={3}
+        timeExpired={false}
+        takenOver
+      />,
+    )
+    expect(screen.getByTestId('finish-dialog')).toHaveAttribute('data-open', 'false')
+  })
+
+  it('opens the finish dialog when it is requested and the session is not taken over', () => {
+    render(
+      <QuizFinishDialogHost
+        s={makeState({ showFinishDialog: true })}
+        isDiscovery={false}
+        totalQuestions={3}
+        timeExpired={false}
+        takenOver={false}
+      />,
+    )
+    expect(screen.getByTestId('finish-dialog')).toHaveAttribute('data-open', 'true')
   })
 
   it('renders the Stay/Leave confirm, not the finish dialog, in discovery mode', () => {
@@ -101,6 +130,7 @@ describe('QuizFinishDialogHost', () => {
         isDiscovery={true}
         totalQuestions={3}
         timeExpired={false}
+        takenOver={false}
         discoveryConfirmOpen
         onDiscoveryConfirmChange={vi.fn()}
       />,

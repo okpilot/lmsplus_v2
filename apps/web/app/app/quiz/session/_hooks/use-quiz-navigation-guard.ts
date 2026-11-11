@@ -14,7 +14,7 @@ type Opts = { submitted: boolean; onAttempt: () => void }
  * a Back/Forward interceptor calling `onAttempt`. Once the sign-in expired only the prompt drops
  * (the Sign in hard-navigation must not trigger it). While the connection overlay is up, Back stays
  * guarded and opens no dialog. A confirmed exit (Submit, Leave, Save, Discard, 'Back to quizzes' after a takeover) releases
- * both before it navigates, so Next's full-page-load fallback cannot prompt again; `submitted` also
+ * both before it navigates; a takeover (the 'Continue here' dialog) releases both as soon as it is flagged, so Next's full-page-load fallback cannot prompt again; `submitted` also
  * releases them.
  */
 export function useQuizNavigationGuard({ submitted, onAttempt }: Readonly<Opts>) {

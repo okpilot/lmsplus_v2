@@ -1,9 +1,7 @@
 import { markRunnerExiting } from './runner-exit'
-import { clearTakenOver } from './session-takeover'
 
-/** Leaves the quiz for the picker; releases the leave guards first. */
-export function backToQuizzes(sessionId: string, replace: (href: string) => void): void {
-  clearTakenOver(sessionId)
+/** Leaves the quiz for the picker; releases the leave guards first. The dialog's unmount clears the flag. */
+export function backToQuizzes(replace: (href: string) => void): void {
   markRunnerExiting()
   replace('/app/quiz')
 }

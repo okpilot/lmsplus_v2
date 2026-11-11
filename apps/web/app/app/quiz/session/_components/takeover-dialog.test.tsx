@@ -46,7 +46,7 @@ describe('TakeoverDialog', () => {
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
   })
 
-  it('Back to quizzes clears the flag and replaces to the picker with the leave guards released', async () => {
+  it('Back to quizzes replaces to the picker with the leave guards released and the dialog still open', async () => {
     let exitingAtNav: boolean | undefined
     mockReplace.mockImplementation(() => {
       exitingAtNav = isRunnerExiting()
@@ -56,6 +56,14 @@ describe('TakeoverDialog', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Back to quizzes' }))
     expect(mockReplace).toHaveBeenCalledWith('/app/quiz')
     expect(exitingAtNav).toBe(true)
+    expect(isTakenOver('s1')).toBe(true)
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+  })
+
+  it('forgets the takeover flag when it unmounts', () => {
+    const { unmount } = render(<TakeoverDialog sessionId="s1" />)
+    act(() => markTakenOver('s1'))
+    unmount()
     expect(isTakenOver('s1')).toBe(false)
   })
 

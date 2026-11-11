@@ -1,4 +1,5 @@
 import { getQuizDeviceId } from './quiz-device-id'
+import { markRunnerExiting } from './runner-exit'
 
 const CHANNEL_NAME = 'lmsplus-quiz-claim'
 
@@ -15,6 +16,8 @@ export function _resetSessionTakeover() {
 export function markTakenOver(sessionId: string): void {
   if (takenOver.has(sessionId)) return
   takenOver.add(sessionId)
+  // Releases the Back and beforeunload guards; only a runner remount or reload re-arms them.
+  markRunnerExiting()
   for (const listener of [...(listeners.get(sessionId) ?? [])]) listener()
 }
 
@@ -33,6 +36,7 @@ export function onTakenOver(sessionId: string, listener: () => void): () => void
   listeners.set(sessionId, set)
   return () => {
     set.delete(listener)
+    if (set.size === 0 && listeners.get(sessionId) === set) listeners.delete(sessionId)
   }
 }
 

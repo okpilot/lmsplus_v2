@@ -8,7 +8,7 @@ import { QuizSessionHeader } from './quiz-session-header'
 
 export function QuizSession(props: Readonly<QuizSessionProps>) {
   const session = useQuizSession(props)
-  const { s, isDiscovery, ui, timer } = session
+  const { s, isDiscovery, ui, timer, takenOver } = session
 
   if (!s.question) return null
 
@@ -36,6 +36,7 @@ export function QuizSession(props: Readonly<QuizSessionProps>) {
         totalQuestions={props.questions.length}
         examMode={props.examMode}
         timeExpired={timer.timeExpired}
+        takenOver={takenOver}
         pendingSelection={ui.leave.pendingSelection}
         discoveryConfirmOpen={ui.leave.discoveryConfirmOpen}
         onDiscoveryConfirmChange={ui.leave.setDiscoveryConfirmOpen}

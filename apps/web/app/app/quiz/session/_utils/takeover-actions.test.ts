@@ -17,16 +17,16 @@ afterEach(() => {
 })
 
 describe('takeover actions', () => {
-  it('backToQuizzes clears the flag and replaces to the picker with the guards released', () => {
+  it('backToQuizzes replaces to the picker with the guards released and the flag still set', () => {
     markTakenOver('s1')
     let exiting: boolean | undefined
     const replace = vi.fn(() => {
       exiting = isRunnerExiting()
     })
-    backToQuizzes('s1', replace)
+    backToQuizzes(replace)
     expect(replace).toHaveBeenCalledWith('/app/quiz')
     expect(exiting).toBe(true)
-    expect(isTakenOver('s1')).toBe(false)
+    expect(isTakenOver('s1')).toBe(true)
   })
 
   it('continueHere releases the guards then reloads', () => {
