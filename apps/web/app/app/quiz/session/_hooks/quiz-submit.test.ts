@@ -263,6 +263,19 @@ describe('handleSaveSession', () => {
     expect(opts.setError).toHaveBeenCalledWith(null)
   })
 
+  it('flags the session as taken over and stays on the quiz when another device holds it', async () => {
+    mockSaveQuizForLater.mockResolvedValue({
+      success: false,
+      error: PROGRESS_ERROR_MESSAGES.session_taken_over,
+    })
+    const opts = makeOpts()
+
+    await handleSaveSession(opts)
+
+    expect(isTakenOver(SESSION_ID)).toBe(true)
+    expect(opts.router.replace).not.toHaveBeenCalled()
+  })
+
   it('parks the server session with this device id', async () => {
     await handleSaveSession(makeOpts())
     expect(mockSaveQuizForLater).toHaveBeenCalledWith({

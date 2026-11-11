@@ -110,10 +110,9 @@ export async function handleSaveSession(opts: {
   opts.setSubmitting(true)
   opts.setError(null)
   try {
-    const r = await saveQuizForLater({
-      sessionId: opts.sessionId,
-      deviceId: getQuizDeviceId(),
-    })
+    const r = await withTakeoverCheck(opts.sessionId, () =>
+      saveQuizForLater({ sessionId: opts.sessionId, deviceId: getQuizDeviceId() }),
+    )
     if (r.success) {
       clearActiveSessionIfCurrent(opts.userId, opts.sessionId)
       if (!isCurrentRunner(token)) return
