@@ -6,6 +6,7 @@ import {
   AlertDialog,
   AlertDialogContent,
   AlertDialogDescription,
+  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
@@ -30,14 +31,14 @@ export function TakeoverDialog({ sessionId }: Readonly<{ sessionId: string }>) {
             Continue here to take it back, or go back to your quizzes.
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+        <AlertDialogFooter>
           <Button variant="outline" onClick={() => backToQuizzes(router.replace)}>
             Back to quizzes
           </Button>
           <Button autoFocus onClick={continueHere}>
             Continue here
           </Button>
-        </div>
+        </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
   )

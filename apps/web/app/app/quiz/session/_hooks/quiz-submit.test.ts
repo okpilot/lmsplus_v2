@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { PROGRESS_ERROR_MESSAGES } from '../../actions/progress-error-messages'
+import { _resetSessionTakeover, isTakenOver } from '../_utils/session-takeover'
 
 // ---- Mocks ----------------------------------------------------------------
 
@@ -83,6 +85,7 @@ function makeRouter() {
 // ---- Lifecycle -----------------------------------------------------------
 
 beforeEach(() => {
+  _resetSessionTakeover()
   vi.resetAllMocks()
   _resetRunnerExit()
   mockFinishQuizSession.mockResolvedValue({ success: true })
@@ -109,6 +112,18 @@ describe('submitQuizSession', () => {
     expect(result).toEqual({ success: false, error: 'session not found' })
     expect(mockClearActiveSession).not.toHaveBeenCalled()
     expect(mockDiscardQuiz).not.toHaveBeenCalled()
+  })
+
+  it('flags the session as taken over when another device holds it', async () => {
+    mockFinishQuizSession.mockResolvedValue({
+      success: false,
+      error: PROGRESS_ERROR_MESSAGES.session_taken_over,
+    })
+
+    await submitQuizSession(SESSION_ID, USER_ID)
+
+    expect(isTakenOver(SESSION_ID)).toBe(true)
+    expect(mockClearActiveSession).not.toHaveBeenCalled()
   })
 
   it('returns a generic failure when the finish throws unexpectedly', async () => {

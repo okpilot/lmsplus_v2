@@ -6,6 +6,7 @@ import { discardQuiz } from '../../actions/discard'
 import { finishQuizSession } from '../../actions/finish'
 import { saveQuizForLater } from '../../actions/saved-quiz'
 import type { DraftAnswer } from '../../types'
+import { withTakeoverCheck } from '../_utils/claim-quiz-device'
 import { getQuizDeviceId } from '../_utils/quiz-device-id'
 import { clearActiveSessionIfCurrent } from '../_utils/quiz-session-storage'
 import { isCurrentRunner, markRunnerExiting, runnerToken } from '../_utils/runner-exit'
@@ -18,7 +19,9 @@ type SetSubmitting = (v: boolean) => void
 /** Ends the session on the server (it grades the answers already saved) and clears local state. */
 export async function submitQuizSession(sessionId: string, userId: string) {
   try {
-    const result = await finishQuizSession({ sessionId, deviceId: getQuizDeviceId() })
+    const result = await withTakeoverCheck(sessionId, () =>
+      finishQuizSession({ sessionId, deviceId: getQuizDeviceId() }),
+    )
     if (!result.success) return { success: false as const, error: result.error }
     clearActiveSessionIfCurrent(userId, sessionId)
     return { success: true as const }
