@@ -32,15 +32,10 @@ function isQuestionCountRow(value: unknown): value is QuestionCountRow {
 }
 
 /**
- * Shared active-question-count read for the quiz taxonomy queries — every exported
- * function in `quiz-subject-queries.ts` calls it to attach `questionCount` to subjects,
- * topics and subtopics. Extracted out of that file.
+ * Shared active-question-count read for the quiz taxonomy queries.
  *
- * Throws on an RPC error, a non-array payload, or when every row fails the shape check, so callers
- * see the failure instead of zero counts: `SubjectsSection` (subject picker) reaches
- * `apps/web/app/app/error.tsx` (Sentry); `lookup.ts`, `get-rt-subject.ts` and
- * `quiz-setup-preload.ts` catch it and render empty.
- * An individual malformed row is logged and dropped; the remaining rows are returned.
+ * Throws on an RPC error, a non-array payload, or when every row fails the shape check. An
+ * individual malformed row is logged and dropped; the remaining rows are returned.
  */
 export async function fetchActiveQuestionCounts(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,

@@ -52,6 +52,14 @@ describe('SubjectsSection', () => {
     expect(p.preload).toBeInstanceOf(Promise)
   })
 
+  it('rejects when the subject list read fails, so the error boundary shows', async () => {
+    mockGetSubjects.mockRejectedValue(new Error('Failed to fetch question counts: x'))
+
+    await expect(SubjectsSection({ userId: 'u1' })).rejects.toThrow(
+      'Failed to fetch question counts',
+    )
+  })
+
   it('renders the form with the subject and exam lists', async () => {
     const p = await props()
 
