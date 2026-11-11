@@ -116,10 +116,10 @@ describe('getAllTopicTrees', () => {
     expect(Object.keys(trees)).toEqual(['s1'])
   })
 
-  it('throws when the question counts come back empty so the page falls back to per-subject loading', async () => {
+  it('resolves with no trees when the question counts come back empty', async () => {
     mockRpc.mockResolvedValue({ data: [], error: null })
 
-    await expect(getAllTopicTrees()).rejects.toThrow('Failed to fetch topic trees')
+    await expect(getAllTopicTrees()).resolves.toEqual({})
   })
 
   it('returns no trees without throwing when the caller can read no topics, subtopics or question counts', async () => {
@@ -135,7 +135,7 @@ describe('getAllTopicTrees', () => {
   it('throws when the question counts read fails', async () => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'rpc down' } })
 
-    await expect(getAllTopicTrees()).rejects.toThrow('Failed to fetch topic trees')
+    await expect(getAllTopicTrees()).rejects.toThrow('Failed to fetch question counts')
   })
 
   it('throws when the topics read fails', async () => {

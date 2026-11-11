@@ -15,8 +15,8 @@ type SubtopicRow = { id: string; code: string; name: string; sort_order: number;
 export const getSubjectsWithCounts = cache(async (): Promise<SubjectOption[]> => {
   const supabase = await createServerSupabaseClient()
 
-  // Intentional asymmetry: a subjects read error throws (page-critical data), while
-  // getActiveQuestionCounts degrades to [] internally (counts are non-fatal).
+  // Both reads throw: a counts failure is page-critical because the zero-count filter
+  // would otherwise hide every subject.
   const [subjectsRes, countsData] = await Promise.all([
     supabase
       .from('easa_subjects')

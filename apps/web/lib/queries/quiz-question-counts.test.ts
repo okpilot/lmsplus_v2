@@ -49,83 +49,71 @@ describe('fetchActiveQuestionCounts', () => {
     await expect(fetchActiveQuestionCounts(supabase)).resolves.toEqual(rows)
   })
 
-  it('degrades to an empty list and logs when the read fails', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+  it('throws when the read fails', async () => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'rpc boom' } })
 
-    await expect(fetchActiveQuestionCounts(supabase)).resolves.toEqual([])
-    expect(consoleSpy).toHaveBeenCalledWith(
-      '[fetchActiveQuestionCounts] get_question_counts error:',
-      'rpc boom',
+    await expect(fetchActiveQuestionCounts(supabase)).rejects.toThrow(
+      'Failed to fetch question counts: rpc boom',
     )
   })
 
-  it('degrades to an empty list when the payload is not an array', async () => {
-    // supabase.rpc() does not validate the payload shape, so a non-array payload would otherwise reach
-    // the callers' `for (const row of countsData)` loops and throw at runtime.
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+  it('throws when the payload is not an array', async () => {
     mockRpc.mockResolvedValue({ data: { unexpected: 'shape' }, error: null })
 
-    await expect(fetchActiveQuestionCounts(supabase)).resolves.toEqual([])
-    expect(consoleSpy).toHaveBeenCalledWith(
-      '[fetchActiveQuestionCounts] payload is not an array:',
-      'object',
+    await expect(fetchActiveQuestionCounts(supabase)).rejects.toThrow(
+      'Failed to fetch question counts: payload is object',
     )
   })
 
-  it('degrades to an empty list when the payload is null without an error', async () => {
-    // Distinct from the case above: `typeof null` is also 'object', so the helper reports the
-    // literal 'null' to keep "the RPC returned nothing" separable from "the shape drifted".
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+  it('throws when the payload is null without an error', async () => {
     mockRpc.mockResolvedValue({ data: null, error: null })
 
-    await expect(fetchActiveQuestionCounts(supabase)).resolves.toEqual([])
-    expect(consoleSpy).toHaveBeenCalledWith(
-      '[fetchActiveQuestionCounts] payload is not an array:',
-      'null',
+    await expect(fetchActiveQuestionCounts(supabase)).rejects.toThrow(
+      'Failed to fetch question counts: payload is null',
     )
   })
 
   it('drops a row whose count is not a numeric value', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
+    const valid = { subject_id: 's0', topic_id: 't0', subtopic_id: null, n: 1 }
     mockRpc.mockResolvedValue({
-      data: [{ subject_id: 's1', topic_id: 't1', subtopic_id: null, n: 'abc' }],
+      data: [valid, { subject_id: 's1', topic_id: 't1', subtopic_id: null, n: 'abc' }],
       error: null,
     })
 
-    await expect(fetchActiveQuestionCounts(supabase)).resolves.toEqual([])
+    await expect(fetchActiveQuestionCounts(supabase)).resolves.toEqual([valid])
   })
 
   it('drops a row that is missing its topic id', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
+    const valid = { subject_id: 's0', topic_id: 't0', subtopic_id: null, n: 1 }
     mockRpc.mockResolvedValue({
-      data: [{ subject_id: 's1', subtopic_id: null, n: 3 }],
+      data: [valid, { subject_id: 's1', subtopic_id: null, n: 3 }],
       error: null,
     })
 
-    await expect(fetchActiveQuestionCounts(supabase)).resolves.toEqual([])
+    await expect(fetchActiveQuestionCounts(supabase)).resolves.toEqual([valid])
   })
 
   it('drops a row whose subtopic id is not a text value', async () => {
     // The consumer gates only on `!== null` before using this as a Map key
     // (quiz-subject-queries.ts:165-171), so a non-string here must not reach it.
     vi.spyOn(console, 'error').mockImplementation(() => {})
+    const valid = { subject_id: 's0', topic_id: 't0', subtopic_id: null, n: 1 }
     mockRpc.mockResolvedValue({
-      data: [{ subject_id: 's1', topic_id: 't1', subtopic_id: 42, n: 3 }],
+      data: [valid, { subject_id: 's1', topic_id: 't1', subtopic_id: 42, n: 3 }],
       error: null,
     })
 
-    await expect(fetchActiveQuestionCounts(supabase)).resolves.toEqual([])
+    await expect(fetchActiveQuestionCounts(supabase)).resolves.toEqual([valid])
   })
 
-  it('returns an empty list when every row has an unexpected shape', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+  it('throws when every row has an unexpected shape', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
     mockRpc.mockResolvedValue({ data: [null], error: null })
 
-    await expect(fetchActiveQuestionCounts(supabase)).resolves.toEqual([])
-    // Losing every row is a contract change, not noise — the message must say so.
-    expect(consoleSpy).toHaveBeenCalledWith(
-      '[fetchActiveQuestionCounts] dropped 1 of 1 malformed row(s) — every row failed, likely an RPC contract change',
+    await expect(fetchActiveQuestionCounts(supabase)).rejects.toThrow(
+      'Failed to fetch question counts: every row failed the shape check',
     )
   })
 
