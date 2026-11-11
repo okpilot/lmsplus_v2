@@ -92,7 +92,6 @@ function RestoredRunner({
       initialFeedback={restored.feedback}
       initialIndex={restored.index}
       initialPinnedIds={seed.pinnedQuestionIds}
-      initialActiveMs={seed.activeMs}
       {...toRunnerMode(entry.mode)}
       timeLimitSeconds={entry.timeLimitSeconds}
       passMark={entry.passMark}

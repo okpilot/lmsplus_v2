@@ -4,9 +4,9 @@ import { useEffect, useRef, useState } from 'react'
 
 export function SessionTimer({
   className,
-  initialElapsedMs = 0,
-}: Readonly<{ className?: string; initialElapsedMs?: number }>) {
-  const startedAtRef = useRef(Date.now() - initialElapsedMs)
+  startedAtMs,
+}: Readonly<{ className?: string; startedAtMs?: number }>) {
+  const startRef = useRef(startedAtMs ?? Date.now())
   const [now, setNow] = useState(Date.now())
 
   useEffect(() => {
@@ -14,7 +14,7 @@ export function SessionTimer({
     return () => clearInterval(id)
   }, [])
 
-  const elapsed = Math.floor((now - startedAtRef.current) / 1000)
+  const elapsed = Math.floor(Math.max(0, now - startRef.current) / 1000)
   const mins = Math.floor(elapsed / 60)
   const secs = elapsed % 60
 

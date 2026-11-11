@@ -6,8 +6,6 @@ type ProgressRow = { question_id: string; answer: unknown; time_spent_ms: number
 
 export type SessionSeed = {
   answers: Record<string, DraftAnswer>
-  /** Sum of every question's saved visit time, viewed-only questions included. */
-  activeMs: number
   pinnedQuestionIds: string[]
   currentIndex: number
 }
@@ -71,16 +69,13 @@ function fromAnswerJson(a: unknown): AnswerBody | null {
 export function buildSessionSeed(input: SeedInput): SessionSeed {
   const inSession = new Set(input.questionIds)
   const answers: Record<string, DraftAnswer> = {}
-  let activeMs = 0
   for (const row of input.rows) {
     if (!inSession.has(row.question_id)) continue
-    activeMs += row.time_spent_ms
     const body = fromAnswerJson(row.answer)
     if (body) answers[row.question_id] = { ...body, responseTimeMs: row.time_spent_ms }
   }
   return {
     answers,
-    activeMs,
     pinnedQuestionIds: input.pinnedQuestionIds.filter((id) => inSession.has(id)),
     currentIndex: clampIndex(input.currentIndex, input.questionIds.length),
   }

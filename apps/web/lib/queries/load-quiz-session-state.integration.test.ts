@@ -152,7 +152,6 @@ describe('loadQuizSessionState (app-layer integration)', () => {
     const state = await loadQuizSessionState(sessionId, ownerId)
 
     if (state.kind !== 'open') throw new Error(`expected open, got ${state.kind}`)
-    expect(state.seed.activeMs).toBe(3500)
     expect(Object.keys(state.seed.answers)).toEqual([q0])
   })
 
@@ -208,12 +207,7 @@ describe('loadQuizSessionState (app-layer integration)', () => {
     if (state.kind !== 'open') throw new Error(`expected open, got ${state.kind}`)
     expect(state.mode).toBe('mock_exam')
     expect(Object.keys(state.seed.answers)).toHaveLength(1)
-    expect(Object.keys(state.seed).sort()).toEqual([
-      'activeMs',
-      'answers',
-      'currentIndex',
-      'pinnedQuestionIds',
-    ])
+    expect(Object.keys(state.seed).sort()).toEqual(['answers', 'currentIndex', 'pinnedQuestionIds'])
     expect(JSON.stringify(state)).not.toMatch(/isCorrect|correct_option|correctOptionId/)
   })
 })
