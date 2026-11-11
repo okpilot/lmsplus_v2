@@ -230,6 +230,31 @@ test.describe('Quiz connection block: sign-in expiry, finishing and leaving', ()
     await held.stop()
   })
 
+  test('finishing behind a stalled answer save shows still saving, then offers a reload', async ({
+    page,
+  }) => {
+    await page.clock.install()
+    await startStudyQuiz(page)
+    const held = await holdActionPosts(page)
+
+    await submitFirstOption(page)
+    await expect.poll(() => held.state.posts).toBe(1)
+    await page.getByRole('button', { name: 'Finish Test' }).click()
+    await page.getByRole('button', { name: 'Submit Quiz' }).click()
+    await page.getByRole('button', { name: 'Submit anyway' }).click()
+
+    const overlay = page.getByRole('alertdialog')
+    await page.clock.fastForward(ATTEMPT_TIMEOUT_MS + 1000)
+    await expect(overlay.getByText('Still saving…')).toBeVisible({ timeout: 10_000 })
+    await expect(overlay.getByRole('button', { name: 'Reload page' })).toHaveCount(0)
+
+    await page.clock.fastForward(STALL_ESCAPE_MS + 1000)
+    await expect(overlay.getByRole('button', { name: 'Reload page' })).toBeVisible()
+    expect(held.state.posts).toBe(1)
+    await expect(page).toHaveURL(SESSION_ID_URL)
+    // The held POST stays held; afterEach's unrouteAll({ behavior: 'ignoreErrors' }) drops it.
+  })
+
   test('after a minute offline the quiz offers a reload with a warning about unsent answers', async ({
     page,
     context,

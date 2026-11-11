@@ -184,8 +184,8 @@ export function whenQueueIdle(): Promise<void> {
  * then the probe decides: a flapping link failing that often and probing up rethrows.
  * An optional `hold` sees each settled result and may ask for a resend in the same queue slot,
  * so Finish and later saves wait behind it.
- * Residual: a stalled socket the browser never fails keeps its queue slot until the browser
- * gives up on it; Finish, Save and Discard give up waiting after QUEUE_IDLE_TIMEOUT_MS.
+ * Residual: a stalled socket the browser never fails keeps the quiz blocked until the browser
+ * gives up on it; after STALL_ESCAPE_MS the connection overlay offers a reload.
  */
 export async function withReconnect<T extends ActionResult>(
   fn: () => Promise<T>,
