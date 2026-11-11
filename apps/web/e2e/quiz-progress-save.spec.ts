@@ -1,4 +1,4 @@
-import { expect, type Page, test } from '@playwright/test'
+import { type BrowserContext, expect, type Page, test } from '@playwright/test'
 import { startStudyQuiz } from './helpers/quiz-session'
 import { SESSION_ID_URL } from './helpers/quiz-session-id'
 import { cleanupStudentActiveSessions, getAdminClient, TEST_EMAIL } from './helpers/supabase'
@@ -88,24 +88,19 @@ test.describe('Quiz progress saved to the server', () => {
     expect(await readServerProgress()).toEqual({ currentIndex: 1, answeredCount: 1 })
   })
 
-  test('a second tab taking over the session sends the first tab back to the quiz picker with a toast', async ({
-    page,
-    context,
-  }) => {
-    const total = await startStudyQuiz(page)
+  async function takeOverInSecondTab(page: Page, context: BrowserContext, total: number) {
     const firstAnswers = page.locator('button[data-testid^="option-"]')
     await firstAnswers.first().waitFor({ state: 'visible' })
     await firstAnswers.first().click()
     await page.getByRole('button', { name: 'Submit Answer' }).first().click()
     await waitForFeedback(page)
-    const next = page.getByRole('button', { name: 'Next ›' })
-    await next.click()
+    await page.getByRole('button', { name: 'Next ›' }).click()
     await expect(page.getByText(`Question 2 of ${total}`)).toBeVisible()
+    const sessionUrl = page.url()
 
     // Second tab = new page load = new in-memory device id; loading the session claims it.
     const second = await context.newPage()
     await second.goto('/app/quiz')
-    await expect(second).toHaveURL(/\/app\/quiz$/)
     const resume = second.getByRole('link', { name: 'Resume', exact: true })
     await resume.waitFor({ state: 'visible', timeout: 10_000 })
     await resume.click()
@@ -113,11 +108,47 @@ test.describe('Quiz progress saved to the server', () => {
     await expect(second.getByText(new RegExp(`Question \\d+ of ${total}`))).toBeVisible({
       timeout: 10_000,
     })
+    return { second, sessionUrl }
+  }
 
-    // No click on the first tab: it learns of the takeover and leaves the runner by itself.
-    await expect(page.getByText('This quiz continued in another tab or device.')).toBeVisible({
+  test('a superseded tab stays on the quiz behind a blocking dialog and Continue here reclaims it', async ({
+    page,
+    context,
+  }) => {
+    const total = await startStudyQuiz(page)
+    const { second, sessionUrl } = await takeOverInSecondTab(page, context, total)
+
+    const dialog = page.getByRole('alertdialog')
+    await expect(dialog).toContainText('This quiz was opened in another tab or device', {
       timeout: 10_000,
     })
+    await expect(page).toHaveURL(sessionUrl)
+
+    await dialog.getByRole('button', { name: 'Continue here' }).click()
+    await expect(page.getByRole('alertdialog')).toHaveCount(0, { timeout: 10_000 })
+    await expect(page).toHaveURL(sessionUrl)
+    await expect(page.getByText(new RegExp(`Question \\d+ of ${total}`))).toBeVisible({
+      timeout: 10_000,
+    })
+
+    await expect(second.getByRole('alertdialog')).toContainText(
+      'This quiz was opened in another tab or device',
+      { timeout: 10_000 },
+    )
+    await second.close()
+  })
+
+  test('Back to quizzes on the superseded dialog returns to the quiz picker', async ({
+    page,
+    context,
+  }) => {
+    const total = await startStudyQuiz(page)
+    const { second } = await takeOverInSecondTab(page, context, total)
+
+    await page
+      .getByRole('alertdialog')
+      .getByRole('button', { name: 'Back to quizzes' })
+      .click({ timeout: 10_000 })
     await expect(page).toHaveURL(/\/app\/quiz$/, { timeout: 10_000 })
     await second.close()
   })

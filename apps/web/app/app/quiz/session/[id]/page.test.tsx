@@ -21,6 +21,9 @@ vi.mock('../_components/session-entry-view', () => ({
 vi.mock('../_components/connection-overlay', () => ({
   ConnectionOverlay: () => <div data-testid="overlay" />,
 }))
+vi.mock('../_components/takeover-dialog', () => ({
+  TakeoverDialog: () => <div data-testid="takeover" />,
+}))
 
 import QuizSessionByIdPage, { dynamic } from './page'
 

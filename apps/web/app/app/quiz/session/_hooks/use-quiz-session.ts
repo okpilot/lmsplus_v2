@@ -5,6 +5,7 @@ import { useFlaggedQuestions } from './use-flagged-questions'
 import { useQuizRunnerUI } from './use-quiz-runner-ui'
 import { useQuizState } from './use-quiz-state'
 import { useQuizTimer } from './use-quiz-timer'
+import { useTakenOver } from './use-taken-over'
 import { useUnblockedQuizKeyboard } from './use-unblocked-quiz-keyboard'
 
 /** Everything the session screen renders from: state, tabs, flags, timer and keyboard. */
@@ -15,12 +16,14 @@ export function useQuizSession(props: Readonly<QuizSessionProps>) {
   const flags = useFlaggedQuestions(props.initialFlaggedIds ?? [])
   const timer = useQuizTimer(props.startedAt, s.setShowFinishDialog)
 
+  const takenOver = useTakenOver(props.sessionId)
+
   const { highlightedOptionId } = useUnblockedQuizKeyboard({
     optionIds: s.question?.options.map((o) => o.id) ?? [],
     currentIndex: s.currentIndex,
     isExam: s.isExam,
     // Pause shortcuts while the finish or Discovery leave dialog is open; lightweight popovers (the keyboard legend) stay live — no destructive action, Escape-dismissable.
-    enabled: !s.showFinishDialog && !ui.leave.discoveryConfirmOpen,
+    enabled: !s.showFinishDialog && !ui.leave.discoveryConfirmOpen && !takenOver,
     onNavigate: s.navigate,
     onConfirm: s.handleSelectAnswer,
     onTab: ui.setActiveTab,

@@ -1,4 +1,4 @@
-import { renderHook } from '@testing-library/react'
+import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const m = vi.hoisted(() => ({
@@ -19,6 +19,7 @@ vi.mock('./use-unblocked-quiz-keyboard', () => ({
 }))
 
 import type { QuizSessionProps } from '../../session-types'
+import { _resetSessionTakeover, markTakenOver } from '../_utils/session-takeover'
 import { useQuizSession } from './use-quiz-session'
 
 const setActiveTab = vi.fn()
@@ -53,6 +54,7 @@ const kbArgs = () => m.kb.mock.calls[0]?.[0] as Record<string, unknown>
 
 beforeEach(() => {
   vi.resetAllMocks()
+  _resetSessionTakeover()
   m.flags.mockReturnValue({})
   m.timer.mockReturnValue({})
   m.kb.mockReturnValue({ highlightedOptionId: 'b' })
@@ -83,6 +85,26 @@ describe('useQuizSession', () => {
   it('pauses shortcuts while the finish dialog is open', () => {
     run(state({ showFinishDialog: true }))
     expect(kbArgs().enabled).toBe(false)
+  })
+
+  it('pauses shortcuts while the session is taken over', () => {
+    markTakenOver('s1')
+    run(state(), props({ sessionId: 's1' }))
+    expect(kbArgs().enabled).toBe(false)
+  })
+
+  it('pauses shortcuts when the session is taken over after mount', () => {
+    const { rerender } = run(state(), props({ sessionId: 's1' }))
+    act(() => markTakenOver('s1'))
+    rerender()
+    const last = m.kb.mock.calls.at(-1)?.[0] as Record<string, unknown> | undefined
+    expect(last?.enabled).toBe(false)
+  })
+
+  it('keeps shortcuts enabled when another session is taken over', () => {
+    markTakenOver('s2')
+    run(state(), props({ sessionId: 's1' }))
+    expect(kbArgs().enabled).toBe(true)
   })
 
   it('pauses shortcuts while the discovery leave dialog is open', () => {

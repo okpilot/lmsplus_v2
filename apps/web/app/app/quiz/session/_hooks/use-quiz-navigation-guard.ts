@@ -13,7 +13,7 @@ type Opts = { submitted: boolean; onAttempt: () => void }
  * Arms both leave guards for the whole life of the runner: the native prompt for refresh/close and
  * a Back/Forward interceptor calling `onAttempt`. Once the sign-in expired only the prompt drops
  * (the Sign in hard-navigation must not trigger it). While the connection overlay is up, Back stays
- * guarded and opens no dialog. A confirmed exit (Submit, Leave, Save, Discard, takeover) releases
+ * guarded and opens no dialog. A confirmed exit (Submit, Leave, Save, Discard, 'Back to quizzes' after a takeover) releases
  * both before it navigates, so Next's full-page-load fallback cannot prompt again; `submitted` also
  * releases them.
  */

@@ -78,6 +78,31 @@ describe('takeover state', () => {
   })
 })
 
+describe('takeover subscription', () => {
+  it('notifies the session listener when a marked session is cleared', () => {
+    markTakenOver('s1')
+    const listener = vi.fn()
+    onTakenOver('s1', listener)
+    clearTakenOver('s1')
+    expect(listener).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not notify when an unmarked session is cleared', () => {
+    const listener = vi.fn()
+    onTakenOver('s1', listener)
+    clearTakenOver('s1')
+    expect(listener).not.toHaveBeenCalled()
+  })
+
+  it('does not notify another session when a session is cleared', () => {
+    markTakenOver('s1')
+    const other = vi.fn()
+    onTakenOver('s2', other)
+    clearTakenOver('s1')
+    expect(other).not.toHaveBeenCalled()
+  })
+})
+
 describe('peer claims', () => {
   function peerClaim(data: unknown) {
     new FakeChannel('lmsplus-quiz-claim').postMessage(data)

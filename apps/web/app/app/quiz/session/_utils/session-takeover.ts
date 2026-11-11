@@ -23,7 +23,8 @@ export function isTakenOver(sessionId: string): boolean {
 }
 
 export function clearTakenOver(sessionId: string): void {
-  takenOver.delete(sessionId)
+  if (!takenOver.delete(sessionId)) return
+  for (const listener of [...(listeners.get(sessionId) ?? [])]) listener()
 }
 
 export function onTakenOver(sessionId: string, listener: () => void): () => void {
