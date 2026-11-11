@@ -73,10 +73,9 @@ describe('takeover state', () => {
     expect(listener).not.toHaveBeenCalled()
   })
 
-  it('releases the leave guards when a session is marked taken over', () => {
-    expect(isRunnerExiting()).toBe(false)
+  it('leaves the runner-exit state alone when a session is marked taken over', () => {
     markTakenOver('s1')
-    expect(isRunnerExiting()).toBe(true)
+    expect(isRunnerExiting()).toBe(false)
   })
 
   it('keeps the live listener when a stale unsubscribe runs after a resubscribe', () => {

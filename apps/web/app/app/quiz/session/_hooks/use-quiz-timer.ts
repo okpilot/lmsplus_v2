@@ -2,7 +2,6 @@
 
 import { type Dispatch, type SetStateAction, useCallback, useRef, useState } from 'react'
 import { parseStartedAt } from '../_utils/parse-started-at'
-import { isTakenOver } from '../_utils/session-takeover'
 
 /**
  * Owns the exam timer start and the one-shot auto-submit on expiry. Returns the
@@ -12,7 +11,6 @@ import { isTakenOver } from '../_utils/session-takeover'
  */
 export function useQuizTimer(
   startedAt: string | undefined,
-  sessionId: string,
   setShowFinishDialog: Dispatch<SetStateAction<boolean>>,
 ) {
   const timerStartRef = useRef(parseStartedAt(startedAt))
@@ -20,13 +18,11 @@ export function useQuizTimer(
   const [timeExpired, setTimeExpired] = useState(false)
 
   const handleTimeExpired = useCallback(() => {
-    // Swallowed while another tab owns the session; re-evaluated after 'Continue here' reloads.
-    if (isTakenOver(sessionId)) return
     if (autoSubmitFiredRef.current) return
     autoSubmitFiredRef.current = true
     setTimeExpired(true)
     setShowFinishDialog(true)
-  }, [sessionId, setShowFinishDialog])
+  }, [setShowFinishDialog])
 
   return { timerStart: timerStartRef.current, timeExpired, handleTimeExpired }
 }

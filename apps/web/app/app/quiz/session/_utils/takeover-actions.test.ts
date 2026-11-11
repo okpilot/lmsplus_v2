@@ -17,25 +17,18 @@ afterEach(() => {
 })
 
 describe('takeover actions', () => {
-  it('backToQuizzes replaces to the picker with the guards released and the flag still set', () => {
+  it('backToQuizzes replaces to the picker, leaves the runner-exit state alone and keeps the flag', () => {
     markTakenOver('s1')
-    let exiting: boolean | undefined
-    const replace = vi.fn(() => {
-      exiting = isRunnerExiting()
-    })
+    const replace = vi.fn()
     backToQuizzes(replace)
     expect(replace).toHaveBeenCalledWith('/app/quiz')
-    expect(exiting).toBe(true)
+    expect(isRunnerExiting()).toBe(false)
     expect(isTakenOver('s1')).toBe(true)
   })
 
-  it('continueHere releases the guards then reloads', () => {
-    let exiting: boolean | undefined
-    reload.mockImplementation(() => {
-      exiting = isRunnerExiting()
-    })
+  it('continueHere reloads without touching the runner-exit state', () => {
     continueHere()
     expect(reload).toHaveBeenCalledTimes(1)
-    expect(exiting).toBe(true)
+    expect(isRunnerExiting()).toBe(false)
   })
 })

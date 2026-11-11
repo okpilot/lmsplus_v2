@@ -122,9 +122,18 @@ describe('useQuizSession', () => {
     expect(m.flags).toHaveBeenCalledWith(['q1'])
   })
 
+  it('passes the takeover flag to the runner UI', () => {
+    markTakenOver('s1')
+    run(state(), props({ sessionId: 's1' }))
+    expect(m.ui).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ takenOver: true }),
+    )
+  })
+
   it('wires the timer to open the finish dialog', () => {
-    run(state(), props({ startedAt: 'X', sessionId: 's1' }))
-    expect(m.timer).toHaveBeenCalledWith('X', 's1', setShowFinishDialog)
+    run(state(), props({ startedAt: 'X' }))
+    expect(m.timer).toHaveBeenCalledWith('X', setShowFinishDialog)
   })
 
   it('passes the effective tab to the keyboard', () => {

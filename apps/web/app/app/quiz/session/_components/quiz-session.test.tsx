@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockRouterPush = vi.fn()
@@ -241,6 +241,7 @@ vi.mock('../_hooks/use-flagged-questions', () => ({
   }),
 }))
 
+import { _resetSessionTakeover, markTakenOver } from '../_utils/session-takeover'
 import { QuizSession } from './quiz-session'
 
 /** Picks an option, then presses the card's Submit/Confirm Answer slot. */
@@ -315,6 +316,7 @@ const mcFeedback = (correctOptionId: string) =>
 describe('QuizSession', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    _resetSessionTakeover()
     mockDiscardQuiz.mockResolvedValue({ success: true })
     mockEndDiscovery.mockResolvedValue({ success: true })
     mockCheckAnswer.mockResolvedValue({
@@ -324,6 +326,13 @@ describe('QuizSession', () => {
       explanationText: null,
       explanationImageUrl: null,
     })
+  })
+
+  it('shows the takeover dialog when its own session is taken over', () => {
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    act(() => markTakenOver('sess-1'))
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument()
   })
 
   it('renders first question on mount', () => {

@@ -1,7 +1,6 @@
 import { requireAuthUser } from '@/lib/auth/require-auth-user'
 import { ConnectionOverlay } from '../_components/connection-overlay'
 import { SessionEntryView } from '../_components/session-entry-view'
-import { TakeoverDialog } from '../_components/takeover-dialog'
 import { loadSessionEntry } from '../_loaders/load-session-entry'
 
 export const dynamic = 'force-dynamic'
@@ -17,7 +16,6 @@ export default async function QuizSessionByIdPage({
     <main>
       <SessionEntryView userId={user.id} loaded={loaded} />
       <ConnectionOverlay />
-      <TakeoverDialog sessionId={id} />
     </main>
   )
 }

@@ -123,6 +123,15 @@ describe('QuizFinishDialogHost', () => {
     expect(screen.getByTestId('finish-dialog')).toHaveAttribute('data-open', 'true')
   })
 
+  it('opens the dialog the timer requested once the takeover flag clears', () => {
+    const s = makeState({ showFinishDialog: true })
+    const props = { s, isDiscovery: false, totalQuestions: 3, timeExpired: true }
+    const { rerender } = render(<QuizFinishDialogHost {...props} takenOver />)
+    expect(screen.getByTestId('finish-dialog')).toHaveAttribute('data-open', 'false')
+    rerender(<QuizFinishDialogHost {...props} takenOver={false} />)
+    expect(screen.getByTestId('finish-dialog')).toHaveAttribute('data-open', 'true')
+  })
+
   it('renders the Stay/Leave confirm, not the finish dialog, in discovery mode', () => {
     render(
       <QuizFinishDialogHost

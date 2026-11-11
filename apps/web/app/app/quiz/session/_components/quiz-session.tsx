@@ -5,6 +5,7 @@ import { useQuizSession } from '../_hooks/use-quiz-session'
 import { QuizFinishDialogHost } from './quiz-finish-dialog-host'
 import { QuizSessionBody } from './quiz-session-body'
 import { QuizSessionHeader } from './quiz-session-header'
+import { TakeoverDialog } from './takeover-dialog'
 
 export function QuizSession(props: Readonly<QuizSessionProps>) {
   const session = useQuizSession(props)
@@ -41,6 +42,7 @@ export function QuizSession(props: Readonly<QuizSessionProps>) {
         discoveryConfirmOpen={ui.leave.discoveryConfirmOpen}
         onDiscoveryConfirmChange={ui.leave.setDiscoveryConfirmOpen}
       />
+      <TakeoverDialog sessionId={props.sessionId} />
     </div>
   )
 }

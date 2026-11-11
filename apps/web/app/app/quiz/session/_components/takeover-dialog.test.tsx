@@ -46,16 +46,12 @@ describe('TakeoverDialog', () => {
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
   })
 
-  it('Back to quizzes replaces to the picker with the leave guards released and the dialog still open', async () => {
-    let exitingAtNav: boolean | undefined
-    mockReplace.mockImplementation(() => {
-      exitingAtNav = isRunnerExiting()
-    })
+  it('Back to quizzes replaces to the picker with the dialog and the flag still up', async () => {
     render(<TakeoverDialog sessionId="s1" />)
     act(() => markTakenOver('s1'))
     await userEvent.click(screen.getByRole('button', { name: 'Back to quizzes' }))
     expect(mockReplace).toHaveBeenCalledWith('/app/quiz')
-    expect(exitingAtNav).toBe(true)
+    expect(isRunnerExiting()).toBe(false)
     expect(isTakenOver('s1')).toBe(true)
     expect(screen.getByRole('alertdialog')).toBeInTheDocument()
   })
@@ -67,16 +63,12 @@ describe('TakeoverDialog', () => {
     expect(isTakenOver('s1')).toBe(false)
   })
 
-  it('Continue here reloads the page with the leave guards released', async () => {
-    let exitingAtReload: boolean | undefined
-    reload.mockImplementation(() => {
-      exitingAtReload = isRunnerExiting()
-    })
+  it('Continue here reloads the page', async () => {
     render(<TakeoverDialog sessionId="s1" />)
     act(() => markTakenOver('s1'))
     await userEvent.click(screen.getByRole('button', { name: 'Continue here' }))
     expect(reload).toHaveBeenCalledTimes(1)
-    expect(exitingAtReload).toBe(true)
+    expect(isRunnerExiting()).toBe(false)
     expect(mockReplace).not.toHaveBeenCalled()
   })
 })

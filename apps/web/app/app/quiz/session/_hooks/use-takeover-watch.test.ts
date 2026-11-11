@@ -41,12 +41,13 @@ beforeEach(() => {
 })
 
 describe('useTakeoverWatch', () => {
-  it('neither navigates nor toasts when the session is taken over, only releasing the guards', () => {
+  it('neither navigates nor toasts when the session is taken over, only flagging it', () => {
     renderHook(() => useTakeoverWatch({ enabled: true, sessionId: 's1', probe: vi.fn() }))
     markTakenOver('s1')
     expect(mockReplace).not.toHaveBeenCalled()
     expect(mockToastInfo).not.toHaveBeenCalled()
-    expect(isRunnerExiting()).toBe(true)
+    expect(isTakenOver('s1')).toBe(true)
+    expect(isRunnerExiting()).toBe(false)
   })
 
   it('probes the server when another tab of this browser claims the session', () => {
