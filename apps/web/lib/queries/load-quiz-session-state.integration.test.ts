@@ -131,7 +131,7 @@ describe('loadQuizSessionState (app-layer integration)', () => {
     expect(state.seed.answers[q2]).toBeUndefined()
   })
 
-  it('counts a viewed-only question in the active time but not in the answers', async () => {
+  it('does not put a viewed-only question in the answers', async () => {
     const sessionId = await openSession()
     const [q0, q1] = questionIds as [string, string]
     await saveQuizAnswer({
