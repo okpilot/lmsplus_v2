@@ -87,7 +87,6 @@ async function attempt<T>(
 
 function markOffline() {
   const status = getConnectionStatus()
-  if (status === 'signed-out') return
   if (status !== 'offline' && status !== 'slow') batchOk = true
   linkUp = false
   setConnectionStatus('offline')
@@ -185,7 +184,7 @@ export function whenQueueIdle(): Promise<void> {
  * An optional `hold` sees each settled result and may ask for a resend in the same queue slot,
  * so Finish and later saves wait behind it.
  * Residual: a stalled socket the browser never fails keeps the quiz blocked until the browser
- * gives up on it; after STALL_ESCAPE_MS the connection overlay offers a reload.
+ * gives up on it.
  */
 export async function withReconnect<T extends ActionResult>(
   fn: () => Promise<T>,
