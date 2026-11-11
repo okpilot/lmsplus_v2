@@ -21,8 +21,6 @@ type QuizSessionHeaderProps = {
   onFinishClick: () => void
   /** Discovery only: opens the Stay / Leave confirm. */
   onExitClick?: () => void
-  /** Active time already spent (ms); the untimed clock continues from it. */
-  initialActiveMs?: number
 }
 
 export function QuizSessionHeader({

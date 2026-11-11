@@ -23,7 +23,6 @@ const DATA = {
   subjectName: 'Air Law',
   seed: {
     answers: { q1: { selectedOptionId: 'a', responseTimeMs: 1 } },
-    activeMs: 1,
     pinnedQuestionIds: [],
     currentIndex: 0,
   },

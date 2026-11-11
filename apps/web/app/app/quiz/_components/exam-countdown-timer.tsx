@@ -1,21 +1,13 @@
 'use client'
 
 import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from 'react'
+import { formatClock } from '../../_components/format-clock'
 
 type ExamCountdownTimerProps = {
   timeLimitSeconds: number
   startedAt: number
   onExpired: () => void
   className?: string
-}
-
-function formatCountdown(totalSeconds: number): string {
-  const s = Math.max(0, totalSeconds)
-  const h = Math.floor(s / 3600)
-  const m = Math.floor((s % 3600) / 60)
-  const sec = s % 60
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return h > 0 ? `${h}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`
 }
 
 function getTimerClass(remaining: number): string {
@@ -66,7 +58,7 @@ export function ExamCountdownTimer({
 
   return (
     <span className={`tabular-nums ${remainingClass(remaining)} ${className ?? ''}`}>
-      {remaining === null ? '--:--' : formatCountdown(remaining)}
+      {remaining === null ? '--:--' : formatClock(remaining)}
     </span>
   )
 }

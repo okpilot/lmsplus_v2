@@ -10,29 +10,28 @@ vi.mock('./keyboard-legend', () => ({ KeyboardLegend: () => null }))
 import { QuizSessionHeader } from './quiz-session-header'
 
 describe('untimed quiz clock', () => {
-  it('header starts from the active time already spent', () => {
+  it('header counts from the session start time', () => {
     render(
       <QuizSessionHeader
         isExam={false}
         submitting={false}
-        timerStart={1}
+        timerStart={Date.now() - 185_000}
         activeTab="question"
         onTabChange={vi.fn()}
         onTimeExpired={vi.fn()}
         onFinishClick={vi.fn()}
-        initialActiveMs={185_000}
       />,
     )
 
     expect(screen.getByText('03:05')).toBeInTheDocument()
   })
 
-  it('header starts from zero for a quiz with no saved time', () => {
+  it('header starts from zero for a session that just started', () => {
     render(
       <QuizSessionHeader
         isExam={false}
         submitting={false}
-        timerStart={1}
+        timerStart={Date.now()}
         activeTab="question"
         onTabChange={vi.fn()}
         onTimeExpired={vi.fn()}

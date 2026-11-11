@@ -38,16 +38,26 @@ describe('SessionTimer', () => {
     expect(el?.className).toContain('text-red-500')
   })
 
-  it('starts from the active time already spent', () => {
-    render(<SessionTimer initialElapsedMs={125_000} />)
-    expect(screen.getByText('02:05')).toBeInTheDocument()
+  it('counts from the server start time: 52 s ago shows 00:52', () => {
+    render(<SessionTimer startedAtMs={Date.now() - 52_000} />)
+    expect(screen.getByText('00:52')).toBeInTheDocument()
   })
 
-  it('keeps counting on top of the active time already spent', () => {
-    render(<SessionTimer initialElapsedMs={59_000} />)
+  it('a fresh mount later with the same start time never shows less (reload)', () => {
+    const startedAtMs = Date.now() - 52_000
+    const first = render(<SessionTimer startedAtMs={startedAtMs} />)
     act(() => {
-      vi.advanceTimersByTime(2000)
+      vi.advanceTimersByTime(3000)
     })
-    expect(screen.getByText('01:01')).toBeInTheDocument()
+    expect(screen.getByText('00:55')).toBeInTheDocument()
+    first.unmount()
+    vi.advanceTimersByTime(10_000)
+    render(<SessionTimer startedAtMs={startedAtMs} />)
+    expect(screen.getByText('01:05')).toBeInTheDocument()
+  })
+
+  it('shows 00:00 for a start time in the future', () => {
+    render(<SessionTimer startedAtMs={Date.now() + 30_000} />)
+    expect(screen.getByText('00:00')).toBeInTheDocument()
   })
 })

@@ -28,7 +28,6 @@ export function QuizSession(props: Readonly<QuizSessionProps>) {
         onTimeExpired={timer.handleTimeExpired}
         onFinishClick={() => s.setShowFinishDialog(true)}
         onExitClick={ui.leave.openExitConfirm}
-        initialActiveMs={props.initialActiveMs}
       />
       <QuizSessionBody props={props} session={session} />
       <QuizFinishDialogHost
