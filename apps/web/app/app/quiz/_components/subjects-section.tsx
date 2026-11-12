@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/nextjs'
+import { unstable_rethrow } from 'next/navigation'
 import { getMockExamSubjects } from '@/lib/queries/exam-subjects'
 import { loadQuizSetupPreload } from '@/lib/queries/quiz-setup-preload'
 import { getSubjectsWithCounts } from '@/lib/queries/quiz-subject-queries'
@@ -7,6 +8,7 @@ import { QuizConfigForm } from './quiz-config-form'
 export async function SubjectsSection({ userId }: Readonly<{ userId: string }>) {
   const [subjects, examSubjects] = await Promise.all([
     getSubjectsWithCounts().catch((error: unknown) => {
+      unstable_rethrow(error)
       console.error('[SubjectsSection] subject list or question counts read failed:', error)
       Sentry.captureException(error)
       return null

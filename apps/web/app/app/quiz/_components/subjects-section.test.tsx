@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import type { ReactElement } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -97,5 +98,16 @@ describe('SubjectsSection', () => {
 
     expect(p.subjects).toEqual(SUBJECTS)
     expect(p.examSubjects).toEqual([])
+  })
+
+  it('lets a redirect from the subjects read through instead of showing the failure panel', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    mockGetSubjects.mockImplementation(async () => redirect('/auth/login'))
+
+    await expect(SubjectsSection({ userId: 'u1' })).rejects.toMatchObject({
+      digest: expect.stringContaining('NEXT_REDIRECT'),
+    })
+    expect(mockCapture).not.toHaveBeenCalled()
+    expect(consoleError).not.toHaveBeenCalled()
   })
 })
