@@ -20,7 +20,7 @@ export function QuizStartActions(props: Readonly<QuizStartActionsProps>) {
   const isExam = config.mode === 'exam'
   return (
     <div className="space-y-stack lg:col-start-1 lg:row-start-2 lg:sticky lg:top-section">
-      {!isExam && config.subjectId && (
+      {!isExam && !subjectsFailed && config.subjectId && (
         <Card>
           <CardContent>
             <QuestionCount

@@ -19,8 +19,11 @@ type QuizConfigFormProps = {
   subjectsFailed?: boolean
 }
 
-function TopicTreeColumn({ config }: Readonly<{ config: ReturnType<typeof useQuizConfig> }>) {
-  if (config.mode === 'exam' || config.topicTree.topics.length === 0) return null
+function TopicTreeColumn({
+  config,
+  subjectsFailed,
+}: Readonly<{ config: ReturnType<typeof useQuizConfig>; subjectsFailed?: boolean }>) {
+  if (subjectsFailed || config.mode === 'exam' || config.topicTree.topics.length === 0) return null
   return (
     <div className="lg:col-start-2 lg:row-start-1 lg:row-span-2">
       <TopicTree
@@ -69,7 +72,7 @@ export function QuizConfigForm(props: Readonly<QuizConfigFormProps>) {
           subjectsFailed={subjectsFailed}
         />
       </div>
-      <TopicTreeColumn config={config} />
+      <TopicTreeColumn config={config} subjectsFailed={subjectsFailed} />
       <QuizStartActions
         config={config}
         exam={exam}

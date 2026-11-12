@@ -19,6 +19,40 @@ type QuizSetupCardProps = {
   subjectsFailed?: boolean
 }
 
+function SetupFields(props: Readonly<QuizSetupCardProps>) {
+  const { config, subjects, examSubjects, examSubjectId, onExamSubjectChange, subjectsFailed } =
+    props
+  if (config.mode === 'exam')
+    return (
+      <ExamConfigForm
+        examSubjects={examSubjects}
+        subjectId={examSubjectId}
+        onSubjectChange={onExamSubjectChange}
+      />
+    )
+  if (subjectsFailed) return <SubjectsRetryAlert />
+  return (
+    <>
+      <SubjectSelect
+        subjects={subjects}
+        value={config.subjectId}
+        onValueChange={config.handleSubjectChange}
+      />
+      {config.subjectId && (
+        <QuestionFilters
+          value={config.filters}
+          onValueChange={config.setFilters}
+          calcMode={config.calcMode}
+          onCalcModeChange={config.setCalcMode}
+          imageMode={config.imageMode}
+          onImageModeChange={config.setImageMode}
+          unseenLabel="Unanswered"
+        />
+      )}
+    </>
+  )
+}
+
 export function QuizSetupCard(props: Readonly<QuizSetupCardProps>) {
   const { config, subjects, examSubjects, examSubjectId, onExamSubjectChange, subjectsFailed } =
     props
@@ -30,34 +64,14 @@ export function QuizSetupCard(props: Readonly<QuizSetupCardProps>) {
           onValueChange={config.setMode}
           examAvailable={examSubjects.length > 0}
         />
-        {config.mode === 'exam' ? (
-          <ExamConfigForm
-            examSubjects={examSubjects}
-            subjectId={examSubjectId}
-            onSubjectChange={onExamSubjectChange}
-          />
-        ) : subjectsFailed ? (
-          <SubjectsRetryAlert />
-        ) : (
-          <>
-            <SubjectSelect
-              subjects={subjects}
-              value={config.subjectId}
-              onValueChange={config.handleSubjectChange}
-            />
-            {config.subjectId && (
-              <QuestionFilters
-                value={config.filters}
-                onValueChange={config.setFilters}
-                calcMode={config.calcMode}
-                onCalcModeChange={config.setCalcMode}
-                imageMode={config.imageMode}
-                onImageModeChange={config.setImageMode}
-                unseenLabel="Unanswered"
-              />
-            )}
-          </>
-        )}
+        <SetupFields
+          config={config}
+          subjects={subjects}
+          examSubjects={examSubjects}
+          examSubjectId={examSubjectId}
+          onExamSubjectChange={onExamSubjectChange}
+          subjectsFailed={subjectsFailed}
+        />
       </CardContent>
     </Card>
   )

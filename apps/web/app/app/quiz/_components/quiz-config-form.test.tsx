@@ -562,5 +562,34 @@ describe('QuizConfigForm', () => {
       again()
       expect(screen.getByRole('alert')).toHaveTextContent('Quiz subjects could not be loaded.')
     })
+
+    it('hides QuestionCount in study mode when a subject id is set', () => {
+      mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ mode: 'study', subjectId: 'sub-1' }))
+      renderFailed()
+      expect(screen.queryByTestId('question-count')).not.toBeInTheDocument()
+    })
+
+    it('hides TopicTree in study mode when topics are loaded', () => {
+      mockUseQuizConfig.mockReturnValue(
+        makeDefaultConfig({
+          mode: 'study',
+          subjectId: 'sub-1',
+          topicTree: {
+            ...buildDefaultConfig().topicTree,
+            topics: [
+              {
+                id: 't1',
+                code: '050-01',
+                name: 'The Atmosphere',
+                subtopics: [],
+                questionCount: 10,
+              },
+            ],
+          },
+        }),
+      )
+      renderFailed()
+      expect(screen.queryByTestId('topic-tree')).not.toBeInTheDocument()
+    })
   })
 })
