@@ -94,9 +94,9 @@ describe('useQuizSession', () => {
   })
 
   it('pauses shortcuts when the session is taken over after mount', () => {
-    const { rerender } = run(state(), props({ sessionId: 's1' }))
+    run(state(), props({ sessionId: 's1' }))
+    expect(kbArgs().enabled).toBe(true)
     act(() => markTakenOver('s1'))
-    rerender()
     const last = m.kb.mock.calls.at(-1)?.[0] as Record<string, unknown> | undefined
     expect(last?.enabled).toBe(false)
   })

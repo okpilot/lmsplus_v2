@@ -22,6 +22,7 @@ describe('useTakenOver', () => {
   it('turns false again when the flag is cleared', () => {
     const { result } = renderHook(() => useTakenOver('s1'))
     act(() => markTakenOver('s1'))
+    expect(result.current).toBe(true)
     act(() => clearTakenOver('s1'))
     expect(result.current).toBe(false)
   })
