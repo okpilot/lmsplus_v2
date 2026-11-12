@@ -33,7 +33,20 @@ export function QuizStartActions(props: Readonly<QuizStartActionsProps>) {
         </Card>
       )}
 
-      {/* Start failures and the blocked-start offer — both modes */}
+      <StartAlerts config={config} exam={exam} />
+
+      <ModeStartButton config={config} exam={exam} examSubjectId={examSubjectId} />
+    </div>
+  )
+}
+
+type ModeProps = Pick<QuizStartActionsProps, 'config' | 'exam'>
+
+/** Start failures and the blocked-start offer — both modes. */
+function StartAlerts({ config, exam }: Readonly<ModeProps>) {
+  const isExam = config.mode === 'exam'
+  return (
+    <>
       <BlockedStartAlert
         message={isExam ? exam.error : config.error}
         blocked={isExam ? exam.blocked : config.blocked}
@@ -42,29 +55,37 @@ export function QuizStartActions(props: Readonly<QuizStartActionsProps>) {
       {!isExam && config.authError && (
         <FieldError role="alert">Session expired. Please refresh the page.</FieldError>
       )}
+    </>
+  )
+}
 
-      {isExam && (
-        <StartButton
-          disabled={!examSubjectId || exam.loading}
-          loading={exam.loading}
-          label="Start Practice Exam"
-          onClick={exam.handleStart}
-        />
-      )}
-      {!isExam && (
-        <StartButton
-          disabled={
-            !config.subjectId ||
-            config.availableCount === 0 ||
-            config.loading ||
-            config.isPending ||
-            config.authError
-          }
-          loading={config.loading}
-          label="Start Quiz"
-          onClick={config.handleStart}
-        />
-      )}
-    </div>
+function ModeStartButton({
+  config,
+  exam,
+  examSubjectId,
+}: Readonly<ModeProps & { examSubjectId: string }>) {
+  if (config.mode === 'exam') {
+    return (
+      <StartButton
+        disabled={!examSubjectId || exam.loading}
+        loading={exam.loading}
+        label="Start Practice Exam"
+        onClick={exam.handleStart}
+      />
+    )
+  }
+  return (
+    <StartButton
+      disabled={
+        !config.subjectId ||
+        config.availableCount === 0 ||
+        config.loading ||
+        config.isPending ||
+        config.authError
+      }
+      loading={config.loading}
+      label="Start Quiz"
+      onClick={config.handleStart}
+    />
   )
 }
