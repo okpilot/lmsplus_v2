@@ -4,6 +4,7 @@ import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
 import { reportUrl } from '@/lib/constants/report-paths'
 import { discardQuiz } from '../../actions/discard'
 import { finishQuizSession } from '../../actions/finish'
+import { isTakeoverError } from '../../actions/progress-error-messages'
 import { saveQuizForLater } from '../../actions/saved-quiz'
 import type { DraftAnswer } from '../../types'
 import { withTakeoverCheck } from '../_utils/claim-quiz-device'
@@ -92,7 +93,8 @@ export async function handleSubmitSession(opts: {
     markRunnerExiting()
     opts.router.replace(reportUrl(opts.examMode, opts.sessionId))
   } else {
-    opts.setError(r.error)
+    // A takeover refusal: the takeover dialog explains it; no stale copy once the flag clears.
+    opts.setError(isTakeoverError(r.error) ? null : r.error)
     opts.setSubmitting(false)
   }
 }
@@ -120,7 +122,7 @@ export async function handleSaveSession(opts: {
       opts.router.replace('/app/quiz')
       return
     }
-    opts.setError(r.error)
+    opts.setError(isTakeoverError(r.error) ? null : r.error)
   } catch {
     opts.setError('Something went wrong. Please try again.')
   }
