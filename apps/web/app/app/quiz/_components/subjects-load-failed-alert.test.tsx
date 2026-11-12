@@ -13,4 +13,16 @@ describe('SubjectsLoadFailedAlert', () => {
 
     expect(onRetry).toHaveBeenCalledTimes(1)
   })
+
+  it('disables Try again while pending', () => {
+    render(<SubjectsLoadFailedAlert onRetry={vi.fn()} pending />)
+
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeDisabled()
+  })
+
+  it('enables Try again when not pending', () => {
+    render(<SubjectsLoadFailedAlert onRetry={vi.fn()} />)
+
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeEnabled()
+  })
 })
