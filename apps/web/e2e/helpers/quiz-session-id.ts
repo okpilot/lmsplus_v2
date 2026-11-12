@@ -84,20 +84,18 @@ export async function readAnsweredQuestionIds(sessionId: string): Promise<string
   return (data ?? []).map((r: { question_id: string }) => r.question_id)
 }
 
-/** Sets the saved visit time of one question: the active clock's server-side starting point. */
-export async function setSavedVisitTime(opts: {
+/** Sets a session's server start time. Service role only; the quiz_sessions immutable-columns trigger exempts service_role. */
+export async function setSessionStartedAt(opts: {
   sessionId: string
-  questionId: string
-  timeSpentMs: number
+  startedAt: string
 }): Promise<void> {
   const { data, error } = await getAdminClient()
-    .from('quiz_session_progress')
-    .update({ time_spent_ms: opts.timeSpentMs })
-    .eq('session_id', opts.sessionId)
-    .eq('question_id', opts.questionId)
-    .select('question_id')
-  if (error) throw new Error(`setSavedVisitTime: ${error.message}`)
-  if (!data?.length) throw new Error(`setSavedVisitTime: no row for ${opts.questionId}`)
+    .from('quiz_sessions')
+    .update({ started_at: opts.startedAt })
+    .eq('id', opts.sessionId)
+    .select('id')
+  if (error) throw new Error(`setSessionStartedAt: ${error.message}`)
+  if (!data?.length) throw new Error(`setSessionStartedAt: no row for ${opts.sessionId}`)
 }
 
 /** The questions the session serves, in order (`config.question_ids`). */

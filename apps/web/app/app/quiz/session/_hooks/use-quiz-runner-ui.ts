@@ -11,7 +11,11 @@ const NO_QUESTIONS: DragTypedQuestions = []
 /** The runner's tab, answer-feedback and leave-guard wiring, kept out of the render body. */
 export function useQuizRunnerUI(
   s: QuizState,
-  { isDiscovery, questions }: Readonly<{ isDiscovery: boolean; questions: DragTypedQuestions }>,
+  {
+    isDiscovery,
+    questions,
+    takenOver,
+  }: Readonly<{ isDiscovery: boolean; questions: DragTypedQuestions; takenOver: boolean }>,
 ) {
   usePreloadDragInputs(supportsNonMcQuestions(s) ? questions : NO_QUESTIONS)
   const { activeTab, setActiveTab } = useQuizActiveTab(s.currentIndex)
@@ -24,6 +28,7 @@ export function useQuizRunnerUI(
   const leave = useQuizLeaveGuard({
     isDiscovery,
     submitted: s.submitted,
+    takenOver,
     setShowFinishDialog: s.setShowFinishDialog,
     pendingOptionId: quizUI.pendingOptionId,
     existingAnswer: s.existingAnswer,

@@ -1,26 +1,30 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { formatClock } from './format-clock'
 
 export function SessionTimer({
   className,
-  initialElapsedMs = 0,
-}: Readonly<{ className?: string; initialElapsedMs?: number }>) {
-  const startedAtRef = useRef(Date.now() - initialElapsedMs)
-  const [now, setNow] = useState(Date.now())
+  startedAtMs,
+}: Readonly<{ className?: string; startedAtMs?: number }>) {
+  const startRef = useRef(startedAtMs ?? Date.now())
+  const [now, setNow] = useState<number | null>(null)
+
+  useLayoutEffect(() => {
+    setNow(Date.now())
+  }, [])
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(id)
   }, [])
 
-  const elapsed = Math.floor((now - startedAtRef.current) / 1000)
-  const mins = Math.floor(elapsed / 60)
-  const secs = elapsed % 60
+  const text =
+    now === null ? '--:--' : formatClock(Math.floor(Math.max(0, now - startRef.current) / 1000))
 
   return (
     <span className={`tabular-nums text-caption text-muted-foreground ${className ?? ''}`}>
-      {mins.toString().padStart(2, '0')}:{secs.toString().padStart(2, '0')}
+      {text}
     </span>
   )
 }

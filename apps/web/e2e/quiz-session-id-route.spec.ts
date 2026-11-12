@@ -18,14 +18,13 @@ import {
   submitFirstOption,
 } from './helpers/quiz-session'
 import {
-  readAnsweredQuestionIds,
   readSessionQuestionIds,
   readSessionRow,
   readSessionSubjectName,
   resetStudentQuizSessions,
   SESSION_ID_URL,
   sessionIdFromUrl,
-  setSavedVisitTime,
+  setSessionStartedAt,
 } from './helpers/quiz-session-id'
 import { readUserId } from './helpers/recovery-code'
 import {
@@ -228,14 +227,13 @@ test.describe('Quiz session addressed by id', () => {
     })
   })
 
-  test('the active clock continues from the server total instead of 00:00', async ({ page }) => {
+  test('the study clock counts from the server start time after a reload', async ({ page }) => {
     await startStudyQuiz(page)
     const sessionId = sessionIdFromUrl(page.url())
-    await answerCurrent(page)
-    await expect.poll(readServerAnsweredCount, { timeout: 10_000 }).toBe(1)
-    const [questionId] = await readAnsweredQuestionIds(sessionId)
-    if (!questionId) throw new Error('no answered question to time')
-    await setSavedVisitTime({ sessionId, questionId, timeSpentMs: 600_000 })
+    await setSessionStartedAt({
+      sessionId,
+      startedAt: new Date(Date.now() - 600_000).toISOString(),
+    })
 
     await page.reload()
 

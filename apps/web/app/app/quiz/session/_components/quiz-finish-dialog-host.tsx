@@ -11,6 +11,8 @@ type QuizFinishDialogHostProps = {
   totalQuestions: number
   examMode?: DbQuizMode
   timeExpired: boolean
+  /** Another tab or device holds the session; the takeover dialog owns the screen. */
+  takenOver: boolean
   /** A picked option on the current question that was never submitted. */
   pendingSelection?: boolean
   discoveryConfirmOpen?: boolean
@@ -29,6 +31,7 @@ export function QuizFinishDialogHost({
   totalQuestions,
   examMode,
   timeExpired,
+  takenOver,
   pendingSelection,
   discoveryConfirmOpen = false,
   onDiscoveryConfirmChange = () => {},
@@ -40,7 +43,7 @@ export function QuizFinishDialogHost({
   }
   return (
     <FinishQuizDialog
-      open={s.showFinishDialog}
+      open={s.showFinishDialog && !takenOver}
       answeredCount={s.answeredCount}
       totalQuestions={totalQuestions}
       submitting={s.submitting}

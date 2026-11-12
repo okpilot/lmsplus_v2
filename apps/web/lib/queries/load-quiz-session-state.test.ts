@@ -115,7 +115,6 @@ describe('loadQuizSessionState', () => {
       seed: {
         currentIndex: 1,
         pinnedQuestionIds: [Q2],
-        activeMs: 1500,
         answers: { [Q1]: { selectedOptionId: 'b', responseTimeMs: 1500 } },
       },
     })

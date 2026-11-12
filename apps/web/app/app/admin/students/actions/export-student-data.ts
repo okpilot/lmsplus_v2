@@ -28,7 +28,7 @@ export async function exportStudentData(input: unknown): Promise<ExportResult> {
 
   if (fetchErr || !target) {
     if (fetchErr?.code === 'PGRST116') return { success: false, error: 'Student not found' }
-    console.error('[exportStudentData] Fetch error:', fetchErr?.message)
+    console.error('[exportStudentData] Fetch error:', fetchErr?.message ?? 'no row returned')
     return { success: false, error: 'Student not found' }
   }
 

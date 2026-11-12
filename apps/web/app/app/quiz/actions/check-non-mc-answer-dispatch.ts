@@ -52,10 +52,14 @@ export async function checkShortAnswer(
     p_response_text: input.responseText,
   })
   if (error || !isShortAnswerRpcResult(data)) {
-    console.error('[checkNonMcAnswer] short_answer RPC error:', error?.message, {
-      questionId: input.questionId,
-      sessionId: input.sessionId,
-    })
+    console.error(
+      '[checkNonMcAnswer] short_answer RPC error:',
+      error?.message ?? 'malformed RPC result',
+      {
+        questionId: input.questionId,
+        sessionId: input.sessionId,
+      },
+    )
     return { success: false, error: mapProgressRpcError(error?.message, CHECK_FAILED) }
   }
   return { success: true, ...toShortFeedback(data) }
@@ -70,10 +74,14 @@ export async function checkOrderingAnswer(
     p_order: input.order,
   })
   if (error || !isOrderingRpcResult(data)) {
-    console.error('[checkNonMcAnswer] ordering RPC error:', error?.message, {
-      questionId: input.questionId,
-      sessionId: input.sessionId,
-    })
+    console.error(
+      '[checkNonMcAnswer] ordering RPC error:',
+      error?.message ?? 'malformed RPC result',
+      {
+        questionId: input.questionId,
+        sessionId: input.sessionId,
+      },
+    )
     return { success: false, error: mapProgressRpcError(error?.message, CHECK_FAILED) }
   }
   return { success: true, ...toOrderingFeedback(data) }
@@ -88,10 +96,14 @@ export async function checkDialogFillAnswer(
     p_blank_answers: toRpcBlankAnswers(input.blankAnswers),
   })
   if (error || !isDialogFillRpcResult(data)) {
-    console.error('[checkNonMcAnswer] dialog_fill RPC error:', error?.message, {
-      questionId: input.questionId,
-      sessionId: input.sessionId,
-    })
+    console.error(
+      '[checkNonMcAnswer] dialog_fill RPC error:',
+      error?.message ?? 'malformed RPC result',
+      {
+        questionId: input.questionId,
+        sessionId: input.sessionId,
+      },
+    )
     return { success: false, error: mapProgressRpcError(error?.message, CHECK_FAILED) }
   }
   return { success: true, ...toDialogFeedback(data) }
@@ -106,10 +118,14 @@ export async function checkDiagramLabelAnswer(
     p_mapping: input.mapping.map((m) => ({ zone_id: m.zoneId, label_id: m.labelId })),
   })
   if (error || !isDiagramRpcResult(data)) {
-    console.error('[checkNonMcAnswer] diagram_label RPC error:', error?.message, {
-      questionId: input.questionId,
-      sessionId: input.sessionId,
-    })
+    console.error(
+      '[checkNonMcAnswer] diagram_label RPC error:',
+      error?.message ?? 'malformed RPC result',
+      {
+        questionId: input.questionId,
+        sessionId: input.sessionId,
+      },
+    )
     return { success: false, error: mapProgressRpcError(error?.message, CHECK_FAILED) }
   }
   return { success: true, ...toDiagramFeedback(data) }

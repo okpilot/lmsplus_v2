@@ -62,7 +62,7 @@ const SITES: Array<[string, string, string]> = [
   [`${A}admin/questions/_components/question-meta-fields.tsx`, 'gap-3', 'gap-stack-lg'],
   [`${A}admin/questions/_components/syllabus-cascader.tsx`, 'gap-3', 'gap-stack-lg'],
   [`${A}quiz/_components/question-filters.tsx`, 'space-y-2.5', 'space-y-stack-sm'],
-  [`${A}quiz/_components/quiz-config-form.tsx`, 'space-y-5', 'space-y-stack-lg'],
+  [`${A}quiz/_components/quiz-setup-card.tsx`, 'space-y-5', 'space-y-stack-lg'],
   [`${A}quiz/_components/study-config-form.tsx`, 'space-y-5', 'space-y-stack-lg'],
   [`${A}vfr-rt/_components/vfr-rt-config-form.tsx`, 'space-y-5', 'space-y-stack-lg'],
   ['app/auth/reset-password/_components/reset-password-form.tsx', 'space-y-1', 'space-y-stack-sm'],
