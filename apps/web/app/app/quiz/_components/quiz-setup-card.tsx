@@ -19,18 +19,10 @@ type QuizSetupCardProps = {
   subjectsFailed?: boolean
 }
 
-function SetupFields(props: Readonly<QuizSetupCardProps>) {
-  const { config, subjects, examSubjects, examSubjectId, onExamSubjectChange, subjectsFailed } =
-    props
-  if (config.mode === 'exam')
-    return (
-      <ExamConfigForm
-        examSubjects={examSubjects}
-        subjectId={examSubjectId}
-        onSubjectChange={onExamSubjectChange}
-      />
-    )
-  if (subjectsFailed) return <SubjectsRetryAlert />
+function SubjectSetupFields({
+  config,
+  subjects,
+}: Readonly<Pick<QuizSetupCardProps, 'config' | 'subjects'>>) {
   return (
     <>
       <SubjectSelect
@@ -51,6 +43,21 @@ function SetupFields(props: Readonly<QuizSetupCardProps>) {
       )}
     </>
   )
+}
+
+function SetupFields(props: Readonly<QuizSetupCardProps>) {
+  const { config, subjects, examSubjects, examSubjectId, onExamSubjectChange, subjectsFailed } =
+    props
+  if (config.mode === 'exam')
+    return (
+      <ExamConfigForm
+        examSubjects={examSubjects}
+        subjectId={examSubjectId}
+        onSubjectChange={onExamSubjectChange}
+      />
+    )
+  if (subjectsFailed) return <SubjectsRetryAlert />
+  return <SubjectSetupFields config={config} subjects={subjects} />
 }
 
 export function QuizSetupCard(props: Readonly<QuizSetupCardProps>) {

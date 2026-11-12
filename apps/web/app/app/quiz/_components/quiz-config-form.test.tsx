@@ -527,12 +527,15 @@ describe('QuizConfigForm', () => {
       expect(screen.queryByRole('button', { name: /start quiz/i })).not.toBeInTheDocument()
     })
 
-    it('renders the exam form and Start Practice Exam, no alert, in exam mode', () => {
+    it('renders the exam form and Start Practice Exam, no alert, in exam mode', async () => {
       mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ mode: 'exam' }))
+      const user = userEvent.setup()
       renderFailed()
       expect(screen.getByTestId('exam-config-form')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Start Practice Exam' })).toBeInTheDocument()
       expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+      await user.click(screen.getByTestId('exam-config-form'))
+      expect(screen.getByRole('button', { name: 'Start Practice Exam' })).not.toBeDisabled()
     })
 
     it('shows the exam form after toggling to Exam and the alert again after toggling back', async () => {
