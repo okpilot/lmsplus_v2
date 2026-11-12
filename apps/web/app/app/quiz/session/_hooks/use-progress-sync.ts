@@ -3,7 +3,7 @@ import type { QuizStateOpts } from '../../session-types'
 import { usePinnedQuestions } from './use-pinned-questions'
 import { useProgressSaves } from './use-progress-saves'
 import { useQuizNavigation } from './use-quiz-navigation'
-import { useTakeoverExit } from './use-takeover-exit'
+import { useTakeoverWatch } from './use-takeover-watch'
 
 /**
  * Owns navigation, pins and the background server saves of the quiz runner. Callers never await
@@ -25,7 +25,7 @@ export function useProgressSync(opts: QuizStateOpts) {
     currentIndexRef,
     answerStartTime: nav.answerStartTime,
   })
-  useTakeoverExit({
+  useTakeoverWatch({
     enabled: opts.mode !== 'discovery',
     sessionId: opts.sessionId,
     probe: () => savePosition(currentIndexRef.current, pins.pinnedRef.current, false),

@@ -43,6 +43,8 @@ vi.mock('./quiz-session-header', () => ({ QuizSessionHeader: spy('header') }))
 vi.mock('./quiz-question-card', () => ({ QuizQuestionCard: () => null }))
 vi.mock('./quiz-finish-dialog-host', () => ({ QuizFinishDialogHost: () => null }))
 
+vi.mock('./takeover-dialog', () => ({ TakeoverDialog: () => null }))
+
 import { QuizSession } from './quiz-session'
 
 const QUESTIONS = [
