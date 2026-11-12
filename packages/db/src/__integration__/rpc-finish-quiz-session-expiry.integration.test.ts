@@ -2,13 +2,17 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { clearActiveSessions } from './cleanup'
 import {
   backdateSession,
+  claimSession,
+  DEVICE,
   type FinishResult,
   finishSeedSession,
+  finishSession,
+  OTHER_DEVICE,
   RIGHT,
   saveAnswers,
   WRONG_MC,
 } from './finish-fixture'
-import { answerRows, auditMetadata, responseCount } from './finish-readers'
+import { answerRows, auditMetadata, responseCount, sessionRow } from './finish-readers'
 import { requireRpcResult } from './guards'
 import { insertSession, type ProgressFixture, setupProgressFixture } from './quiz-progress-fixture'
 
@@ -185,6 +189,60 @@ describe('RPC: finish_quiz_session — expired sessions', () => {
       passed: false,
       passedOverall: false,
       expired: undefined,
+    })
+  })
+
+  describe('device check on a timed session claimed by another device (#1753)', () => {
+    async function claimedExam(backdateSeconds: number) {
+      const sessionId = await insertSession({
+        f,
+        mode: 'internal_exam',
+        questionIds: [mc(0), mc(1)],
+        timeLimitSeconds: 60,
+      })
+      await saveAnswers(f, sessionId, [[mc(0), RIGHT.mc]])
+      await claimSession(f, sessionId, DEVICE)
+      await backdateSession(f, sessionId, backdateSeconds)
+      return sessionId
+    }
+
+    it('finishes an expired internal exam from a device other than the claiming one', async () => {
+      const sessionId = await claimedExam(200)
+
+      const { data, error } = await finishSession(f.student, sessionId, OTHER_DEVICE)
+
+      expect(error).toBeNull()
+      expect(requireRpcResult<FinishResult>(data, 'finish').expired).toBe(true)
+      expect((await sessionRow(f, sessionId)).ended_at).not.toBeNull()
+      expect(await auditMetadata(f, sessionId, 'internal_exam.expired')).toHaveLength(1)
+    })
+
+    it('finishes an expired internal exam when no device id is supplied', async () => {
+      const sessionId = await claimedExam(200)
+
+      const { data, error } = await finishSession(f.student, sessionId, null)
+
+      expect(error).toBeNull()
+      expect(requireRpcResult<FinishResult>(data, 'finish').expired).toBe(true)
+      expect((await sessionRow(f, sessionId)).ended_at).not.toBeNull()
+    })
+
+    it('refuses a live timed session from a device other than the claiming one', async () => {
+      const sessionId = await claimedExam(10)
+
+      const { error } = await finishSession(f.student, sessionId, OTHER_DEVICE)
+
+      expect(error?.message).toContain('session_taken_over')
+      expect((await sessionRow(f, sessionId)).ended_at).toBeNull()
+    })
+
+    it('keeps refusing another device inside the 30 s grace window past the limit', async () => {
+      const sessionId = await claimedExam(75)
+
+      const { error } = await finishSession(f.student, sessionId, OTHER_DEVICE)
+
+      expect(error?.message).toContain('session_taken_over')
+      expect((await sessionRow(f, sessionId)).ended_at).toBeNull()
     })
   })
 })

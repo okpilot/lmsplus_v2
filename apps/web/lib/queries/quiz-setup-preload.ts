@@ -22,7 +22,7 @@ function pick<T>(source: Record<string, T>, ids: ReadonlySet<string>): Record<st
  * Everything the setup form can show without a request: topic trees and Discovery counts
  * of the subjects the picker lists. Never rejects — a failed read is logged and left empty,
  * so the form falls back to the per-subject actions. Argument-free and `cache()`d so the
- * page's warm-up and `SubjectsSection` share one invocation (and one log line).
+ * page's warm-up and `SubjectsSection` share one invocation.
  */
 export const loadQuizSetupPreload = cache(async (): Promise<QuizSetupPreload> => {
   const [subjects, trees, counts] = await Promise.all([

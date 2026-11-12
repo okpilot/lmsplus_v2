@@ -30,7 +30,6 @@ const CLASSIFIED: Record<string, string[]> = {
     'list_my_active_internal_exam_codes',
     'list_my_internal_exam_history',
     'save_quiz_answer',
-    'submit_quiz_answer',
   ],
   admin: [
     'get_admin_dashboard_kpis',

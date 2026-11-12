@@ -12,7 +12,7 @@ vi.mock('sonner', () => ({ toast: { info: (...a: unknown[]) => mockToastInfo(...
 import { _resetQuizDeviceId } from '../_utils/quiz-device-id'
 import { _resetRunnerExit, isRunnerExiting } from '../_utils/runner-exit'
 import { _resetSessionTakeover, isTakenOver, markTakenOver } from '../_utils/session-takeover'
-import { useTakeoverExit } from './use-takeover-exit'
+import { useTakeoverWatch } from './use-takeover-watch'
 
 class FakeChannel {
   static instances = new Set<FakeChannel>()
@@ -40,18 +40,19 @@ beforeEach(() => {
   vi.stubGlobal('BroadcastChannel', FakeChannel)
 })
 
-describe('useTakeoverExit', () => {
-  it('toasts and returns to the quiz picker when the session is taken over', async () => {
-    renderHook(() => useTakeoverExit({ enabled: true, sessionId: 's1', probe: vi.fn() }))
+describe('useTakeoverWatch', () => {
+  it('neither navigates nor toasts when the session is taken over, only flagging it', () => {
+    renderHook(() => useTakeoverWatch({ enabled: true, sessionId: 's1', probe: vi.fn() }))
     markTakenOver('s1')
-    await vi.waitFor(() => expect(mockReplace).toHaveBeenCalled())
-    expect(mockToastInfo).toHaveBeenCalledWith('This quiz continued in another tab or device.')
-    expect(mockReplace).toHaveBeenCalledWith('/app/quiz')
+    expect(mockReplace).not.toHaveBeenCalled()
+    expect(mockToastInfo).not.toHaveBeenCalled()
+    expect(isTakenOver('s1')).toBe(true)
+    expect(isRunnerExiting()).toBe(false)
   })
 
   it('probes the server when another tab of this browser claims the session', () => {
     const probe = vi.fn()
-    renderHook(() => useTakeoverExit({ enabled: true, sessionId: 's1', probe }))
+    renderHook(() => useTakeoverWatch({ enabled: true, sessionId: 's1', probe }))
     peerClaim()
     expect(probe).toHaveBeenCalledTimes(1)
   })
@@ -60,7 +61,7 @@ describe('useTakeoverExit', () => {
     const first = vi.fn()
     const second = vi.fn()
     const { rerender } = renderHook(
-      ({ probe }) => useTakeoverExit({ enabled: true, sessionId: 's1', probe }),
+      ({ probe }) => useTakeoverWatch({ enabled: true, sessionId: 's1', probe }),
       { initialProps: { probe: first } },
     )
     rerender({ probe: second })
@@ -71,13 +72,15 @@ describe('useTakeoverExit', () => {
 
   it('forgets a stale takeover flag when the runner mounts', () => {
     markTakenOver('s1')
-    renderHook(() => useTakeoverExit({ enabled: true, sessionId: 's1', probe: vi.fn() }))
+    renderHook(() => useTakeoverWatch({ enabled: true, sessionId: 's1', probe: vi.fn() }))
     expect(isTakenOver('s1')).toBe(false)
   })
 
   it('does nothing after unmount', () => {
     const probe = vi.fn()
-    const { unmount } = renderHook(() => useTakeoverExit({ enabled: true, sessionId: 's1', probe }))
+    const { unmount } = renderHook(() =>
+      useTakeoverWatch({ enabled: true, sessionId: 's1', probe }),
+    )
     unmount()
     markTakenOver('s1')
     peerClaim()
@@ -87,21 +90,10 @@ describe('useTakeoverExit', () => {
 
   it('subscribes to nothing when disabled', () => {
     const probe = vi.fn()
-    renderHook(() => useTakeoverExit({ enabled: false, sessionId: 's1', probe }))
+    renderHook(() => useTakeoverWatch({ enabled: false, sessionId: 's1', probe }))
     markTakenOver('s1')
     peerClaim()
     expect(mockReplace).not.toHaveBeenCalled()
     expect(probe).not.toHaveBeenCalled()
-  })
-
-  it('releases the leave guards before leaving after a takeover', async () => {
-    let exitingAtNav: boolean | undefined
-    mockReplace.mockImplementation(() => {
-      exitingAtNav = isRunnerExiting()
-    })
-    renderHook(() => useTakeoverExit({ enabled: true, sessionId: 's1', probe: vi.fn() }))
-    markTakenOver('s1')
-    await vi.waitFor(() => expect(mockReplace).toHaveBeenCalled())
-    expect(exitingAtNav).toBe(true)
   })
 })

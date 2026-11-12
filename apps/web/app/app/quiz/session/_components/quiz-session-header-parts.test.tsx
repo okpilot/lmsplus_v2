@@ -2,8 +2,8 @@ import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/app/app/_components/session-timer', () => ({
-  SessionTimer: (p: { initialElapsedMs?: number }) => (
-    <div data-testid="session-timer">{String(p.initialElapsedMs)}</div>
+  SessionTimer: (p: { startedAtMs?: number }) => (
+    <div data-testid="session-timer">{String(p.startedAtMs)}</div>
   ),
 }))
 vi.mock('../../_components/exam-countdown-timer', () => ({
@@ -142,9 +142,9 @@ describe('HeaderControls', () => {
     expect(screen.queryByTestId('session-timer')).toBeNull()
   })
 
-  it('shows the session timer seeded with prior active time outside exams', () => {
-    render(<HeaderControls {...controls} initialActiveMs={4200} />)
-    expect(screen.getByTestId('session-timer').textContent).toBe('4200')
+  it('passes the server start time to the session timer outside exams', () => {
+    render(<HeaderControls {...controls} />)
+    expect(screen.getByTestId('session-timer').textContent).toBe('1234')
     expect(screen.queryByTestId('countdown')).toBeNull()
   })
 

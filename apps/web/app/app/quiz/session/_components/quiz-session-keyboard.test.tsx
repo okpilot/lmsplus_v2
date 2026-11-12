@@ -31,6 +31,8 @@ vi.mock('./quiz-finish-dialog-host', () => ({
     discoveryConfirmOpen ? <div role="alertdialog">Leave discovery?</div> : null,
 }))
 
+vi.mock('./takeover-dialog', () => ({ TakeoverDialog: () => null }))
+
 import { QuizSession } from './quiz-session'
 
 const QUESTION = { id: 'q1', options: [{ id: 'a' }, { id: 'b' }], question_number: null }

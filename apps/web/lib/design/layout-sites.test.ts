@@ -87,14 +87,19 @@ describe('primitives (AC 5, 6)', () => {
 
 describe('quiz setup (AC 7)', () => {
   const form = src(`${Q}_components/quiz-config-form.tsx`)
+  const actions = src(`${Q}_components/quiz-start-actions.tsx`)
   it('is a two-column grid at lg with a sticky first column', () => {
     expect(form).toContain('lg:grid-cols-(--layout-setup)')
-    expect(form).toContain('lg:sticky')
+    expect(actions).toContain('lg:sticky')
   })
   it('Start is full width and DOM order is settings, topics, Start', () => {
-    expect(src(`${Q}_components/start-button.tsx`) + form).toContain('w-full')
-    const at = (s: string) => form.indexOf(s)
-    const order = ['<Card>', '<TopicTree', '<StartButton'].map(at)
+    expect(src(`${Q}_components/start-button.tsx`) + actions).toContain('w-full')
+    expect(src(`${Q}_components/quiz-setup-card.tsx`)).toContain('<Card>')
+    expect(actions).toContain('<StartButton')
+    const body = form.slice(form.indexOf('export function QuizConfigForm'))
+    const order = ['<QuizSetupCard', '<TopicTreeColumn', '<QuizStartActions'].map((t) =>
+      body.indexOf(t),
+    )
     expect(order.every((i) => i >= 0)).toBe(true)
     expect([...order].sort((a, b) => a - b)).toEqual(order)
   })

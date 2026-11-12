@@ -42,7 +42,7 @@ async function startResumedSession(
     p_question_ids: ctx.questionIds,
   })
   if (rpcErr || !newSessionId) {
-    console.error('[resumeQuizSession] start RPC error:', rpcErr?.message)
+    console.error('[resumeQuizSession] start RPC error:', rpcErr?.message ?? 'malformed RPC result')
     return { ok: false, error: mapResumeRpcError(rpcErr?.message) }
   }
   return { ok: true, sessionId: newSessionId }

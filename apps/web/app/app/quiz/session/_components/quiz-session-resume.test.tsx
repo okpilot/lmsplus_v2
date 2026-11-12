@@ -43,6 +43,8 @@ vi.mock('./quiz-session-header', () => ({ QuizSessionHeader: spy('header') }))
 vi.mock('./quiz-question-card', () => ({ QuizQuestionCard: () => null }))
 vi.mock('./quiz-finish-dialog-host', () => ({ QuizFinishDialogHost: () => null }))
 
+vi.mock('./takeover-dialog', () => ({ TakeoverDialog: () => null }))
+
 import { QuizSession } from './quiz-session'
 
 const QUESTIONS = [
@@ -81,7 +83,6 @@ function renderIt(props: Record<string, unknown> = {}) {
       sessionId="s1"
       questions={QUESTIONS as never}
       initialPinnedIds={['q2']}
-      initialActiveMs={42_000}
       mode="study"
       {...props}
     />,
@@ -95,18 +96,10 @@ beforeEach(() => {
 })
 
 describe('QuizSession — resumed from the server', () => {
-  it('hands the saved pins and active time to the quiz state', () => {
+  it('hands the saved pins to the quiz state', () => {
     renderIt()
 
-    expect(mockState).toHaveBeenCalledWith(
-      expect.objectContaining({ initialPinnedIds: ['q2'], initialActiveMs: 42_000 }),
-    )
-  })
-
-  it('starts the untimed clock from the active time already spent', () => {
-    renderIt()
-
-    expect(seen.header?.initialActiveMs).toBe(42_000)
+    expect(mockState).toHaveBeenCalledWith(expect.objectContaining({ initialPinnedIds: ['q2'] }))
   })
 
   it('tells the question grid which practice questions are answered', () => {

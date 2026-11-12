@@ -223,9 +223,9 @@ describe('complete_overdue_exam_session — Part 3 scoring via the part-score he
       data,
       'complete_overdue_exam_session',
     )
-    // part3 = (1 + 2/3 + 1) / 3 = 88.89; parts 1-2 have no questions → 0; score = mean of parts.
-    expect(Number(result.score_percentage)).toBe(29.63)
-    expect(result.passed).toBe(false)
+    // part3 = (1 + 2/3 + 1) / 3 = 88.89; parts 1-2 draw no questions → not counted; score = mean of counted parts.
+    expect(Number(result.score_percentage)).toBe(88.89)
+    expect(result.passed).toBe(true)
 
     const { data: session } = await admin
       .from('quiz_sessions')
@@ -233,7 +233,7 @@ describe('complete_overdue_exam_session — Part 3 scoring via the part-score he
       .eq('id', sessionId)
       .single()
     expect(session?.ended_at).not.toBeNull()
-    expect(Number(session?.score_percentage)).toBe(29.63)
+    expect(Number(session?.score_percentage)).toBe(88.89)
 
     const { data: events, error: evErr } = await admin
       .from('audit_events')

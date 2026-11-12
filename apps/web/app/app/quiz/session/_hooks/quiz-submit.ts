@@ -4,8 +4,10 @@ import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
 import { reportUrl } from '@/lib/constants/report-paths'
 import { discardQuiz } from '../../actions/discard'
 import { finishQuizSession } from '../../actions/finish'
+import { isTakeoverError } from '../../actions/progress-error-messages'
 import { saveQuizForLater } from '../../actions/saved-quiz'
 import type { DraftAnswer } from '../../types'
+import { withTakeoverCheck } from '../_utils/claim-quiz-device'
 import { getQuizDeviceId } from '../_utils/quiz-device-id'
 import { clearActiveSessionIfCurrent } from '../_utils/quiz-session-storage'
 import { isCurrentRunner, markRunnerExiting, runnerToken } from '../_utils/runner-exit'
@@ -18,7 +20,9 @@ type SetSubmitting = (v: boolean) => void
 /** Ends the session on the server (it grades the answers already saved) and clears local state. */
 export async function submitQuizSession(sessionId: string, userId: string) {
   try {
-    const result = await finishQuizSession({ sessionId, deviceId: getQuizDeviceId() })
+    const result = await withTakeoverCheck(sessionId, () =>
+      finishQuizSession({ sessionId, deviceId: getQuizDeviceId() }),
+    )
     if (!result.success) return { success: false as const, error: result.error }
     clearActiveSessionIfCurrent(userId, sessionId)
     return { success: true as const }
@@ -89,7 +93,8 @@ export async function handleSubmitSession(opts: {
     markRunnerExiting()
     opts.router.replace(reportUrl(opts.examMode, opts.sessionId))
   } else {
-    opts.setError(r.error)
+    // A takeover refusal: the takeover dialog explains it; no stale copy once the flag clears.
+    opts.setError(isTakeoverError(r.error) ? null : r.error)
     opts.setSubmitting(false)
   }
 }
@@ -107,10 +112,9 @@ export async function handleSaveSession(opts: {
   opts.setSubmitting(true)
   opts.setError(null)
   try {
-    const r = await saveQuizForLater({
-      sessionId: opts.sessionId,
-      deviceId: getQuizDeviceId(),
-    })
+    const r = await withTakeoverCheck(opts.sessionId, () =>
+      saveQuizForLater({ sessionId: opts.sessionId, deviceId: getQuizDeviceId() }),
+    )
     if (r.success) {
       clearActiveSessionIfCurrent(opts.userId, opts.sessionId)
       if (!isCurrentRunner(token)) return
@@ -118,7 +122,7 @@ export async function handleSaveSession(opts: {
       opts.router.replace('/app/quiz')
       return
     }
-    opts.setError(r.error)
+    opts.setError(isTakeoverError(r.error) ? null : r.error)
   } catch {
     opts.setError('Something went wrong. Please try again.')
   }
