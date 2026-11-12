@@ -1,11 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { MAX_LABELS, MAX_ZONES } from '../app/app/quiz/actions/diagram-validation'
-import {
-  RWY_2709_IMAGE_REF,
-  RWY_2709_LABELS,
-  RWY_2709_ZONES,
-} from '../app/app/quiz/session/_components/diagrams/rwy-2709-layout'
+import { RWY_2709_IMAGE_REF } from '../app/app/quiz/session/_components/diagrams/rwy-2709-layout'
 import { assertDiagramConfig, deriveLabelId, deriveZoneId } from './diagram-content'
+import { RWY_2709_LABELS, RWY_2709_ZONES } from './rwy-2709-answer-key'
 
 const AT = 'test.json (VRT-DIA-99)'
 
@@ -74,8 +71,7 @@ describe('a derived diagram id', () => {
 })
 
 describe('the shipped RWY 27/09 traffic-pattern content', () => {
-  // The layout module is imported by client components, so it cannot derive its ids at
-  // runtime — node:crypto does not exist in the browser — and carries them as literals.
+  // scripts/rwy-2709-answer-key.ts carries its ids as literals.
   // This block is the pin that makes those literals trustworthy: it re-derives every one
   // and prints the expected value if an id drifts from its image ref, index or text.
   it('identifies each drop zone by the image it sits on and where it sits', () => {

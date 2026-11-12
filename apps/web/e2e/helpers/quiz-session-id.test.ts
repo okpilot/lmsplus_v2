@@ -19,7 +19,7 @@ import {
   resetStudentQuizSessions,
   SESSION_ID_URL,
   sessionIdFromUrl,
-  setSavedVisitTime,
+  setSessionStartedAt,
 } from './quiz-session-id'
 
 function buildChain(returnValue: unknown) {
@@ -191,22 +191,22 @@ describe('readAnsweredQuestionIds', () => {
   })
 })
 
-describe('setSavedVisitTime', () => {
-  const opts = { sessionId: ID, questionId: 'q1', timeSpentMs: 5000 }
+describe('setSessionStartedAt', () => {
+  const opts = { sessionId: ID, startedAt: '2026-01-01T00:00:00.000Z' }
 
   it('throws when the update fails', async () => {
-    mockTables({ quiz_session_progress: { data: null, error: { message: 'bad' } } })
-    await expect(setSavedVisitTime(opts)).rejects.toThrow('setSavedVisitTime: bad')
+    mockTables({ quiz_sessions: { data: null, error: { message: 'bad' } } })
+    await expect(setSessionStartedAt(opts)).rejects.toThrow('setSessionStartedAt: bad')
   })
 
   it('throws when no row matched, so a wrong id cannot pass silently', async () => {
-    mockTables({ quiz_session_progress: { data: [], error: null } })
-    await expect(setSavedVisitTime(opts)).rejects.toThrow('no row for q1')
+    mockTables({ quiz_sessions: { data: [], error: null } })
+    await expect(setSessionStartedAt(opts)).rejects.toThrow(`no row for ${ID}`)
   })
 
   it('resolves when the row was updated', async () => {
-    mockTables({ quiz_session_progress: { data: [{ question_id: 'q1' }], error: null } })
-    await expect(setSavedVisitTime(opts)).resolves.toBeUndefined()
+    mockTables({ quiz_sessions: { data: [{ id: ID }], error: null } })
+    await expect(setSessionStartedAt(opts)).resolves.toBeUndefined()
   })
 })
 

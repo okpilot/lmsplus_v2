@@ -159,6 +159,7 @@ describe('RPC: get_question_authoring_fields exposes correct_option_id to admins
         explanation_text: 'Explanation',
         question_type: 'short_answer',
         canonical_answer: 'wilco',
+        accepted_synonyms: ['roger'],
         options: [],
         difficulty: 'medium',
         status: 'active',
@@ -197,6 +198,7 @@ describe('RPC: get_question_authoring_fields exposes correct_option_id to admins
     expect(rows).toHaveLength(1)
     expect(rows[0]?.correct_option_id).toBeNull()
     expect(rows[0]?.canonical_answer).toBe('wilco')
+    expect(rows[0]?.accepted_synonyms).toEqual(['roger'])
   })
 
   it('raises forbidden for a student caller', async () => {

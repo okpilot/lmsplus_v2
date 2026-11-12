@@ -136,7 +136,8 @@ async function fetchDiscoveryRows(): Promise<DiscoveryCountRow[] | null> {
  * the setup form needs no request on subject change or filter toggle. Argument-free on
  * purpose: `cache()` keys by argument reference, and the subject ids come from the
  * already-cached `getSubjectsWithCounts()`. One `get_discovery_counts` read (paged past the
- * row cap); a failed read or any malformed row returns `{}` (the client uses the per-subject action).
+ * row cap); a failed `get_discovery_counts` read or any malformed row returns `{}` (the client uses
+ * the per-subject action); a failed subject or topic-tree read rejects.
  */
 export const getDiscoveryCounts = cache(
   async (): Promise<Record<string, Record<string, FilteredCounts>>> => {

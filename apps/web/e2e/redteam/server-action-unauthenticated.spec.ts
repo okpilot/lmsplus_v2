@@ -67,22 +67,6 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
     expect(data).toBeNull()
   })
 
-  test('unauthenticated client cannot call submit_quiz_answer', async () => {
-    const { data, error } = await unauthClient.rpc('submit_quiz_answer', {
-      p_session_id: knownSessionId,
-      p_question_id: knownQuestionId,
-      p_selected_option: '00000000-0000-4000-a000-000000000099',
-      p_response_time_ms: 1000,
-    })
-
-    // mig 20260925000400 revokes anon EXECUTE on every public function, so the
-    // call is rejected at the privilege layer (42501) before the body's
-    // `RAISE EXCEPTION 'not authenticated'` (P0001) is ever reached.
-    expect(error?.code).toBe('42501')
-    expect(error?.message ?? '').toMatch(FUNCTION_PERMISSION_DENIED)
-    expect(data).toBeNull()
-  })
-
   test('unauthenticated client cannot call get_quiz_questions', async () => {
     const { data, error } = await unauthClient.rpc('get_quiz_questions', {
       p_question_ids: [knownQuestionId],

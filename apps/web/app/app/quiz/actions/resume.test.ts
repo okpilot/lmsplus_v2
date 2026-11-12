@@ -86,6 +86,16 @@ describe('resumeQuizSession', () => {
     expect(mockFinish).not.toHaveBeenCalled()
   })
 
+  it('logs a malformed result when the start RPC returns no session and no error', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: null })
+    await resumeQuizSession({ draftId: DRAFT })
+    expect(console.error).toHaveBeenCalledWith(
+      '[resumeQuizSession] start RPC error:',
+      'malformed RPC result',
+    )
+    expect(mockFinish).not.toHaveBeenCalled()
+  })
+
   it('rejects a non-uuid draft id', async () => {
     expect(await resumeQuizSession({ draftId: 'nope' })).toEqual({
       success: false,

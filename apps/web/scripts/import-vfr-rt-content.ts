@@ -73,11 +73,7 @@ import { enrolStudent } from '@repo/db/enrol-students'
 import { createClient } from '@supabase/supabase-js'
 import { config } from 'dotenv'
 import { DIAGRAM_IMAGE_REFS } from '../app/app/quiz/session/_components/diagrams/diagram-refs'
-import {
-  RWY_2709_IMAGE_REF,
-  RWY_2709_LABELS,
-  RWY_2709_ZONES,
-} from '../app/app/quiz/session/_components/diagrams/rwy-2709-layout'
+import { RWY_2709_IMAGE_REF } from '../app/app/quiz/session/_components/diagrams/rwy-2709-layout'
 import { fetchAllRows } from '../lib/supabase-paginate'
 import {
   assertReleasedForRemote,
@@ -96,6 +92,7 @@ import {
 import { type AuthoredMcQuestion, assertMcItem, assertMcKeyBalance } from './mc-content'
 import { assertOrderingItems, buildOrderingItems } from './ordering-content'
 import { decideUnaccounted, planScope, type ReplacePlan } from './replace-planning'
+import { RWY_2709_LABELS, RWY_2709_ZONES } from './rwy-2709-answer-key'
 
 config({ path: resolve(__dirname, '../.env.local') })
 

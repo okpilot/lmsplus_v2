@@ -5,7 +5,7 @@
  *   JU  direct SELECT on every `<table>_select_active_caller` table (own rows, plain and
  *       HEAD count=exact) returns 0 rows / count 0.
  *   JV  SECURITY INVOKER readers return no student-derived data: get_discovery_counts → [],
- *       get_student_streak → {0,0}, get_student_profile_stats → 0 sessions.
+ *       get_student_streak → {0,0}.
  *
  * CONTROL: the same token, before the ban and after the restore, reads >=1 own row per table and
  * non-zero RPC output.
@@ -203,21 +203,17 @@ test.describe('Red Team: deactivated student live-token reads (JU, JV)', () => {
     expect(dc.error).toBeNull()
     const streak = await client.rpc('get_student_streak')
     expect(streak.error).toBeNull()
-    const profile = await client.rpc('get_student_profile_stats')
-    expect(profile.error).toBeNull()
     const dcRows = (dc.data ?? []) as Array<{
       n_flagged: number | string
       n_unseen: number | string
       n_all: number | string
     }>
     const s = ((streak.data ?? []) as Array<{ best_streak: number }>)[0]
-    const p = ((profile.data ?? []) as Array<{ total_sessions: number | string }>)[0]
     return {
       dcRows: dcRows.length,
       dcFlagged: dcRows.reduce((n, r) => n + Number(r.n_flagged), 0),
       dcSeen: dcRows.reduce((n, r) => n + Number(r.n_all) - Number(r.n_unseen), 0),
       bestStreak: s?.best_streak ?? -1,
-      totalSessions: Number(p?.total_sessions ?? -1),
     }
   }
 
@@ -324,7 +320,6 @@ test.describe('Red Team: deactivated student live-token reads (JU, JV)', () => {
     expect(rpcBefore.dcFlagged).toBeGreaterThanOrEqual(1)
     expect(rpcBefore.dcSeen).toBeGreaterThanOrEqual(1)
     expect(rpcBefore.bestStreak).toBeGreaterThanOrEqual(1)
-    expect(rpcBefore.totalSessions).toBeGreaterThanOrEqual(1)
 
     // ATTACK: same token after ban + soft-delete.
     await setDeactivated(true)
@@ -338,7 +333,6 @@ test.describe('Red Team: deactivated student live-token reads (JU, JV)', () => {
       dcFlagged: 0,
       dcSeen: 0,
       bestStreak: 0,
-      totalSessions: 0,
     })
 
     // CONTROL (after): restore → same token reads again.

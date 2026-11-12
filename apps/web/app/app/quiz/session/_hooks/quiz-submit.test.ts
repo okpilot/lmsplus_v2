@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { PROGRESS_ERROR_MESSAGES } from '../../actions/progress-error-messages'
+import { _resetSessionTakeover, clearTakenOver, isTakenOver } from '../_utils/session-takeover'
 
 // ---- Mocks ----------------------------------------------------------------
 
@@ -83,6 +85,7 @@ function makeRouter() {
 // ---- Lifecycle -----------------------------------------------------------
 
 beforeEach(() => {
+  _resetSessionTakeover()
   vi.resetAllMocks()
   _resetRunnerExit()
   mockFinishQuizSession.mockResolvedValue({ success: true })
@@ -109,6 +112,18 @@ describe('submitQuizSession', () => {
     expect(result).toEqual({ success: false, error: 'session not found' })
     expect(mockClearActiveSession).not.toHaveBeenCalled()
     expect(mockDiscardQuiz).not.toHaveBeenCalled()
+  })
+
+  it('flags the session as taken over when another device holds it', async () => {
+    mockFinishQuizSession.mockResolvedValue({
+      success: false,
+      error: PROGRESS_ERROR_MESSAGES.session_taken_over,
+    })
+
+    await submitQuizSession(SESSION_ID, USER_ID)
+
+    expect(isTakenOver(SESSION_ID)).toBe(true)
+    expect(mockClearActiveSession).not.toHaveBeenCalled()
   })
 
   it('returns a generic failure when the finish throws unexpectedly', async () => {
@@ -246,6 +261,19 @@ describe('handleSaveSession', () => {
     await handleSaveSession(opts)
     expect(opts.setSubmitting).toHaveBeenCalledWith(true)
     expect(opts.setError).toHaveBeenCalledWith(null)
+  })
+
+  it('flags the session as taken over and stays on the quiz when another device holds it', async () => {
+    mockSaveQuizForLater.mockResolvedValue({
+      success: false,
+      error: PROGRESS_ERROR_MESSAGES.session_taken_over,
+    })
+    const opts = makeOpts()
+
+    await handleSaveSession(opts)
+
+    expect(isTakenOver(SESSION_ID)).toBe(true)
+    expect(opts.router.replace).not.toHaveBeenCalled()
   })
 
   it('parks the server session with this device id', async () => {
@@ -490,5 +518,77 @@ describe('exit paths after the runner unmounts', () => {
     mockSaveQuizForLater.mockResolvedValue({ success: true })
     await handleSaveSession({ ...exitOpts(), token: runnerToken() })
     expect(mockRouterReplace).toHaveBeenCalledWith('/app/quiz')
+  })
+})
+
+// ---- takeover refusals ----------------------------------------------------
+
+describe('takeover refusals', () => {
+  const TAKEOVER = PROGRESS_ERROR_MESSAGES.session_taken_over
+
+  beforeEach(() => {
+    _resetSessionTakeover()
+  })
+
+  function submitOpts() {
+    return {
+      userId: USER_ID,
+      sessionId: SESSION_ID,
+      answers: TWO_ANSWERS,
+      router: makeRouter() as never,
+      setSubmitting: vi.fn(),
+      setError: vi.fn(),
+      onSuccess: vi.fn(),
+    }
+  }
+
+  function saveOpts() {
+    return {
+      userId: USER_ID,
+      sessionId: SESSION_ID,
+      router: makeRouter() as never,
+      setSubmitting: vi.fn(),
+      setError: vi.fn(),
+    }
+  }
+
+  it('does not show the takeover copy as a submit error when the finish is refused', async () => {
+    mockFinishQuizSession.mockResolvedValue({ success: false, error: TAKEOVER })
+    const opts = submitOpts()
+    await handleSubmitSession(opts)
+    expect(opts.setError).not.toHaveBeenCalledWith(TAKEOVER)
+    expect(opts.setSubmitting).toHaveBeenLastCalledWith(false)
+    expect(mockRouterReplace).not.toHaveBeenCalled()
+  })
+
+  it('does not surface the takeover copy when a late claim clears the takeover after a refused finish', async () => {
+    mockFinishQuizSession.mockResolvedValue({ success: false, error: TAKEOVER })
+    const opts = submitOpts()
+    await handleSubmitSession(opts)
+    clearTakenOver(SESSION_ID)
+    expect(opts.setError).not.toHaveBeenCalledWith(TAKEOVER)
+  })
+
+  it('does not show the takeover copy as an error when save-for-later is refused', async () => {
+    mockSaveQuizForLater.mockResolvedValue({ success: false, error: TAKEOVER })
+    const opts = saveOpts()
+    await handleSaveSession(opts)
+    expect(opts.setError).not.toHaveBeenCalledWith(TAKEOVER)
+    expect(opts.setSubmitting).toHaveBeenLastCalledWith(false)
+    expect(mockRouterReplace).not.toHaveBeenCalled()
+  })
+
+  it('still shows a non-takeover finish failure unchanged', async () => {
+    mockFinishQuizSession.mockResolvedValue({ success: false, error: 'Not allowed' })
+    const opts = submitOpts()
+    await handleSubmitSession(opts)
+    expect(opts.setError).toHaveBeenCalledWith('Not allowed')
+  })
+
+  it('still shows a non-takeover save failure unchanged', async () => {
+    mockSaveQuizForLater.mockResolvedValue({ success: false, error: 'Not allowed' })
+    const opts = saveOpts()
+    await handleSaveSession(opts)
+    expect(opts.setError).toHaveBeenCalledWith('Not allowed')
   })
 })

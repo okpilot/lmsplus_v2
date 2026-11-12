@@ -51,7 +51,6 @@ type HeaderTimerProps = {
   timeLimitSeconds?: number
   timerStart: number
   onTimeExpired: () => void
-  initialActiveMs?: number
 }
 
 function HeaderTimer({
@@ -59,9 +58,8 @@ function HeaderTimer({
   timeLimitSeconds,
   timerStart,
   onTimeExpired,
-  initialActiveMs,
 }: Readonly<HeaderTimerProps>) {
-  if (!isExam) return <SessionTimer initialElapsedMs={initialActiveMs} />
+  if (!isExam) return <SessionTimer startedAtMs={timerStart} />
   if (!timeLimitSeconds) return null
   return (
     <ExamCountdownTimer

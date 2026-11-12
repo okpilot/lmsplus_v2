@@ -162,6 +162,28 @@ test.describe('Quiz session opened by id', () => {
     await expect(page.getByRole('heading', { name: 'Quiz' })).toBeVisible()
   })
 
+  test('keeps the study timer counting from the session start across a reload', async ({
+    page,
+  }) => {
+    test.setTimeout(90_000)
+    const total = await startStudyQuiz(page)
+    const timer = page.getByText(/^\d{2}:\d{2}$/).first()
+    const seconds = async () => {
+      const [m, s] = ((await timer.textContent()) ?? '').split(':').map(Number)
+      return m * 60 + s
+    }
+    await expect.poll(seconds, { timeout: 15_000 }).toBeGreaterThanOrEqual(4)
+    const before = await seconds()
+
+    await page.reload()
+    await expect(page).toHaveURL(/\/app\/quiz\/session\/[0-9a-f-]+$/)
+    await expect(page.getByText(new RegExp(`Question \\d+ of ${total}`))).toBeVisible({
+      timeout: 15_000,
+    })
+    await expect(timer).toBeVisible()
+    expect(await seconds()).toBeGreaterThanOrEqual(before)
+  })
+
   test('sends an unknown session id back to the quiz page', async ({ page }) => {
     await page.goto('/app/quiz/session/00000000-0000-4000-8000-000000000000')
     await expect(page).toHaveURL(/\/app\/quiz$/)

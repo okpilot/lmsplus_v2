@@ -25,7 +25,6 @@ const KNOWN_GAPS: Record<string, Boundary[]> = {
   'app/internal-exam': ['error', 'loading'],
   'app/internal-exam/report': ['error'],
   'app/progress': ['error'],
-  'app/quiz': ['error'],
   'app/quiz/report': ['error', 'loading'],
   'app/quiz/session': ['error', 'loading'],
   'app/reports': ['error'],

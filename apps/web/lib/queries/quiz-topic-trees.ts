@@ -95,11 +95,6 @@ async function fetchTopicTreeRows(supabase: Supabase) {
 
   const topics = (topicsRes.data ?? []) as (TopicTreeTopicRow & { subject_id: string })[]
   const subtopics = (subtopicsRes.data ?? []) as TopicTreeSubtopicRow[]
-  // A caller with no enrolments reads no topics, subtopics or counts: nothing to build.
-  if (!counts.length && !topics.length && !subtopics.length) {
-    return { topics, subtopics, counts }
-  }
-  if (!counts.length) throw new Error('Failed to fetch topic trees: no question counts')
   if (topicsRes.count !== topics.length || subtopicsRes.count !== subtopics.length) {
     throw new Error('Failed to fetch topic trees: topic trees truncated at max_rows')
   }
@@ -109,9 +104,7 @@ async function fetchTopicTreeRows(supabase: Supabase) {
 /**
  * Every subject's topic tree in one read (3 round trips total, in parallel), keyed by
  * subject id. Subjects whose built tree is empty are omitted so the client falls back to
- * the per-subject action. An empty counts result is treated as a failure when any topic or
- * subtopic exists, for the same reason: `getActiveQuestionCounts` degrades to `[]`, which would otherwise yield an
- * all-empty preload. The two table reads are unfiltered, so each asks for the exact row
+ * the per-subject action. The two table reads are unfiltered, so each asks for the exact row
  * count and a result cut at PostgREST `max_rows` throws instead of silently truncating.
  * Per-request memoised via `cache()`; the caller catches a throw.
  */

@@ -38,7 +38,7 @@ describe('buildSessionSeed', () => {
     expect(result.answers).toEqual({ [Q1]: { ...answer, responseTimeMs: 4200 } })
   })
 
-  it('counts the time of a viewed-only question without recording an answer', () => {
+  it('records no answer for a viewed-only question', () => {
     const result = seed({
       rows: [
         { question_id: Q1, answer: { selected_option_id: 'a' }, time_spent_ms: 1000 },
@@ -46,7 +46,6 @@ describe('buildSessionSeed', () => {
       ],
     })
 
-    expect(result.activeMs).toBe(3500)
     expect(Object.keys(result.answers)).toEqual([Q1])
   })
 
@@ -71,7 +70,6 @@ describe('buildSessionSeed', () => {
     })
 
     expect(Object.keys(result.answers)).toEqual([Q1])
-    expect(result.activeMs).toBe(100)
   })
 
   it('clamps the saved position into the question list', () => {

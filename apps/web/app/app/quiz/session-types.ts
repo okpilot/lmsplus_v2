@@ -20,9 +20,8 @@ export type QuizStateOpts = {
   initialAnswers?: Record<string, DraftAnswer>
   initialFeedback?: Map<string, AnswerFeedback>
   initialIndex?: number
-  /** Pins and active time saved on the server, for a session opened by id. */
+  /** Pins saved on the server, for a session opened by id. */
   initialPinnedIds?: readonly string[]
-  initialActiveMs?: number
   subjectName?: string
   subjectCode?: string
   mode?: SessionMode

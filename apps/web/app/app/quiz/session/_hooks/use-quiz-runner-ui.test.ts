@@ -39,7 +39,7 @@ beforeEach(() => {
 describe('useQuizRunnerUI', () => {
   it('shows the chosen tab in study mode', () => {
     const { result } = renderHook(() =>
-      useQuizRunnerUI(baseState, { isDiscovery: false, questions: [] }),
+      useQuizRunnerUI(baseState, { isDiscovery: false, questions: [], takenOver: false }),
     )
     expect(result.current.effectiveTab).toBe('explanation')
     expect(mockUI).toHaveBeenCalledWith(expect.objectContaining({ activeTab: 'explanation' }))
@@ -48,7 +48,7 @@ describe('useQuizRunnerUI', () => {
   it('pins the question tab in an exam', () => {
     const exam = { ...baseState, isExam: true } as QuizState
     const { result } = renderHook(() =>
-      useQuizRunnerUI(exam, { isDiscovery: false, questions: [] }),
+      useQuizRunnerUI(exam, { isDiscovery: false, questions: [], takenOver: false }),
     )
     expect(result.current.effectiveTab).toBe('question')
     expect(result.current.activeTab).toBe('explanation')
@@ -56,7 +56,7 @@ describe('useQuizRunnerUI', () => {
 
   it('feeds the leave guard the picked-but-unsubmitted option and the discovery flag', () => {
     const { result } = renderHook(() =>
-      useQuizRunnerUI(baseState, { isDiscovery: true, questions: [] }),
+      useQuizRunnerUI(baseState, { isDiscovery: true, questions: [], takenOver: false }),
     )
     expect(mockLeave).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -68,6 +68,13 @@ describe('useQuizRunnerUI', () => {
     expect(result.current.leave.pendingSelection).toBe(true)
   })
 
+  it('passes the takeover flag to the leave guard', () => {
+    renderHook(() =>
+      useQuizRunnerUI(baseState, { isDiscovery: false, questions: [], takenOver: true }),
+    )
+    expect(mockLeave).toHaveBeenCalledWith(expect.objectContaining({ takenOver: true }))
+  })
+
   const questions = [{ question_type: 'ordering' }]
 
   it.each([
@@ -77,7 +84,7 @@ describe('useQuizRunnerUI', () => {
     'preloads drag inputs for the session questions (isExam=%s, %s)',
     (isExam, examMode) => {
       const state = { ...baseState, isExam, examMode } as QuizState
-      renderHook(() => useQuizRunnerUI(state, { isDiscovery: false, questions }))
+      renderHook(() => useQuizRunnerUI(state, { isDiscovery: false, questions, takenOver: false }))
       expect(mockPreload).toHaveBeenCalledWith(questions)
     },
   )
@@ -86,7 +93,7 @@ describe('useQuizRunnerUI', () => {
     'skips the drag input preload in %s',
     (examMode) => {
       const state = { ...baseState, isExam: true, examMode } as QuizState
-      renderHook(() => useQuizRunnerUI(state, { isDiscovery: false, questions }))
+      renderHook(() => useQuizRunnerUI(state, { isDiscovery: false, questions, takenOver: false }))
       expect(mockPreload).toHaveBeenCalledWith([])
     },
   )

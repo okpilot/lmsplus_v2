@@ -15,6 +15,7 @@ function setup(over: Partial<Args> = {}) {
   const args: Args = {
     isDiscovery: false,
     submitted: { current: false },
+    takenOver: false,
     setShowFinishDialog,
     pendingOptionId: null,
     existingAnswer: undefined,
@@ -69,6 +70,11 @@ describe('useQuizLeaveGuard', () => {
     submitted.current = true
     rerender({ ...args, submitted })
     expect(mockGuard).toHaveBeenLastCalledWith(expect.objectContaining({ submitted: true }))
+  })
+
+  it('passes the takeover flag to the navigation guard', () => {
+    setup({ takenOver: true })
+    expect(mockGuard).toHaveBeenLastCalledWith(expect.objectContaining({ takenOver: true }))
   })
 
   it('flags a picked option that has not been submitted', () => {

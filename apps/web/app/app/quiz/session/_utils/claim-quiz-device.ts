@@ -5,8 +5,8 @@ import { getQuizDeviceId } from './quiz-device-id'
 import { announceClaim, clearTakenOver, markTakenOver } from './session-takeover'
 
 // A claim error arriving after this window is dropped; the session is already open. A tab whose
-// claim never lands is kicked on its first write if another device owns the session; an unclaimed
-// session accepts the write.
+// claim never lands learns of a takeover on its first refused write; an unclaimed session accepts
+// the write.
 export const CLAIM_TIMEOUT_MS = 3000
 
 type ClaimResult = Awaited<ReturnType<typeof claimQuizSession>>
@@ -46,7 +46,7 @@ export function claimQuizDeviceBounded(sessionId: string): Promise<string | null
   return withTimeout(claim, CLAIM_TIMEOUT_MS, null)
 }
 
-/** Runs `call`; a takeover error marks the session taken over. This tab never claims it back. */
+/** Runs `call`; a takeover error marks the session taken over. */
 export async function withTakeoverCheck<R extends { success: boolean; error?: string }>(
   sessionId: string,
   call: () => Promise<R>,
