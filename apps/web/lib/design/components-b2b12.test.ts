@@ -78,7 +78,6 @@ describe('B2b-12 AC 6 tabs at 320', () => {
 
 describe('B2b-12 AC 7 setup order', () => {
   const FORMS = [
-    `${Q}_components/quiz-config-form.tsx`,
     `${Q}_components/study-config-form.tsx`,
     `${A}vfr-rt/_components/vfr-rt-config-form.tsx`,
   ]
@@ -92,6 +91,15 @@ describe('B2b-12 AC 7 setup order', () => {
       expect(s).toContain('lg:sticky')
     })
   }
+  it('quiz-config-form.tsx places the tree column before the Start actions on a lg grid', () => {
+    const form = src(`${Q}_components/quiz-config-form.tsx`)
+    const body = form.slice(form.indexOf('export function QuizConfigForm'))
+    expect(body.indexOf('<TopicTreeColumn')).toBeGreaterThan(-1)
+    expect(body.indexOf('<TopicTreeColumn')).toBeLessThan(body.indexOf('<QuizStartActions'))
+    expect(form).toContain('lg:grid-rows-(--layout-setup-rows)')
+    expect(form).toContain('lg:row-span-2')
+    expect(src(`${Q}_components/quiz-start-actions.tsx`)).toContain('lg:sticky')
+  })
   it('declares --layout-setup-rows as auto 1fr', () => {
     expect(src('lib/design/scale.ts')).toMatch(/'layout-setup-rows':\s*'auto 1fr'/)
   })

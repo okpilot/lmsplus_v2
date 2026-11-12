@@ -1,3 +1,5 @@
+import * as Sentry from '@sentry/nextjs'
+import { unstable_rethrow } from 'next/navigation'
 import { getMockExamSubjects } from '@/lib/queries/exam-subjects'
 import { loadQuizSetupPreload } from '@/lib/queries/quiz-setup-preload'
 import { getSubjectsWithCounts } from '@/lib/queries/quiz-subject-queries'
@@ -5,7 +7,12 @@ import { QuizConfigForm } from './quiz-config-form'
 
 export async function SubjectsSection({ userId }: Readonly<{ userId: string }>) {
   const [subjects, examSubjects] = await Promise.all([
-    getSubjectsWithCounts(),
+    getSubjectsWithCounts().catch((error: unknown) => {
+      unstable_rethrow(error)
+      console.error('[SubjectsSection] subject list or question counts read failed:', error)
+      Sentry.captureException(error)
+      return null
+    }),
     getMockExamSubjects(),
   ])
   // Unawaited on purpose: the form renders on the subjects alone and the preload streams in.
@@ -13,7 +20,8 @@ export async function SubjectsSection({ userId }: Readonly<{ userId: string }>) 
   return (
     <QuizConfigForm
       userId={userId}
-      subjects={subjects}
+      subjects={subjects ?? []}
+      subjectsFailed={subjects === null}
       examSubjects={examSubjects}
       preload={preload}
     />
