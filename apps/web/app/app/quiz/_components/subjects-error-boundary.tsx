@@ -13,7 +13,7 @@ function SubjectsErrorAlert({ error, retry }: Readonly<Pick<ErrorInfo, 'error' |
   return <SubjectsLoadFailedAlert onRetry={() => retry()} />
 }
 
-/** Contains a SubjectsSection throw (an exam-subjects read) inside the New quiz tab; a subject-list failure is handled in the form. */
+/** Contains any other SubjectsSection error (e.g. the exam-subjects read's client throw, a form render error) inside the New quiz tab; a subject-list failure is handled in the form. */
 export default catchError((_props: Readonly<Record<never, never>>, { error, retry }: ErrorInfo) => (
   <SubjectsErrorAlert error={error} retry={retry} />
 ))

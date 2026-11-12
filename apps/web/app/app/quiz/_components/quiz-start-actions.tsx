@@ -18,9 +18,10 @@ type QuizStartActionsProps = {
 export function QuizStartActions(props: Readonly<QuizStartActionsProps>) {
   const { config, exam, examSubjectId, subjectsFailed } = props
   const isExam = config.mode === 'exam'
+  if (subjectsFailed && !isExam) return null
   return (
     <div className="space-y-stack lg:col-start-1 lg:row-start-2 lg:sticky lg:top-section">
-      {!isExam && !subjectsFailed && config.subjectId && (
+      {!isExam && config.subjectId && (
         <Card>
           <CardContent>
             <QuestionCount
@@ -50,7 +51,7 @@ export function QuizStartActions(props: Readonly<QuizStartActionsProps>) {
           onClick={exam.handleStart}
         />
       )}
-      {!isExam && !subjectsFailed && (
+      {!isExam && (
         <StartButton
           disabled={
             !config.subjectId ||

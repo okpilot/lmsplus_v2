@@ -591,5 +591,30 @@ describe('QuizConfigForm', () => {
       renderFailed()
       expect(screen.queryByTestId('topic-tree')).not.toBeInTheDocument()
     })
+
+    it('offers no save-and-start button for a blocked start in study mode', () => {
+      mockUseQuizConfig.mockReturnValue(
+        makeDefaultConfig({
+          mode: 'study',
+          subjectId: 'sub-1',
+          error: 'Another session is active',
+          blocked: { ...IDLE_BLOCKED, offer: { sessionId: 'b-1', subjectName: 'Air Law' } },
+        }),
+      )
+      renderFailed()
+      expect(screen.getByRole('alert')).toHaveTextContent('Quiz subjects could not be loaded.')
+      expect(
+        screen.queryByRole('button', { name: 'Save quiz for later and start quiz' }),
+      ).not.toBeInTheDocument()
+    })
+
+    it('shows no session expired message in study mode', () => {
+      mockUseQuizConfig.mockReturnValue(
+        makeDefaultConfig({ mode: 'study', subjectId: 'sub-1', authError: true }),
+      )
+      renderFailed()
+      expect(screen.getByRole('alert')).toHaveTextContent('Quiz subjects could not be loaded.')
+      expect(screen.queryByText(/session expired/i)).not.toBeInTheDocument()
+    })
   })
 })
