@@ -32,17 +32,10 @@ function isQuestionCountRow(value: unknown): value is QuestionCountRow {
 }
 
 /**
- * Shared active-question-count read for the quiz taxonomy queries — every exported
- * function in `quiz-subject-queries.ts` calls it to attach `questionCount` to subjects,
- * topics and subtopics. Extracted out of that file.
+ * Shared active-question-count read for the quiz taxonomy queries.
  *
- * Degrades to `[]` rather than throwing, so a counts failure cannot surface as an error page.
- * Note what that actually means for the caller: an absent count becomes `questionCount: 0`,
- * which every caller's `questionCount > 0` filter then drops — so an RPC failure renders an
- * EMPTY picker, not an undecorated one. The existing tests encode that (`toEqual([])`).
- *
- * A malformed ROW is narrower: it is dropped individually and the remaining rows still render,
- * so one drifted row costs one count rather than the whole picker.
+ * Throws on an RPC error, a non-array payload, or when every row fails the shape check. An
+ * individual malformed row is logged and dropped; the remaining rows are returned.
  */
 export async function fetchActiveQuestionCounts(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
@@ -50,25 +43,19 @@ export async function fetchActiveQuestionCounts(
   const { data, error } = await supabase.rpc('get_question_counts', {
     p_status: 'active',
   })
-  if (error) {
-    console.error('[fetchActiveQuestionCounts] get_question_counts error:', error.message)
-    return []
-  }
+  if (error) throw new Error(`Failed to fetch question counts: ${error.message}`)
   if (!Array.isArray(data)) {
-    // `null` (the RPC returned nothing) and a drifted return shape are different operational
-    // facts, and `typeof null === 'object'` would collapse them into one message.
-    console.error(
-      '[fetchActiveQuestionCounts] payload is not an array:',
-      data === null ? 'null' : typeof data,
+    throw new Error(
+      `Failed to fetch question counts: payload is ${data === null ? 'null' : typeof data}`,
     )
-    return []
   }
   const rows = data.filter(isQuestionCountRow)
+  if (data.length > 0 && rows.length === 0) {
+    throw new Error('Failed to fetch question counts: every row failed the shape check')
+  }
   if (rows.length !== data.length) {
-    // Total vs partial drift are different facts: every row failing is a contract change.
-    const suffix = rows.length === 0 ? ' — every row failed, likely an RPC contract change' : ''
     console.error(
-      `[fetchActiveQuestionCounts] dropped ${data.length - rows.length} of ${data.length} malformed row(s)${suffix}`,
+      `[fetchActiveQuestionCounts] dropped ${data.length - rows.length} of ${data.length} malformed row(s)`,
     )
   }
   return rows
