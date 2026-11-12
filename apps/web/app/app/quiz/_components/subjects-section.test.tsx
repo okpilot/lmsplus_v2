@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetSubjects, mockGetExamSubjects, mockLoadPreload } = vi.hoisted(() => ({
+const { mockGetSubjects, mockGetExamSubjects, mockLoadPreload, mockCapture } = vi.hoisted(() => ({
+  mockCapture: vi.fn(),
   mockGetSubjects: vi.fn(),
   mockGetExamSubjects: vi.fn(),
   mockLoadPreload: vi.fn(),
@@ -12,6 +13,7 @@ const { mockGetSubjects, mockGetExamSubjects, mockLoadPreload } = vi.hoisted(() 
 vi.mock('@/lib/queries/quiz-subject-queries', () => ({ getSubjectsWithCounts: mockGetSubjects }))
 vi.mock('@/lib/queries/exam-subjects', () => ({ getMockExamSubjects: mockGetExamSubjects }))
 vi.mock('@/lib/queries/quiz-setup-preload', () => ({ loadQuizSetupPreload: mockLoadPreload }))
+vi.mock('@sentry/nextjs', () => ({ captureException: mockCapture }))
 vi.mock('./quiz-config-form', () => ({ QuizConfigForm: () => null }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -52,12 +54,42 @@ describe('SubjectsSection', () => {
     expect(p.preload).toBeInstanceOf(Promise)
   })
 
-  it('rejects when the subject list read fails, so the error boundary shows', async () => {
+  it('resolves to the form with subjectsFailed and no subjects when the counts read fails', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const exam = [{ id: 'e1' }]
+    mockGetExamSubjects.mockResolvedValue(exam)
     mockGetSubjects.mockRejectedValue(new Error('Failed to fetch question counts: x'))
 
-    await expect(SubjectsSection({ userId: 'u1' })).rejects.toThrow(
-      'Failed to fetch question counts',
-    )
+    const p = await props()
+
+    expect(p.subjectsFailed).toBe(true)
+    expect(p.subjects).toEqual([])
+    expect(p.examSubjects).toEqual(exam)
+  })
+
+  it('reports a counts read failure to Sentry once and logs it', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const error = new Error('Failed to fetch question counts: x')
+    mockGetSubjects.mockRejectedValue(error)
+
+    await props()
+
+    expect(mockCapture).toHaveBeenCalledTimes(1)
+    expect(mockCapture).toHaveBeenCalledWith(error)
+    expect(consoleError).toHaveBeenCalled()
+  })
+
+  it('rejects when the exam subjects read fails, so the error boundary shows', async () => {
+    mockGetExamSubjects.mockRejectedValue(new Error('exam subjects failed'))
+
+    await expect(SubjectsSection({ userId: 'u1' })).rejects.toThrow('exam subjects failed')
+  })
+
+  it('does not flag subjectsFailed or report to Sentry when both reads succeed', async () => {
+    const p = await props()
+
+    expect(p.subjectsFailed).toBeFalsy()
+    expect(mockCapture).not.toHaveBeenCalled()
   })
 
   it('renders the form with the subject and exam lists', async () => {

@@ -16,6 +16,7 @@ import { QuestionCount } from './question-count'
 import { QuestionFilters } from './question-filters'
 import { StartButton } from './start-button'
 import { SubjectSelect } from './subject-select'
+import { SubjectsUnavailablePanel } from './subjects-unavailable-panel'
 import { TopicTree } from './topic-tree'
 
 type QuizConfigFormProps = {
@@ -23,16 +24,26 @@ type QuizConfigFormProps = {
   subjects: SubjectOption[]
   examSubjects: ExamSubjectOption[]
   preload?: PreloadPromise
+  subjectsFailed?: boolean
 }
 
 // biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export function QuizConfigForm(props: Readonly<QuizConfigFormProps>) {
-  const { userId, subjects, examSubjects, preload } = props
+  const { userId, subjects, examSubjects, preload, subjectsFailed } = props
   const config = useQuizConfig({ subjects, preload })
   const isExam = config.mode === 'exam'
 
   const [examSubjectId, setExamSubjectId] = useState('')
   const exam = useExamStart({ subjectId: examSubjectId, examSubjects })
+
+  if (subjectsFailed && !isExam)
+    return (
+      <SubjectsUnavailablePanel
+        mode={config.mode}
+        onModeChange={config.setMode}
+        examAvailable={examSubjects.length > 0}
+      />
+    )
 
   if (config.mode === 'discovery')
     return (

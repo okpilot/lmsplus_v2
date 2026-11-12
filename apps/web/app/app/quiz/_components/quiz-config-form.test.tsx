@@ -11,6 +11,8 @@ const { mockUseQuizConfig, mockUseExamStart } = vi.hoisted(() => ({
   mockUseExamStart: vi.fn(),
 }))
 
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }))
+
 vi.mock('../_hooks/use-quiz-config', () => ({
   useQuizConfig: () => mockUseQuizConfig(),
 }))
@@ -494,5 +496,71 @@ describe('QuizConfigForm', () => {
     expect(
       screen.getByRole('button', { name: 'Save quiz for later and start quiz' }),
     ).toBeInTheDocument()
+  })
+
+  // ---- subjectsFailed (#1761) ------------------------------------------------
+
+  describe('when the subjects read failed', () => {
+    const renderFailed = () =>
+      render(
+        <QuizConfigForm
+          userId="test-user-id"
+          subjects={[]}
+          examSubjects={EXAM_SUBJECTS}
+          subjectsFailed
+        />,
+      )
+
+    it('shows the subjects alert and mode toggle, no Start Quiz or study form, in discovery mode', () => {
+      mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ mode: 'discovery' }))
+      renderFailed()
+      expect(screen.getByRole('alert')).toHaveTextContent('Quiz subjects could not be loaded.')
+      expect(screen.getByTestId('mode-toggle')).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /start quiz/i })).not.toBeInTheDocument()
+      expect(screen.queryByTestId('study-config-form')).not.toBeInTheDocument()
+    })
+
+    it('shows the subjects alert in study mode', () => {
+      mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ mode: 'study' }))
+      renderFailed()
+      expect(screen.getByRole('alert')).toHaveTextContent('Quiz subjects could not be loaded.')
+      expect(screen.queryByRole('button', { name: /start quiz/i })).not.toBeInTheDocument()
+    })
+
+    it('renders the exam form and Start Practice Exam, no alert, in exam mode', () => {
+      mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ mode: 'exam' }))
+      renderFailed()
+      expect(screen.getByTestId('exam-config-form')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Start Practice Exam' })).toBeInTheDocument()
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
+
+    it('shows the exam form after toggling to Exam and the alert again after toggling back', async () => {
+      let mode: QuizMode = 'study'
+      const setMode = vi.fn((m: QuizMode) => {
+        mode = m
+      })
+      mockUseQuizConfig.mockImplementation(() => makeDefaultConfig({ mode, setMode }))
+      const user = userEvent.setup()
+      const { rerender } = renderFailed()
+      const again = () =>
+        rerender(
+          <QuizConfigForm
+            userId="test-user-id"
+            subjects={[]}
+            examSubjects={EXAM_SUBJECTS}
+            subjectsFailed
+          />,
+        )
+
+      await user.click(screen.getByRole('button', { name: 'Exam' }))
+      again()
+      expect(screen.getByTestId('exam-config-form')).toBeInTheDocument()
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: 'Study' }))
+      again()
+      expect(screen.getByRole('alert')).toHaveTextContent('Quiz subjects could not be loaded.')
+    })
   })
 })
