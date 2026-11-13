@@ -93,7 +93,11 @@ describe('Trigger: questions require a subtopic when the topic has live subtopic
 
   afterAll(async () => {
     const errors: string[] = []
-    await cleanupTestData({ admin, orgId, userIds })
+    try {
+      await cleanupTestData({ admin, orgId, userIds })
+    } catch (e) {
+      errors.push(`cleanupTestData: ${e instanceof Error ? e.message : String(e)}`)
+    }
     const now = new Date().toISOString()
     for (const id of subjectIds) {
       const { data: topics, error: lookupErr } = await admin
