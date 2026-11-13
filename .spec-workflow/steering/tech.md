@@ -83,7 +83,7 @@ lmsplusv2/
 
 ### Code Quality Tools
 
-- **Lint & format**: Biome v2.6.4 (`biome.json`). Single binary replacing ESLint + Prettier. Rules: `noUnusedVariables`, `noUnusedImports`, `noExplicitAny`, `noVar` (all error). Formatting: 2-space indent, 100-char line width, single quotes, no semicolons, trailing commas.
+- **Lint & format**: Biome v2.6.6 (`biome.json`). Single binary replacing ESLint + Prettier. Rules: `noUnusedVariables`, `noUnusedImports`, `noExplicitAny`, `noVar` (all error). Formatting: 2-space indent, 100-char line width, single quotes, no semicolons, trailing commas.
 - **Static analysis**: SonarCloud (CI), GitHub CodeQL (weekly + on PRs), Biome's 450+ built-in rules.
 - **Testing**:
   - **Unit/integration**: Vitest with v8 coverage provider. 2000+ tests across 165+ files. Co-located with source files (no `__tests__/` directories). A second **app-layer DB integration tier** (`apps/web/vitest.integration.config.ts`, `*.integration.test.ts`) runs the real `apps/web` query code against a real local Postgres under RLS — closing the mocked-client schema blind spot (#925).
