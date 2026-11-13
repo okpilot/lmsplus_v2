@@ -93,8 +93,6 @@ describe('Trigger: questions require a subtopic when the topic has live subtopic
 
   afterAll(async () => {
     const errors: string[] = []
-    const { error: qErr } = await admin.from('questions').delete().eq('organization_id', orgId)
-    if (qErr) errors.push(`questions: ${qErr.message}`)
     await cleanupTestData({ admin, orgId, userIds })
     const now = new Date().toISOString()
     for (const id of subjectIds) {
