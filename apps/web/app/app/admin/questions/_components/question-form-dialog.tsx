@@ -14,6 +14,7 @@ import {
 import { LoadingButton } from '@/components/ui/loading-button'
 import type { SyllabusTree } from '../../syllabus/types'
 import { buildQuestionPayload, canSubmitQuestion } from '../_hooks/question-payload'
+import { topicRequiresSubtopic } from '../_hooks/topic-requires-subtopic'
 import { useCorrectOptionLoader } from '../_hooks/use-correct-option-loader'
 import { useQuestionFormState } from '../_hooks/use-question-form-state'
 import { upsertQuestion } from '../actions/upsert-question'
@@ -33,7 +34,7 @@ export function QuestionFormDialog({ tree, question, trigger }: Readonly<Props>)
   const { state: s, handlers: h } = useQuestionFormState(question, open)
 
   const payload = buildQuestionPayload(s, question?.id)
-  const canSubmit = canSubmitQuestion(s)
+  const canSubmit = canSubmitQuestion(s, topicRequiresSubtopic(tree, s.subjectId, s.topicId))
 
   function handleSubmit() {
     startTransition(async () => {

@@ -114,6 +114,14 @@ describe('RLS: enrolment-scoped easa_* and questions visibility', () => {
     const rt = await getRtRefs()
     rtSubjectId = rt.rtSubjectId
     rtP3TopicId = rt.p3TopicId
+    const { data: rtSub, error: rtSubErr } = await admin
+      .from('easa_subtopics')
+      .select('id')
+      .eq('topic_id', rtP3TopicId)
+      .is('deleted_at', null)
+      .limit(1)
+      .single()
+    if (rtSubErr || !rtSub) throw new Error(`rt subtopic: ${rtSubErr?.message}`)
     const bankId = await ensureBank(orgId, ids['ev-admin'] as string)
     rtQuestionId = await insertMcQuestion({
       orgId,
@@ -121,6 +129,7 @@ describe('RLS: enrolment-scoped easa_* and questions visibility', () => {
       adminId: ids['ev-admin'] as string,
       rtSubjectId,
       p3TopicId: rtP3TopicId,
+      subtopicId: rtSub.id as string,
       idx: 900,
     })
   })

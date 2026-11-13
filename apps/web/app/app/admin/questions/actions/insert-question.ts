@@ -35,6 +35,9 @@ export async function insertQuestion(
     if (error.code === '23505') {
       return { success: false, error: 'A question with this number already exists' }
     }
+    if (error.message?.includes('subtopic_required')) {
+      return { success: false, error: 'Choose a subtopic for this topic' }
+    }
     console.error('[insertQuestion] Insert error:', error.message)
     return { success: false, error: 'Failed to save question' }
   }

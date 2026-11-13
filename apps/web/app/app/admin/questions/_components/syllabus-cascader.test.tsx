@@ -128,10 +128,18 @@ describe('SyllabusCascader', () => {
     expect(screen.getByText('050 01 — The Atmosphere')).toBeInTheDocument()
   })
 
-  it('maps null subtopicId to the __none__ sentinel value and renders "None" option', () => {
+  it('maps null subtopicId to the __none__ sentinel value and renders "None" option for a topic without subtopics', () => {
+    const flat: SyllabusTree = [
+      {
+        ...(TREE[0] as SyllabusTree[number]),
+        topics: [
+          { ...(TREE[0]?.topics[0] as SyllabusTree[number]['topics'][number]), subtopics: [] },
+        ],
+      },
+    ]
     render(
       <SyllabusCascader
-        tree={TREE}
+        tree={flat}
         subjectId="subj-1"
         topicId="topic-1"
         subtopicId={null}
@@ -145,6 +153,48 @@ describe('SyllabusCascader', () => {
     const subtopicSelect = selects[2] // third select = subtopic
     expect(subtopicSelect).toHaveAttribute('data-value', '__none__')
     // "None" SelectItem should be rendered (may appear multiple times due to placeholder)
+    expect(screen.getAllByText('None').length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('offers no "None" option and drops "(optional)" when the topic has subtopics', () => {
+    render(
+      <SyllabusCascader
+        tree={TREE}
+        subjectId="subj-1"
+        topicId="topic-1"
+        subtopicId={null}
+        onSubjectChange={vi.fn()}
+        onTopicChange={vi.fn()}
+        onSubtopicChange={vi.fn()}
+      />,
+    )
+    expect(screen.queryAllByText('None')).toHaveLength(0)
+    expect(document.querySelector('[data-value="__none__"]')).toBeNull()
+    expect(screen.getByText('Subtopic')).toBeInTheDocument()
+    expect(screen.queryByText('Subtopic (optional)')).not.toBeInTheDocument()
+  })
+
+  it('keeps "None" and "(optional)" when the topic has no subtopics', () => {
+    const noSubs: SyllabusTree = [
+      {
+        ...(TREE[0] as SyllabusTree[number]),
+        topics: [
+          { ...(TREE[0]?.topics[0] as SyllabusTree[number]['topics'][number]), subtopics: [] },
+        ],
+      },
+    ]
+    render(
+      <SyllabusCascader
+        tree={noSubs}
+        subjectId="subj-1"
+        topicId="topic-1"
+        subtopicId={null}
+        onSubjectChange={vi.fn()}
+        onTopicChange={vi.fn()}
+        onSubtopicChange={vi.fn()}
+      />,
+    )
+    expect(screen.getByText('Subtopic (optional)')).toBeInTheDocument()
     expect(screen.getAllByText('None').length).toBeGreaterThanOrEqual(1)
   })
 })

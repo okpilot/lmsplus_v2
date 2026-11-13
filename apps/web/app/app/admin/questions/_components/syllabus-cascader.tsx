@@ -42,8 +42,9 @@ export function SyllabusCascader({
 
   const subjectItems = tree.map((s) => ({ value: s.id, label: `${s.code} — ${s.name}` }))
   const topicItems = topics.map((t) => ({ value: t.id, label: `${t.code} — ${t.name}` }))
+  const subtopicRequired = subtopics.length > 0
   const subtopicItems = [
-    { value: '__none__', label: 'None' },
+    ...(subtopicRequired ? [] : [{ value: '__none__', label: 'None' }]),
     ...subtopics.map((st) => ({ value: st.id, label: `${st.code} — ${st.name}` })),
   ]
 
@@ -97,21 +98,23 @@ export function SyllabusCascader({
 
       <div>
         <Label htmlFor={subtopicId_} className="mb-1 block">
-          Subtopic (optional)
+          {subtopicRequired ? 'Subtopic' : 'Subtopic (optional)'}
         </Label>
         <Select
-          value={subtopicId ?? '__none__'}
+          value={subtopicId ?? (subtopicRequired ? '' : '__none__')}
           onValueChange={(v) => onSubtopicChange(v === '__none__' || v === null ? null : v)}
           disabled={disabled || subtopics.length === 0}
           items={subtopicItems}
         >
           <SelectTrigger id={subtopicId_}>
-            <SelectValue placeholder="None" />
+            <SelectValue placeholder={subtopicRequired ? 'Select subtopic' : 'None'} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="__none__" label="None">
-              None
-            </SelectItem>
+            {!subtopicRequired && (
+              <SelectItem value="__none__" label="None">
+                None
+              </SelectItem>
+            )}
             {subtopics.map((st) => (
               <SelectItem key={st.id} value={st.id} label={`${st.code} — ${st.name}`}>
                 {st.code} — {st.name}
