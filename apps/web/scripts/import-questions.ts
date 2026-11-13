@@ -495,6 +495,13 @@ async function main() {
     )
     process.exit(1)
   }
+  const topics = new Set(questions.map((q) => q.topic ?? folderMeta.topicCode))
+  if (topics.size > 1) {
+    console.error(
+      `Questions reference multiple topics: ${[...topics].map((t) => t ?? '(none)').join(', ')}.\nImport one topic per file. Split the JSON and re-run.`,
+    )
+    process.exit(1)
+  }
 
   console.log('Reference data:')
   const firstQuestion = questions[0]
