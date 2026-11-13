@@ -217,7 +217,7 @@ test.describe('Red Team: get_admin_report_answer_keys / get_admin_report_correct
     // rpc-report-answer-keys.spec.ts's beforeAll).
     const { data: fkRow, error: fkErr } = await admin
       .from('questions')
-      .select('bank_id, topic_id, created_by')
+      .select('bank_id, topic_id, subtopic_id, created_by')
       .eq('organization_id', orgAId)
       .eq('subject_id', subjectId)
       .eq('status', 'active')
@@ -229,6 +229,7 @@ test.describe('Red Team: get_admin_report_answer_keys / get_admin_report_correct
     if (!fkRow) throw new Error('beforeAll: no active org-A question to derive FKs from')
     const bankId = fkRow.bank_id as string
     const topicId = fkRow.topic_id as string
+    const subtopicId = (fkRow.subtopic_id as string | null) ?? null
     const createdBy = fkRow.created_by as string
 
     // Insert one short_answer + one dialog_fill question via the service-role
@@ -240,6 +241,7 @@ test.describe('Red Team: get_admin_report_answer_keys / get_admin_report_correct
       bank_id: bankId,
       subject_id: subjectId,
       topic_id: topicId,
+      subtopic_id: subtopicId,
       created_by: createdBy,
       question_text: `${E2E_REDTEAM_FK_MARKER} admin-report-answer-keys fixture`,
       explanation_text: 'Red-team FK fixture explanation.',

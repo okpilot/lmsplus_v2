@@ -170,6 +170,8 @@ describe('SyllabusCascader', () => {
     )
     expect(screen.queryAllByText('None')).toHaveLength(0)
     expect(document.querySelector('[data-value="__none__"]')).toBeNull()
+    expect(screen.getAllByTestId('select')[2]).not.toHaveAttribute('data-value')
+    expect(screen.getByText('Select subtopic')).toBeInTheDocument()
     expect(screen.getByText('Subtopic')).toBeInTheDocument()
     expect(screen.queryByText('Subtopic (optional)')).not.toBeInTheDocument()
   })

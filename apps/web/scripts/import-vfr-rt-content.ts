@@ -566,8 +566,18 @@ async function resolveSubtopicIds(
   }
   const unfiled = file.questions.find((q) => subtopicCodeFor(file, q) === undefined)
   if (unfiled !== undefined) {
-    const codes = await describeSubtopicCodes(topicId)
-    if (!codes.startsWith('<none')) {
+    const { count, error: liveErr } = await db
+      .from('easa_subtopics')
+      .select('id', { count: 'exact', head: true })
+      .eq('topic_id', topicId)
+      .is('deleted_at', null)
+    if (liveErr) {
+      throw new Error(
+        `${rel}: subtopic lookup failed for topic ${file.topic_code}: ${liveErr.message}`,
+      )
+    }
+    if ((count ?? 0) > 0) {
+      const codes = await describeSubtopicCodes(topicId)
       throw new Error(
         `${rel} (${unfiled.num}): no subtopic code, but topic ${file.topic_code} has subtopics — set 'subtopic_code' or 'subtopic'. Codes: ${codes}`,
       )

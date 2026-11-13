@@ -101,7 +101,7 @@ export function SyllabusCascader({
           {subtopicRequired ? 'Subtopic' : 'Subtopic (optional)'}
         </Label>
         <Select
-          value={subtopicId ?? (subtopicRequired ? '' : '__none__')}
+          value={subtopicId ?? (subtopicRequired ? null : '__none__')}
           onValueChange={(v) => onSubtopicChange(v === '__none__' || v === null ? null : v)}
           disabled={disabled || subtopics.length === 0}
           items={subtopicItems}

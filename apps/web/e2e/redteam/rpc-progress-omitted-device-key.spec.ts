@@ -94,7 +94,7 @@ test.describe('Red Team: progress RPCs with omitted device key (Vectors JY/JZ)',
     victim = await createAuthenticatedClient(VICTIM_EMAIL, VICTIM_PASSWORD)
     const { data, error } = await admin
       .from('questions')
-      .select('id, bank_id, subject_id, topic_id, created_by, options')
+      .select('id, bank_id, subject_id, topic_id, subtopic_id, created_by, options')
       .eq('organization_id', orgId)
       .eq('question_type', 'multiple_choice')
       .eq('status', 'active')
@@ -104,7 +104,7 @@ test.describe('Red Team: progress RPCs with omitted device key (Vectors JY/JZ)',
       .limit(1)
       .single()
     if (error || !isRecord(data)) throw new Error(`beforeAll mc: ${error?.message ?? 'none'}`)
-    const { id, bank_id, subject_id, topic_id, created_by, options } = data
+    const { id, bank_id, subject_id, topic_id, subtopic_id, created_by, options } = data
     if (
       typeof id !== 'string' ||
       typeof bank_id !== 'string' ||
@@ -128,6 +128,7 @@ test.describe('Red Team: progress RPCs with omitted device key (Vectors JY/JZ)',
         bank_id,
         subject_id,
         topic_id,
+        subtopic_id,
         created_by,
         question_text: `${E2E_REDTEAM_JY_MARKER} short answer`,
         question_number: `${E2E_REDTEAM_JY_MARKER}-SA-${Date.now()}`,

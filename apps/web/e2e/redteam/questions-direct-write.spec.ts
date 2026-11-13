@@ -122,6 +122,7 @@ test.describe('Red Team: direct writes to questions (Vector EX)', () => {
   let bankId = ''
   let subjectId = ''
   let topicId = ''
+  let subtopicId: string | null = null
   let authorId = ''
 
   // Every attacked row is the spec's own (see the hermeticity note in the header).
@@ -152,6 +153,7 @@ test.describe('Red Team: direct writes to questions (Vector EX)', () => {
       bank_id: bankId,
       subject_id: subjectId,
       topic_id: topicId,
+      subtopic_id: subtopicId,
       created_by: authorId,
       question_text: `${MARKER} ${label} fixture`,
       // question_number is UNIQUE per (bank_id, question_number) WHERE
@@ -201,6 +203,7 @@ test.describe('Red Team: direct writes to questions (Vector EX)', () => {
     const picked = await pickSubjectWithQuestions(adminClient, { orgId })
     subjectId = picked.subjectId
     topicId = picked.topicId
+    subtopicId = picked.subtopicId
 
     const { data: fkRow, error: fkError } = await adminClient
       .from('questions')

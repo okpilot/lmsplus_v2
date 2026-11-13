@@ -22,7 +22,7 @@ BEGIN
   IF NEW.deleted_at IS NULL AND NEW.subtopic_id IS NULL AND EXISTS (
     SELECT 1 FROM public.easa_subtopics s WHERE s.topic_id = NEW.topic_id AND s.deleted_at IS NULL
   ) THEN
-    RAISE EXCEPTION 'subtopic_required' USING ERRCODE = '23514';
+    RAISE EXCEPTION 'subtopic_required';
   END IF;
   RETURN NEW;
 END;

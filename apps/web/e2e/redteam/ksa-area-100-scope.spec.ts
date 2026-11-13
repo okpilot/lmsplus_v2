@@ -18,6 +18,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { cleanupStudentActiveSessions, getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
 import { upsertUser } from './helpers/seed-core'
+import { findLiveSubtopicId } from './helpers/seed-quiz'
 
 const E2E_REDTEAM_KSA_MARKER = '[E2E_REDTEAM_KSA]'
 const ORG_SLUG = 'redteam-ksa-org'
@@ -216,7 +217,7 @@ test.describe('Red Team: Area 100 KSA scope (KU, KV)', () => {
       bank.id as string,
       fs.id as string,
       foreignTopicId,
-      null,
+      await findLiveSubtopicId(admin, foreignTopicId),
       '050',
     )
 

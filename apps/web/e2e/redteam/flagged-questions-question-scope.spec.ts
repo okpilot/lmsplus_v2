@@ -43,6 +43,7 @@ type Scaffold = {
   bank_id: string
   subject_id: string
   topic_id: string
+  subtopic_id: string | null
   created_by: string
 }
 
@@ -161,7 +162,7 @@ test.describe('Red Team: flagged_questions question scope (KZ1-KZ6b)', () => {
     expect(subj.course_id).toBe(PPL_COURSE_ID)
     const { data: q, error: qErr } = await admin
       .from('questions')
-      .select('id, bank_id, subject_id, topic_id, created_by')
+      .select('id, bank_id, subject_id, topic_id, subtopic_id, created_by')
       .eq('organization_id', orgId)
       .eq('subject_id', subj.id)
       .eq('question_type', 'multiple_choice')
@@ -176,6 +177,7 @@ test.describe('Red Team: flagged_questions question scope (KZ1-KZ6b)', () => {
       bank_id: q.bank_id,
       subject_id: q.subject_id,
       topic_id: q.topic_id,
+      subtopic_id: q.subtopic_id,
       created_by: q.created_by,
     }
 

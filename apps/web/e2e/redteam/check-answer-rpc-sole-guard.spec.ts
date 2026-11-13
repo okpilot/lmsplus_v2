@@ -99,6 +99,7 @@ test.describe('Red Team: check-answer actions rely on the RPC session guard (HZ)
     bank_id: string
     subject_id: string
     topic_id: string
+    subtopic_id: string | null
     created_by: string
   }
   const createdSaIds = new Set<string>()
@@ -106,7 +107,7 @@ test.describe('Red Team: check-answer actions rely on the RPC session guard (HZ)
   const pickQuestions = async (n: number) => {
     const { data, error } = await admin
       .from('questions')
-      .select('id, correct_option_id, bank_id, subject_id, topic_id, created_by')
+      .select('id, correct_option_id, bank_id, subject_id, topic_id, subtopic_id, created_by')
       .eq('organization_id', orgId)
       .eq('question_type', 'multiple_choice')
       .eq('status', 'active')
@@ -193,7 +194,7 @@ test.describe('Red Team: check-answer actions rely on the RPC session guard (HZ)
     victimUserId = seed.victimUserId
     const [m1, m2] = await pickQuestions(2)
     if (typeof m1?.id !== 'string' || typeof m2?.id !== 'string') throw new Error('mc ids')
-    const { bank_id, subject_id, topic_id, created_by } = m1
+    const { bank_id, subject_id, topic_id, subtopic_id, created_by } = m1
     if (
       typeof bank_id !== 'string' ||
       typeof subject_id !== 'string' ||
@@ -201,7 +202,7 @@ test.describe('Red Team: check-answer actions rely on the RPC session guard (HZ)
       typeof created_by !== 'string'
     )
       throw new Error('mc scaffolding columns missing')
-    scaffold = { bank_id, subject_id, topic_id, created_by }
+    scaffold = { bank_id, subject_id, topic_id, subtopic_id: subtopic_id ?? null, created_by }
     mcMember = m1.id
     mcOutside = m2.id
   })

@@ -125,6 +125,7 @@ test.describe('Red Team: get_quiz_questions id-sort oracle (Vector EY)', () => {
       bank_id: fkRow.bank_id,
       subject_id: picked.subjectId,
       topic_id: picked.topicId,
+      subtopic_id: picked.subtopicId,
       created_by: adminSeed.adminUserId,
       explanation_text: 'Red-team EY fixture explanation.',
       difficulty: 'medium',

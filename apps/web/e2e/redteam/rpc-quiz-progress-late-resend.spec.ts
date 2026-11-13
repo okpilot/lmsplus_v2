@@ -109,12 +109,12 @@ test.describe('Red Team: progress resend after session end (Vector GT)', () => {
   const insertShortAnswerQuestion = async (mcId: string): Promise<string> => {
     const scaffold = await admin
       .from('questions')
-      .select('bank_id, subject_id, topic_id, created_by')
+      .select('bank_id, subject_id, topic_id, subtopic_id, created_by')
       .eq('id', mcId)
       .single()
     if (scaffold.error || !isRecord(scaffold.data))
       throw new Error(`short_answer scaffold: ${scaffold.error?.message ?? 'none'}`)
-    const { bank_id, subject_id, topic_id, created_by } = scaffold.data
+    const { bank_id, subject_id, topic_id, subtopic_id, created_by } = scaffold.data
     const { data, error } = await admin
       .from('questions')
       .insert({
@@ -122,6 +122,7 @@ test.describe('Red Team: progress resend after session end (Vector GT)', () => {
         bank_id,
         subject_id,
         topic_id,
+        subtopic_id,
         created_by,
         question_text: `${E2E_REDTEAM_GT_MARKER} short answer`,
         question_number: `${E2E_REDTEAM_GT_MARKER}-SA-${Date.now()}`,

@@ -158,7 +158,7 @@ describe('Trigger: questions require a subtopic when the topic has live subtopic
     expect(error?.message).toContain('subtopic_required')
   })
 
-  it('raises SQLSTATE 23514 for the violation', async () => {
+  it('raises SQLSTATE P0001 for the violation', async () => {
     const tree = await newTree(true)
     const { data: bank } = await admin
       .from('question_banks')
@@ -191,7 +191,7 @@ describe('Trigger: questions require a subtopic when the topic has live subtopic
       status: 'active',
       created_by: userIds[0],
     })
-    expect(error?.code).toBe('23514')
+    expect(error?.code).toBe('P0001')
     expect(error?.message).toContain('subtopic_required')
   })
 
