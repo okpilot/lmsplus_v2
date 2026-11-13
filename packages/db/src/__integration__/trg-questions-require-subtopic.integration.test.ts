@@ -223,4 +223,41 @@ describe('Trigger: questions require a subtopic when the topic has live subtopic
     const { error } = await admin.from('questions').update({ status: 'draft' }).eq('id', questionId)
     expect(error).toBeNull()
   })
+
+  it('rejects inserting a subtopic that belongs to another topic', async () => {
+    const a = await newTree(true)
+    const b = await newTree(true)
+    expect(await trySeed(a, b.subtopicId)).toContain('subtopic_topic_mismatch')
+  })
+
+  it('rejects re-pointing topic_id while keeping the old subtopic', async () => {
+    const a = await newTree(true)
+    const b = await newTree(true)
+    const id = await seedOne(a, a.subtopicId)
+    const { error } = await admin
+      .from('questions')
+      .update({ subject_id: b.subjectId, topic_id: b.topicId })
+      .eq('id', id)
+    expect(error?.message).toContain('subtopic_topic_mismatch')
+  })
+
+  it('exempts a soft-deleted row with a mismatched subtopic', async () => {
+    const a = await newTree(true)
+    const b = await newTree(true)
+    const id = await seedOne(a, a.subtopicId)
+    const { error } = await admin
+      .from('questions')
+      .update({
+        subject_id: b.subjectId,
+        topic_id: b.topicId,
+        deleted_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+    expect(error).toBeNull()
+  })
+
+  it('accepts a subtopic that belongs to the question topic', async () => {
+    const a = await newTree(true)
+    expect(await trySeed(a, a.subtopicId)).toBeNull()
+  })
 })

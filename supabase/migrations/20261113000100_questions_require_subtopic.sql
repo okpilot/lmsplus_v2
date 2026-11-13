@@ -1,13 +1,28 @@
 -- #1181: a live question needs a subtopic when its topic has live subtopics.
 
 DO $$
+DECLARE
+  v_missing text;
+  v_mismatch text;
 BEGIN
-  IF EXISTS (
-    SELECT 1 FROM public.questions q
+  SELECT string_agg(id::text, ', ') INTO v_missing FROM (
+    SELECT q.id FROM public.questions q
     WHERE q.deleted_at IS NULL AND q.subtopic_id IS NULL
       AND EXISTS (SELECT 1 FROM public.easa_subtopics s WHERE s.topic_id = q.topic_id AND s.deleted_at IS NULL)
-  ) THEN
-    RAISE EXCEPTION 'questions_require_subtopic: live questions without subtopic exist in topics that have subtopics';
+    LIMIT 10
+  ) x;
+  IF v_missing IS NOT NULL THEN
+    RAISE EXCEPTION 'questions_require_subtopic: subtopic_required violated by live questions: %', v_missing;
+  END IF;
+
+  SELECT string_agg(id::text, ', ') INTO v_mismatch FROM (
+    SELECT q.id FROM public.questions q
+    WHERE q.deleted_at IS NULL AND q.subtopic_id IS NOT NULL
+      AND EXISTS (SELECT 1 FROM public.easa_subtopics s WHERE s.id = q.subtopic_id AND s.topic_id <> q.topic_id)
+    LIMIT 10
+  ) x;
+  IF v_mismatch IS NOT NULL THEN
+    RAISE EXCEPTION 'questions_require_subtopic: subtopic_topic_mismatch violated by live questions: %', v_mismatch;
   END IF;
 END;
 $$;
@@ -23,6 +38,11 @@ BEGIN
     SELECT 1 FROM public.easa_subtopics s WHERE s.topic_id = NEW.topic_id AND s.deleted_at IS NULL
   ) THEN
     RAISE EXCEPTION 'subtopic_required';
+  END IF;
+  IF NEW.deleted_at IS NULL AND NEW.subtopic_id IS NOT NULL AND EXISTS (
+    SELECT 1 FROM public.easa_subtopics s WHERE s.id = NEW.subtopic_id AND s.topic_id <> NEW.topic_id
+  ) THEN
+    RAISE EXCEPTION 'subtopic_topic_mismatch';
   END IF;
   RETURN NEW;
 END;

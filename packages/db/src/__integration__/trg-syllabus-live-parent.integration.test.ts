@@ -364,7 +364,10 @@ describe('Triggers: syllabus live parent and deleted-row freeze', () => {
     const live = await newTree()
     const dead = await deadTree()
     const qid = await seedOne(live, true)
-    const { error } = await admin.from('questions').update({ topic_id: dead.topicId }).eq('id', qid)
+    const { error } = await admin
+      .from('questions')
+      .update({ topic_id: dead.topicId, subtopic_id: dead.subtopicId })
+      .eq('id', qid)
     expect(error?.message).toContain('parent_not_found')
     const { data } = await admin.from('questions').select('topic_id').eq('id', qid).single()
     expect(data?.topic_id).toBe(live.topicId)

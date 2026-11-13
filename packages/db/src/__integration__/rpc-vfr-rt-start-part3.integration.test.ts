@@ -117,9 +117,9 @@ describe('start_vfr_rt_exam_session — Part 3 refusal', () => {
       rtSubjectId: org.rtSubjectId,
       p3TopicId: priv.topicId,
     }
-    await insertMcQuestion({ ...base, subtopicId: priv.subtopicIds.ZZ_FULL, idx: 300 })
-    await insertMcQuestion({ ...base, subtopicId: priv.subtopicIds.ZZ_FULL, idx: 301 })
-    await insertMcQuestion({ ...base, subtopicId: priv.subtopicIds.ZZ_SHORT, idx: 302 })
+    await insertMcQuestion({ ...base, subtopicId: priv.subtopicIds.ZZ_FULL as string, idx: 300 })
+    await insertMcQuestion({ ...base, subtopicId: priv.subtopicIds.ZZ_FULL as string, idx: 301 })
+    await insertMcQuestion({ ...base, subtopicId: priv.subtopicIds.ZZ_SHORT as string, idx: 302 })
     await pointConfigAt(priv.topicCode)
 
     const { error } = await org.studentClient.rpc('start_vfr_rt_exam_session', {
@@ -142,7 +142,7 @@ describe('start_vfr_rt_exam_session — Part 3 refusal', () => {
     expect(sessions).toHaveLength(0)
 
     // Control: topping the short subtopic up to 2 lets the same config start, with 2 x 2 Part 3.
-    await insertMcQuestion({ ...base, subtopicId: priv.subtopicIds.ZZ_SHORT, idx: 303 })
+    await insertMcQuestion({ ...base, subtopicId: priv.subtopicIds.ZZ_SHORT as string, idx: 303 })
     const started = await startPart3Exam(org)
     try {
       expect(started.parts).toEqual({ p1_end: 8, p2_end: 17, p3_end: 21 })

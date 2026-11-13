@@ -62,8 +62,11 @@ const STUDENT_PASSWORD = 'student123!'
 
 // ---- question content --------------------------------------------------------
 
+type P3SubtopicCode = 'P3_NUMBERS' | 'P3_EMERGENCY' | 'P3_POSREP' | 'P3_PATTERN'
+
 type MultipleChoice = {
   num: string
+  subtopic: P3SubtopicCode
   text: string
   options: { id: string; text: string }[]
   correct: 'a' | 'b' | 'c' | 'd'
@@ -73,6 +76,7 @@ type MultipleChoice = {
 const MULTIPLE_CHOICE: MultipleChoice[] = [
   {
     num: 'VRT-P3-001',
+    subtopic: 'P3_NUMBERS',
     text: 'What is the correct readback of an altimeter setting of 1009 hPa?',
     options: [
       { id: 'a', text: 'QNH ten oh nine' },
@@ -84,6 +88,7 @@ const MULTIPLE_CHOICE: MultipleChoice[] = [
   },
   {
     num: 'VRT-P3-002',
+    subtopic: 'P3_EMERGENCY',
     text: 'Which transmission word signals a distress condition?',
     options: [
       { id: 'a', text: 'PAN PAN' },
@@ -95,6 +100,7 @@ const MULTIPLE_CHOICE: MultipleChoice[] = [
   },
   {
     num: 'VRT-P3-003',
+    subtopic: 'P3_NUMBERS',
     text: 'How is the flight level 080 transmitted?',
     options: [
       { id: 'a', text: 'Flight level eighty' },
@@ -106,6 +112,7 @@ const MULTIPLE_CHOICE: MultipleChoice[] = [
   },
   {
     num: 'VRT-P3-004',
+    subtopic: 'P3_EMERGENCY',
     text: 'Which word indicates an urgency (not distress) condition?',
     options: [
       { id: 'a', text: 'MAYDAY' },
@@ -117,6 +124,7 @@ const MULTIPLE_CHOICE: MultipleChoice[] = [
   },
   {
     num: 'VRT-P3-005',
+    subtopic: 'P3_NUMBERS',
     text: 'How should the number 100 be transmitted (as an altitude in feet)?',
     options: [
       { id: 'a', text: 'One hundred' },
@@ -128,6 +136,7 @@ const MULTIPLE_CHOICE: MultipleChoice[] = [
   },
   {
     num: 'VRT-P3-006',
+    subtopic: 'P3_NUMBERS',
     text: "What is the phonetic alphabet word for the letter 'R'?",
     options: [
       { id: 'a', text: 'Roger' },
@@ -139,6 +148,7 @@ const MULTIPLE_CHOICE: MultipleChoice[] = [
   },
   {
     num: 'VRT-P3-007',
+    subtopic: 'P3_NUMBERS',
     text: 'When should a full call sign be used again after abbreviation?',
     options: [
       { id: 'a', text: 'Never once abbreviated' },
@@ -150,6 +160,7 @@ const MULTIPLE_CHOICE: MultipleChoice[] = [
   },
   {
     num: 'VRT-P3-008',
+    subtopic: 'P3_NUMBERS',
     text: 'Which phrase confirms an instruction will be complied with?',
     options: [
       { id: 'a', text: 'ROGER' },
@@ -161,6 +172,7 @@ const MULTIPLE_CHOICE: MultipleChoice[] = [
   },
   {
     num: 'VRT-P3-009',
+    subtopic: 'P3_NUMBERS',
     text: 'How is the time 0935 transmitted when the hour is clear?',
     options: [
       { id: 'a', text: 'Thirty-five' },
@@ -172,6 +184,7 @@ const MULTIPLE_CHOICE: MultipleChoice[] = [
   },
   {
     num: 'VRT-P3-010',
+    subtopic: 'P3_NUMBERS',
     text: "What is the correct response to 'How do you read?'",
     options: [
       { id: 'a', text: 'Reading you five' },
@@ -352,6 +365,7 @@ async function ensureBank(orgId: string, adminId: string): Promise<string> {
 
 type Ordering = {
   num: string
+  subtopic: P3SubtopicCode
   text: string
   // Plain strings in CANONICAL order — the array order IS the answer key, and it is
   // the ONLY place the answer lives. Ids are never written here: buildOrderingItems
@@ -365,6 +379,7 @@ type Ordering = {
 const ORDERING: Ordering[] = [
   {
     num: 'VRT-P3-ORD-MAYDAY',
+    subtopic: 'P3_EMERGENCY',
     text: 'Put the parts of a MAYDAY distress call in the correct spoken order.',
     // SIX elements, not five. 'A Guide to VFR Phraseology' (Stumberger) prints six in its
     // distress-message table; this fixture predates the curated content file and omitted
@@ -380,6 +395,7 @@ const ORDERING: Ordering[] = [
   },
   {
     num: 'VRT-P3-ORD-POSREP',
+    subtopic: 'P3_POSREP',
     text: 'Put the elements of a VFR position report in the correct order.',
     // Diverges from the curated ORD-05 the same way the MAYDAY fixture above diverges from ORD-01,
     // and for the same reason: this fixture predates the content file. ORD-05 prescribes
@@ -401,6 +417,7 @@ const ORDERING: Ordering[] = [
 
 type DiagramLabelQuestion = {
   num: string
+  subtopic: P3SubtopicCode
   text: string
   // The zone_id -> label_id answer key, built from rwy-2709-answer-key.ts
   // (scripts-only; see its header). Distractor labels (Go-around,
@@ -438,6 +455,7 @@ function buildRwy2709Answer(): { zone_id: string; label_id: string }[] {
 const DIAGRAM_LABEL: DiagramLabelQuestion[] = [
   {
     num: 'VRT-P3-DIAG-2709',
+    subtopic: 'P3_PATTERN',
     text: 'Label the RWY 27/09 left-hand traffic pattern: place each label on its matching leg or turn.',
     answer: buildRwy2709Answer(),
   },
@@ -458,6 +476,25 @@ async function insertQuestionIfMissing(bankId: string, row: QuestionRow): Promis
   const { error } = await db.from('questions').insert(row)
   if (error) throw new Error(`Question ${row.question_number}: ${error.message}`)
   return true
+}
+
+async function lookupP3Subtopics(p3TopicId: string): Promise<Record<P3SubtopicCode, string>> {
+  const codes: P3SubtopicCode[] = ['P3_NUMBERS', 'P3_EMERGENCY', 'P3_POSREP', 'P3_PATTERN']
+  const { data, error } = await db
+    .from('easa_subtopics')
+    .select('id, code')
+    .eq('topic_id', p3TopicId)
+    .in('code', codes)
+    .is('deleted_at', null)
+  if (error) throw new Error(`P3_MC subtopics: ${error.message}`)
+  const byCode = new Map((data ?? []).map((r) => [r.code as string, r.id as string]))
+  const out = {} as Record<P3SubtopicCode, string>
+  for (const code of codes) {
+    const id = byCode.get(code)
+    if (!id) throw new Error(`P3_MC subtopic ${code} missing`)
+    out[code] = id
+  }
+  return out
 }
 
 // ---- main ---------------------------------------------------------------------
@@ -482,21 +519,8 @@ async function seed(): Promise<void> {
   const p2TopicId = await lookupId('easa_topics', 'code', 'P2_DIALOG')
   const p3TopicId = await lookupId('easa_topics', 'code', 'P3_MC')
 
-  const { data: p3Subtopics, error: p3SubErr } = await db
-    .from('easa_subtopics')
-    .select('id')
-    .eq('topic_id', p3TopicId)
-    .is('deleted_at', null)
-    .order('sort_order')
-  if (p3SubErr || !p3Subtopics || p3Subtopics.length === 0) {
-    throw new Error(`P3_MC subtopics: ${p3SubErr?.message ?? 'none seeded'}`)
-  }
-  let p3Next = 0
-  const nextP3SubtopicId = (): string => {
-    const row = p3Subtopics[p3Next % p3Subtopics.length]
-    p3Next++
-    return (row as { id: string }).id
-  }
+  const p3SubtopicIds = await lookupP3Subtopics(p3TopicId)
+  const p3Subtopic = (code: P3SubtopicCode): string => p3SubtopicIds[code]
 
   const bankId = await ensureBank(org.id, adminId)
 
@@ -518,7 +542,7 @@ async function seed(): Promise<void> {
       ...base,
       question_number: q.num,
       topic_id: p3TopicId,
-      subtopic_id: nextP3SubtopicId(),
+      subtopic_id: p3Subtopic(q.subtopic),
       question_type: 'multiple_choice',
       question_text: q.text,
       options: q.options,
@@ -581,7 +605,7 @@ async function seed(): Promise<void> {
       ...base,
       question_number: q.num,
       topic_id: p3TopicId,
-      subtopic_id: nextP3SubtopicId(),
+      subtopic_id: p3Subtopic(q.subtopic),
       question_type: 'ordering',
       question_text: q.text,
       options: [],
@@ -616,7 +640,7 @@ async function seed(): Promise<void> {
         'Left-hand traffic pattern for RWY 27/09: upwind, crosswind turn, crosswind, downwind turn, downwind, base turn, base, final turn, final.',
       question_number: q.num,
       topic_id: p3TopicId,
-      subtopic_id: nextP3SubtopicId(),
+      subtopic_id: p3Subtopic(q.subtopic),
       question_type: 'diagram_label',
       question_text: q.text,
       options: [],

@@ -280,7 +280,7 @@ describe('upsertQuestion', () => {
 
     it('asks for a subtopic when insert violates subtopic_required', async () => {
       mockAdmin()
-      buildInsertChain({ insertError: { message: 'subtopic_required', code: '23514' } })
+      buildInsertChain({ insertError: { message: 'subtopic_required', code: 'P0001' } })
 
       const result = await upsertQuestion(VALID_INPUT)
 
@@ -341,7 +341,7 @@ describe('upsertQuestion', () => {
 
     it('asks for a subtopic when update violates subtopic_required', async () => {
       mockAdmin()
-      buildUpdateChain({ updateError: { message: 'subtopic_required', code: '23514' } })
+      buildUpdateChain({ updateError: { message: 'subtopic_required', code: 'P0001' } })
 
       const result = await upsertQuestion({ ...VALID_INPUT, id: VALID_UUID })
 
