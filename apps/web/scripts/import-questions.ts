@@ -296,6 +296,18 @@ async function resolveRefs(
   let subtopicId: string | null = null
   if (topicId && subtopicCode) {
     subtopicId = await lookupSubtopic(db, topicId, subtopicCode)
+  } else if (topicId) {
+    const { data: live, error } = await db
+      .from('easa_subtopics')
+      .select('code')
+      .eq('topic_id', topicId)
+      .is('deleted_at', null)
+    if (error) throw new Error(`Subtopic lookup for topic '${topicCode}': ${error.message}`)
+    if (live && live.length > 0) {
+      throw new Error(
+        `Topic '${topicCode}' has subtopics, so 'subtopic' is required — codes: ${live.map((r) => r.code).join(', ')}`,
+      )
+    }
   }
 
   return { subjectId, topicId, subtopicId }

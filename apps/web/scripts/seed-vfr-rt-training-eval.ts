@@ -482,6 +482,22 @@ async function seed(): Promise<void> {
   const p2TopicId = await lookupId('easa_topics', 'code', 'P2_DIALOG')
   const p3TopicId = await lookupId('easa_topics', 'code', 'P3_MC')
 
+  const { data: p3Subtopics, error: p3SubErr } = await db
+    .from('easa_subtopics')
+    .select('id')
+    .eq('topic_id', p3TopicId)
+    .is('deleted_at', null)
+    .order('sort_order')
+  if (p3SubErr || !p3Subtopics || p3Subtopics.length === 0) {
+    throw new Error(`P3_MC subtopics: ${p3SubErr?.message ?? 'none seeded'}`)
+  }
+  let p3Next = 0
+  const nextP3SubtopicId = (): string => {
+    const row = p3Subtopics[p3Next % p3Subtopics.length]
+    p3Next++
+    return (row as { id: string }).id
+  }
+
   const bankId = await ensureBank(org.id, adminId)
 
   const base = {
@@ -502,6 +518,7 @@ async function seed(): Promise<void> {
       ...base,
       question_number: q.num,
       topic_id: p3TopicId,
+      subtopic_id: nextP3SubtopicId(),
       question_type: 'multiple_choice',
       question_text: q.text,
       options: q.options,
@@ -564,6 +581,7 @@ async function seed(): Promise<void> {
       ...base,
       question_number: q.num,
       topic_id: p3TopicId,
+      subtopic_id: nextP3SubtopicId(),
       question_type: 'ordering',
       question_text: q.text,
       options: [],
@@ -598,6 +616,7 @@ async function seed(): Promise<void> {
         'Left-hand traffic pattern for RWY 27/09: upwind, crosswind turn, crosswind, downwind turn, downwind, base turn, base, final turn, final.',
       question_number: q.num,
       topic_id: p3TopicId,
+      subtopic_id: nextP3SubtopicId(),
       question_type: 'diagram_label',
       question_text: q.text,
       options: [],
