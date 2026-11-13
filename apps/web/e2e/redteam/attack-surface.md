@@ -339,6 +339,8 @@
 | LD | dropped-submit_quiz_answer-and-get_student_profile_stats-callable-by-student | HIGH | rpc-check-answer-option-injection.spec.ts | BLOCKED | #1494 | auth-bypass |
 | LV | finish_quiz_session-forged-expiry-skips-device-check | MEDIUM | rpc-finish-quiz-session-expired-device.spec.ts | BLOCKED |  | auth-bypass |
 | LW | finish_quiz_session-non-claiming-device-inside-grace | LOW | rpc-finish-quiz-session-expired-device.spec.ts | BLOCKED |  | timing |
+| LX | questions_require_subtopic-student-insert-non-enrolled-topic-error-oracle | LOW | questions-require-subtopic.spec.ts | BLOCKED |  | enumeration |
+| LY | easa_subtopics-admin-topic_id-move-detaches-filed-questions | MEDIUM | questions-require-subtopic.spec.ts | BLOCKED |  | sibling-guard-gap |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 

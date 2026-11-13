@@ -71,10 +71,16 @@ describe('pickSubjectWithQuestions', () => {
       .mockReturnValueOnce(buildChain(COUNT_PASS)) // subject question count
       .mockReturnValueOnce(buildChain({ data: topics, error: null })) // topics list
       .mockReturnValueOnce(buildChain(COUNT_PASS)) // topic question count
+      .mockReturnValueOnce(buildChain({ data: [{ id: 'sub-1' }], error: null })) // live subtopic
 
     const result = await pickSubjectWithQuestions(adminMock, { orgId: ORG_ID })
 
-    expect(result).toEqual({ subjectId: 'subj-1', subjectCode: 'A', topicId: 'topic-1' })
+    expect(result).toEqual({
+      subjectId: 'subj-1',
+      subjectCode: 'A',
+      topicId: 'topic-1',
+      subtopicId: 'sub-1',
+    })
   })
 
   it('skips subjects whose active question count is below the threshold', async () => {
@@ -90,6 +96,7 @@ describe('pickSubjectWithQuestions', () => {
       .mockReturnValueOnce(buildChain(COUNT_PASS)) // subj-full count → proceed
       .mockReturnValueOnce(buildChain({ data: topics, error: null })) // topics for subj-full
       .mockReturnValueOnce(buildChain(COUNT_PASS)) // topic count for topic-2
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // no live subtopic
 
     const result = await pickSubjectWithQuestions(adminMock, { orgId: ORG_ID })
 
@@ -138,6 +145,7 @@ describe('pickSubjectWithQuestions', () => {
       .mockReturnValueOnce(buildChain({ count: 1, error: null })) // exactly at threshold
       .mockReturnValueOnce(buildChain({ data: topics, error: null }))
       .mockReturnValueOnce(buildChain({ count: 1, error: null })) // exactly at threshold
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // no live subtopic
 
     const result = await pickSubjectWithQuestions(adminMock, { orgId: ORG_ID })
 
