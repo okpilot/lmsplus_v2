@@ -92,28 +92,40 @@ describe('Trigger: questions require a subtopic when the topic has live subtopic
   })
 
   afterAll(async () => {
-    await admin.from('questions').delete().eq('organization_id', orgId)
+    const errors: string[] = []
+    const { error: qErr } = await admin.from('questions').delete().eq('organization_id', orgId)
+    if (qErr) errors.push(`questions: ${qErr.message}`)
     await cleanupTestData({ admin, orgId, userIds })
     const now = new Date().toISOString()
     for (const id of subjectIds) {
-      const { data: topics } = await admin.from('easa_topics').select('id').eq('subject_id', id)
-      const topicIds = (topics ?? []).map((r) => r.id as string)
-      await admin
+      const { data: topics, error: lookupErr } = await admin
+        .from('easa_topics')
+        .select('id')
+        .eq('subject_id', id)
+      if (lookupErr) errors.push(`topic lookup: ${lookupErr.message}`)
+      const { error: stErr } = await admin
         .from('easa_subtopics')
         .update({ deleted_at: now })
-        .in('topic_id', topicIds)
+        .in(
+          'topic_id',
+          (topics ?? []).map((r) => r.id as string),
+        )
         .is('deleted_at', null)
-      await admin
+      if (stErr) errors.push(`subtopics: ${stErr.message}`)
+      const { error: tErr } = await admin
         .from('easa_topics')
         .update({ deleted_at: now })
         .eq('subject_id', id)
         .is('deleted_at', null)
-      await admin
+      if (tErr) errors.push(`topics: ${tErr.message}`)
+      const { error: sErr } = await admin
         .from('easa_subjects')
         .update({ deleted_at: now })
         .eq('id', id)
         .is('deleted_at', null)
+      if (sErr) errors.push(`subjects: ${sErr.message}`)
     }
+    if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
   })
 
   it('rejects inserting a live question with no subtopic when the topic has a live subtopic', async () => {
