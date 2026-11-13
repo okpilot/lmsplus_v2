@@ -235,7 +235,7 @@ describe('Triggers: syllabus live parent and deleted-row freeze', () => {
     const dead = await newTree()
     await stamp('easa_subtopics', dead.subtopicId)
     await stamp('easa_topics', dead.topicId)
-    const { error } = await adminClient
+    const { error } = await admin
       .from('easa_subtopics')
       .update({ topic_id: dead.topicId })
       .eq('id', live.subtopicId)

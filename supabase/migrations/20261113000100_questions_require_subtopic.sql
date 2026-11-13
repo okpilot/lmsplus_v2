@@ -52,3 +52,5 @@ REVOKE EXECUTE ON FUNCTION public.questions_require_subtopic() FROM PUBLIC;
 CREATE TRIGGER questions_require_subtopic
   BEFORE INSERT OR UPDATE OF topic_id, subtopic_id, deleted_at ON public.questions
   FOR EACH ROW EXECUTE FUNCTION public.questions_require_subtopic();
+
+REVOKE UPDATE (topic_id) ON public.easa_subtopics FROM authenticated;

@@ -186,6 +186,7 @@ describe('upsertSubtopic', () => {
 
       expect(result.success).toBe(true)
       expect(chain.update).toHaveBeenCalled()
+      expect(chain.update.mock.calls[0]?.[0]).not.toHaveProperty('topic_id')
       expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/syllabus')
     })
 

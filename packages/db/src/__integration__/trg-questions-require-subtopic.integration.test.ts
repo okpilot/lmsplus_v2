@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupTestData } from './cleanup'
 import { fixtureSuffix } from './fixture-suffix'
 import { seedQuestions } from './seed'
-import { createTestOrg, createTestUser, getAdminClient } from './setup'
+import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 
 type Tree = { subjectId: string; topicId: string; subtopicId: string | null }
 
@@ -254,6 +254,26 @@ describe('Trigger: questions require a subtopic when the topic has live subtopic
       })
       .eq('id', id)
     expect(error).toBeNull()
+  })
+
+  it('denies an authenticated admin changing easa_subtopics.topic_id', async () => {
+    const a = await newTree(true)
+    const b = await newTree(true)
+    const client = await getAuthenticatedClient({
+      email: `rs-admin-${suffix}@test.local`,
+      password: 'test-pass-123',
+    })
+    const { error } = await client
+      .from('easa_subtopics')
+      .update({ topic_id: b.topicId })
+      .eq('id', a.subtopicId as string)
+    expect(error?.code).toBe('42501')
+    const { data } = await admin
+      .from('easa_subtopics')
+      .select('topic_id')
+      .eq('id', a.subtopicId as string)
+      .single()
+    expect(data?.topic_id).toBe(a.topicId)
   })
 
   it('accepts a subtopic that belongs to the question topic', async () => {

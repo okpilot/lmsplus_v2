@@ -511,10 +511,8 @@ async function describeSubtopicCodes(topicId: string): Promise<string> {
 
 async function lookupSubtopicByCode(topicId: string, code: string, at: string): Promise<string> {
   // easa_subtopics is UNIQUE (topic_id, code) — NOT unique on code alone (mig 20260311000001) —
-  // so the lookup must be topic-scoped, the same way lookupTopicByCode is subject-scoped. There
-  // is no CHECK tying questions.subtopic_id to questions.topic_id (the two are independent FKs),
-  // so a code resolved against the wrong topic would insert cleanly and file the question under
-  // another topic's subarea.
+  // so the lookup must be topic-scoped, the same way lookupTopicByCode is subject-scoped.
+  // Trigger questions_require_subtopic raises subtopic_topic_mismatch on a cross-topic subtopic.
   const { data, error } = await db
     .from('easa_subtopics')
     .select('id')

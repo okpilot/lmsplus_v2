@@ -288,6 +288,19 @@ describe('upsertQuestion', () => {
       expect(mockRevalidatePath).not.toHaveBeenCalled()
     })
 
+    it('asks to re-pick when insert violates subtopic_topic_mismatch', async () => {
+      mockAdmin()
+      buildInsertChain({ insertError: { message: 'subtopic_topic_mismatch', code: 'P0001' } })
+
+      const result = await upsertQuestion(VALID_INPUT)
+
+      expect(result).toEqual({
+        success: false,
+        error: 'The subtopic does not belong to this topic — re-pick it',
+      })
+      expect(mockRevalidatePath).not.toHaveBeenCalled()
+    })
+
     it('returns the DB error message when insert fails with a generic error', async () => {
       mockAdmin()
       buildInsertChain({ insertError: { message: 'connection timeout' } })
@@ -346,6 +359,19 @@ describe('upsertQuestion', () => {
       const result = await upsertQuestion({ ...VALID_INPUT, id: VALID_UUID })
 
       expect(result).toEqual({ success: false, error: 'Choose a subtopic for this topic' })
+      expect(mockRevalidatePath).not.toHaveBeenCalled()
+    })
+
+    it('asks to re-pick when update violates subtopic_topic_mismatch', async () => {
+      mockAdmin()
+      buildUpdateChain({ updateError: { message: 'subtopic_topic_mismatch', code: 'P0001' } })
+
+      const result = await upsertQuestion({ ...VALID_INPUT, id: VALID_UUID })
+
+      expect(result).toEqual({
+        success: false,
+        error: 'The subtopic does not belong to this topic — re-pick it',
+      })
       expect(mockRevalidatePath).not.toHaveBeenCalled()
     })
 
