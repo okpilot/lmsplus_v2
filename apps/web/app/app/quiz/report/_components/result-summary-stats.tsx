@@ -1,5 +1,6 @@
 import { Stat } from '@/components/ui/stat'
 import type { QuizReportSummary } from '@/lib/queries/quiz-report-types'
+import { formatUtc } from '@/lib/utils/format-utc'
 import { formatMsDuration } from './format-duration'
 import { ScoreRing } from './score-ring'
 
@@ -11,7 +12,7 @@ function formatDuration(startedAt: string, endedAt: string | null): string {
 }
 
 function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-GB', {
+  return formatUtc(dateStr, {
     day: 'numeric',
     month: 'short',
     year: 'numeric',

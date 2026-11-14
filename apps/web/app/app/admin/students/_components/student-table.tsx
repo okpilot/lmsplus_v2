@@ -12,6 +12,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { formatUtc } from '@/lib/utils/format-utc'
 import type { CourseOption, StudentRow } from '../types'
 import { LoginInstructionsCell } from './login-instructions-cell'
 
@@ -28,7 +29,7 @@ function roleTone(role: StudentRow['role']) {
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-GB', {
+  return formatUtc(iso, {
     day: '2-digit',
     month: 'short',
     year: 'numeric',

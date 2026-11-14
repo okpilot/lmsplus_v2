@@ -1,4 +1,5 @@
 import { formatOtpLifetime } from '@/lib/auth/email-otp-config'
+import { formatUtc } from '@/lib/utils/format-utc'
 
 export type LoginInstructionsState = 'not_sent' | 'waiting' | 'password_set'
 
@@ -25,7 +26,7 @@ export function computeLoginInstructionsState({
 }
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleString('en-GB', { dateStyle: 'medium' })
+  return formatUtc(iso, { dateStyle: 'medium' })
 }
 
 export function loginInstructionsStateLabel(state: LoginInstructionsState): string {

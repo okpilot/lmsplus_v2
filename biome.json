@@ -252,6 +252,20 @@
       "plugins": ["./biome-plugins/readonly-props.grit"]
     },
     {
+      "includes": [
+        "apps/web/app/**/*.ts",
+        "apps/web/app/**/*.tsx",
+        "apps/web/components/**/*.ts",
+        "apps/web/components/**/*.tsx",
+        "apps/web/lib/**/*.ts",
+        "apps/web/lib/**/*.tsx",
+        "!**/*.test.*",
+        "!**/*.spec.*",
+        "!apps/web/lib/utils/format-utc.ts"
+      ],
+      "plugins": ["./biome-plugins/no-locale-date-format.grit"]
+    },
+    {
       "includes": ["**/app/**/route.ts", "**/app/**/route.tsx", "**/app/**/route.js"],
       "plugins": ["./biome-plugins/no-mutation-route.grit"]
     }

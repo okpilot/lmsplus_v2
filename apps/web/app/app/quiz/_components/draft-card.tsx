@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
+import { formatUtc } from '@/lib/utils/format-utc'
 import { deleteDraftAndRefresh } from '../actions/discard-and-refresh'
 import { resumeQuizSession } from '../actions/resume'
 import type { DraftData } from '../types'
@@ -19,14 +20,13 @@ export function DraftCard({ draft }: Readonly<{ draft: DraftData }>) {
   const totalCount = draft.questionIds.length
   const subjectLabel = draft.subjectName ?? 'Unknown subject'
   const dateLabel = draft.createdAt
-    ? `${new Date(draft.createdAt).toLocaleString('en-GB', {
+    ? formatUtc(draft.createdAt, {
         day: 'numeric',
         month: 'short',
         year: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
-        timeZone: 'UTC',
-      })} UTC`
+      })
     : ''
 
   // Reset a retryable resume failure: clear the in-flight state and release the

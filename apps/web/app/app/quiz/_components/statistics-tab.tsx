@@ -7,6 +7,7 @@ import { EmptyNote } from '@/components/ui/empty'
 import { Heading } from '@/components/ui/heading'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { QuestionStats } from '@/lib/queries/question-stats'
+import { formatUtc } from '@/lib/utils/format-utc'
 import { useQuestionStats } from '../_hooks/use-question-stats'
 
 type StatisticsTabProps = {
@@ -74,7 +75,7 @@ function StatsDisplay({ stats }: Readonly<{ stats: QuestionStats }>) {
         {stats.lastAnswered && (
           <StatRow
             label="Last answered"
-            value={new Date(stats.lastAnswered).toLocaleDateString('en-GB', {
+            value={formatUtc(stats.lastAnswered, {
               day: 'numeric',
               month: 'short',
               year: 'numeric',

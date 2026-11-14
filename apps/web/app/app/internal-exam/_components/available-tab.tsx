@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { CardList, CardListRow } from '@/components/ui/card'
 import { Empty, EmptyDescription } from '@/components/ui/empty'
+import { formatUtc } from '@/lib/utils/format-utc'
 import type { AvailableInternalExam } from '../queries'
 import { CodeEntryModal } from './code-entry-modal'
 
@@ -12,7 +13,7 @@ type Props = { rows: AvailableInternalExam[] }
 function formatAbsolute(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso
-  return d.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
+  return formatUtc(d, { dateStyle: 'medium', timeStyle: 'short' })
 }
 
 function formatRelative(iso: string, now: Date = new Date()): string {

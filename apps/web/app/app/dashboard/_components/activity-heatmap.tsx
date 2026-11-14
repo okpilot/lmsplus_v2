@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import type { DailyActivity } from '@/lib/queries/analytics'
+import { formatUtc } from '@/lib/utils/format-utc'
 import { HeatmapCell } from './heatmap-cell'
 import { HeatmapHeader } from './heatmap-header'
 import { useDragScroll } from './use-drag-scroll'
@@ -29,8 +30,8 @@ export function ActivityHeatmap({ data }: Readonly<ActivityHeatmapProps>) {
   const month = viewDate.getUTCMonth() + 1
   const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate()
   const monthStr = String(month).padStart(2, '0')
-  const monthName = viewDate.toLocaleString('en-GB', { month: 'long', timeZone: 'UTC' })
-  const monthNameShort = viewDate.toLocaleString('en-GB', { month: 'short', timeZone: 'UTC' })
+  const monthName = formatUtc(viewDate, { month: 'long' })
+  const monthNameShort = formatUtc(viewDate, { month: 'short' })
 
   const isCurrentMonth = offset === MAX_MONTH_OFFSET
   const todayDay = isCurrentMonth ? now.getUTCDate() : -1

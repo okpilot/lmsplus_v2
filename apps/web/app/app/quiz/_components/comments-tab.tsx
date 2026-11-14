@@ -9,6 +9,7 @@ import { EmptyNote } from '@/components/ui/empty'
 import { FieldError } from '@/components/ui/field-error'
 import { Heading } from '@/components/ui/heading'
 import { Input } from '@/components/ui/input'
+import { formatUtc } from '@/lib/utils/format-utc'
 import { initials } from '@/lib/utils/initials'
 import { useComments } from '../session/_hooks/use-comments'
 import { CommentsSkeleton } from './comments-skeleton'
@@ -83,7 +84,7 @@ export function CommentsTab({ questionId, currentUserId }: Readonly<CommentsTabP
                   <span className="text-label">{name}</span>
                   {isAdmin && <Badge tone="info">LMS Plus</Badge>}
                   <span className="text-caption text-muted-foreground">
-                    {new Date(c.created_at).toLocaleDateString('en-GB', {
+                    {formatUtc(c.created_at, {
                       day: 'numeric',
                       month: 'short',
                       year: 'numeric',

@@ -12,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { formatUtc } from '@/lib/utils/format-utc'
 import type { InternalExamHistoryEntry } from '../queries'
 
 type Props = { rows: InternalExamHistoryEntry[] }
@@ -20,7 +21,7 @@ function formatAbsolute(iso: string | null): string {
   if (!iso) return '—'
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })
+  return formatUtc(d, { dateStyle: 'short', timeStyle: 'short' })
 }
 
 function formatScore(score: number | null): string {

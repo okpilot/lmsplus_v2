@@ -44,7 +44,7 @@ export function internalExamCodeEmail({
     <p>You have been issued an access code for your <strong style="font-weight: 600;">${esc(subjectName)}</strong> internal exam.</p>
     <p>Enter this code at the exam page to begin:</p>
     <p style="font-size: 28px; font-weight: 600; letter-spacing: 4px; background: ${EMAIL_COLOURS.surface}; padding: 16px 24px; border-radius: 8px; display: inline-block;">${esc(code)}</p>
-    <p>This code expires on <strong style="font-weight: 600;">${esc(expiry)} (UTC)</strong>.</p>
+    <p>This code expires on <strong style="font-weight: 600;">${esc(expiry)}</strong>.</p>
     <p>
       <a href="${esc(examUrl)}" style="display: inline-block; background: ${EMAIL_COLOURS.accent}; color: ${EMAIL_COLOURS['on-accent']}; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 600;">Go to exam</a>
     </p>
@@ -60,7 +60,7 @@ Enter this code at the exam page to begin:
 
   ${code}
 
-This code expires on ${expiry} (UTC).
+This code expires on ${expiry}.
 
 Go to the exam page: ${examUrl}`
 

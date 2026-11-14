@@ -23,8 +23,12 @@ describe('internalExamCodeEmail', () => {
     const { html, text } = internalExamCodeEmail(BASE)
 
     // 2026-04-29 15:30 UTC, en-GB long date style.
-    expect(html).toContain('29 April 2026')
-    expect(text).toContain('29 April 2026')
+    expect(html).toContain('29 April 2026 at 15:30 UTC')
+    expect(text).toContain('29 April 2026 at 15:30 UTC')
+    expect(html).not.toContain('(UTC)')
+    expect(text).not.toContain('(UTC)')
+    expect(html).not.toContain('UTC UTC')
+    expect(text).not.toContain('UTC UTC')
   })
 
   it('greets the student by name when a name is present', () => {

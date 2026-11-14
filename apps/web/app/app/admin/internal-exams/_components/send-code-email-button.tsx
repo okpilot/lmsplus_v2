@@ -4,6 +4,7 @@ import { Check } from 'lucide-react'
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { LoadingButton } from '@/components/ui/loading-button'
+import { formatUtc } from '@/lib/utils/format-utc'
 import { sendInternalExamCodeEmail } from '../actions/send-code-email'
 
 type Props = Readonly<{ codeId: string; emailedAt: string | null; disabled?: boolean }>
@@ -32,9 +33,7 @@ export function SendCodeEmailButton({ codeId, emailedAt, disabled = false }: Rea
     })
   }
 
-  const formatted = sentAt
-    ? new Date(sentAt).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })
-    : null
+  const formatted = sentAt ? formatUtc(sentAt, { dateStyle: 'short', timeStyle: 'short' }) : null
 
   return (
     <div className="flex flex-col gap-1">

@@ -248,7 +248,7 @@ describe('ResultSummary', () => {
           })}
         />,
       )
-      // formatDate uses toLocaleDateString en-GB — "12 Mar 2026"
+      // formatDate uses formatUtc (en-GB, UTC) — "12 Mar 2026"
       const dateLabels = screen.getAllByText(/Mar 2026/)
       expect(dateLabels.length).toBeGreaterThan(0)
     })

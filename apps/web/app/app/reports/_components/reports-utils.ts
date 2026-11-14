@@ -1,5 +1,7 @@
+import { formatUtc } from '@/lib/utils/format-utc'
+
 export function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-GB', {
+  return formatUtc(iso, {
     day: 'numeric',
     month: 'short',
     year: 'numeric',

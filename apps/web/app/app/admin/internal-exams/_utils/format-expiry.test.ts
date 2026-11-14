@@ -1,16 +1,23 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { formatExpiry } from './format-expiry'
 
+const originalTz = process.env.TZ
+afterEach(() => {
+  if (originalTz === undefined) delete process.env.TZ
+  else process.env.TZ = originalTz
+})
+
 describe('formatExpiry', () => {
-  it('formats a valid ISO timestamp with en-GB medium date + short time', () => {
+  it('renders the UTC day with a UTC label whatever the host TZ', () => {
+    process.env.TZ = 'Pacific/Kiritimati'
+    const out = formatExpiry('2026-03-15T23:30:00Z')
+    expect(out).toContain('15 Mar 2026')
+    expect(out).toMatch(/23:30 UTC$/)
+  })
+
+  it('formats a valid ISO timestamp as en-GB medium date + short time in UTC', () => {
     const iso = '2026-04-30T12:00:00.000Z'
-    // Compute the expectation with the SAME Intl options so the assertion is not
-    // host-timezone-sensitive (formatExpiry omits an explicit timeZone, so the rendered
-    // calendar day/time depends on the runner's TZ).
-    const expected = new Date(iso).toLocaleString('en-GB', {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    })
+    const expected = '30 Apr 2026, 12:00 UTC'
     expect(formatExpiry(iso)).toBe(expected)
   })
 

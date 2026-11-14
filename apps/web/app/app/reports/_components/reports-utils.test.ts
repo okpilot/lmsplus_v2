@@ -1,7 +1,23 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { formatDate, formatDurationMinutes } from './reports-utils'
 
+const originalTz = process.env.TZ
+afterEach(() => {
+  if (originalTz === undefined) delete process.env.TZ
+  else process.env.TZ = originalTz
+})
+
 describe('formatDate', () => {
+  it('renders the UTC day under America/Los_Angeles', () => {
+    process.env.TZ = 'America/Los_Angeles'
+    expect(formatDate('2026-03-15T00:30:00Z')).toBe('15 Mar 2026')
+  })
+
+  it('renders the UTC day under Pacific/Kiritimati', () => {
+    process.env.TZ = 'Pacific/Kiritimati'
+    expect(formatDate('2026-03-15T23:30:00Z')).toBe('15 Mar 2026')
+  })
+
   it('formats an ISO date string as "D Mon YYYY" in en-GB locale', () => {
     // 10 Mar 2026 — fixed date to avoid locale-specific separators
     expect(formatDate('2026-03-10T10:00:00Z')).toBe('10 Mar 2026')
