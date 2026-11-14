@@ -2,6 +2,9 @@ or {
   `$obj.toLocaleString($...)`,
   `$obj.toLocaleDateString($...)`,
   `$obj.toLocaleTimeString($...)`,
+  `$obj?.toLocaleString($...)`,
+  `$obj?.toLocaleDateString($...)`,
+  `$obj?.toLocaleTimeString($...)`,
   `Intl.DateTimeFormat`
 } as $m where {
   register_diagnostic(span=$m, message="Format dates with formatUtc (apps/web/lib/utils/format-utc.ts); numbers use Intl.NumberFormat (#1033)", severity="error")
