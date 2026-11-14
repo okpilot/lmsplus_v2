@@ -163,8 +163,8 @@ describe('QuestionTable', () => {
     const question = makeQuestion({ updated_at: '2026-03-15T00:00:00Z' })
     render(<QuestionTable questions={[question]} {...DEFAULT_PROPS} />)
 
-    // en-GB locale: "15 Mar 2026"
-    expect(screen.getByText('15 Mar 2026')).toBeInTheDocument()
+    // formatUtc, en-GB UTC: "15 Mar 2026 UTC"
+    expect(screen.getByText('15 Mar 2026 UTC')).toBeInTheDocument()
   })
 
   it('marks the select-all checkbox as checked when all questions are selected', () => {

@@ -33,23 +33,23 @@ afterEach(() => {
 describe('formatDate', () => {
   it('renders the UTC day under America/Los_Angeles', () => {
     process.env.TZ = 'America/Los_Angeles'
-    expect(formatDate('2026-03-15T00:30:00Z')).toBe('15 Mar 2026')
+    expect(formatDate('2026-03-15T00:30:00Z')).toBe('15 Mar 2026 UTC')
   })
 
   it('renders the UTC day under Pacific/Kiritimati', () => {
     process.env.TZ = 'Pacific/Kiritimati'
-    expect(formatDate('2026-03-15T23:30:00Z')).toBe('15 Mar 2026')
+    expect(formatDate('2026-03-15T23:30:00Z')).toBe('15 Mar 2026 UTC')
   })
 
   it('formats an ISO timestamp as DD Mon YYYY in en-GB locale', () => {
-    expect(formatDate('2026-03-15T00:00:00Z')).toBe('15 Mar 2026')
+    expect(formatDate('2026-03-15T00:00:00Z')).toBe('15 Mar 2026 UTC')
   })
 
   it('pads single-digit days with a leading zero', () => {
-    expect(formatDate('2026-01-05T00:00:00Z')).toBe('05 Jan 2026')
+    expect(formatDate('2026-01-05T00:00:00Z')).toBe('05 Jan 2026 UTC')
   })
 
   it('formats December correctly (end-of-year boundary)', () => {
-    expect(formatDate('2025-12-31T00:00:00Z')).toBe('31 Dec 2025')
+    expect(formatDate('2025-12-31T00:00:00Z')).toBe('31 Dec 2025 UTC')
   })
 })

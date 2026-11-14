@@ -61,19 +61,19 @@ describe('formatDate', () => {
   it('formats a valid ISO date string in en-GB locale', () => {
     // 1 Apr 2026 — en-GB format: "01 Apr 2026"
     const result = formatDate('2026-04-01T10:00:00Z')
-    expect(result).toBe('01 Apr 2026')
+    expect(result).toBe('01 Apr 2026 UTC')
   })
 
   it('formats the first day of the year correctly', () => {
     // Use midday UTC to avoid timezone rollover to Dec 31 in UTC+ environments
     const result = formatDate('2026-01-01T12:00:00Z')
-    expect(result).toBe('01 Jan 2026')
+    expect(result).toBe('01 Jan 2026 UTC')
   })
 
   it('formats the last day of the year correctly', () => {
     // Use midday UTC to avoid timezone rollover to Jan 1 in UTC+ environments
     const result = formatDate('2026-12-31T12:00:00Z')
-    expect(result).toBe('31 Dec 2026')
+    expect(result).toBe('31 Dec 2026 UTC')
   })
 })
 
