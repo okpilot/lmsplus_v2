@@ -1,5 +1,5 @@
 import { render, screen, within } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { InternalExamCodeRow } from '../types'
 
 // Stub the leaf button so we don't pull in the 'use server' action chain.
@@ -13,8 +13,13 @@ vi.mock('./send-code-email-button', () => ({
 
 import { CodeRow } from './code-row'
 
+const originalTz = process.env.TZ
 beforeEach(() => {
   mockSendButton.mockClear()
+})
+afterEach(() => {
+  if (originalTz === undefined) delete process.env.TZ
+  else process.env.TZ = originalTz
 })
 
 // CodeRow renders a <tr> which requires a table wrapper in jsdom.
@@ -127,6 +132,20 @@ describe('CodeRow', () => {
         codeId: 'code-42',
         emailedAt: '2026-04-28T09:00:00.000Z',
       })
+    })
+  })
+
+  describe('dates', () => {
+    it('renders Issued and Expires in UTC (day 15) under Pacific/Kiritimati', () => {
+      process.env.TZ = 'Pacific/Kiritimati'
+      const { container } = renderRow({
+        ...baseRow,
+        issuedAt: '2026-03-15T23:30:00Z',
+        expiresAt: '2026-03-15T23:45:00Z',
+      })
+      const text = container.textContent ?? ''
+      expect(text).toContain('15/03/2026, 23:30 UTC')
+      expect(text).toContain('15/03/2026, 23:45 UTC')
     })
   })
 })

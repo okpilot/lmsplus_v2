@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const mockPush = vi.fn()
 vi.mock('next/navigation', () => ({
@@ -26,6 +26,12 @@ vi.mock('next/link', () => ({
 
 import type { InternalExamHistoryEntry } from '../queries'
 import { MyReportsTab } from './my-reports-tab'
+
+const originalTz = process.env.TZ
+afterEach(() => {
+  if (originalTz === undefined) delete process.env.TZ
+  else process.env.TZ = originalTz
+})
 
 const baseRow: InternalExamHistoryEntry = {
   id: 'sess-1',
@@ -137,5 +143,13 @@ describe('MyReportsTab', () => {
   it('renders a dash when the score is null', () => {
     render(<MyReportsTab rows={[{ ...baseRow, scorePercentage: null }]} />)
     expect(screen.getAllByText('—').length).toBeGreaterThan(0)
+  })
+
+  it('renders the start time in UTC (day 15) under Pacific/Kiritimati', () => {
+    process.env.TZ = 'Pacific/Kiritimati'
+    const { container } = render(
+      <MyReportsTab rows={[{ ...baseRow, startedAt: '2026-03-15T23:30:00Z' }]} />,
+    )
+    expect(container.textContent).toContain('15/03/2026, 23:30 UTC')
   })
 })

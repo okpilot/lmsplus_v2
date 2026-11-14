@@ -813,6 +813,7 @@ Enforcers: Biome (`pnpm lint`), CodeRabbit (`.coderabbit.yaml`), SonarCloud S675
 - Non-null assertions without a comment (not in `*.test.*` or `*.spec.*` files — biome.json override) — CodeRabbit
 - Barrel `index.ts` files — Biome `performance/noBarrelFile` (value re-exports), CodeRabbit
 - Component props not wrapped in `Readonly<…>` (ERROR — see Section 5) — Biome `biome-plugins/readonly-props.grit`, CodeRabbit, SonarCloud `typescript:S6759`
+- Date/time display via `toLocale*String` or `Intl.DateTimeFormat` outside `formatUtc` (`apps/web/lib/utils/format-utc.ts`) in non-test `apps/web/{app,components,lib}` files — Biome `biome-plugins/no-locale-date-format.grit` (does not see `globalThis.Intl…`, a destructured `DateTimeFormat`, `Date#toString` or a `${date}` template)
 - `useEffect` used for data fetching (hydration guards are exempt — see Section 6) — CodeRabbit
 - Missing tests for new utility functions — test-writer
 - `.select()` reads that destructure only `{ data }` without checking `{ error }` (see Section 5 — `.single()` PGRST116 no-rows is an allowed exception) — semantic-reviewer, CodeRabbit
