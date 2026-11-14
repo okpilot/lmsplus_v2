@@ -34,6 +34,7 @@ type QuestionSeed = {
   bank_id: string
   subject_id: string
   topic_id: string
+  subtopic_id: string | null
   created_by: string
   question_text: string
   question_number: string
@@ -175,6 +176,7 @@ export async function setupEoFixtures(): Promise<EoFixtures> {
   const picked = await pickSubjectWithQuestions(admin, { orgId })
   const subjectId = picked.subjectId
   const topicId = picked.topicId
+  const subtopicId = picked.subtopicId
   const { data: fkRow, error: fkErr } = await admin
     .from('questions')
     .select('bank_id, created_by')
@@ -203,6 +205,7 @@ export async function setupEoFixtures(): Promise<EoFixtures> {
     bank_id: opts.bank,
     subject_id: subjectId,
     topic_id: topicId,
+    subtopic_id: subtopicId,
     created_by: opts.creator,
     question_text: `${E2E_REDTEAM_EO_MARKER} ${opts.label} fixture`,
     question_number: `${E2E_REDTEAM_EO_MARKER} ${opts.label} ${Date.now()}`,

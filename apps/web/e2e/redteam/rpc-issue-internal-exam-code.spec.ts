@@ -17,7 +17,7 @@ import { createClient } from '@supabase/supabase-js'
 import { getAdminClient } from '../helpers/supabase'
 import { expectLiveStudent } from './helpers/attacker-pin'
 import { createAuthenticatedClient } from './helpers/redteam-client'
-import { ensureExamConfig, pickSubjectWithQuestions } from './helpers/seed-quiz'
+import { ensureExamConfig, findLiveSubtopicId, pickSubjectWithQuestions } from './helpers/seed-quiz'
 import {
   ATTACKER_EMAIL,
   ATTACKER_PASSWORD,
@@ -178,12 +178,14 @@ test.describe('Red Team: issue_internal_exam_code RPC', () => {
         .maybeSingle()
       if (bankRowErr) throw new Error(`seed: question_banks lookup failed: ${bankRowErr.message}`)
       if (bankRow) {
+        const unconfSubtopicId = await findLiveSubtopicId(admin, unconfTopicId)
         const { error: unconfQErr } = await admin.from('questions').insert({
           organization_id: egmontOrgIdForPick,
           bank_id: bankRow.id,
           question_number: 'RT-FOREIGN-1',
           subject_id: unconfiguredSubjectId,
           topic_id: unconfTopicId,
+          subtopic_id: unconfSubtopicId,
           question_text: 'Red team fixture: foreign-subject question.',
           correct_option_id: 'a',
           options: [

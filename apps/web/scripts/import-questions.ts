@@ -280,25 +280,42 @@ async function resolveRefs(
   db: AdminClient,
   question: ImportQuestion,
   folderMeta: ReturnType<typeof parseFolderPath>,
-): Promise<RefIds> {
-  // Subject — always from the question data
+) {
   const subjectId = await lookupSubject(db, question.subject)
-
-  // Topic — from question JSON or folder path
   const topicCode = question.topic ?? folderMeta.topicCode
-  let topicId: string | null = null
-  if (topicCode) {
-    topicId = await lookupTopic(db, subjectId, topicCode)
-  }
+  const topicId = topicCode ? await lookupTopic(db, subjectId, topicCode) : null
+  return { subjectId, topicId, topicCode }
+}
 
-  // Subtopic — from question JSON or folder path
-  const subtopicCode = question.subtopic ?? folderMeta.subtopicCode
+async function resolveSubtopic(
+  db: AdminClient,
+  topicId: string | null,
+  topicCode: string | null | undefined,
+  subtopicCode: string | null | undefined,
+  cache: Map<string, string | null>,
+): Promise<string | null> {
+  if (!topicId) return null
+  const key = subtopicCode ?? ''
+  const cached = cache.get(key)
+  if (cached !== undefined) return cached
   let subtopicId: string | null = null
-  if (topicId && subtopicCode) {
+  if (subtopicCode) {
     subtopicId = await lookupSubtopic(db, topicId, subtopicCode)
+  } else {
+    const { data: live, error } = await db
+      .from('easa_subtopics')
+      .select('code')
+      .eq('topic_id', topicId)
+      .is('deleted_at', null)
+    if (error) throw new Error(`Subtopic lookup for topic '${topicCode}': ${error.message}`)
+    if (live && live.length > 0) {
+      throw new Error(
+        `Topic '${topicCode}' has subtopics, so 'subtopic' is required — codes: ${live.map((r) => r.code).join(', ')}`,
+      )
+    }
   }
-
-  return { subjectId, topicId, subtopicId }
+  cache.set(key, subtopicId)
+  return subtopicId
 }
 
 // ---------------------------------------------------------------------------
@@ -471,15 +488,6 @@ async function main() {
   const db = createAdminClient()
   const folderMeta = parseFolderPath(baseDir)
 
-  // Bootstrap
-  console.log('Bootstrap:')
-  const orgId = await bootstrapOrg(db)
-  const userId = await bootstrapUser(db, orgId)
-  const bankId = await bootstrapBank(db, orgId, userId)
-  await ensureBucket(db)
-  console.log()
-
-  // Validate all questions share the same subject before resolving refs once
   const subjects = new Set(questions.map((q) => q.subject))
   if (subjects.size > 1) {
     console.error(
@@ -487,18 +495,51 @@ async function main() {
     )
     process.exit(1)
   }
+  const topics = new Set(questions.map((q) => q.topic ?? folderMeta.topicCode))
+  if (topics.size > 1) {
+    console.error(
+      `Questions reference multiple topics: ${[...topics].map((t) => t ?? '(none)').join(', ')}.\nImport one topic per file. Split the JSON and re-run.`,
+    )
+    process.exit(1)
+  }
 
   console.log('Reference data:')
-  // ImportFileSchema is `z.array(...).min(1)`, so this is runtime-guaranteed non-empty —
-  // but z.array().min(1) doesn't narrow to a TS tuple, so guard explicitly.
   const firstQuestion = questions[0]
   if (!firstQuestion) {
     throw new Error(`${file}: no questions after validation (unreachable — schema requires min 1)`)
   }
-  const refs = await resolveRefs(db, firstQuestion, folderMeta)
-  console.log(`  Subject: ${firstQuestion.subject} → ${refs.subjectId}`)
-  if (refs.topicId) console.log(`  Topic: ${folderMeta.topicCode} → ${refs.topicId}`)
-  if (refs.subtopicId) console.log(`  Subtopic: ${folderMeta.subtopicCode} → ${refs.subtopicId}`)
+  const { subjectId, topicId, topicCode } = await resolveRefs(db, firstQuestion, folderMeta)
+  console.log(`  Subject: ${firstQuestion.subject} → ${subjectId}`)
+  if (topicId) console.log(`  Topic: ${topicCode} → ${topicId}`)
+  const subtopicCache = new Map<string, string | null>()
+  const refsByQuestion = new Map<ImportQuestion, RefIds>()
+  const refErrors: string[] = []
+  for (const q of questions) {
+    try {
+      const subtopicId = await resolveSubtopic(
+        db,
+        topicId,
+        topicCode,
+        q.subtopic ?? folderMeta.subtopicCode,
+        subtopicCache,
+      )
+      refsByQuestion.set(q, { subjectId, topicId, subtopicId })
+    } catch (err) {
+      refErrors.push(`Q${q.question_number}: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+  if (refErrors.length > 0) {
+    console.error(`Subtopic resolution failed, nothing written:\n  ${refErrors.join('\n  ')}`)
+    process.exit(1)
+  }
+  console.log()
+
+  // Bootstrap
+  console.log('Bootstrap:')
+  const orgId = await bootstrapOrg(db)
+  const userId = await bootstrapUser(db, orgId)
+  const bankId = await bootstrapBank(db, orgId, userId)
+  await ensureBucket(db)
   console.log()
 
   // Import questions
@@ -530,6 +571,8 @@ async function main() {
         )
       }
 
+      const refs = refsByQuestion.get(question)
+      if (!refs) throw new Error(`Unresolved refs for ${question.question_number}`)
       const res = await insertQuestion(db, {
         orgId,
         bankId,

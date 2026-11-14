@@ -9,7 +9,8 @@
  *
  * Syllabus placement: `subject_code` and `topic_code` are required; `subtopic_code` (file-level,
  * overridable per question with `subtopic`) is OPTIONAL, and a file declaring neither imports
- * with `subtopic_id` NULL — Parts 1 and 2 are flat by design, only Part 3 is split into subareas.
+ * with `subtopic_id` NULL only when its topic has no live subtopics (the `questions_require_subtopic`
+ * trigger rejects NULL otherwise) — Parts 1 and 2 are flat by design, only Part 3 is split into subareas.
  * An unresolvable subtopic code aborts the run before anything is written.
  *
  * Local (default): bootstraps the shared eval org + admin/student logins + bank so
@@ -273,7 +274,8 @@ type DiagramItem = {
 type AuthoredQuestion = (ShortAnswerItem | McItem | DialogFillItem | OrderingItem | DiagramItem) & {
   /**
    * Per-question override of the file's `subtopic_code`. Optional: a file whose questions all
-   * belong to one subarea states it once at file level and no item repeats it.
+   * belong to one subarea states it once at file level and no item repeats it. Required (here or
+   * at file level) when the topic has live subtopics.
    */
   subtopic?: string
 }
@@ -286,7 +288,7 @@ type ContentFile = {
    * The file-level default subarea for every question in it, resolved against `easa_subtopics`
    * under this file's OWN topic. Optional on purpose: Parts 1 and 2 are deliberately flat (see
    * mig `20260818000100_seed_vfr_rt_part3_subtopics.sql`), and a file that declares neither this
-   * nor a per-question `subtopic` imports with `subtopic_id` NULL, exactly as before.
+   * nor a per-question `subtopic` imports with `subtopic_id` NULL — refused when the topic has live subtopics.
    */
   subtopic_code?: string
   question_type: 'short_answer' | 'multiple_choice' | 'dialog_fill' | 'ordering' | 'diagram_label'
@@ -509,10 +511,8 @@ async function describeSubtopicCodes(topicId: string): Promise<string> {
 
 async function lookupSubtopicByCode(topicId: string, code: string, at: string): Promise<string> {
   // easa_subtopics is UNIQUE (topic_id, code) — NOT unique on code alone (mig 20260311000001) —
-  // so the lookup must be topic-scoped, the same way lookupTopicByCode is subject-scoped. There
-  // is no CHECK tying questions.subtopic_id to questions.topic_id (the two are independent FKs),
-  // so a code resolved against the wrong topic would insert cleanly and file the question under
-  // another topic's subarea.
+  // so the lookup must be topic-scoped, the same way lookupTopicByCode is subject-scoped.
+  // Trigger questions_require_subtopic raises subtopic_topic_mismatch on a cross-topic subtopic.
   const { data, error } = await db
     .from('easa_subtopics')
     .select('id')
@@ -561,6 +561,25 @@ async function resolveSubtopicIds(
   const ids = new Map<string, string>()
   for (const [code, at] of origins) {
     ids.set(code, await lookupSubtopicByCode(topicId, code, at))
+  }
+  const unfiled = file.questions.find((q) => subtopicCodeFor(file, q) === undefined)
+  if (unfiled !== undefined) {
+    const { count, error: liveErr } = await db
+      .from('easa_subtopics')
+      .select('id', { count: 'exact', head: true })
+      .eq('topic_id', topicId)
+      .is('deleted_at', null)
+    if (liveErr) {
+      throw new Error(
+        `${rel}: subtopic lookup failed for topic ${file.topic_code}: ${liveErr.message}`,
+      )
+    }
+    if ((count ?? 0) > 0) {
+      const codes = await describeSubtopicCodes(topicId)
+      throw new Error(
+        `${rel} (${unfiled.num}): no subtopic code, but topic ${file.topic_code} has subtopics — set 'subtopic_code' or 'subtopic'. Codes: ${codes}`,
+      )
+    }
   }
   return ids
 }

@@ -22,7 +22,12 @@ export async function upsertSubtopic(input: unknown): Promise<ActionResult> {
   const { id, ...data } = parsed.data
 
   if (id) {
-    const failure = await updateLiveRow(supabase, { table: 'easa_subtopics', id, data }, WRITE_CTX)
+    const { topic_id: _topicId, ...updateData } = data
+    const failure = await updateLiveRow(
+      supabase,
+      { table: 'easa_subtopics', id, data: updateData },
+      WRITE_CTX,
+    )
     if (failure) return failure
   } else {
     const parentFailure = await checkLiveParent(supabase, {

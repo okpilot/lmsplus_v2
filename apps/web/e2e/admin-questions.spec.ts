@@ -32,6 +32,11 @@ async function createQuestionViaDialog(page: Page, questionText: string): Promis
   await dialogTriggers.nth(1).click()
   await page.locator('[data-slot="select-item"]').filter({ hasText: 'The atmosphere' }).click()
 
+  // Select subtopic (required when the topic has subtopics, #1181)
+  await expect(dialogTriggers.nth(2)).not.toBeDisabled({ timeout: 5_000 })
+  await dialogTriggers.nth(2).click()
+  await page.locator('[data-slot="select-item"]').filter({ hasText: 'Composition' }).click()
+
   // Fill question text
   await page.getByPlaceholder('Enter the question...').fill(questionText)
 
@@ -132,6 +137,60 @@ test.describe('Admin Question Editor', () => {
     await page.getByPlaceholder('Enter the question...').fill(markedQuestionText())
     await expect(submit).toBeDisabled()
     await expect(page).toHaveURL(/\/app\/admin\/questions/)
+  })
+
+  test('Create Question requires a subtopic when the topic has subtopics', async ({ page }) => {
+    const uniqueText = markedQuestionText()
+    await page.getByRole('button', { name: 'New Question' }).click()
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toBeVisible({ timeout: 5_000 })
+
+    const triggers = dialog.locator('[data-slot="select-trigger"]')
+    await triggers.first().click()
+    await page.locator('[data-slot="select-item"]').filter({ hasText: 'Meteorology' }).click()
+    await expect(triggers.nth(1)).not.toBeDisabled({ timeout: 5_000 })
+    await triggers.nth(1).click()
+    await page.locator('[data-slot="select-item"]').filter({ hasText: 'The atmosphere' }).click()
+
+    await page.getByPlaceholder('Enter the question...').fill(uniqueText)
+    await page
+      .getByPlaceholder('Option A')
+      .fill('The boundary between troposphere and stratosphere')
+    await page.getByPlaceholder('Option B').fill('The top of the mesosphere')
+    await page.getByPlaceholder('Option C').fill('The base of the ionosphere')
+    await page.getByPlaceholder('Option D').fill('The ozone layer boundary')
+    await page.getByRole('radio', { name: 'Mark option A as correct' }).click()
+    await page
+      .getByPlaceholder('Explain the correct answer...')
+      .fill('The tropopause is the boundary between the troposphere and stratosphere.')
+
+    const submit = page.getByRole('button', { name: 'Create Question' })
+    await expect(dialog.getByText('Subtopic', { exact: true })).toBeVisible()
+    await expect(dialog.getByText('Subtopic (optional)')).toHaveCount(0)
+    await expect(submit).toBeDisabled()
+
+    // No "None" escape hatch in the subtopic list.
+    await triggers.nth(2).click()
+    await expect(page.locator('[data-slot="select-item"]').filter({ hasText: 'None' })).toHaveCount(
+      0,
+    )
+    await page.locator('[data-slot="select-item"]').filter({ hasText: 'Composition' }).click()
+    await expect(submit).toBeEnabled()
+    await submit.click()
+    await expect(page.getByText('Question created')).toBeVisible({ timeout: 10_000 })
+
+    // Persisted with its subtopic: survives a reload and shows in the edit dialog.
+    await page.reload()
+    await expect(page).toHaveURL(/\/app\/admin\/questions/)
+    const search = page.getByPlaceholder('Search question text...')
+    await search.fill(uniqueText)
+    await search.press('Enter')
+    const row = page.locator('tbody tr').filter({ hasText: uniqueText })
+    await expect(row).toBeVisible({ timeout: 10_000 })
+    await row.getByLabel('Edit question').click()
+    await expect(
+      page.getByRole('dialog').locator('[data-slot="select-trigger"]').nth(2),
+    ).toContainText('Composition')
   })
 
   // ── Section 4: Edit question ────────────────────────────────────────

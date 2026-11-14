@@ -79,10 +79,14 @@ async function discardSession(sessionId: string): Promise<void> {
   if ((data?.length ?? 0) > 0) console.log(`[injection-xss] discarded ${data?.length} session(s)`)
 }
 
-async function pickSubjectAndTopic(orgId: string): Promise<{ subjectId: string; topicId: string }> {
+async function pickSubjectAndTopic(orgId: string): Promise<{
+  subjectId: string
+  topicId: string
+  subtopicId: string | null
+}> {
   const { data, error } = await getAdminClient()
     .from('questions')
-    .select('subject_id, topic_id')
+    .select('subject_id, topic_id, subtopic_id')
     .eq('organization_id', orgId)
     .eq('status', 'active')
     .is('deleted_at', null)
@@ -90,13 +94,18 @@ async function pickSubjectAndTopic(orgId: string): Promise<{ subjectId: string; 
     .limit(1)
   if (error) throw new Error(`pickSubjectAndTopic: ${error.message}`)
   if (!data?.length) throw new Error('no seeded active question with topic in org')
-  return { subjectId: data[0].subject_id as string, topicId: data[0].topic_id as string }
+  return {
+    subjectId: data[0].subject_id as string,
+    topicId: data[0].topic_id as string,
+    subtopicId: (data[0].subtopic_id as string | null) ?? null,
+  }
 }
 
 type SeedArgs = {
   orgId: string
   subjectId: string
   topicId: string
+  subtopicId: string | null
   authorId: string
   field: Field
   payload: { name: string; value: string }
@@ -122,6 +131,7 @@ async function seedXssQuestion(args: SeedArgs): Promise<string> {
       bank_id: bank.id,
       subject_id: args.subjectId,
       topic_id: args.topicId,
+      subtopic_id: args.subtopicId,
       question_number: tag.slice(0, 60),
       // Inert branch must NOT contain MARKER — assertSanitized's liveness
       // check is scoped to `main`, so a MARKER in the inert question_text
@@ -252,11 +262,12 @@ test.describe('Red Team: OWASP A05 — XSS in cross-user rendering', () => {
       await discardSession(activeSessionId)
       activeSessionId = null
     }
-    const { subjectId, topicId } = await pickSubjectAndTopic(orgId)
+    const { subjectId, topicId, subtopicId } = await pickSubjectAndTopic(orgId)
     const qid = await seedXssQuestion({
       orgId,
       subjectId,
       topicId,
+      subtopicId,
       authorId: adminUserId,
       field,
       payload,

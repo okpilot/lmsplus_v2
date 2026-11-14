@@ -235,7 +235,7 @@ describe('Triggers: syllabus live parent and deleted-row freeze', () => {
     const dead = await newTree()
     await stamp('easa_subtopics', dead.subtopicId)
     await stamp('easa_topics', dead.topicId)
-    const { error } = await adminClient
+    const { error } = await admin
       .from('easa_subtopics')
       .update({ topic_id: dead.topicId })
       .eq('id', live.subtopicId)
@@ -310,7 +310,7 @@ describe('Triggers: syllabus live parent and deleted-row freeze', () => {
 
   async function questionRow(tree: Tree) {
     const live = await newTree()
-    await seedOne(live, false)
+    await seedOne(live, true)
     const { data: bank } = await admin
       .from('question_banks')
       .select('id')
@@ -363,8 +363,11 @@ describe('Triggers: syllabus live parent and deleted-row freeze', () => {
   it('rejects re-pointing a live question at a soft-deleted topic', async () => {
     const live = await newTree()
     const dead = await deadTree()
-    const qid = await seedOne(live, false)
-    const { error } = await admin.from('questions').update({ topic_id: dead.topicId }).eq('id', qid)
+    const qid = await seedOne(live, true)
+    const { error } = await admin
+      .from('questions')
+      .update({ topic_id: dead.topicId, subtopic_id: dead.subtopicId })
+      .eq('id', qid)
     expect(error?.message).toContain('parent_not_found')
     const { data } = await admin.from('questions').select('topic_id').eq('id', qid).single()
     expect(data?.topic_id).toBe(live.topicId)
@@ -372,7 +375,7 @@ describe('Triggers: syllabus live parent and deleted-row freeze', () => {
 
   it('rejects restoring a soft-deleted question whose subject is soft-deleted', async () => {
     const tree = await newTree()
-    const qid = await seedOne(tree, false)
+    const qid = await seedOne(tree, true)
     const when = new Date().toISOString()
     const del = await admin.from('questions').update({ deleted_at: when }).eq('id', qid)
     expect(del.error).toBeNull()

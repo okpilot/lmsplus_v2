@@ -96,6 +96,7 @@ test.describe('Red Team: ordering item ids derived from text (Vector FX)', () =>
       bank_id: fkRow.bank_id,
       subject_id: picked.subjectId,
       topic_id: picked.topicId,
+      subtopic_id: picked.subtopicId,
       created_by: adminSeed.adminUserId,
       question_text: `${E2E_REDTEAM_FX_MARKER} ordering fixture`,
       explanation_text: 'Red-team FX fixture explanation.',

@@ -34,7 +34,7 @@ describe('canSubmitQuestion', () => {
   }
 
   it('accepts a fully filled form', () => {
-    expect(canSubmitQuestion(filled)).toBe(true)
+    expect(canSubmitQuestion(filled, false)).toBe(true)
   })
 
   it.each([
@@ -49,6 +49,18 @@ describe('canSubmitQuestion', () => {
     ['correct option', { correctOptionId: '' as const }],
     ['explanation', { explanationText: '' }],
   ])('rejects a missing %s', (_name, patch) => {
-    expect(canSubmitQuestion({ ...filled, ...patch })).toBe(false)
+    expect(canSubmitQuestion({ ...filled, ...patch }, false)).toBe(false)
+  })
+
+  it('rejects a missing subtopic when the topic requires one', () => {
+    expect(canSubmitQuestion({ ...filled, subtopicId: null }, true)).toBe(false)
+  })
+
+  it('accepts a chosen subtopic when the topic requires one', () => {
+    expect(canSubmitQuestion({ ...filled, subtopicId: 'sub-1' }, true)).toBe(true)
+  })
+
+  it('accepts a missing subtopic when the topic does not require one', () => {
+    expect(canSubmitQuestion({ ...filled, subtopicId: null }, false)).toBe(true)
   })
 })

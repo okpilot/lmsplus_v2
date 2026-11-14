@@ -144,6 +144,7 @@ test.describe('Red Team: get_report_answer_keys RPC (Vector EN)', () => {
   // satisfy every NOT NULL FK (bank_id, topic_id, created_by) without new seeding.
   let bankId: string
   let topicId: string
+  let subtopicId: string | null
   let createdBy: string
   let shortAnswerQuestionId: string
   let dialogFillQuestionId: string
@@ -181,7 +182,7 @@ test.describe('Red Team: get_report_answer_keys RPC (Vector EN)', () => {
     // FKs without standing up the VFR-RT training seed.
     const { data: fkRow, error: fkErr } = await admin
       .from('questions')
-      .select('bank_id, topic_id, created_by')
+      .select('bank_id, topic_id, subtopic_id, created_by')
       .eq('organization_id', orgId)
       .eq('subject_id', subjectId)
       .eq('status', 'active')
@@ -193,6 +194,7 @@ test.describe('Red Team: get_report_answer_keys RPC (Vector EN)', () => {
     if (!fkRow) throw new Error('beforeAll: no active egmont question to derive FKs from')
     bankId = fkRow.bank_id as string
     topicId = fkRow.topic_id as string
+    subtopicId = (fkRow.subtopic_id as string | null) ?? null
     createdBy = fkRow.created_by as string
 
     // Insert one short_answer + one dialog_fill question via the service-role client
@@ -205,6 +207,7 @@ test.describe('Red Team: get_report_answer_keys RPC (Vector EN)', () => {
       bank_id: bankId,
       subject_id: subjectId,
       topic_id: topicId,
+      subtopic_id: subtopicId,
       created_by: createdBy,
       question_text: `${E2E_REDTEAM_EN_MARKER} report-answer-keys fixture`,
       explanation_text: 'Red-team EN fixture explanation.',

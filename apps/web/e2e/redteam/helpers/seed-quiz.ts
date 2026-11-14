@@ -18,7 +18,12 @@ import { getAdminClient } from '../../helpers/supabase'
 export async function pickSubjectWithQuestions(
   admin: ReturnType<typeof getAdminClient>,
   opts: { orgId: string; minActiveQuestions?: number; topicMinQuestions?: number },
-): Promise<{ subjectId: string; subjectCode: string; topicId: string }> {
+): Promise<{
+  subjectId: string
+  subjectCode: string
+  topicId: string
+  subtopicId: string | null
+}> {
   const { orgId } = opts
   const minActiveQuestions = opts.minActiveQuestions ?? 1
   const topicMinQuestions = opts.topicMinQuestions ?? 1
@@ -43,7 +48,10 @@ export async function pickSubjectWithQuestions(
       subjectCode: subject.code,
       topicMinQuestions,
     })
-    if (topicId) return { subjectId: subject.id, subjectCode: subject.code, topicId }
+    if (topicId) {
+      const subtopicId = await findLiveSubtopicId(admin, topicId)
+      return { subjectId: subject.id, subjectCode: subject.code, topicId, subtopicId }
+    }
   }
 
   throw new Error(
@@ -51,6 +59,22 @@ export async function pickSubjectWithQuestions(
       `>=${minActiveQuestions} active question(s) with a topic having ` +
       `>=${topicMinQuestions} active question(s)`,
   )
+}
+
+export async function findLiveSubtopicId(
+  admin: ReturnType<typeof getAdminClient>,
+  topicId: string,
+): Promise<string | null> {
+  const { data, error } = await admin
+    .from('easa_subtopics')
+    .select('id')
+    .eq('topic_id', topicId)
+    .is('deleted_at', null)
+    .order('sort_order', { ascending: true })
+    .order('id', { ascending: true })
+    .limit(1)
+  if (error) throw new Error(`findLiveSubtopicId topic=${topicId}: ${error.message}`)
+  return data?.[0]?.id ?? null
 }
 
 async function findTopicWithQuestions(

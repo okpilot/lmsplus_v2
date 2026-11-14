@@ -52,10 +52,11 @@ vi.mock('./question-form-fields', () => ({
   ),
 }))
 
+import type { SyllabusTree } from '../../syllabus/types'
 import { QuestionFormDialog } from './question-form-dialog'
 
-async function openDialog() {
-  render(<QuestionFormDialog tree={[]} trigger={<button type="button">open</button>} />)
+async function openDialog(tree: SyllabusTree = []) {
+  render(<QuestionFormDialog tree={tree} trigger={<button type="button">open</button>} />)
   await userEvent.click(screen.getByRole('button', { name: 'open' }))
 }
 
@@ -92,5 +93,19 @@ describe('QuestionFormDialog — submit gating (#888)', () => {
       await userEvent.click(screen.getByRole('button', { name: step }))
     }
     expect(screen.getByRole('button', { name: 'Create Question' })).toBeEnabled()
+  })
+
+  it('keeps Create Question disabled when the chosen topic has subtopics and none is selected', async () => {
+    const tree = [
+      {
+        id: UUID,
+        topics: [{ id: UUID, subtopics: [{ id: 'st-1' }] }],
+      },
+    ] as unknown as SyllabusTree
+    await openDialog(tree)
+    for (const step of STEPS) {
+      await userEvent.click(screen.getByRole('button', { name: step }))
+    }
+    expect(screen.getByRole('button', { name: 'Create Question' })).toBeDisabled()
   })
 })

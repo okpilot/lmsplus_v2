@@ -20,10 +20,11 @@ export function buildQuestionPayload(s: FormState, questionId: string | undefine
   }
 }
 
-export function canSubmitQuestion(s: FormState): boolean {
+export function canSubmitQuestion(s: FormState, requiresSubtopic: boolean): boolean {
   return (
     !!s.subjectId &&
     !!s.topicId &&
+    !(requiresSubtopic && !s.subtopicId) &&
     s.questionText.trim() !== '' &&
     s.options.length === 4 &&
     s.options.every((o) => o.text.trim() !== '') &&

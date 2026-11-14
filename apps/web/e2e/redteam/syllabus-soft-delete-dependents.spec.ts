@@ -162,13 +162,14 @@ test.describe('Red Team: syllabus soft delete vs dependent rows', () => {
     return data.id as string
   }
 
-  function questionRow(subjectId: string, topicId: string) {
+  function questionRow(subjectId: string, topicId: string, subtopicId: string | null = null) {
     const label = `${E2E_REDTEAM_SYLLABUS_CODE_PREFIX}Q ${crypto.randomUUID()}`
     return {
       organization_id: orgId,
       bank_id: bankId,
       subject_id: subjectId,
       topic_id: topicId,
+      subtopic_id: subtopicId,
       created_by: adminUserId,
       question_text: label,
       question_number: label,
@@ -184,10 +185,14 @@ test.describe('Red Team: syllabus soft delete vs dependent rows', () => {
     }
   }
 
-  async function seedQuestion(subjectId: string, topicId: string): Promise<string> {
+  async function seedQuestion(
+    subjectId: string,
+    topicId: string,
+    subtopicId: string | null = null,
+  ): Promise<string> {
     const { data, error } = await admin
       .from('questions')
-      .insert(questionRow(subjectId, topicId))
+      .insert(questionRow(subjectId, topicId, subtopicId))
       .select('id')
       .single()
     if (error || !data) throw new Error(`seed question: ${error?.message ?? 'no row'}`)
@@ -265,6 +270,7 @@ test.describe('Red Team: syllabus soft delete vs dependent rows', () => {
     const deadTopicId = await seedTopic(subjectId, 'DEAD')
     const liveSubId = await seedSubtopic(liveTopicId, 'LS')
     const deadSubId = await seedSubtopic(liveTopicId, 'DS')
+    const otherLiveSubId = await seedSubtopic(liveTopicId, 'LS2')
 
     const orphanId = await seedQuestion(subjectId, deadTopicId)
     await softDeleteQuestion(orphanId)
@@ -290,13 +296,13 @@ test.describe('Red Team: syllabus soft delete vs dependent rows', () => {
     expect(await readQuestion(orphanId)).toEqual(orphanBefore)
 
     // Move a live question under a deleted subtopic.
-    const liveQId = await seedQuestion(subjectId, liveTopicId)
+    const liveQId = await seedQuestion(subjectId, liveTopicId, otherLiveSubId)
     const move = await adminClient
       .from('questions')
       .update({ subtopic_id: deadSubId })
       .eq('id', liveQId)
     expect(move.error?.message).toMatch(/parent_not_found/)
-    expect((await readQuestion(liveQId)).subtopic_id).toBeNull()
+    expect((await readQuestion(liveQId)).subtopic_id).toBe(otherLiveSubId)
 
     // Controls: the same move to a live subtopic, and the same restore on a live topic, succeed.
     const okMove = await adminClient
@@ -308,7 +314,7 @@ test.describe('Red Team: syllabus soft delete vs dependent rows', () => {
     expect(okMove.data).toHaveLength(1)
     expect((await readQuestion(liveQId)).subtopic_id).toBe(liveSubId)
 
-    const liveOrphanId = await seedQuestion(subjectId, liveTopicId)
+    const liveOrphanId = await seedQuestion(subjectId, liveTopicId, liveSubId)
     await softDeleteQuestion(liveOrphanId)
     const okRestore = await admin
       .from('questions')
