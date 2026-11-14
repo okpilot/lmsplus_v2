@@ -27,6 +27,7 @@ describe('formatUtc', () => {
   })
 
   it('ignores a caller-supplied timeZone', () => {
+    // @ts-expect-error -- timeZone is not accepted; a runtime caller bypassing the type still gets UTC
     expect(formatUtc(ISO, { dateStyle: 'medium', timeZone: 'Pacific/Kiritimati' })).toBe(
       '15 Mar 2026',
     )
@@ -58,6 +59,10 @@ describe('formatUtc', () => {
   it('shows the UTC label exactly once when timeZoneName is requested with an hour', () => {
     const out = formatUtc(ISO, { hour: '2-digit', timeZoneName: 'short' })
     expect(out.match(/UTC/g)).toHaveLength(1)
+  })
+
+  it('labels a day-period-only time as UTC', () => {
+    expect(formatUtc(ISO, { dayPeriod: 'short' })).toMatch(/ UTC$/)
   })
 
   it('adds no extra suffix to a date-only format that requests timeZoneName', () => {

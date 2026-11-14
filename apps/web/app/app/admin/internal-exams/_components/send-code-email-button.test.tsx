@@ -1,6 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { formatUtc } from '@/lib/utils/format-utc'
 
 // ---- Mocks ----------------------------------------------------------------
 
@@ -43,8 +42,7 @@ describe('SendCodeEmailButton', () => {
     render(<SendCodeEmailButton codeId={CODE_ID} emailedAt={SENT_ISO} />)
 
     expect(screen.getByRole('button', { name: /resend/i })).toBeInTheDocument()
-    const formatted = formatUtc(SENT_ISO, { dateStyle: 'short', timeStyle: 'short' })
-    expect(screen.getByText(`Sent ${formatted}`)).toBeInTheDocument()
+    expect(screen.getByText('Sent 28/04/2026, 10:30 UTC')).toBeInTheDocument()
   })
 
   it('shows the sent indicator, success toast, and flips label to "Resend" after a successful send', async () => {
@@ -70,8 +68,7 @@ describe('SendCodeEmailButton', () => {
     // optimistic estimate (seeding state from the prop once would freeze the old value).
     rerender(<SendCodeEmailButton codeId={CODE_ID} emailedAt={SENT_ISO} />)
 
-    const serverFormatted = formatUtc(SENT_ISO, { dateStyle: 'short', timeStyle: 'short' })
-    expect(screen.getByText(`Sent ${serverFormatted}`)).toBeInTheDocument()
+    expect(screen.getByText('Sent 28/04/2026, 10:30 UTC')).toBeInTheDocument()
   })
 
   it('shows the returned error and keeps the code unsent when sending fails', async () => {
