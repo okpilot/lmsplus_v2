@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { formatDate, formatDurationMinutes } from './reports-utils'
+import { formatDate, formatDurationMinutes, formatTableDate } from './reports-utils'
 
 const originalTz = process.env.TZ
 afterEach(() => {
@@ -53,5 +53,16 @@ describe('formatDurationMinutes', () => {
   it('renders long sessions with an hours unit instead of raw minutes', () => {
     // 1629 min = 27 h 9 m — the reported raw-minutes case
     expect(formatDurationMinutes(1629)).toBe('27h 9m')
+  })
+})
+
+describe('formatTableDate', () => {
+  it('renders the UTC day without a UTC label', () => {
+    process.env.TZ = 'Pacific/Kiritimati'
+    expect(formatTableDate('2026-03-15T23:30:00Z')).toBe('15 Mar 2026')
+  })
+
+  it('leaves formatDate labelled for the session card', () => {
+    expect(formatDate('2026-03-15T12:00:00Z')).toBe('15 Mar 2026 UTC')
   })
 })

@@ -144,8 +144,9 @@ describe('CodeRow', () => {
         expiresAt: '2026-03-15T23:45:00Z',
       })
       const text = container.textContent ?? ''
-      expect(text).toContain('15/03/2026, 23:30 UTC')
-      expect(text).toContain('15/03/2026, 23:45 UTC')
+      expect(text).toContain('15/03/2026, 23:30')
+      expect(text).toContain('15/03/2026, 23:45')
+      expect(text).not.toContain('UTC')
     })
   })
 })

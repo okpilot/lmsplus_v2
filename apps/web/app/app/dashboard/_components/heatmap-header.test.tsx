@@ -72,3 +72,15 @@ describe('HeatmapHeader', () => {
     )
   })
 })
+
+describe('HeatmapHeader — UTC caption', () => {
+  it('shows the "UTC days" caption beside the heading', () => {
+    render(<HeatmapHeader {...BASE_PROPS} />)
+    expect(screen.getByText('UTC days')).toBeInTheDocument()
+  })
+
+  it('keeps the month header text free of UTC', () => {
+    render(<HeatmapHeader {...BASE_PROPS} />)
+    expect(screen.getByText('March 2026').textContent).not.toContain('UTC')
+  })
+})

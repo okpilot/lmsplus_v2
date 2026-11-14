@@ -6,9 +6,13 @@ export function truncate(text: string, max: number) {
 }
 
 export function formatDate(iso: string) {
-  return formatUtc(iso, {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  })
+  return formatUtc(
+    iso,
+    {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    },
+    { label: false },
+  )
 }

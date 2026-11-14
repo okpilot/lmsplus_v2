@@ -8,6 +8,18 @@ export function formatDate(iso: string) {
   })
 }
 
+export function formatTableDate(iso: string) {
+  return formatUtc(
+    iso,
+    {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    },
+    { label: false },
+  )
+}
+
 // Renders a pre-computed minute count as `Xm` under an hour and `Xh Ym` at or above it,
 // so long sessions read as "27h 9m" instead of a raw "1629m".
 // Sibling duration formatters, kept separate by granularity on purpose:

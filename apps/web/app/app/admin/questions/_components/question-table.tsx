@@ -54,7 +54,7 @@ export function QuestionTable({
           <TableHead className="w-col-md">Topic</TableHead>
           <TableHead className="w-col-xs">Calc</TableHead>
           <TableHead className="w-col-xs">Status</TableHead>
-          <TableHead className="w-col-sm">Updated</TableHead>
+          <TableHead className="w-col-sm">Updated (UTC)</TableHead>
           <TableHead className="w-col-xs">Actions</TableHead>
         </TableRow>
       </TableHeader>

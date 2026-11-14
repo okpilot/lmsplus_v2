@@ -25,6 +25,7 @@ export function HeatmapHeader({
     <div className="mb-2 flex items-center justify-between sm:mb-3">
       <div className="flex items-center gap-1.5">
         <Heading level={3}>Daily Progress</Heading>
+        <span className="text-caption text-muted-foreground">UTC days</span>
         <HeatmapInfo />
       </div>
       <div className="flex items-center gap-1.5 sm:gap-2">

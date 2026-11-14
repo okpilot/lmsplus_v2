@@ -29,11 +29,15 @@ function roleTone(role: StudentRow['role']) {
 }
 
 function formatDate(iso: string) {
-  return formatUtc(iso, {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  })
+  return formatUtc(
+    iso,
+    {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    },
+    { label: false },
+  )
 }
 
 function CourseBadges({
@@ -69,8 +73,8 @@ export function StudentTable({
           <TableHead className="w-col-sm">Role</TableHead>
           <TableHead className="w-col-md">Courses</TableHead>
           <TableHead className="w-col-code">Status</TableHead>
-          <TableHead className="w-menu-min">Last Active</TableHead>
-          <TableHead className="w-col-sm">Created</TableHead>
+          <TableHead className="w-menu-min">Last Active (UTC)</TableHead>
+          <TableHead className="w-col-sm">Created (UTC)</TableHead>
           <TableHead className="w-col-lg">Login</TableHead>
           <TableHead className="w-col-xs">Actions</TableHead>
         </TableRow>

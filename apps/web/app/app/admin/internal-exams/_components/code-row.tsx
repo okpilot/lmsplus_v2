@@ -24,7 +24,7 @@ const STATUS_TONE: Record<DisplayStatus, BadgeTone> = {
 
 function formatAbsolute(iso: string | null): string {
   if (!iso) return '—'
-  return formatUtc(iso, { dateStyle: 'short', timeStyle: 'short' })
+  return formatUtc(iso, { dateStyle: 'short', timeStyle: 'short' }, { label: false })
 }
 
 function isVoidDisabled(r: InternalExamCodeRow): boolean {

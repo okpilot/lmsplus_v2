@@ -96,4 +96,19 @@ describe('formatUtc', () => {
     expect(out.match(/UTC/g)).toHaveLength(1)
     expect(out).not.toMatch(/UTC UTC/)
   })
+
+  it('omits the UTC label when label is false', () => {
+    expect(
+      formatUtc(ISO, { day: 'numeric', month: 'short', year: 'numeric' }, { label: false }),
+    ).toBe('15 Mar 2026')
+    expect(formatUtc(ISO, { dateStyle: 'short', timeStyle: 'short' }, { label: false })).toBe(
+      '15/03/2026, 23:30',
+    )
+  })
+
+  it('keeps the label by default and when label is true', () => {
+    const o = { day: 'numeric', month: 'short', year: 'numeric' } as const
+    expect(formatUtc(ISO, o)).toBe('15 Mar 2026 UTC')
+    expect(formatUtc(ISO, o, { label: true })).toBe('15 Mar 2026 UTC')
+  })
 })

@@ -64,10 +64,10 @@ describe('ActivityHeatmap', () => {
     expect(screen.getByText('March 2026')).toBeInTheDocument()
   })
 
-  it('renders month labels without a UTC label', () => {
-    const { container } = render(<ActivityHeatmap data={[]} />)
-    expect(screen.getByText('March 2026')).toBeInTheDocument()
-    expect(container.textContent).not.toContain('UTC')
+  it('renders the month header without UTC and the "UTC days" caption', () => {
+    render(<ActivityHeatmap data={[]} />)
+    expect(screen.getByText('March 2026').textContent).not.toContain('UTC')
+    expect(screen.getByText('UTC days')).toBeInTheDocument()
   })
 })
 

@@ -150,6 +150,14 @@ describe('MyReportsTab', () => {
     const { container } = render(
       <MyReportsTab rows={[{ ...baseRow, startedAt: '2026-03-15T23:30:00Z' }]} />,
     )
-    expect(container.textContent).toContain('15/03/2026, 23:30 UTC')
+    const body = container.querySelector('tbody')
+    expect(body?.textContent).toContain('15/03/2026, 23:30')
+    expect(body?.textContent).not.toContain('UTC')
+  })
+
+  it('labels the Started and Ended columns (UTC) in the header', () => {
+    render(<MyReportsTab rows={[baseRow]} />)
+    expect(screen.getByRole('columnheader', { name: 'Started (UTC)' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Ended (UTC)' })).toBeInTheDocument()
   })
 })

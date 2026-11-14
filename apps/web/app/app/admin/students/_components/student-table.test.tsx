@@ -106,3 +106,20 @@ describe('StudentTable — status and actions', () => {
     expect(cell?.className).not.toContain('py-2.5')
   })
 })
+
+describe('StudentTable — UTC date columns', () => {
+  it('labels the date column headers (UTC)', () => {
+    renderTable([row({})])
+    expect(screen.getByRole('columnheader', { name: 'Last Active (UTC)' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Created (UTC)' })).toBeInTheDocument()
+  })
+
+  it('renders date cells without a UTC label', () => {
+    renderTable([
+      row({ last_active_at: '2026-03-15T23:30:00Z', created_at: '2026-01-05T00:00:00Z' }),
+    ])
+    const r = screen.getByText('Alice').closest('tr') as HTMLElement
+    expect(r.textContent).toContain('2026')
+    expect(r.textContent).not.toContain('UTC')
+  })
+})
