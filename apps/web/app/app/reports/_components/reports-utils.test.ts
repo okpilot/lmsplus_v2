@@ -18,7 +18,7 @@ describe('formatDate', () => {
     expect(formatDate('2026-03-15T23:30:00Z')).toBe('15 Mar 2026 UTC')
   })
 
-  it('formats an ISO date string as "D Mon YYYY" in en-GB locale', () => {
+  it('formats an ISO date string as "D Mon YYYY UTC"', () => {
     // 10 Mar 2026 — fixed date to avoid locale-specific separators
     expect(formatDate('2026-03-10T10:00:00Z')).toBe('10 Mar 2026 UTC')
   })

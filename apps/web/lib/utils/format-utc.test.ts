@@ -50,6 +50,10 @@ describe('formatUtc', () => {
     expect(formatUtc(ISO, { dateStyle: 'long' })).toBe('15 March 2026 UTC')
   })
 
+  it('labels weekday-only output as UTC', () => {
+    expect(formatUtc(ISO, { weekday: 'long' })).toBe('Sunday UTC')
+  })
+
   it('adds no label to month-only or month-and-year output', () => {
     expect(formatUtc(ISO, { month: 'long' })).toBe('March')
     expect(formatUtc(ISO, { month: 'short', year: 'numeric' })).toBe('Mar 2026')

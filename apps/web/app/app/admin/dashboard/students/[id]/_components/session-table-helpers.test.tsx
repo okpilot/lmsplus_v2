@@ -59,7 +59,7 @@ describe('formatDate', () => {
   })
 
   it('formats a valid ISO date string in en-GB locale', () => {
-    // 1 Apr 2026 — en-GB format: "01 Apr 2026"
+    // 1 Apr 2026 — formatUtc: "01 Apr 2026 UTC"
     const result = formatDate('2026-04-01T10:00:00Z')
     expect(result).toBe('01 Apr 2026 UTC')
   })

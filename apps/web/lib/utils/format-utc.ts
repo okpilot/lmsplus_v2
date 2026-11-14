@@ -1,5 +1,6 @@
 const LABELLED_PARTS = new Set<Intl.DateTimeFormatPartTypes>([
   'day',
+  'weekday',
   'hour',
   'minute',
   'second',
@@ -7,7 +8,7 @@ const LABELLED_PARTS = new Set<Intl.DateTimeFormatPartTypes>([
   'fractionalSecond',
 ])
 
-/** Formats a date in en-GB UTC (no caller timeZone); appends " UTC" when a day or time part is shown and no zone name is (month/year-only output stays unlabelled); invalid dates give "Invalid Date". */
+/** Formats a date in en-GB UTC (no caller timeZone); appends " UTC" when a day, weekday or time part is shown and no zone name is (month/year-only output stays unlabelled); invalid dates give "Invalid Date". */
 export function formatUtc(
   value: string | number | Date,
   options: Omit<Intl.DateTimeFormatOptions, 'timeZone'>,
