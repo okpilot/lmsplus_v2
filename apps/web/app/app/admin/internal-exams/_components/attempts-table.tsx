@@ -13,6 +13,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { formatCorrectFraction } from '@/lib/utils/format-correct-fraction'
+import { formatUtc } from '@/lib/utils/format-utc'
 import { parsePageParam } from '@/lib/utils/parse-page-param'
 import { PaginationBar } from '../../../_components/pagination-bar'
 import type { InternalExamAttemptRow } from '../types'
@@ -25,7 +26,7 @@ type Props = {
 
 function formatAbsolute(iso: string | null): string {
   if (!iso) return '—'
-  return new Date(iso).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })
+  return formatUtc(iso, { dateStyle: 'short', timeStyle: 'short' })
 }
 
 function formatScore(score: number | null): string {

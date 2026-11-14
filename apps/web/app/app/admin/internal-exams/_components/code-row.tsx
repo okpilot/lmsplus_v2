@@ -3,6 +3,7 @@
 import { Badge, type BadgeTone } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { TableCell, TableRow } from '@/components/ui/table'
+import { formatUtc } from '@/lib/utils/format-utc'
 import type { InternalExamCodeRow } from '../types'
 import { SendCodeEmailButton } from './send-code-email-button'
 
@@ -23,7 +24,7 @@ const STATUS_TONE: Record<DisplayStatus, BadgeTone> = {
 
 function formatAbsolute(iso: string | null): string {
   if (!iso) return '—'
-  return new Date(iso).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })
+  return formatUtc(iso, { dateStyle: 'short', timeStyle: 'short' })
 }
 
 function isVoidDisabled(r: InternalExamCodeRow): boolean {

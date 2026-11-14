@@ -1,4 +1,5 @@
 import { CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { formatUtc } from '@/lib/utils/format-utc'
 
 type ProfileCardProps = {
   email: string
@@ -7,7 +8,7 @@ type ProfileCardProps = {
 }
 
 export function ProfileCard({ email, organizationName, memberSince }: Readonly<ProfileCardProps>) {
-  const joinDate = new Date(memberSince).toLocaleDateString('en-GB', {
+  const joinDate = formatUtc(memberSince, {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
