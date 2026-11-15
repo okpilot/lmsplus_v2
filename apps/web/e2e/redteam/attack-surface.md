@@ -341,6 +341,9 @@
 | LW | finish_quiz_session-non-claiming-device-inside-grace | LOW | rpc-finish-quiz-session-expired-device.spec.ts | BLOCKED |  | timing |
 | LX | questions_require_subtopic-student-insert-non-enrolled-topic-error-oracle | LOW | questions-require-subtopic.spec.ts | BLOCKED |  | enumeration |
 | LY | easa_subtopics-admin-topic_id-move-detaches-filed-questions | MEDIUM | questions-require-subtopic.spec.ts | BLOCKED |  | sibling-guard-gap |
+| LZ | student_group_members-student-peer-enumeration-embed | MEDIUM | student-groups-scope.spec.ts | BLOCKED |  | idor |
+| MA | student-group-rpcs-cross-org-admin-write | HIGH | student-groups-scope.spec.ts | BLOCKED |  | cross-tenant |
+| MB | student_group-audit_events-instructor-reads-description-and-members | LOW | student-groups-audit-instructor-read.spec.ts | BLOCKED |  | sibling-guard-gap |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 

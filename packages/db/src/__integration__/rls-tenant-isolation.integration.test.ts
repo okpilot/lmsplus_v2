@@ -15,6 +15,8 @@ describe('RLS: tenant isolation', () => {
   let sessionAId: string
   let studentAClient: SupabaseClient
   let instructorAClient: SupabaseClient
+  let adminAClient: SupabaseClient
+  let instructorAId: string
   let questionIdsA: string[]
   let refsA: Awaited<ReturnType<typeof seedReferenceData>>
   const userIdsA: string[] = []
@@ -22,6 +24,7 @@ describe('RLS: tenant isolation', () => {
   // Org B
   let orgBId: string
   let studentBClient: SupabaseClient
+  let adminBClient: SupabaseClient
   const userIdsB: string[] = []
 
   // Same-org students
@@ -62,7 +65,7 @@ describe('RLS: tenant isolation', () => {
     })
     userIdsA.push(studentA2Id)
 
-    const instructorAId = await createTestUser({
+    instructorAId = await createTestUser({
       admin,
       orgId: orgAId,
       email: `instructorA-${suffix}@test.local`,
@@ -70,6 +73,11 @@ describe('RLS: tenant isolation', () => {
       role: 'instructor',
     })
     userIdsA.push(instructorAId)
+
+    adminAClient = await getAuthenticatedClient({
+      email: `adminA-${suffix}@test.local`,
+      password: 'test-pass-123',
+    })
 
     studentAClient = await getAuthenticatedClient({
       email: `studentA-${suffix}@test.local`,
@@ -178,6 +186,11 @@ describe('RLS: tenant isolation', () => {
     })
     userIdsB.push(studentBId)
 
+    adminBClient = await getAuthenticatedClient({
+      email: `adminB-${suffix}@test.local`,
+      password: 'test-pass-123',
+    })
+
     studentBClient = await getAuthenticatedClient({
       email: `studentB-${suffix}@test.local`,
       password: 'test-pass-123',
@@ -271,13 +284,28 @@ describe('RLS: tenant isolation', () => {
     expect(Array.from(actorIds)).toEqual([studentAId])
   })
 
-  it('instructor can read audit events in own org', async () => {
-    const { data, error } = await instructorAClient
+  it('admin reads own-org audit events; instructor reads none of others; cross-org admin reads none', async () => {
+    const { data: adminRows, error: adminErr } = await adminAClient
+      .from('audit_events')
+      .select('id, actor_id')
+      .eq('organization_id', orgAId)
+    expect(adminErr).toBeNull()
+    // Positive control: non-vacuous — admin A sees org A events from actors other than the instructor.
+    expect((adminRows ?? []).some((r) => r.actor_id !== instructorAId)).toBe(true)
+
+    const { data: instrRows, error: instrErr } = await instructorAClient
+      .from('audit_events')
+      .select('id, actor_id')
+      .eq('organization_id', orgAId)
+    expect(instrErr).toBeNull()
+    expect((instrRows ?? []).filter((r) => r.actor_id !== instructorAId)).toEqual([])
+
+    const { data: otherOrg, error: otherErr } = await adminBClient
       .from('audit_events')
       .select('id')
       .eq('organization_id', orgAId)
-    expect(error).toBeNull()
-    expect(data?.length).toBeGreaterThan(0)
+    expect(otherErr).toBeNull()
+    expect(otherOrg).toHaveLength(0)
   })
 
   it('student can only see own quiz sessions (same org)', async () => {

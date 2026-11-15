@@ -167,3 +167,5 @@ export const E2E_REDTEAM_CQA_INJ_MARKER = '[E2E_REDTEAM_CQA_INJ]'
 export const E2E_REDTEAM_SYLLABUS_CODE_PREFIX = 'RTSYL-'
 // finish-expired-device spec (Vectors LV, LW, #1753): written into fixture quiz_sessions as `config.e2e_marker`.
 export const E2E_REDTEAM_ED_MARKER = '[E2E_REDTEAM_ED]'
+// student groups scope + audit specs (Vectors LZ, MA, MB, #1776): student_groups.name prefix.
+export const E2E_REDTEAM_SG_MARKER = '[E2E_REDTEAM_SG]'

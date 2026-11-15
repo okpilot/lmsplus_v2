@@ -713,11 +713,17 @@ CREATE POLICY "audit_no_delete" ON audit_events FOR DELETE USING (false);
 -- Block all direct client INSERTs. Only SECURITY DEFINER RPCs can write audit events.
 CREATE POLICY "audit_no_direct_insert" ON audit_events
   FOR INSERT WITH CHECK (false);
-CREATE POLICY "audit_read_instructors" ON audit_events
-  FOR SELECT USING (
-    organization_id = (SELECT organization_id FROM users WHERE id = (select auth.uid()))
-    AND (SELECT role FROM users WHERE id = (select auth.uid())) IN ('instructor', 'admin')
+-- Admin-only audit log (mig 20261115000400, #1776, Decision 235). Instructors read none.
+CREATE POLICY audit_read_admins ON audit_events
+  FOR SELECT TO authenticated
+  USING (
+    (SELECT is_admin())
+    AND organization_id IN (
+      SELECT u.organization_id FROM users u
+      WHERE u.id = (SELECT auth.uid()) AND u.deleted_at IS NULL
+    )
   );
+-- audit_read_own (actor_id = auth.uid()) lets any caller read their own events (GDPR Art. 15).
 ```
 
 ### Required Event Types
