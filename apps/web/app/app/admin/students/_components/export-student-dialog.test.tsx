@@ -45,6 +45,7 @@ const MOCK_STUDENT: StudentRow = {
   login_instructions_sent_at: null,
   temp_password_expires_at: null,
   course_ids: [],
+  group_ids: [],
 }
 
 const MOCK_PAYLOAD = {

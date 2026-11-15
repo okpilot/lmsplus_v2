@@ -2,6 +2,7 @@ import type { Database } from '@repo/db/types'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   fetchCourseEnrolments,
+  fetchStudentGroupMemberships,
   fetchUserAuditEvents,
   fetchUserComments,
   fetchUserConsents,
@@ -41,24 +42,48 @@ function collectSectionWarnings(
 type QueryError = { message: string } | null
 
 async function fetchPrimarySections(supabase: SupabaseClient<Database>, userId: string) {
-  const [user, sessions, responses, fsrs, flags, comments, consents, enrolments, audit, progress] =
-    await Promise.all([
-      supabase
-        .from('users')
-        .select('id, email, full_name, role, created_at, last_active_at')
-        .eq('id', userId)
-        .single(),
-      fetchUserSessions(supabase, userId),
-      fetchUserResponses(supabase, userId),
-      fetchUserFsrsCards(supabase, userId),
-      fetchUserFlaggedQuestions(supabase, userId),
-      fetchUserComments(supabase, userId),
-      fetchUserConsents(supabase, userId),
-      fetchCourseEnrolments(supabase, userId),
-      fetchUserAuditEvents(supabase, userId),
-      fetchUserProgress(supabase, userId),
-    ])
-  return { user, sessions, responses, fsrs, flags, comments, consents, enrolments, audit, progress }
+  const [
+    user,
+    sessions,
+    responses,
+    fsrs,
+    flags,
+    comments,
+    consents,
+    enrolments,
+    groupMemberships,
+    audit,
+    progress,
+  ] = await Promise.all([
+    supabase
+      .from('users')
+      .select('id, email, full_name, role, created_at, last_active_at')
+      .eq('id', userId)
+      .single(),
+    fetchUserSessions(supabase, userId),
+    fetchUserResponses(supabase, userId),
+    fetchUserFsrsCards(supabase, userId),
+    fetchUserFlaggedQuestions(supabase, userId),
+    fetchUserComments(supabase, userId),
+    fetchUserConsents(supabase, userId),
+    fetchCourseEnrolments(supabase, userId),
+    fetchStudentGroupMemberships(supabase, userId),
+    fetchUserAuditEvents(supabase, userId),
+    fetchUserProgress(supabase, userId),
+  ])
+  return {
+    user,
+    sessions,
+    responses,
+    fsrs,
+    flags,
+    comments,
+    consents,
+    enrolments,
+    groupMemberships,
+    audit,
+    progress,
+  }
 }
 
 /**
@@ -109,6 +134,7 @@ function buildWarnings(r: Primary, scoped: Scoped): GdprExportWarning[] {
     ['question_comments', r.comments],
     ['user_consents', r.consents],
     ['course_enrolments', r.enrolments],
+    ['student_group_memberships', r.groupMemberships],
     ['audit_events', r.audit],
   ])
   if (scoped.answers.error) {
@@ -143,6 +169,7 @@ function buildPayload(
     question_comments: r.comments.data,
     user_consents: r.consents.data,
     course_enrolments: r.enrolments.data,
+    student_group_memberships: r.groupMemberships.data,
     audit_events: r.audit.data.map((e) => ({
       ...e,
       ip_address: typeof e.ip_address === 'string' ? e.ip_address : null,

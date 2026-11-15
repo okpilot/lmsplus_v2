@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   type AnswerRow,
   fetchCourseEnrolments,
+  fetchStudentGroupMemberships,
   fetchUserAuditEvents,
   fetchUserComments,
   fetchUserConsents,
@@ -75,6 +76,52 @@ describe('fetchCourseEnrolments', () => {
       ['user_id', USER_ID],
       ['user_id', USER_ID],
     ])
+  })
+})
+
+describe('fetchStudentGroupMemberships', () => {
+  it('reads student_group_members for the user with the group name, newest first', async () => {
+    mockFetchAllRows.mockResolvedValueOnce({ data: [], error: null })
+    const eq = vi.fn()
+    const select = vi.fn()
+    const order = vi.fn()
+    const builder: Record<string, unknown> = {}
+    builder.select = (...a: unknown[]) => {
+      select(...a)
+      return builder
+    }
+    builder.eq = (...a: unknown[]) => {
+      eq(...a)
+      return builder
+    }
+    builder.order = (...a: unknown[]) => {
+      order(...a)
+      return builder
+    }
+    builder.range = vi.fn(() => builder)
+    const from = vi.fn(() => builder)
+    const client = { from } as unknown as SupabaseClient<Database>
+
+    await fetchStudentGroupMemberships(client, USER_ID)
+    const [getCount, getPage] = mockFetchAllRows.mock.calls[0] as [
+      () => unknown,
+      (a: number, b: number) => unknown,
+    ]
+    getCount()
+    getPage(0, 9)
+
+    expect(from).toHaveBeenCalledWith('student_group_members')
+    expect(eq.mock.calls).toEqual([
+      ['user_id', USER_ID],
+      ['user_id', USER_ID],
+    ])
+    const pageSelect = String(select.mock.calls[1]?.[0])
+    expect(pageSelect).toContain('group_id')
+    expect(pageSelect).toContain('deleted_at')
+    expect(pageSelect).toContain(
+      'student_groups!student_group_members_group_id_organization_id_fkey(name)',
+    )
+    expect(order).toHaveBeenCalledWith('added_at', { ascending: false })
   })
 })
 
@@ -207,6 +254,7 @@ describe.each([
   ['fetchUserConsents', fetchUserConsents],
   ['fetchUserAuditEvents', fetchUserAuditEvents],
   ['fetchCourseEnrolments', fetchCourseEnrolments],
+  ['fetchStudentGroupMemberships', fetchStudentGroupMemberships],
 ] as const)('%s', (_name, fetchFn) => {
   it('surfaces a page-fetch error as { data: [], error } when count succeeds but page fails', async () => {
     mockFetchAllRows.mockResolvedValueOnce({ data: [], error: PAGE_ERROR })

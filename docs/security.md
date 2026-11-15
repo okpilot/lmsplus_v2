@@ -934,6 +934,7 @@ We store student PII: email address, full name, learning history, exam scores.
 
 ### Required Capabilities
 - **Data export:** admin Server Action `exportStudentData` (`apps/web/app/app/admin/students/actions/export-student-data.ts`); student self-export Server Action `exportMyData` (`apps/web/app/app/settings/gdpr-actions.ts`)
+- **Export key `student_group_memberships`** (`group_name` null when the group is unreadable): self-export (user client) returns active rows only via the own-row policies; admin export also returns removed rows and deleted groups' names.
 - **Non-training data erasure on deactivation:** NOT BUILT (#1030); deactivation soft-deletes only. Privacy policy §6 keeps non-training data only while the account is active.
 
 ### Erasure and Retention

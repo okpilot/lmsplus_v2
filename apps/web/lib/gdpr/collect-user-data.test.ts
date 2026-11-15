@@ -758,6 +758,60 @@ describe('collectUserData', () => {
     })
   })
 
+  describe('student_group_memberships', () => {
+    const MEMBERSHIPS = [
+      {
+        group_id: 'g0000000-0000-4000-8000-000000000001',
+        added_at: '2026-02-01T00:00:00Z',
+        added_by: 'admin-1',
+        deleted_at: null,
+        deleted_by: null,
+        student_groups: { name: 'Cohort A' },
+      },
+    ]
+
+    function clientWithMemberships(rows: unknown[] | null, error: { message: string } | null) {
+      const base = buildSupabaseClient()
+      return {
+        from: (table: string) =>
+          table === 'student_group_members' ? makeChain(rows, error) : base.from(table as never),
+      } as unknown as SupabaseClient<Database>
+    }
+
+    it('includes student_group_memberships with the group name in the payload', async () => {
+      const result = await collectUserData(clientWithMemberships(MEMBERSHIPS, null), USER_ID)
+
+      expect(result.student_group_memberships).toEqual([
+        {
+          group_id: 'g0000000-0000-4000-8000-000000000001',
+          group_name: 'Cohort A',
+          added_at: '2026-02-01T00:00:00Z',
+          added_by: 'admin-1',
+          deleted_at: null,
+          deleted_by: null,
+        },
+      ])
+    })
+
+    it('returns group_name null when the embedded group is not readable', async () => {
+      const rows = [{ ...MEMBERSHIPS[0], student_groups: null }]
+      const result = await collectUserData(clientWithMemberships(rows, null), USER_ID)
+
+      expect(result.student_group_memberships[0]?.group_name).toBeNull()
+    })
+
+    it('adds a student_group_memberships warning when the read fails', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const result = await collectUserData(
+        clientWithMemberships(null, { message: 'db down' }),
+        USER_ID,
+      )
+
+      expect(result.warnings.map((w) => w.section)).toContain('student_group_memberships')
+      consoleSpy.mockRestore()
+    })
+  })
+
   describe('pagination', () => {
     it('fetches all rows when a table exceeds one page', async () => {
       const responsesData = Array.from({ length: 2500 }, (_, i) => ({

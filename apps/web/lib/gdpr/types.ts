@@ -98,6 +98,14 @@ export type GdprExportPayload = {
     deleted_at: string | null
     deleted_by: string | null
   }>
+  student_group_memberships: Array<{
+    group_id: string
+    group_name: string | null
+    added_at: string
+    added_by: string | null
+    deleted_at: string | null
+    deleted_by: string | null
+  }>
   audit_events: Array<{
     event_type: string
     resource_type: string

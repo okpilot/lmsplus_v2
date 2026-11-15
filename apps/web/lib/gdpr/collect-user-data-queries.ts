@@ -11,6 +11,7 @@ export type FlagRow = { question_id: string | null; flagged_at: string | null }
 export type CommentRow = GdprExportPayload['question_comments'][number]
 export type ConsentRow = GdprExportPayload['user_consents'][number]
 export type CourseEnrolmentRow = GdprExportPayload['course_enrolments'][number]
+export type StudentGroupMembershipRow = GdprExportPayload['student_group_memberships'][number]
 export type AuditRow = {
   event_type: string
   resource_type: string
@@ -153,6 +154,41 @@ export function fetchCourseEnrolments(supabase: SupabaseClient<Database>, userId
         .order('id')
         .range(from, to),
   )
+}
+
+type MembershipQueryRow = Omit<StudentGroupMembershipRow, 'group_name'> & {
+  student_groups: { name: string } | null
+}
+
+/** Self-export (user client) returns active memberships only, via the own-row policies; the admin export also returns removed rows and deleted groups' names. */
+export async function fetchStudentGroupMemberships(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+): Promise<{ data: StudentGroupMembershipRow[]; error: { message: string } | null }> {
+  const { data, error } = await fetchAllRows<MembershipQueryRow>(
+    () =>
+      supabase
+        .from('student_group_members')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId),
+    (from, to) =>
+      supabase
+        .from('student_group_members')
+        .select(
+          'group_id, added_at, added_by, deleted_at, deleted_by, student_groups!student_group_members_group_id_organization_id_fkey(name)',
+        )
+        .eq('user_id', userId)
+        .order('added_at', { ascending: false })
+        .order('id')
+        .range(from, to),
+  )
+  return {
+    data: data.map(({ student_groups, ...rest }) => ({
+      ...rest,
+      group_name: student_groups?.name ?? null,
+    })),
+    error,
+  }
 }
 
 export function fetchUserAuditEvents(supabase: SupabaseClient<Database>, userId: string) {

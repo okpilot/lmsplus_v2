@@ -52,7 +52,7 @@ test.describe('Admin Student Management — Table', () => {
 
   test('shows user count summary and table with expected columns', async ({ page }) => {
     // User count summary
-    await expect(page.getByText(/\d+ users?/)).toBeVisible()
+    await expect(page.getByText(/\d+ users?/).first()).toBeVisible()
 
     // Column headers
     await expect(page.getByRole('columnheader', { name: 'Name' })).toBeVisible()
@@ -413,8 +413,8 @@ test.describe('Admin Student Management — Filters', () => {
     const count = await rows.count()
     if (count > 0) {
       for (let i = 0; i < count; i++) {
-        // Check the role badge specifically (third column)
-        const roleCell = rows.nth(i).locator('td').nth(2)
+        // Check the role badge specifically (fourth column)
+        const roleCell = rows.nth(i).locator('td').nth(3)
         await expect(roleCell.getByText('student')).toBeVisible()
       }
     }
@@ -441,7 +441,7 @@ test.describe('Admin Student Management — Filters', () => {
     await expect(clearBtn).toBeVisible()
     await clearBtn.click()
     // After clear, page should reload showing all users (no filter applied)
-    await expect(page.getByText(/\d+ users?/)).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText(/\d+ users?/).first()).toBeVisible({ timeout: 10_000 })
   })
 
   test('shows empty state when search matches no students', async ({ page }) => {

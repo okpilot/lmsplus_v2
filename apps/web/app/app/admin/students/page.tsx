@@ -3,25 +3,7 @@ import { PageHeader } from '@/components/ui/heading'
 import { Skeleton } from '@/components/ui/skeleton'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { StudentsContent } from './_components/students-content'
-import type { StudentFilters } from './types'
-
-const STATUS_VALUES = ['active', 'inactive'] as const
-const ROLE_VALUES = ['admin', 'instructor', 'student'] as const
-
-function parseFilters(params: Record<string, string | string[] | undefined>): StudentFilters {
-  return {
-    status:
-      typeof params.status === 'string' &&
-      (STATUS_VALUES as readonly string[]).includes(params.status)
-        ? (params.status as StudentFilters['status'])
-        : undefined,
-    role:
-      typeof params.role === 'string' && (ROLE_VALUES as readonly string[]).includes(params.role)
-        ? (params.role as StudentFilters['role'])
-        : undefined,
-    search: typeof params.search === 'string' ? params.search.trim() || undefined : undefined,
-  }
-}
+import { parseFilters } from './parse-filters'
 
 type PageProps = { searchParams: Promise<Record<string, string | string[] | undefined>> }
 

@@ -19,6 +19,7 @@ function row(over: Partial<StudentRow>): StudentRow {
     login_instructions_sent_at: null,
     temp_password_expires_at: null,
     course_ids: [],
+    group_ids: [],
     ...over,
   }
 }
@@ -28,6 +29,10 @@ function renderTable(s: StudentRow) {
     <StudentTable
       students={[s]}
       courses={[]}
+      groups={[]}
+      selectedIds={[]}
+      onToggle={vi.fn()}
+      onToggleAll={vi.fn()}
       onEdit={vi.fn()}
       onToggleStatus={vi.fn()}
       onExport={vi.fn()}

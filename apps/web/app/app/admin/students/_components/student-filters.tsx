@@ -11,13 +11,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import type { StudentFilters } from '../types'
+import type { GroupOption, StudentFilters } from '../types'
 
 type Props = {
   filters: StudentFilters
+  groups: GroupOption[]
 }
 
 const ALL = '__all__'
+
+type Item = { value: string; label: string }
 
 const STATUS_ITEMS = [
   { value: ALL, label: 'All' },
@@ -32,15 +35,50 @@ const ROLE_ITEMS = [
   { value: 'student', label: 'Student' },
 ]
 
-export function StudentFiltersBar({ filters }: Readonly<Props>) {
+type FilterSelectProps = {
+  label: string
+  placeholder: string
+  value: string | undefined
+  items: Item[]
+  className: string
+  onChange: (value: string | undefined) => void
+}
+
+function FilterSelect({
+  label,
+  placeholder,
+  value,
+  items,
+  className,
+  onChange,
+}: Readonly<FilterSelectProps>) {
+  return (
+    <Select
+      value={value ?? ALL}
+      onValueChange={(v) => onChange(v === ALL || v === null ? undefined : v)}
+      items={items}
+    >
+      <SelectTrigger className={className} aria-label={label}>
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        {items.map((item) => (
+          <SelectItem key={item.value} value={item.value} label={item.label}>
+            {item.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
+}
+
+function useFilterUpdater() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [searchText, setSearchText] = useState(filters.search ?? '')
-  const isInitialMount = useRef(true)
-
-  const updateFilter = useCallback(
+  return useCallback(
     (key: string, value: string | undefined) => {
       const params = new URLSearchParams(searchParams.toString())
+      params.delete('page')
       if (value) {
         params.set(key, value)
       } else {
@@ -50,7 +88,11 @@ export function StudentFiltersBar({ filters }: Readonly<Props>) {
     },
     [router, searchParams],
   )
+}
 
+/** Debounced push of the search box into the URL; skips the initial mount. */
+function useDebouncedSearch(searchText: string, updateFilter: ReturnType<typeof useFilterUpdater>) {
+  const isInitialMount = useRef(true)
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false
@@ -61,53 +103,44 @@ export function StudentFiltersBar({ filters }: Readonly<Props>) {
     }, 300)
     return () => clearTimeout(timer)
   }, [searchText, updateFilter])
+}
+
+export function StudentFiltersBar({ filters, groups }: Readonly<Props>) {
+  const router = useRouter()
+  const [searchText, setSearchText] = useState(filters.search ?? '')
+  const updateFilter = useFilterUpdater()
+  useDebouncedSearch(searchText, updateFilter)
+  const groupItems = [
+    { value: ALL, label: 'All' },
+    ...groups.map((g) => ({ value: g.id, label: g.name })),
+  ]
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <Select
-        value={filters.status ?? ALL}
-        onValueChange={(v) => updateFilter('status', v === ALL || v === null ? undefined : v)}
+      <FilterSelect
+        label="Status"
+        placeholder="All statuses"
+        value={filters.status}
         items={STATUS_ITEMS}
-      >
-        <SelectTrigger className="w-col-sm" aria-label="Status">
-          <SelectValue placeholder="All statuses" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={ALL} label="All">
-            All
-          </SelectItem>
-          <SelectItem value="active" label="Active">
-            Active
-          </SelectItem>
-          <SelectItem value="inactive" label="Inactive">
-            Inactive
-          </SelectItem>
-        </SelectContent>
-      </Select>
-
-      <Select
-        value={filters.role ?? ALL}
-        onValueChange={(v) => updateFilter('role', v === ALL || v === null ? undefined : v)}
+        className="w-col-sm"
+        onChange={(v) => updateFilter('status', v)}
+      />
+      <FilterSelect
+        label="Role"
+        placeholder="All roles"
+        value={filters.role}
         items={ROLE_ITEMS}
-      >
-        <SelectTrigger className="w-col-sm" aria-label="Role">
-          <SelectValue placeholder="All roles" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={ALL} label="All">
-            All
-          </SelectItem>
-          <SelectItem value="admin" label="Admin">
-            Admin
-          </SelectItem>
-          <SelectItem value="instructor" label="Instructor">
-            Instructor
-          </SelectItem>
-          <SelectItem value="student" label="Student">
-            Student
-          </SelectItem>
-        </SelectContent>
-      </Select>
+        className="w-col-sm"
+        onChange={(v) => updateFilter('role', v)}
+      />
+      <FilterSelect
+        label="Group"
+        placeholder="All groups"
+        value={filters.group}
+        items={groupItems}
+        className="w-col-md"
+        onChange={(v) => updateFilter('group', v)}
+      />
 
       <Input
         type="search"

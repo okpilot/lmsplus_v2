@@ -28,6 +28,7 @@ function row(over: Partial<StudentRow>): StudentRow {
     login_instructions_sent_at: null,
     temp_password_expires_at: null,
     course_ids: [],
+    group_ids: [],
     ...over,
   }
 }
@@ -37,6 +38,10 @@ function renderTable(students: StudentRow[]) {
     <StudentTable
       students={students}
       courses={COURSES}
+      groups={[]}
+      selectedIds={[]}
+      onToggle={vi.fn()}
+      onToggleAll={vi.fn()}
       onEdit={vi.fn()}
       onToggleStatus={vi.fn()}
       onExport={vi.fn()}
@@ -61,7 +66,10 @@ describe('StudentTable — courses column', () => {
   it('shows an em dash for a student with no courses', () => {
     renderTable([row({ course_ids: [] })])
     const r = screen.getByText('Alice').closest('tr') as HTMLElement
-    expect(within(r).getByText('—')).toBeInTheDocument()
+    // cells: checkbox, name, email, role, courses
+    expect(
+      within(within(r).getAllByRole('cell')[4] as HTMLElement).getByText('—'),
+    ).toBeInTheDocument()
   })
 
   it.each(['instructor', 'admin'] as const)('shows course badges for role %s', (role) => {
