@@ -372,7 +372,8 @@ CREATE TABLE student_groups (
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   deleted_at      TIMESTAMPTZ NULL,
-  deleted_by      UUID NULL REFERENCES users(id) ON DELETE SET NULL
+  deleted_by      UUID NULL REFERENCES users(id) ON DELETE SET NULL,
+  UNIQUE (id, organization_id)
 );
 CREATE UNIQUE INDEX student_groups_active_name_uniq
   ON student_groups(organization_id, lower(name)) WHERE deleted_at IS NULL;
@@ -391,21 +392,23 @@ CREATE INDEX idx_student_groups_organization_id ON student_groups(organization_i
 
 ### student_group_members
 
-Group ↔ student memberships (mig `20261115000100`, #1776). Written only by `add_student_group_members`, `remove_student_group_members`, `delete_student_group`.
+Group ↔ student memberships (mig `20261115000100`, #1776). Written only by `add_student_group_members`, `remove_student_group_members`, `delete_student_group`. Composite FK `(group_id, organization_id)` → `student_groups(id, organization_id)` ON DELETE CASCADE keeps a member's org equal to its group's org.
 
 ```sql
 CREATE TABLE student_group_members (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-  group_id        UUID NOT NULL REFERENCES student_groups(id) ON DELETE CASCADE,
+  group_id        UUID NOT NULL,
   user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   added_by        UUID NULL REFERENCES users(id) ON DELETE SET NULL,
   added_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
   deleted_at      TIMESTAMPTZ NULL,
-  deleted_by      UUID NULL REFERENCES users(id) ON DELETE SET NULL
+  deleted_by      UUID NULL REFERENCES users(id) ON DELETE SET NULL,
+  FOREIGN KEY (group_id, organization_id) REFERENCES student_groups(id, organization_id) ON DELETE CASCADE
 );
 CREATE UNIQUE INDEX student_group_members_active_uniq
   ON student_group_members(group_id, user_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_student_group_members_group_id ON student_group_members(group_id);
 CREATE INDEX idx_student_group_members_user_id ON student_group_members(user_id);
 CREATE INDEX idx_student_group_members_organization_id ON student_group_members(organization_id);
 ```
@@ -1482,14 +1485,14 @@ Admin-only RPCs. Signatures: `create_student_group(p_name text, p_description te
 - Rule 7 — `auth.uid()` null-check raises `not_authenticated`
 - `is_admin()` gate raises `not_admin`
 - Caller row (`auth.uid()`, `deleted_at IS NULL`) supplies `actor_id`, `actor_role`, `organization_id` — missing row raises `admin_not_found`
-- Name trimmed, 1-80 chars; description NULL-if-blank, ≤500 — else `invalid_input` (`p_group_id IS NULL` too for update/delete)
+- Name trimmed, 1-80 chars; description trimmed, ≤500 — else `invalid_input` (`p_group_id IS NULL` too for update/delete)
 - update/delete: group looked up by id + caller org + `deleted_at IS NULL` with `FOR UPDATE` — else `group_not_found`
 - create/update: `unique_violation` on `student_groups_active_name_uniq` raises `group_name_taken`
 - `SET search_path = public, pg_temp`
 
-**Behaviour:** update writes nothing (no audit row) when name and description are unchanged; otherwise sets `updated_at`. delete soft-deletes the group and all its active memberships (`deleted_at = now()`, `deleted_by` = caller).
+**Behaviour:** update: `p_description` NULL keeps the existing description, `''`/blank clears it to NULL, non-blank sets it; writes nothing (no audit row) when name and resulting description are unchanged; otherwise sets `updated_at`. delete soft-deletes the group (also bumps `updated_at`) and all its active memberships (`deleted_at = now()`, `deleted_by` = caller); `user_ids` is unbounded (audit completeness).
 
-**Audit payloads:** `student_group.created` `{name}`; `student_group.updated` `{old_name, name}`; `student_group.deleted` `{name, members_removed}`; all `resource_type = 'student_group'`, `resource_id` = group id.
+**Audit payloads:** `student_group.created` `{name}`; `student_group.updated` `{old_name, name, old_description, description}`; `student_group.deleted` `{name, members_removed, user_ids}`; all `resource_type = 'student_group'`, `resource_id` = group id.
 
 **Grants:** `REVOKE EXECUTE … FROM PUBLIC, anon`; `GRANT EXECUTE … TO authenticated`.
 
@@ -1501,7 +1504,7 @@ Admin-only RPCs: `(p_group_id uuid, p_user_ids uuid[]) RETURNS integer` (rows ad
 - `not_authenticated`, `not_admin`, `admin_not_found` as above
 - `p_user_ids` NULL, empty, >500, containing NULL or duplicates, or `p_group_id` NULL raises `invalid_input`
 - Group looked up by id + caller org + `deleted_at IS NULL` with `FOR UPDATE` (serializes membership changes) — else `group_not_found`
-- add: every id must be an active (`deleted_at IS NULL`) `role = 'student'` user of the caller org — else `student_not_found`, nothing written. Already-active members are skipped (idempotent). remove: no user check, so deactivated users can be cleaned up.
+- add: target `users` rows are locked `FOR SHARE` (ordered by id) before the count, so a concurrent deactivation cannot slip in; every id must be an active (`deleted_at IS NULL`) `role = 'student'` user of the caller org — else `student_not_found`, nothing written. Already-active members are skipped (idempotent). remove: no user check, so deactivated users can be cleaned up.
 - `SET search_path = public, pg_temp`
 
 **Audit payloads:** `student_group.members_added` / `student_group.members_removed`, `resource_type = 'student_group'`, `resource_id` = group id, `metadata = { user_ids: [user_id…] }` (only the ids actually changed). Written only when the returned count is > 0.
@@ -2848,6 +2851,7 @@ CREATE INDEX idx_course_enrolments_course_id ON course_enrolments(course_id);
 CREATE UNIQUE INDEX student_groups_active_name_uniq ON student_groups(organization_id, lower(name)) WHERE deleted_at IS NULL;
 CREATE INDEX idx_student_groups_organization_id ON student_groups(organization_id);
 CREATE UNIQUE INDEX student_group_members_active_uniq ON student_group_members(group_id, user_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_student_group_members_group_id ON student_group_members(group_id);
 CREATE INDEX idx_student_group_members_user_id ON student_group_members(user_id);
 CREATE INDEX idx_student_group_members_organization_id ON student_group_members(organization_id);
 

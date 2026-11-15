@@ -77,6 +77,7 @@ DECLARE
   v_desc        text := NULLIF(btrim(p_description), '');
   v_old_name    text;
   v_old_desc    text;
+  v_new_desc    text;
 BEGIN
   IF v_caller_id IS NULL THEN
     RAISE EXCEPTION 'not_authenticated';
@@ -108,13 +109,15 @@ BEGIN
     RAISE EXCEPTION 'group_not_found';
   END IF;
 
-  IF v_old_name IS NOT DISTINCT FROM v_name AND v_old_desc IS NOT DISTINCT FROM v_desc THEN
+  v_new_desc := CASE WHEN p_description IS NULL THEN v_old_desc ELSE v_desc END;
+
+  IF v_old_name IS NOT DISTINCT FROM v_name AND v_old_desc IS NOT DISTINCT FROM v_new_desc THEN
     RETURN;
   END IF;
 
   BEGIN
     UPDATE public.student_groups
-    SET name = v_name, description = v_desc, updated_at = now()
+    SET name = v_name, description = v_new_desc, updated_at = now()
     WHERE id = p_group_id;
   EXCEPTION WHEN unique_violation THEN
     RAISE EXCEPTION 'group_name_taken';
@@ -124,7 +127,10 @@ BEGIN
     (organization_id, actor_id, actor_role, event_type, resource_type, resource_id, metadata)
   VALUES (
     v_caller_org, v_caller_id, v_caller_role, 'student_group.updated', 'student_group', p_group_id,
-    jsonb_build_object('old_name', v_old_name, 'name', v_name)
+    jsonb_build_object(
+      'old_name', v_old_name, 'name', v_name,
+      'old_description', v_old_desc, 'description', v_new_desc
+    )
   );
 END;
 $$;
@@ -144,6 +150,7 @@ DECLARE
   v_caller_role text;
   v_name        text;
   v_removed     integer;
+  v_user_ids    uuid[];
 BEGIN
   IF v_caller_id IS NULL THEN
     RAISE EXCEPTION 'not_authenticated';
@@ -174,20 +181,26 @@ BEGIN
     RAISE EXCEPTION 'group_not_found';
   END IF;
 
-  UPDATE public.student_group_members m
-  SET deleted_at = now(), deleted_by = v_caller_id
-  WHERE m.group_id = p_group_id AND m.deleted_at IS NULL;
-  GET DIAGNOSTICS v_removed = ROW_COUNT;
+  WITH removed AS (
+    UPDATE public.student_group_members m
+    SET deleted_at = now(), deleted_by = v_caller_id
+    WHERE m.group_id = p_group_id AND m.deleted_at IS NULL
+    RETURNING m.user_id
+  )
+  SELECT COALESCE(array_agg(user_id), '{}') INTO v_user_ids FROM removed;
+  v_removed := cardinality(v_user_ids);
 
   UPDATE public.student_groups
-  SET deleted_at = now(), deleted_by = v_caller_id
+  SET deleted_at = now(), deleted_by = v_caller_id, updated_at = now()
   WHERE id = p_group_id;
 
   INSERT INTO public.audit_events
     (organization_id, actor_id, actor_role, event_type, resource_type, resource_id, metadata)
   VALUES (
     v_caller_org, v_caller_id, v_caller_role, 'student_group.deleted', 'student_group', p_group_id,
-    jsonb_build_object('name', v_name, 'members_removed', v_removed)
+    jsonb_build_object(
+      'name', v_name, 'members_removed', v_removed, 'user_ids', to_jsonb(v_user_ids)
+    )
   );
 END;
 $$;

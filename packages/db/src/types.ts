@@ -1207,11 +1207,11 @@ export type Database = {
             referencedColumns: ['id']
           },
           {
-            foreignKeyName: 'student_group_members_group_id_fkey'
-            columns: ['group_id']
+            foreignKeyName: 'student_group_members_group_id_organization_id_fkey'
+            columns: ['group_id', 'organization_id']
             isOneToOne: false
             referencedRelation: 'student_groups'
-            referencedColumns: ['id']
+            referencedColumns: ['id', 'organization_id']
           },
           {
             foreignKeyName: 'student_group_members_organization_id_fkey'

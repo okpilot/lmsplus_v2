@@ -49,6 +49,15 @@ BEGIN
     RAISE EXCEPTION 'group_not_found';
   END IF;
 
+  -- Lock target users FOR SHARE (conflicts with deactivation UPDATE); count in a later statement sees fresh state.
+  PERFORM 1 FROM public.users u
+  WHERE u.id = ANY (p_user_ids)
+    AND u.organization_id = v_caller_org
+    AND u.role = 'student'
+    AND u.deleted_at IS NULL
+  ORDER BY u.id
+  FOR SHARE;
+
   IF (
     SELECT count(*) FROM public.users u
     WHERE u.id = ANY (p_user_ids)

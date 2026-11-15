@@ -9,7 +9,8 @@ CREATE TABLE public.student_groups (
   created_at      timestamptz NOT NULL DEFAULT now(),
   updated_at      timestamptz NOT NULL DEFAULT now(),
   deleted_at      timestamptz,
-  deleted_by      uuid REFERENCES public.users(id) ON DELETE SET NULL
+  deleted_by      uuid REFERENCES public.users(id) ON DELETE SET NULL,
+  UNIQUE (id, organization_id)
 );
 
 CREATE UNIQUE INDEX student_groups_active_name_uniq
@@ -19,16 +20,19 @@ CREATE INDEX idx_student_groups_organization_id ON public.student_groups (organi
 CREATE TABLE public.student_group_members (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id uuid NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
-  group_id        uuid NOT NULL REFERENCES public.student_groups(id) ON DELETE CASCADE,
+  group_id        uuid NOT NULL,
   user_id         uuid NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   added_by        uuid REFERENCES public.users(id) ON DELETE SET NULL,
   added_at        timestamptz NOT NULL DEFAULT now(),
   deleted_at      timestamptz,
-  deleted_by      uuid REFERENCES public.users(id) ON DELETE SET NULL
+  deleted_by      uuid REFERENCES public.users(id) ON DELETE SET NULL,
+  FOREIGN KEY (group_id, organization_id)
+    REFERENCES public.student_groups (id, organization_id) ON DELETE CASCADE
 );
 
 CREATE UNIQUE INDEX student_group_members_active_uniq
   ON public.student_group_members (group_id, user_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_student_group_members_group_id ON public.student_group_members (group_id);
 CREATE INDEX idx_student_group_members_user_id ON public.student_group_members (user_id);
 CREATE INDEX idx_student_group_members_organization_id
   ON public.student_group_members (organization_id);

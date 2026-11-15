@@ -144,7 +144,14 @@ export const DeleteStudentGroupSchema = z.object({
 
 export const StudentGroupMembersSchema = z.object({
   groupId: z.uuid(),
-  userIds: z.array(z.uuid()).min(1).max(500),
+  userIds: z
+    .array(z.uuid())
+    .min(1)
+    .max(500)
+    .refine(
+      (ids) => new Set(ids.map((id) => id.toLowerCase())).size === ids.length,
+      'Duplicate student ids',
+    ),
 })
 
 export type StudentGroupMembersInput = z.infer<typeof StudentGroupMembersSchema>
