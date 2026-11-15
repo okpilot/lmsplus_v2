@@ -30,6 +30,7 @@ describe('RPC: get_student_groups_with_counts', () => {
   let removedStudent: string
   let promoted: string
   let promotedDeact: string
+  let movedOrg: string
   const userIds: string[] = []
   const otherUserIds: string[] = []
 
@@ -91,6 +92,7 @@ describe('RPC: get_student_groups_with_counts', () => {
     removedStudent = await mk(orgId, 'sgc-removed', 'student', userIds)
     promoted = await mk(orgId, 'sgc-promo', 'student', userIds)
     promotedDeact = await mk(orgId, 'sgc-promo-d', 'student', userIds)
+    movedOrg = await mk(orgId, 'sgc-moved', 'student', userIds)
     await mk(otherOrgId, 'sgc-oadmin', 'admin', otherUserIds)
     adminClient = await login('sgc-admin')
     studentClient = await login('sgc-s0')
@@ -100,12 +102,16 @@ describe('RPC: get_student_groups_with_counts', () => {
   })
 
   afterAll(async () => {
+    const errors: string[] = []
     for (const o of [orgId, otherOrgId]) {
-      await admin.from('student_group_members').delete().eq('organization_id', o)
-      await admin.from('student_groups').delete().eq('organization_id', o)
+      for (const table of ['student_group_members', 'student_groups'] as const) {
+        const { error } = await admin.from(table).delete().eq('organization_id', o)
+        if (error) errors.push(`${table}: ${error.message}`)
+      }
     }
     await cleanupTestData({ admin, orgId, userIds })
     await cleanupTestData({ admin, orgId: otherOrgId, userIds: otherUserIds })
+    if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
   })
 
   it('AC1: anon is refused with permission denied for function', async () => {
@@ -147,7 +153,15 @@ describe('RPC: get_student_groups_with_counts', () => {
 
   it('AC5: counts active and deactivated students, ignoring removed and non-student members', async () => {
     const g = await newGroup(`counts-${suffix}`)
-    await addMembers(g, [activeA, activeB, deactStudent, removedStudent, promoted, promotedDeact])
+    await addMembers(g, [
+      activeA,
+      activeB,
+      deactStudent,
+      removedStudent,
+      promoted,
+      promotedDeact,
+      movedOrg,
+    ])
     const { error: removeErr } = await adminClient.rpc('remove_student_group_members', {
       p_group_id: g,
       p_user_ids: [removedStudent],
@@ -156,6 +170,8 @@ describe('RPC: get_student_groups_with_counts', () => {
     await updateUser(deactStudent, { deleted_at: new Date().toISOString() })
     await updateUser(promoted, { role: 'instructor' })
     await updateUser(promotedDeact, { role: 'instructor', deleted_at: new Date().toISOString() })
+    // The membership row keeps the group's org; the user now belongs to the other org.
+    await updateUser(movedOrg, { organization_id: otherOrgId })
 
     const { data, error } = await list()
     expect(error).toBeNull()
