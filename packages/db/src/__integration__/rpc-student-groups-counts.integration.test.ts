@@ -148,10 +148,11 @@ describe('RPC: get_student_groups_with_counts', () => {
   it('AC5: counts active and deactivated students, ignoring removed and non-student members', async () => {
     const g = await newGroup(`counts-${suffix}`)
     await addMembers(g, [activeA, activeB, deactStudent, removedStudent, promoted, promotedDeact])
-    await adminClient.rpc('remove_student_group_members', {
+    const { error: removeErr } = await adminClient.rpc('remove_student_group_members', {
       p_group_id: g,
       p_user_ids: [removedStudent],
     })
+    expect(removeErr).toBeNull()
     await updateUser(deactStudent, { deleted_at: new Date().toISOString() })
     await updateUser(promoted, { role: 'instructor' })
     await updateUser(promotedDeact, { role: 'instructor', deleted_at: new Date().toISOString() })
@@ -167,16 +168,14 @@ describe('RPC: get_student_groups_with_counts', () => {
   it('AC6: an empty group has zero counts and rows are ordered by name', async () => {
     await newGroup(`c-${suffix}`)
     await newGroup(`a-${suffix}`)
-    await newGroup(`b-${suffix}`)
+    await newGroup(`B-${suffix}`)
     const { data, error } = await list()
     expect(error).toBeNull()
     const rows = (data ?? []) as { name: string; active_count: number; deactivated_count: number }[]
     expect(rows.length).toBeGreaterThan(0)
-    const mine = rows.filter((r) => /^[abc]-/.test(r.name))
-    expect(mine.map((r) => r.name)).toEqual([`a-${suffix}`, `b-${suffix}`, `c-${suffix}`])
+    const mine = rows.filter((r) => /^[acB]-/.test(r.name))
+    expect(mine.map((r) => r.name)).toEqual([`a-${suffix}`, `B-${suffix}`, `c-${suffix}`])
     expect(mine.every((r) => r.active_count === 0 && r.deactivated_count === 0)).toBe(true)
-    const names = rows.map((r) => r.name)
-    expect(names).toEqual([...names].sort((x, y) => (x < y ? -1 : x > y ? 1 : 0)))
   })
 
   it('AC7: description is returned to the admin', async () => {

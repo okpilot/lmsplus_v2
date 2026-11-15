@@ -46,7 +46,7 @@ BEGIN
   WHERE g.organization_id = v_caller_org
     AND g.deleted_at IS NULL
   GROUP BY g.id
-  ORDER BY g.name;
+  ORDER BY lower(g.name), g.id;
 END;
 $$;
 
