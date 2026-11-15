@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { tabHref } from './tab-url'
+import { parseTabParam, tabHref } from './tab-url'
 
 describe('tabHref', () => {
   it('AC3: groups adds tab=groups and keeps other params', () => {
@@ -19,5 +19,23 @@ describe('tabHref', () => {
 
   it('AC3: groups with an empty search yields ?tab=groups', () => {
     expect(tabHref('', 'groups')).toBe('?tab=groups')
+  })
+})
+
+describe('parseTabParam', () => {
+  it('maps the string groups to groups', () => {
+    expect(parseTabParam('groups')).toBe('groups')
+  })
+
+  it('maps other strings to students', () => {
+    expect(parseTabParam('x')).toBe('students')
+  })
+
+  it('maps an array value to students', () => {
+    expect(parseTabParam(['groups', 'groups'])).toBe('students')
+  })
+
+  it('maps undefined to students', () => {
+    expect(parseTabParam(undefined)).toBe('students')
   })
 })

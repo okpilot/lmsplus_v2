@@ -66,7 +66,7 @@ test('admin creates, populates, filters, renames and deletes a group', async ({ 
   await expect(page.getByText('Group deleted')).toBeVisible()
   await expect(page.getByRole('row').filter({ hasText: renamed })).toHaveCount(0)
   await page.reload()
-  await expect(page).toHaveURL(/\/app\/admin\/students\/groups$/)
+  await expect(page).toHaveURL(/\/app\/admin\/students\?tab=groups$/)
   await expect(page.getByRole('row').filter({ hasText: renamed })).toHaveCount(0)
 })
 

@@ -45,6 +45,7 @@ describe('StudentsContent', () => {
           search: 'ann',
           page: 9,
         },
+        tab: 'students',
       }),
     ).rejects.toThrow(
       `NEXT_REDIRECT:/app/admin/students?status=active&role=student&group=${GROUP}&search=ann&page=3`,
@@ -53,15 +54,22 @@ describe('StudentsContent', () => {
 
   it('redirects to the bare list without a page param when there are no results', async () => {
     getStudentsPage.mockResolvedValue({ rows: [], totalCount: 0 })
-    await expect(StudentsContent({ filters: { page: 2 } })).rejects.toThrow(
+    await expect(StudentsContent({ filters: { page: 2 }, tab: 'students' })).rejects.toThrow(
       'NEXT_REDIRECT:/app/admin/students?',
     )
+  })
+
+  it('keeps tab=groups in the past-end redirect', async () => {
+    getStudentsPage.mockResolvedValue({ rows: [], totalCount: 60 })
+    await expect(
+      StudentsContent({ filters: { status: 'active', page: 9 }, tab: 'groups' }),
+    ).rejects.toThrow('NEXT_REDIRECT:/app/admin/students?tab=groups&status=active&page=3')
   })
 
   it('renders the shell with fetched data when page is within range', async () => {
     getStudentsPage.mockResolvedValue({ rows: [{ id: 'u1' }], totalCount: 25 })
     getGroupOptions.mockResolvedValue([{ id: GROUP, name: 'G' }])
-    render(await StudentsContent({ filters: { page: 1 } }))
+    render(await StudentsContent({ filters: { page: 1 }, tab: 'students' }))
     expect(redirectMock).not.toHaveBeenCalled()
     expect(shellMock.mock.calls[0]?.[0]).toMatchObject({
       students: [{ id: 'u1' }],

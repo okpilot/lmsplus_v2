@@ -45,14 +45,19 @@ function useSearchBox(urlSearch: string | undefined, update: Update) {
     cancel()
     setText('')
   }
-  return { text, onType, reset }
+  const takePending = (): Record<string, string | null> => {
+    if (!timer.current) return {}
+    cancel()
+    return { search: text.trim() || null }
+  }
+  return { text, onType, reset, takePending }
 }
 
 export function StudentFiltersBar({ filters, groups }: Readonly<Props>) {
   const update = useUpdateSearchParams()
-  const updateFilter = (key: string, v: string | undefined) =>
-    update({ [key]: v ?? null, page: null })
   const search = useSearchBox(filters.search, update)
+  const updateFilter = (key: string, v: string | undefined) =>
+    update({ [key]: v ?? null, ...search.takePending(), page: null })
   const clearAll = () => {
     search.reset()
     update({ status: null, role: null, group: null, search: null, page: null })
