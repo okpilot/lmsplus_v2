@@ -344,6 +344,9 @@
 | LZ | student_group_members-student-peer-enumeration-embed | MEDIUM | student-groups-scope.spec.ts | BLOCKED |  | idor |
 | MA | student-group-rpcs-cross-org-admin-write | HIGH | student-groups-scope.spec.ts | BLOCKED |  | cross-tenant |
 | MB | student_group-audit_events-instructor-reads-description-and-members | LOW | student-groups-audit-instructor-read.spec.ts | BLOCKED |  | sibling-guard-gap |
+| MC | add_student_group_members-parallel-duplicate-add | MEDIUM | student-groups-race.spec.ts | BLOCKED |  | race |
+| MD | add_student_group_members-vs-delete_student_group-race | MEDIUM | student-groups-race.spec.ts | BLOCKED |  | race |
+| ME | student_groups-revoked-column-filter-order-oracle | LOW | student-groups-column-oracle.spec.ts | BLOCKED |  | rls-bypass |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
