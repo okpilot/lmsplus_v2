@@ -38,11 +38,11 @@ describe('addGroupMembers', () => {
     expect(r).toEqual({ success: true, count: 1 })
   })
 
-  it('revalidates the students page and the groups page on success', async () => {
+  it('revalidates the students page only on success', async () => {
     mockRpc.mockResolvedValue({ data: 0, error: null })
     await addGroupMembers(INPUT)
     expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/students')
-    expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/students/groups')
+    expect(mockRevalidatePath).not.toHaveBeenCalledWith('/app/admin/students/groups')
   })
 
   it.each([

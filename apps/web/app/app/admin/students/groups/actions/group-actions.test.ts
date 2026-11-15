@@ -27,7 +27,7 @@ describe('createGroup', () => {
     expect(mockRpc).not.toHaveBeenCalled()
   })
 
-  it('calls create_student_group and revalidates both pages', async () => {
+  it('calls create_student_group and revalidates the students page only', async () => {
     mockRpc.mockResolvedValue({ data: GROUP, error: null })
     const r = await createGroup({ name: 'Cohort A', description: 'Spring' })
     expect(mockRpc).toHaveBeenCalledWith('create_student_group', {
@@ -36,7 +36,7 @@ describe('createGroup', () => {
     })
     expect(r).toEqual({ success: true })
     expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/students')
-    expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/students/groups')
+    expect(mockRevalidatePath).not.toHaveBeenCalledWith('/app/admin/students/groups')
   })
 
   it('maps group_name_taken to a friendly error', async () => {
@@ -92,11 +92,11 @@ describe('updateGroup', () => {
     })
   })
 
-  it('revalidates both pages on success', async () => {
+  it('revalidates the students page only on success', async () => {
     mockRpc.mockResolvedValue({ data: null, error: null })
     expect(await updateGroup({ groupId: GROUP, name: 'n' })).toEqual({ success: true })
     expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/students')
-    expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/students/groups')
+    expect(mockRevalidatePath).not.toHaveBeenCalledWith('/app/admin/students/groups')
   })
 })
 
@@ -105,12 +105,12 @@ describe('deleteGroup', () => {
     expect(await deleteGroup({ groupId: 'x' })).toEqual({ success: false, error: 'Invalid input' })
   })
 
-  it('calls delete_student_group and revalidates both pages', async () => {
+  it('calls delete_student_group and revalidates the students page only', async () => {
     mockRpc.mockResolvedValue({ data: null, error: null })
     expect(await deleteGroup({ groupId: GROUP })).toEqual({ success: true })
     expect(mockRpc).toHaveBeenCalledWith('delete_student_group', { p_group_id: GROUP })
     expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/students')
-    expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/students/groups')
+    expect(mockRevalidatePath).not.toHaveBeenCalledWith('/app/admin/students/groups')
   })
 
   it('maps group_not_found', async () => {

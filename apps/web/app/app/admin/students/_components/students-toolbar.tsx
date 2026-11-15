@@ -1,7 +1,5 @@
 import { Plus } from 'lucide-react'
-import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { buttonVariants } from '@/components/ui/button-variants'
 import type { CourseOption } from '../types'
 import { StudentFormDialog } from './student-form-dialog'
 
@@ -17,12 +15,6 @@ export function StudentsToolbar({ totalCount, courses }: Readonly<Props>) {
         {totalCount} user{totalCount === 1 ? '' : 's'}
       </p>
       <div className="flex items-center gap-2">
-        <Link
-          href="/app/admin/students/groups"
-          className={buttonVariants({ variant: 'outline', size: 'sm' })}
-        >
-          Groups
-        </Link>
         <StudentFormDialog
           courses={courses}
           trigger={

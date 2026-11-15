@@ -13,8 +13,8 @@ test('admin creates, populates, filters, renames and deletes a group', async ({ 
   const renamed = `${name}-r`
 
   // Entry: create
-  await page.goto('/app/admin/students/groups')
-  await expect(page.getByRole('heading', { name: 'Student Groups' })).toBeVisible()
+  await page.goto('/app/admin/students?tab=groups')
+  await expect(page.getByRole('tab', { name: 'Groups' })).toHaveAttribute('aria-selected', 'true')
   await page.getByRole('button', { name: 'New Group' }).click()
   await page.getByLabel('Name').fill(name)
   await page.getByRole('button', { name: 'Create Group' }).click()
@@ -36,7 +36,7 @@ test('admin creates, populates, filters, renames and deletes a group', async ({ 
   await expect(page.getByText(`Added 1 student to ${name}`)).toBeVisible()
 
   // Member count and group filter link
-  await page.goto('/app/admin/students/groups')
+  await page.goto('/app/admin/students?tab=groups')
   await expect(page.getByRole('row').filter({ hasText: name }).getByRole('cell').nth(2)).toHaveText(
     '1',
   )
@@ -54,7 +54,7 @@ test('admin creates, populates, filters, renames and deletes a group', async ({ 
   await expect(page.getByRole('row').filter({ hasText: TEST_EMAIL })).toBeVisible()
 
   // Rename
-  await page.goto('/app/admin/students/groups')
+  await page.goto('/app/admin/students?tab=groups')
   await page.getByRole('button', { name: `Edit ${name}` }).click()
   await page.getByLabel('Name').fill(renamed)
   await page.getByRole('button', { name: 'Save Changes' }).click()
@@ -72,7 +72,7 @@ test('admin creates, populates, filters, renames and deletes a group', async ({ 
 
 test('admin removes a student from a group via the bulk bar', async ({ page }) => {
   const name = makeStudentGroupE2eName()
-  await page.goto('/app/admin/students/groups')
+  await page.goto('/app/admin/students?tab=groups')
   await page.getByRole('button', { name: 'New Group' }).click()
   await page.getByLabel('Name').fill(name)
   await page.getByRole('button', { name: 'Create Group' }).click()
@@ -95,7 +95,7 @@ test('admin removes a student from a group via the bulk bar', async ({ page }) =
   await page.getByRole('button', { name: 'Remove from group' }).click()
   await expect(page.getByText(/Removed 1 student/)).toBeVisible()
 
-  await page.goto('/app/admin/students/groups')
+  await page.goto('/app/admin/students?tab=groups')
   await expect(page.getByRole('row').filter({ hasText: name }).getByRole('cell').nth(2)).toHaveText(
     '0',
   )
@@ -104,4 +104,13 @@ test('admin removes a student from a group via the bulk bar', async ({ page }) =
 test('cleanup helper is a no-op when no marked groups exist', async () => {
   await cleanupE2eStudentGroups()
   await cleanupE2eStudentGroups()
+})
+
+test('admin switches between Students and Groups tabs', async ({ page }) => {
+  await page.goto('/app/admin/students')
+  await page.getByRole('tab', { name: 'Groups' }).click()
+  await expect(page).toHaveURL(/tab=groups/)
+  await expect(page.getByRole('button', { name: 'New Group' })).toBeVisible()
+  await page.getByRole('tab', { name: 'Students' }).click()
+  await expect(page).not.toHaveURL(/tab=/)
 })

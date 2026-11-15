@@ -27,6 +27,5 @@ export async function runGroupMembersAction(
   }
 
   revalidatePath('/app/admin/students')
-  revalidatePath('/app/admin/students/groups')
   return { success: true, count: data ?? 0 }
 }

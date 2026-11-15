@@ -29,12 +29,9 @@ describe('StudentsPageShell groups and pagination', () => {
     expect(screen.getByText(/61 users?/)).toBeInTheDocument()
   })
 
-  it('links to the groups page', () => {
+  it('has no Groups link in the toolbar', () => {
     render(<StudentsPageShell {...shellProps} />)
-    expect(screen.getByRole('link', { name: 'Groups' })).toHaveAttribute(
-      'href',
-      '/app/admin/students/groups',
-    )
+    expect(screen.queryByRole('link', { name: 'Groups' })).not.toBeInTheDocument()
   })
 
   it('renders the pagination bar', () => {

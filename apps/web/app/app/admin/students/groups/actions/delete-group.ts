@@ -23,6 +23,5 @@ export async function deleteGroup(input: unknown): Promise<ActionResult> {
   }
 
   revalidatePath('/app/admin/students')
-  revalidatePath('/app/admin/students/groups')
   return { success: true }
 }

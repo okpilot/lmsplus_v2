@@ -27,6 +27,5 @@ export async function createGroup(input: unknown): Promise<ActionResult> {
   }
 
   revalidatePath('/app/admin/students')
-  revalidatePath('/app/admin/students/groups')
   return { success: true }
 }

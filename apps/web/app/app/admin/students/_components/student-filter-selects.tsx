@@ -6,13 +6,13 @@ const ALL = '__all__'
 type Item = { value: string; label: string }
 
 const STATUS_ITEMS = [
-  { value: ALL, label: 'All' },
+  { value: ALL, label: 'All statuses' },
   { value: 'active', label: 'Active' },
   { value: 'inactive', label: 'Inactive' },
 ]
 
 const ROLE_ITEMS = [
-  { value: ALL, label: 'All' },
+  { value: ALL, label: 'All roles' },
   { value: 'admin', label: 'Admin' },
   { value: 'instructor', label: 'Instructor' },
   { value: 'student', label: 'Student' },
@@ -55,7 +55,7 @@ type SelectsProps = {
 
 export function StudentFilterSelects({ filters, groups, updateFilter }: Readonly<SelectsProps>) {
   const groupItems = [
-    { value: ALL, label: 'All' },
+    { value: ALL, label: 'All groups' },
     ...groups.map((g) => ({ value: g.id, label: g.name })),
   ]
   return (
