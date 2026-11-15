@@ -94,15 +94,29 @@ describe('RPC: student group members', () => {
   async function members(g: string, activeOnly = true) {
     let q = admin.from('student_group_members').select('*').eq('group_id', g)
     if (activeOnly) q = q.is('deleted_at', null)
-    const { data } = await q
+    const { data, error } = await q
+    if (error) throw new Error(`members: ${error.message}`)
     return data ?? []
   }
+  async function setDeactivated(id: string, on: boolean) {
+    const { data, error } = await admin
+      .from('users')
+      .update({ deleted_at: on ? new Date().toISOString() : null })
+      .eq('id', id)
+      .select('id, deleted_at')
+    expect(error).toBeNull()
+    expect(data).toHaveLength(1)
+    expect(data?.[0]?.id).toBe(id)
+    if (on) expect(data?.[0]?.deleted_at).not.toBeNull()
+    else expect(data?.[0]?.deleted_at).toBeNull()
+  }
   async function audits(type: string, g: string) {
-    const { data } = await admin
+    const { data, error } = await admin
       .from('audit_events')
       .select('actor_id, actor_role, organization_id, resource_type, resource_id, metadata')
       .eq('event_type', type)
       .eq('resource_id', g)
+    if (error) throw new Error(`audits: ${error.message}`)
     return data ?? []
   }
 
@@ -160,10 +174,7 @@ describe('RPC: student group members', () => {
     })
     it('AC4: student_not_found, all-or-nothing, for unknown, other-org, instructor, admin and deactivated ids', async () => {
       const g = await newGroup()
-      await admin
-        .from('users')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', deactivatedStudent)
+      await setDeactivated(deactivatedStudent, true)
       for (const bad1 of [bad, otherOrgStudent, instructorId, adminId, deactivatedStudent]) {
         const { error } = await add(g, [s1, bad1])
         expect(error?.message, bad1).toContain('student_not_found')
@@ -211,12 +222,9 @@ describe('RPC: student group members', () => {
     })
     it('AC4: removes a deactivated user so history can be cleaned', async () => {
       const g = await newGroup()
-      await admin.from('users').update({ deleted_at: null }).eq('id', deactivatedStudent)
+      await setDeactivated(deactivatedStudent, false)
       await add(g, [deactivatedStudent])
-      await admin
-        .from('users')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', deactivatedStudent)
+      await setDeactivated(deactivatedStudent, true)
       const { data, error } = await remove(g, [deactivatedStudent])
       expect(error).toBeNull()
       expect(data).toBe(1)

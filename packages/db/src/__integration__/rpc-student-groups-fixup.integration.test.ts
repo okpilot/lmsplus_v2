@@ -73,16 +73,28 @@ describe('RPC: student group fixup', () => {
     expect(error).toBeNull()
     return data as string
   }
-  const getGroup = async (id: string) =>
-    (await admin.from('student_groups').select('*').eq('id', id).single()).data
-  const audits = async (id: string, type: string) =>
-    (
-      await admin
-        .from('audit_events')
-        .select('metadata')
-        .eq('resource_id', id)
-        .eq('event_type', type)
-    ).data ?? []
+  const getGroup = async (id: string) => {
+    const { data, error } = await admin.from('student_groups').select('*').eq('id', id).single()
+    if (error) throw new Error(`getGroup: ${error.message}`)
+    return data
+  }
+  const audits = async (id: string, type: string) => {
+    const { data, error } = await admin
+      .from('audit_events')
+      .select('metadata')
+      .eq('resource_id', id)
+      .eq('event_type', type)
+    if (error) throw new Error(`audits: ${error.message}`)
+    return data ?? []
+  }
+  const setDeactivated = async (id: string, on: boolean) => {
+    const { data, error } = await admin
+      .from('users')
+      .update({ deleted_at: on ? new Date().toISOString() : null })
+      .eq('id', id)
+      .select('id, deleted_at')
+    return { data, error }
+  }
 
   it('rename with p_description omitted keeps the description', async () => {
     const id = await create(nm('keep'), 'orig')
@@ -155,7 +167,11 @@ describe('RPC: student group fixup', () => {
       p_user_ids: [studentId],
     })
     expect(first.error).toBeNull()
-    await admin.from('users').update({ deleted_at: new Date().toISOString() }).eq('id', studentId)
+    const off = await setDeactivated(studentId, true)
+    expect(off.error).toBeNull()
+    expect(off.data?.[0]?.id).toBe(studentId)
+    expect(off.data?.[0]?.deleted_at).not.toBeNull()
+    let restore: Awaited<ReturnType<typeof setDeactivated>> | null = null
     try {
       const { data, error } = await adminClient.rpc('add_student_group_members', {
         p_group_id: id,
@@ -170,8 +186,11 @@ describe('RPC: student group fixup', () => {
       expect(again.error).toBeNull()
       expect(again.data).toBe(0)
     } finally {
-      await admin.from('users').update({ deleted_at: null }).eq('id', studentId)
+      restore = await setDeactivated(studentId, false)
     }
+    expect(restore?.error).toBeNull()
+    expect(restore?.data?.[0]?.id).toBe(studentId)
+    expect(restore?.data?.[0]?.deleted_at).toBeNull()
   })
 
   it('tab-padded name is stored trimmed and detected as a duplicate', async () => {

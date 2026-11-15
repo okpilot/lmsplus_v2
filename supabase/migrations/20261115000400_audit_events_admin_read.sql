@@ -1,4 +1,4 @@
--- Instructors no longer read audit_events; the audit log is admin-only (#1776, Decision 235).
+-- audit_read_instructors replaced by audit_read_admins; instructors read only their own events via audit_read_own (#1776, Decision 235).
 DROP POLICY IF EXISTS audit_read_instructors ON public.audit_events;
 
 CREATE POLICY audit_read_admins ON public.audit_events

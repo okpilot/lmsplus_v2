@@ -713,7 +713,7 @@ CREATE POLICY "audit_no_delete" ON audit_events FOR DELETE USING (false);
 -- Block all direct client INSERTs. Only SECURITY DEFINER RPCs can write audit events.
 CREATE POLICY "audit_no_direct_insert" ON audit_events
   FOR INSERT WITH CHECK (false);
--- Admin-only audit log (mig 20261115000400, #1776, Decision 235). Instructors read none.
+-- Admin-only audit log (mig 20261115000400, #1776, Decision 235). Instructors read only their own events (audit_read_own).
 CREATE POLICY audit_read_admins ON audit_events
   FOR SELECT TO authenticated
   USING (

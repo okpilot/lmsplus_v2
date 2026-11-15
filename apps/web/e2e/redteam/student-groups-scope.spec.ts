@@ -35,6 +35,7 @@ type Admin = ReturnType<typeof getAdminClient>
 async function seedGroup(
   admin: Admin,
   opts: { orgId: string; label: string; members: string[]; description?: string },
+  track: string[],
 ): Promise<string> {
   const { data, error } = await admin
     .from('student_groups')
@@ -46,6 +47,7 @@ async function seedGroup(
     .select('id')
     .single()
   if (error || typeof data?.id !== 'string') throw new Error(`student_groups: ${error?.message}`)
+  track.push(data.id)
   const { error: mErr } = await admin.from('student_group_members').insert(
     opts.members.map((user_id) => ({
       organization_id: opts.orgId,
@@ -91,21 +93,26 @@ test.describe('Red Team: student groups scope (LZ, MA)', () => {
     studentId = stu.victimUserId
     peerId = users.attackerUserId
     crossUserId = crossUser.userId
-    sharedId = await seedGroup(admin, {
-      orgId: users.orgId,
-      label: 'shared',
-      members: [studentId, peerId],
-      description: `${E2E_REDTEAM_SG_MARKER} admin note`,
-    })
-    groupIds.push(sharedId)
-    peerOnlyId = await seedGroup(admin, { orgId: users.orgId, label: 'peer', members: [peerId] })
-    groupIds.push(peerOnlyId)
-    otherOrgGroupId = await seedGroup(admin, {
-      orgId: cross.orgId,
-      label: 'other',
-      members: [crossUserId],
-    })
-    groupIds.push(otherOrgGroupId)
+    sharedId = await seedGroup(
+      admin,
+      {
+        orgId: users.orgId,
+        label: 'shared',
+        members: [studentId, peerId],
+        description: `${E2E_REDTEAM_SG_MARKER} admin note`,
+      },
+      groupIds,
+    )
+    peerOnlyId = await seedGroup(
+      admin,
+      { orgId: users.orgId, label: 'peer', members: [peerId] },
+      groupIds,
+    )
+    otherOrgGroupId = await seedGroup(
+      admin,
+      { orgId: cross.orgId, label: 'other', members: [crossUserId] },
+      groupIds,
+    )
     const { data: g, error: gErr } = await admin
       .from('student_groups')
       .select('name')
@@ -122,22 +129,27 @@ test.describe('Red Team: student groups scope (LZ, MA)', () => {
     const errors: string[] = []
     const now = new Date().toISOString()
     try {
-      const { error } = await admin
+      const { data, error } = await admin
         .from('student_group_members')
         .update({ deleted_at: now })
         .in('group_id', groupIds)
         .is('deleted_at', null)
+        .select('id')
       if (error) throw new Error(`student_group_members: ${error.message}`)
+      if ((data?.length ?? 0) > 0)
+        console.log(`[cleanup] student_group_members: ${data?.length} row(s)`)
     } catch (e) {
       errors.push(e instanceof Error ? e.message : String(e))
     }
     try {
-      const { error } = await admin
+      const { data, error } = await admin
         .from('student_groups')
         .update({ deleted_at: now })
         .in('id', groupIds)
         .is('deleted_at', null)
+        .select('id')
       if (error) throw new Error(`student_groups: ${error.message}`)
+      if ((data?.length ?? 0) > 0) console.log(`[cleanup] student_groups: ${data?.length} row(s)`)
     } catch (e) {
       errors.push(e instanceof Error ? e.message : String(e))
     } finally {

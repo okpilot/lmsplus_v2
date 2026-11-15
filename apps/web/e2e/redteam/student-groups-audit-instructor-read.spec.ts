@@ -4,7 +4,7 @@
  * `student_groups` / `student_group_members` give an instructor no SELECT path, and
  * `student_groups.description` is column-revoked from `authenticated`. The student-group RPCs
  * write the group description and member user_ids into `audit_events.metadata`, which
- * `audit_read_instructors` exposes to every same-org instructor.
+ * `audit_read_instructors` exposed to every same-org instructor before mig 20261115000400.
  * Should hold: an instructor reads no student_group audit row carrying the description or members.
  * CONTROL: the same-org admin reads the rows.
  *
@@ -70,22 +70,27 @@ test.describe('Red Team: student-group audit rows and instructors (MB)', () => {
     const errors: string[] = []
     const now = new Date().toISOString()
     try {
-      const { error } = await admin
+      const { data, error } = await admin
         .from('student_group_members')
         .update({ deleted_at: now })
         .eq('group_id', id)
         .is('deleted_at', null)
+        .select('id')
       if (error) throw new Error(`student_group_members: ${error.message}`)
+      if ((data?.length ?? 0) > 0)
+        console.log(`[cleanup] student_group_members: ${data?.length} row(s)`)
     } catch (e) {
       errors.push(e instanceof Error ? e.message : String(e))
     }
     try {
-      const { error } = await admin
+      const { data, error } = await admin
         .from('student_groups')
         .update({ deleted_at: now })
         .eq('id', id)
         .is('deleted_at', null)
+        .select('id')
       if (error) throw new Error(`student_groups: ${error.message}`)
+      if ((data?.length ?? 0) > 0) console.log(`[cleanup] student_groups: ${data?.length} row(s)`)
     } catch (e) {
       errors.push(e instanceof Error ? e.message : String(e))
     } finally {

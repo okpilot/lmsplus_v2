@@ -83,16 +83,18 @@ describe('RPC: student group CRUD', () => {
     return c.rpc('create_student_group', { p_name: name, p_description: description ?? null })
   }
   async function groupRow(id: string) {
-    const { data } = await admin.from('student_groups').select('*').eq('id', id).single()
+    const { data, error } = await admin.from('student_groups').select('*').eq('id', id).single()
+    if (error) throw new Error(`groupRow: ${error.message}`)
     return data as Record<string, unknown> | null
   }
   async function audits(type: string, resourceId: string) {
-    const { data } = await admin
+    const { data, error } = await admin
       .from('audit_events')
       .select('actor_id, actor_role, organization_id, resource_type, resource_id, metadata')
       .eq('event_type', type)
       .eq('resource_id', resourceId)
       .order('created_at', { ascending: true })
+    if (error) throw new Error(`audits: ${error.message}`)
     return data ?? []
   }
 

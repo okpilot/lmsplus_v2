@@ -62,21 +62,17 @@ BEGIN
     RETURN 0;
   END IF;
 
-  -- Lock target users FOR SHARE (conflicts with deactivation UPDATE); count in a later statement sees fresh state.
-  PERFORM 1 FROM public.users u
-  WHERE u.id = ANY (v_to_add)
-    AND u.organization_id = v_caller_org
-    AND u.role = 'student'
-    AND u.deleted_at IS NULL
-  ORDER BY u.id
-  FOR SHARE;
-
+  -- Lock and count in one statement: locked rows are re-checked at lock time (READ COMMITTED), so the counted set is the locked set.
   IF (
-    SELECT count(*) FROM public.users u
-    WHERE u.id = ANY (v_to_add)
-      AND u.organization_id = v_caller_org
-      AND u.role = 'student'
-      AND u.deleted_at IS NULL
+    SELECT count(*) FROM (
+      SELECT 1 FROM public.users u
+      WHERE u.id = ANY (v_to_add)
+        AND u.organization_id = v_caller_org
+        AND u.role = 'student'
+        AND u.deleted_at IS NULL
+      ORDER BY u.id
+      FOR SHARE
+    ) s
   ) <> cardinality(v_to_add) THEN
     RAISE EXCEPTION 'student_not_found';
   END IF;

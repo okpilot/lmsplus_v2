@@ -260,10 +260,14 @@ test.describe('Red Team: deactivated student live-token reads (JU, JV)', () => {
 
   test.afterEach(async () => {
     const errors: string[] = []
-    const step = async (label: string, fn: () => PromiseLike<Result>) => {
+    const step = async (
+      label: string,
+      fn: () => PromiseLike<Result & { data?: unknown[] | null }>,
+    ) => {
       try {
-        const { error } = await fn()
+        const { error, data } = await fn()
         if (error) errors.push(`${label}: ${error.message}`)
+        else if ((data?.length ?? 0) > 0) console.log(`[cleanup] ${label}: ${data?.length} row(s)`)
       } catch (e) {
         errors.push(`${label}: ${e instanceof Error ? e.message : String(e)}`)
       }
@@ -274,34 +278,46 @@ test.describe('Red Team: deactivated student live-token reads (JU, JV)', () => {
         return { error: null }
       })
     await step('progress (service-role test teardown)', () =>
-      admin.from('quiz_session_progress').delete().eq('student_id', studentId),
+      admin.from('quiz_session_progress').delete().eq('student_id', studentId).select('student_id'),
     )
     await step('fsrs_cards (service-role test teardown)', () =>
-      admin.from('fsrs_cards').delete().eq('student_id', studentId).eq('question_id', qId),
+      admin
+        .from('fsrs_cards')
+        .delete()
+        .eq('student_id', studentId)
+        .eq('question_id', qId)
+        .select('id'),
     )
     await step('drafts (hard-delete by design, docs/database.md)', () =>
-      admin.from('quiz_drafts').delete().eq('session_config->>e2e_marker', E2E_REDTEAM_JU_MARKER),
+      admin
+        .from('quiz_drafts')
+        .delete()
+        .eq('session_config->>e2e_marker', E2E_REDTEAM_JU_MARKER)
+        .select('id'),
     )
     await step('flags', () =>
       admin
         .from('flagged_questions')
         .update({ deleted_at: new Date().toISOString() })
         .eq('student_id', studentId)
-        .is('deleted_at', null),
+        .is('deleted_at', null)
+        .select('student_id'),
     )
     await step('sessions', () =>
       admin
         .from('quiz_sessions')
         .update({ deleted_at: new Date().toISOString() })
         .eq('config->>e2e_marker', E2E_REDTEAM_JU_MARKER)
-        .is('deleted_at', null),
+        .is('deleted_at', null)
+        .select('id'),
     )
     await step('student_group_members', () =>
       admin
         .from('student_group_members')
         .update({ deleted_at: new Date().toISOString(), deleted_by: studentId })
         .eq('user_id', studentId)
-        .is('deleted_at', null),
+        .is('deleted_at', null)
+        .select('id'),
     )
     await step('student_groups', async () => {
       if (groupId === null) return { error: null }
@@ -312,13 +328,15 @@ test.describe('Red Team: deactivated student live-token reads (JU, JV)', () => {
         .update({ deleted_at: new Date().toISOString(), deleted_by: studentId })
         .eq('id', id)
         .is('deleted_at', null)
+        .select('id')
     })
     await step('course_enrolments', () =>
       admin
         .from('course_enrolments')
         .update({ deleted_at: new Date().toISOString(), deleted_by: studentId })
         .eq('user_id', studentId)
-        .is('deleted_at', null),
+        .is('deleted_at', null)
+        .select('id'),
     )
     if (errors.length > 0) throw new Error(`afterEach: ${errors.join('; ')}`)
   })
