@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { CourseOption, GroupOption, StudentRow } from '../types'
-import { isSelectableStudent } from './is-selectable-student'
+import { selectionSummary } from './is-selectable-student'
 import { LoginInstructionsCell } from './login-instructions-cell'
 import { ActivityCells, MembershipCells, SelectCell } from './student-row-cells'
 import { StudentTableHeader } from './student-table-header'
@@ -113,18 +113,41 @@ function StudentRowView({
   )
 }
 
-export function StudentTable({
+type BodyProps = RowActions & {
+  students: StudentRow[]
+  courses: CourseOption[]
+  groups: GroupOption[]
+  selectedIds: string[]
+  onToggle: (id: string) => void
+}
+
+function StudentTableBody({
   students,
   courses,
   groups,
   selectedIds,
   onToggle,
-  onToggleAll,
   ...actions
-}: Readonly<Props>) {
-  const selectableCount = students.filter(isSelectableStudent).length
-  const allSelected = selectableCount > 0 && selectedIds.length === selectableCount
+}: Readonly<BodyProps>) {
+  return (
+    <TableBody>
+      {students.map((s) => (
+        <StudentRowView
+          key={s.id}
+          student={s}
+          courses={courses}
+          groups={groups}
+          selected={selectedIds.includes(s.id)}
+          onToggle={onToggle}
+          {...actions}
+        />
+      ))}
+    </TableBody>
+  )
+}
 
+export function StudentTable({ onToggleAll, ...body }: Readonly<Props>) {
+  const { selectableCount, allSelected } = selectionSummary(body.students, body.selectedIds)
   return (
     <Table>
       <StudentTableHeader
@@ -132,19 +155,7 @@ export function StudentTable({
         selectableCount={selectableCount}
         onToggleAll={onToggleAll}
       />
-      <TableBody>
-        {students.map((s) => (
-          <StudentRowView
-            key={s.id}
-            student={s}
-            courses={courses}
-            groups={groups}
-            selected={selectedIds.includes(s.id)}
-            onToggle={onToggle}
-            {...actions}
-          />
-        ))}
-      </TableBody>
+      <StudentTableBody {...body} />
     </Table>
   )
 }
