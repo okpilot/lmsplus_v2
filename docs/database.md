@@ -385,7 +385,6 @@ CREATE INDEX idx_student_groups_organization_id ON student_groups(organization_i
 **RLS (ENABLED + FORCED):**
 - SELECT (admin): `admin_read_org_student_groups`, `(SELECT is_admin())` AND `organization_id` = caller's org AND `deleted_at IS NULL`
 - SELECT (own): `user_read_own_student_groups`, active group with an active `student_group_members` row for `auth.uid()` (GDPR self-export)
-- GDPR export key `student_group_memberships` (`collect-user-data-queries.ts` `fetchStudentGroupMemberships`): `group_id, group_name, added_at, added_by, deleted_at, deleted_by`; admin export includes removed rows
 - RESTRICTIVE SELECT: `student_groups_select_active_caller`, `(SELECT private.is_active_user())`
 - No INSERT/UPDATE/DELETE policy. Instructors read nothing.
 
@@ -423,6 +422,8 @@ CREATE INDEX idx_student_group_members_organization_id ON student_group_members(
 - No INSERT/UPDATE/DELETE policy.
 
 **GRANTs to `authenticated`:** `SELECT` only.
+
+**GDPR export:** key `student_group_memberships` (`collect-user-data-queries.ts` `fetchStudentGroupMemberships`): `group_id, group_name, added_at, added_by, deleted_at, deleted_by`; admin export includes removed rows.
 
 ### quiz_sessions
 
