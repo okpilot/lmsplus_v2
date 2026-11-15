@@ -1930,6 +1930,17 @@ export type Database = {
           total_questions: number
         }[]
       }
+      get_student_groups_with_counts: {
+        Args: never
+        Returns: {
+          active_count: number
+          created_at: string
+          deactivated_count: number
+          description: string
+          id: string
+          name: string
+        }[]
+      }
       get_student_last_practiced: {
         Args: never
         Returns: {

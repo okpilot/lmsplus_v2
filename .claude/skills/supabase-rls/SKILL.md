@@ -60,9 +60,9 @@ instead (`docs/database.md` §3). Adding the filter to either would break a ship
 
 Inside a SECURITY DEFINER function the filter is both the default AND the only enforcement left —
 those RPCs run as `postgres`, which holds `BYPASSRLS`, so RLS is never evaluated. `docs/security.md`
-§15 carries two exceptions: reads bounded by an immutable, write-once ID column (e.g. the
+§15 carries three exceptions: reads bounded by an immutable, write-once ID column (e.g. the
 frozen `quiz_sessions.config.question_ids`; any new instance cites that column at the call site), and
-syllabus-parent reads of `easa_subjects`/`easa_topics`/`easa_subtopics` (§15 (d)). Shipped RPCs under
+syllabus-parent reads of `easa_subjects`/`easa_topics`/`easa_subtopics` (§15 (d)), and the aggregate group member-count read of `users` in `get_student_groups_with_counts` (§15 (e)). Shipped RPCs under
 either exception are not violations.
 
 ## RPC pattern (SECURITY DEFINER)

@@ -228,3 +228,4 @@
 ## 233 — 2026-11-14 — Amends 232: table date columns state UTC once in the column header ("(UTC)") and their cells carry no " UTC"; the dashboard heatmap shows a "UTC days" caption; single dates keep the inline " UTC". #1033
 ## 234 — 2026-11-15 — Student groups: many-to-many student_groups + student_group_members, admin-managed via SECURITY DEFINER RPCs only, soft delete with history, students read their own memberships and the groups those memberships belong to (GDPR self-export). #1776
 ## 235 — 2026-11-15 — audit_events: `audit_read_instructors` replaced by `audit_read_admins` (admins read their org); instructors read only their own events (`audit_read_own`). #1776
+## 236 — 2026-11-15 — security.md §15 exception (e): `get_student_groups_with_counts` reads `users` without `deleted_at IS NULL` to count deactivated group members separately; admin-gated, org-scoped, aggregate counts only. #1776
