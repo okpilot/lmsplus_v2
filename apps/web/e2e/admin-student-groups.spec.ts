@@ -70,6 +70,37 @@ test('admin creates, populates, filters, renames and deletes a group', async ({ 
   await expect(page.getByRole('row').filter({ hasText: renamed })).toHaveCount(0)
 })
 
+test('admin removes a student from a group via the bulk bar', async ({ page }) => {
+  const name = makeStudentGroupE2eName()
+  await page.goto('/app/admin/students/groups')
+  await page.getByRole('button', { name: 'New Group' }).click()
+  await page.getByLabel('Name').fill(name)
+  await page.getByRole('button', { name: 'Create Group' }).click()
+  await expect(page.getByRole('row').filter({ hasText: name })).toBeVisible()
+
+  const select = async () => {
+    await page.goto(`/app/admin/students?search=${encodeURIComponent(TEST_EMAIL)}`)
+    await page.getByRole('row').filter({ hasText: TEST_EMAIL }).getByRole('checkbox').check()
+    await page.getByRole('combobox', { name: 'Target group' }).click()
+    await page.getByRole('option', { name }).click()
+  }
+
+  await select()
+  await page.getByRole('button', { name: 'Add to group' }).click()
+  await expect(page.getByText(`Added 1 student to ${name}`)).toBeVisible()
+
+  // Reload mid-flow, then remove
+  await page.reload()
+  await select()
+  await page.getByRole('button', { name: 'Remove from group' }).click()
+  await expect(page.getByText(/Removed 1 student/)).toBeVisible()
+
+  await page.goto('/app/admin/students/groups')
+  await expect(page.getByRole('row').filter({ hasText: name }).getByRole('cell').nth(2)).toHaveText(
+    '0',
+  )
+})
+
 test('cleanup helper is a no-op when no marked groups exist', async () => {
   await cleanupE2eStudentGroups()
   await cleanupE2eStudentGroups()
