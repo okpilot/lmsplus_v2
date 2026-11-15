@@ -360,7 +360,7 @@ CREATE INDEX idx_course_enrolments_organization_id ON course_enrolments(organiza
 
 ### student_groups
 
-Org-scoped named groups of students (mig `20261115000100`, #1776). Written only by `create_student_group`, `update_student_group`, `delete_student_group`. `description` is read by non-service-role callers only via `get_student_groups_with_counts` (admin).
+Org-scoped named groups of students (mig `20261115000100`, #1776). Written only by `create_student_group`, `update_student_group`, `delete_student_group`. `description` is not column-granted to `authenticated`; same-org admins read it via `get_student_groups_with_counts` and in `student_group.updated` audit metadata (`audit_read_admins`).
 
 ```sql
 CREATE TABLE student_groups (
@@ -1511,6 +1511,16 @@ Admin-only RPCs: `(p_group_id uuid, p_user_ids uuid[]) RETURNS integer` (rows ad
 - `SET search_path = public, pg_temp`
 
 **Audit payloads:** `student_group.members_added` / `student_group.members_removed`, `resource_type = 'student_group'`, `resource_id` = group id, `metadata = { user_ids: [user_id…] }` (only the ids actually changed). Written only when the returned count is > 0.
+
+**Grants:** `REVOKE EXECUTE … FROM PUBLIC, anon`; `GRANT EXECUTE … TO authenticated`.
+
+##### `get_student_groups_with_counts()` (migration `20261115000500`, #1776)
+
+Admin-only read: `RETURNS TABLE (id, name, description, created_at, active_count int, deactivated_count int)`, the caller org's active (`deleted_at IS NULL`) groups ordered by `lower(name)`, then `id`.
+
+- Guards: `not_authenticated`, `not_admin`, `admin_not_found` as above; `SET search_path = public, pg_temp`
+- Counts: active (`deleted_at IS NULL`) memberships whose user is a same-org `role = 'student'`, split by `users.deleted_at` (§15 (e)); a member no longer `student` is in neither count
+- No audit row
 
 **Grants:** `REVOKE EXECUTE … FROM PUBLIC, anon`; `GRANT EXECUTE … TO authenticated`.
 

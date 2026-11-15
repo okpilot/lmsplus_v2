@@ -104,6 +104,7 @@ describe('RPC: get_student_groups_with_counts', () => {
   afterAll(async () => {
     const errors: string[] = []
     for (const o of [orgId, otherOrgId]) {
+      if (!o) continue
       for (const table of ['student_group_members', 'student_groups'] as const) {
         const { error } = await admin.from(table).delete().eq('organization_id', o)
         if (error) errors.push(`${table}: ${error.message}`)
