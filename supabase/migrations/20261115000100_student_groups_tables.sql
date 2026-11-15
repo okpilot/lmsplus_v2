@@ -88,7 +88,7 @@ CREATE POLICY student_group_members_select_active_caller ON public.student_group
 
 -- Default privileges give authenticated table-level SELECT, so clear it first (precedent: 20261002000200).
 REVOKE ALL ON public.student_groups FROM PUBLIC, anon, authenticated;
--- Explicit column list (precedent: questions, migration 094): description/created_by/deleted_by stay admin-only.
+-- Explicit column list (precedent: questions, migration 094): description/created_by/deleted_by are not selectable by authenticated (admins included).
 GRANT SELECT (id, organization_id, name, created_at, updated_at, deleted_at)
   ON public.student_groups TO authenticated;
 GRANT SELECT ON public.student_group_members TO authenticated;
