@@ -51,11 +51,14 @@ type Command = 'insert' | 'update' | 'delete'
 // 20261002000900_revoke_student_quiz_session_insert.sql,
 // 20261004000500_revoke_student_quiz_draft_writes.sql and
 // 20261015000100_student_writes_require_active_user.sql. `courses` and
-// `course_enrolments` (mig 20261027000100) are created with SELECT-only grants.
+// `course_enrolments` (mig 20261027000100), `student_groups` and `student_group_members`
+// (mig 20261115000100) are created with SELECT-only grants.
 const REVOKED_CELLS: Array<{ table: string; commands: Command[] }> = [
   { table: 'audit_events', commands: ['insert', 'update', 'delete'] },
   { table: 'courses', commands: ['insert', 'update', 'delete'] },
   { table: 'course_enrolments', commands: ['insert', 'update', 'delete'] },
+  { table: 'student_groups', commands: ['insert', 'update', 'delete'] },
+  { table: 'student_group_members', commands: ['insert', 'update', 'delete'] },
   { table: 'organizations', commands: ['insert', 'update', 'delete'] },
   { table: 'question_banks', commands: ['insert', 'update', 'delete'] },
   { table: 'quiz_session_answers', commands: ['insert', 'update', 'delete'] },

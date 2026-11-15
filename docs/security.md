@@ -748,6 +748,11 @@ CREATE POLICY "audit_read_instructors" ON audit_events
 | `question.edited` | Instructor modifies a question |
 | `question.deleted` | Instructor deletes a question |
 | `syllabus.item_deleted` | Admin soft-deletes an `easa_subjects` / `easa_topics` / `easa_subtopics` row (`soft_delete_syllabus_item()` RPC, migration `20261107000100`; metadata `{code, name}`) |
+| `student_group.created` | Admin creates a student group (`create_student_group()` RPC, migration `20261115000200`; metadata `{name}`) |
+| `student_group.updated` | Admin renames or redescribes a group (`update_student_group()` RPC; metadata `{old_name, name}`; none when nothing changed) |
+| `student_group.deleted` | Admin soft-deletes a group and its active memberships (`delete_student_group()` RPC; metadata `{name, members_removed}`) |
+| `student_group.members_added` | Admin adds students to a group (`add_student_group_members()` RPC, migration `20261115000300`; metadata `{user_ids}`; none when 0 added) |
+| `student_group.members_removed` | Admin removes students from a group (`remove_student_group_members()` RPC; metadata `{user_ids}`; none when 0 removed) |
 
 ---
 
