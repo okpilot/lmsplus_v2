@@ -81,13 +81,26 @@ describe('student groups (app-layer integration)', () => {
   })
 
   afterAll(async () => {
-    for (const org of [orgId, otherOrgId]) {
+    const failures: string[] = []
+    for (const [org, userIds] of [
+      [orgId, orgUserIds],
+      [otherOrgId, otherUserIds],
+    ] as const) {
       if (!org) continue
-      await admin.from('student_group_members').delete().eq('organization_id', org)
-      await admin.from('student_groups').delete().eq('organization_id', org)
+      try {
+        const members = await admin
+          .from('student_group_members')
+          .delete()
+          .eq('organization_id', org)
+        if (members.error) throw new Error(`members: ${members.error.message}`)
+        const groups = await admin.from('student_groups').delete().eq('organization_id', org)
+        if (groups.error) throw new Error(`groups: ${groups.error.message}`)
+        await cleanupTestData({ admin, orgId: org, userIds: [...userIds] })
+      } catch (e) {
+        failures.push(`${org}: ${e instanceof Error ? e.message : String(e)}`)
+      }
     }
-    if (orgId) await cleanupTestData({ admin, orgId, userIds: orgUserIds })
-    if (otherOrgId) await cleanupTestData({ admin, orgId: otherOrgId, userIds: otherUserIds })
+    if (failures.length > 0) throw new Error(`cleanup failed: ${failures.join('; ')}`)
   })
 
   it('counts only active students with an active membership', async () => {
@@ -104,10 +117,12 @@ describe('student groups (app-layer integration)', () => {
     expect((await getGroupsWithCounts()).map((g) => g.name)).toEqual([`Other ${suffix}`])
 
     await signInAs(adminEmail, password)
-    const mine = await getGroupsWithCounts()
-    expect(mine.map((g) => g.name)).not.toContain(`Other ${suffix}`)
-    const names = mine.map((g) => g.name)
-    expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)))
+    // Created in reverse name order so insertion order differs from name order.
+    expect(await createGroup({ name: `Zeta ${suffix}` })).toEqual({ success: true })
+    expect(await createGroup({ name: `Alpha ${suffix}` })).toEqual({ success: true })
+    const mine = (await getGroupsWithCounts()).map((g) => g.name)
+    expect(mine).not.toContain(`Other ${suffix}`)
+    expect(mine).toEqual([`Alpha ${suffix}`, `Counted ${suffix}`, `Zeta ${suffix}`])
   })
 
   it('create rejects a duplicate name with a friendly error', async () => {

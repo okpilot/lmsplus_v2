@@ -97,6 +97,12 @@ describe('getStudentsPage', () => {
     await expect(getStudentsPage({ page: 1 })).rejects.toThrow('Failed to fetch students')
   })
 
+  it('throws when a row lacks the membership arrays', async () => {
+    mockFrom.mockReturnValue(buildChain({ data: [{ id: 'x' }], count: 1, error: null }))
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    await expect(getStudentsPage({ page: 1 })).rejects.toThrow('Failed to fetch students')
+  })
+
   it('returns the exact total with no rows when the page is past the end', async () => {
     mockFrom
       .mockReturnValueOnce(

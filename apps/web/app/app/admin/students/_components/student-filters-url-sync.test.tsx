@@ -114,6 +114,7 @@ describe('StudentFiltersBar URL sync', () => {
       vi.advanceTimersByTime(300)
     })
     expect(mockReplace).toHaveBeenCalledTimes(1)
+    expect(mockReplace).toHaveBeenCalledWith('/app/admin/students?search=abc')
     rerender(<StudentFiltersBar filters={{ search: 'abc' }} groups={[]} />)
     expect(box).toHaveValue('abc ')
   })

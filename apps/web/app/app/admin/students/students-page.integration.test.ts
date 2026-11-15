@@ -19,6 +19,7 @@ const admin = getAdminClient()
 const suffix = fixtureSuffix()
 const password = 'test-pass-123'
 const adminEmail = `int-sp-admin-${suffix}@test.local`
+const otherAdminEmail = `int-sp-oadmin-${suffix}@test.local`
 const FILLERS = 26
 
 let orgId: string
@@ -32,6 +33,7 @@ let otherOrgStudent: string
 let groupA: string
 let groupB: string
 let groupGone: string
+let otherGroup: string
 const orgUsers: string[] = []
 const otherUsers: string[] = []
 
@@ -92,6 +94,15 @@ describe('students page query + group actions (integration)', () => {
     deactivated = await mk(orgId, orgUsers, 'deact', 'student', 'Deact Student')
     for (let i = 0; i < FILLERS; i++) await mk(orgId, orgUsers, `f${i}`, 'student', `Filler ${i}`)
     otherOrgStudent = await mk(otherOrgId, otherUsers, 'other', 'student', 'Other Org Student')
+    otherUsers.push(
+      await createTestUser({
+        admin,
+        orgId: otherOrgId,
+        email: otherAdminEmail,
+        password,
+        role: 'admin',
+      }),
+    )
 
     const client = await getAuthenticatedClient({ email: adminEmail, password })
     groupA = await createGroup(client, `Group A ${suffix}`)
@@ -107,6 +118,8 @@ describe('students page query + group actions (integration)', () => {
       })
       if (error) throw new Error(error.message)
     }
+    const otherClient = await getAuthenticatedClient({ email: otherAdminEmail, password })
+    otherGroup = await createGroup(otherClient, `Group Other ${suffix}`)
     const rm = await client.rpc('remove_student_group_members', {
       p_group_id: groupA,
       p_user_ids: [removedMember],
@@ -123,13 +136,29 @@ describe('students page query + group actions (integration)', () => {
       [orgId, orgUsers],
       [otherOrgId, otherUsers],
     ] as const) {
-      try {
-        await admin.from('student_group_members').delete().eq('organization_id', org)
-        await admin.from('student_groups').delete().eq('organization_id', org)
-        await cleanupTestData({ admin, orgId: org, userIds: ids })
-      } catch (e) {
-        errors.push(e instanceof Error ? e.message : String(e))
+      const orgErrors: string[] = []
+      const members = await admin
+        .from('student_group_members')
+        .delete()
+        .eq('organization_id', org)
+        .select('id')
+      if (members.error) orgErrors.push(`members: ${members.error.message}`)
+      if (orgErrors.length === 0) {
+        const groups = await admin
+          .from('student_groups')
+          .delete()
+          .eq('organization_id', org)
+          .select('id')
+        if (groups.error) orgErrors.push(`groups: ${groups.error.message}`)
       }
+      if (orgErrors.length === 0) {
+        try {
+          await cleanupTestData({ admin, orgId: org, userIds: ids })
+        } catch (e) {
+          orgErrors.push(e instanceof Error ? e.message : String(e))
+        }
+      }
+      errors.push(...orgErrors.map((m) => `${org}: ${m}`))
     }
     if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
   })
@@ -215,10 +244,15 @@ describe('students page query + group actions (integration)', () => {
     expect((await getStudentsPage({ page: 1, search: 'Other Org' })).totalCount).toBe(0)
   })
 
-  it('getGroupOptions lists active groups of the org only', async () => {
+  it('getGroupOptions lists only the caller org active groups, for each org admin', async () => {
     await signInAs(adminEmail, password)
     const options = await getGroupOptions()
     expect(options.map((o) => o.id).sort()).toEqual([groupA, groupB].sort())
+    expect(options.map((o) => o.id)).not.toContain(otherGroup)
+
+    await signInAs(otherAdminEmail, password)
+    const otherOptions = await getGroupOptions()
+    expect(otherOptions.map((o) => o.id)).toEqual([otherGroup])
   })
 
   it('addGroupMembers adds, is idempotent, and removeGroupMembers removes', async () => {

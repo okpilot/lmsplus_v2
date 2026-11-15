@@ -20,19 +20,27 @@ beforeEach(() => {
 })
 
 describe('GroupsPage', () => {
-  it('calls requireAdmin exactly once, before reading groups', async () => {
-    const order: string[] = []
-    mockRequireAdmin.mockImplementation(async () => {
-      order.push('auth')
-      return { organizationId: 'org' }
-    })
-    mockGetGroups.mockImplementation(async () => {
-      order.push('read')
-      return []
-    })
-    render(await GroupsPage())
+  it('does not read groups until requireAdmin has resolved', async () => {
+    let authorize: (v: { organizationId: string }) => void = () => {}
+    mockRequireAdmin.mockReturnValue(
+      new Promise((resolve) => {
+        authorize = resolve
+      }),
+    )
+    const pending = GroupsPage()
+    await new Promise((r) => setTimeout(r, 0))
     expect(mockRequireAdmin).toHaveBeenCalledTimes(1)
-    expect(order[0]).toBe('auth')
+    expect(mockGetGroups).not.toHaveBeenCalled()
+
+    authorize({ organizationId: 'org' })
+    render(await pending)
+    expect(mockGetGroups).toHaveBeenCalledTimes(1)
+  })
+
+  it('rejects without reading groups when requireAdmin rejects', async () => {
+    mockRequireAdmin.mockRejectedValue(new Error('forbidden'))
+    await expect(GroupsPage()).rejects.toThrow('forbidden')
+    expect(mockGetGroups).not.toHaveBeenCalled()
   })
 
   it('renders a level-1 heading', async () => {

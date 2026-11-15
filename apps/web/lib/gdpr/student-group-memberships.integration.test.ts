@@ -17,10 +17,13 @@ const admin = getAdminClient()
 const suffix = fixtureSuffix()
 const password = 'test-pass-123'
 const studentEmail = `int-gdpr-grp-s-${suffix}@test.local`
+const otherStudentEmail = `int-gdpr-grp-o-${suffix}@test.local`
 
 let orgId: string | undefined
 let adminId: string
 let studentId: string
+let otherStudentId: string
+let otherGroup: string
 let liveGroup: string
 let removedGroup: string
 let deletedGroup: string
@@ -39,11 +42,11 @@ async function seedGroup(name: string, deleted = false) {
   return data.id
 }
 
-async function seedMember(groupId: string, removed = false) {
+async function seedMember(groupId: string, removed = false, userId = studentId) {
   const { error } = await admin.from('student_group_members').insert({
     organization_id: orgId as string,
     group_id: groupId,
-    user_id: studentId,
+    user_id: userId,
     added_by: adminId,
     ...(removed ? { deleted_at: new Date().toISOString(), deleted_by: adminId } : {}),
   })
@@ -67,19 +70,48 @@ describe('collectUserData student group memberships (app-layer integration)', ()
       password,
       role: 'student',
     })
+    otherStudentId = await createTestUser({
+      admin,
+      orgId,
+      email: otherStudentEmail,
+      password,
+      role: 'student',
+    })
     liveGroup = await seedGroup(`Live ${suffix}`)
     removedGroup = await seedGroup(`Removed ${suffix}`)
     deletedGroup = await seedGroup(`Deleted ${suffix}`, true)
     await seedMember(liveGroup)
     await seedMember(removedGroup, true)
     await seedMember(deletedGroup)
+    otherGroup = await seedGroup(`Other ${suffix}`)
+    await seedMember(otherGroup, false, otherStudentId)
   })
 
   afterAll(async () => {
     if (!orgId) return
-    await admin.from('student_group_members').delete().eq('organization_id', orgId)
-    await admin.from('student_groups').delete().eq('organization_id', orgId)
-    await cleanupTestData({ admin, orgId, userIds: [adminId, studentId] })
+    const errors: string[] = []
+    const members = await admin
+      .from('student_group_members')
+      .delete()
+      .eq('organization_id', orgId)
+      .select('id')
+    if (members.error) errors.push(`members: ${members.error.message}`)
+    if (errors.length === 0) {
+      const groups = await admin
+        .from('student_groups')
+        .delete()
+        .eq('organization_id', orgId)
+        .select('id')
+      if (groups.error) errors.push(`groups: ${groups.error.message}`)
+    }
+    if (errors.length === 0) {
+      try {
+        await cleanupTestData({ admin, orgId, userIds: [adminId, studentId, otherStudentId] })
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      }
+    }
+    if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
   })
 
   it('admin export returns removed memberships and the name of a deleted group', async () => {
@@ -88,6 +120,7 @@ describe('collectUserData student group memberships (app-layer integration)', ()
     expect(payload.warnings).toEqual([])
     const byGroup = new Map(payload.student_group_memberships.map((m) => [m.group_id, m]))
     expect([...byGroup.keys()].sort()).toEqual([liveGroup, removedGroup, deletedGroup].sort())
+    expect(byGroup.has(otherGroup)).toBe(false)
     expect(byGroup.get(deletedGroup)?.group_name).toBe(`Deleted ${suffix}`)
     expect(byGroup.get(removedGroup)).toMatchObject({
       group_name: `Removed ${suffix}`,
@@ -110,5 +143,17 @@ describe('collectUserData student group memberships (app-layer integration)', ()
     expect([...byGroup.keys()].sort()).toEqual([liveGroup, deletedGroup].sort())
     expect(byGroup.get(liveGroup)?.group_name).toBe(`Live ${suffix}`)
     expect(byGroup.get(deletedGroup)?.group_name).toBeNull()
+    expect(byGroup.has(otherGroup)).toBe(false)
+  })
+
+  it('each student export contains only that student own memberships', async () => {
+    const own = await collectUserData(admin, otherStudentId)
+    expect(own.warnings).toEqual([])
+    expect(own.student_group_memberships.map((m) => m.group_id)).toEqual([otherGroup])
+
+    await signInAs(otherStudentEmail, password)
+    const self = await collectUserData(await createServerSupabaseClient(), otherStudentId)
+    expect(self.warnings).toEqual([])
+    expect(self.student_group_memberships.map((m) => m.group_id)).toEqual([otherGroup])
   })
 })

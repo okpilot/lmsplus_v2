@@ -2,12 +2,12 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockPush } = vi.hoisted(() => ({
-  mockPush: vi.fn(),
+const { mockReplace } = vi.hoisted(() => ({
+  mockReplace: vi.fn(),
 }))
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ replace: mockPush }),
+  useRouter: () => ({ replace: mockReplace }),
   usePathname: () => '/app/admin/students',
 }))
 
@@ -63,7 +63,7 @@ describe('StudentFiltersBar group filter', () => {
     const user = userEvent.setup({ delay: null })
     render(<StudentFiltersBar filters={{}} groups={GROUPS} />)
     await user.selectOptions(screen.getAllByTestId('select')[2] as HTMLSelectElement, G1)
-    const url = String(mockPush.mock.calls.at(-1)?.[0])
+    const url = String(mockReplace.mock.calls.at(-1)?.[0])
     const params = new URLSearchParams(url.split('?')[1])
     expect(params.get('group')).toBe(G1)
     expect(params.has('page')).toBe(false)
@@ -73,7 +73,7 @@ describe('StudentFiltersBar group filter', () => {
     const user = userEvent.setup({ delay: null })
     render(<StudentFiltersBar filters={{}} groups={GROUPS} />)
     await user.selectOptions(screen.getAllByTestId('select')[0] as HTMLSelectElement, 'inactive')
-    const url = String(mockPush.mock.calls.at(-1)?.[0])
-    expect(new URLSearchParams(url.split('?')[1]).has('page')).toBe(false)
+    expect(mockReplace).toHaveBeenCalledTimes(1)
+    expect(mockReplace).toHaveBeenLastCalledWith('/app/admin/students?status=inactive')
   })
 })

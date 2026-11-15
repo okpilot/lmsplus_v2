@@ -94,6 +94,19 @@ type RawRow = Omit<StudentRow, 'course_ids' | 'group_ids'> & {
   filter_members?: unknown
 }
 
+function isRawRowArray(data: unknown): data is RawRow[] {
+  return (
+    Array.isArray(data) &&
+    data.every(
+      (r) =>
+        typeof r === 'object' &&
+        r !== null &&
+        Array.isArray((r as RawRow).course_enrolments) &&
+        Array.isArray((r as RawRow).student_group_members),
+    )
+  )
+}
+
 function toStudentRow(raw: RawRow): StudentRow {
   const { course_enrolments, student_group_members, filter_members: _filter, ...rest } = raw
   return {
@@ -117,7 +130,12 @@ export async function getStudentsPage(filters: StudentFilters): Promise<Students
     throw new Error('Failed to fetch students')
   }
 
-  const rows = ((result.data ?? []) as unknown as RawRow[]).map(toStudentRow)
+  const data = result.data ?? []
+  if (!isRawRowArray(data)) {
+    console.error('[getStudentsPage] malformed rows')
+    throw new Error('Failed to fetch students')
+  }
+  const rows = data.map(toStudentRow)
   return { rows, totalCount: result.count ?? 0 }
 }
 

@@ -97,20 +97,21 @@ test.describe('Red Team: student-group membership races (MC, MD)', () => {
     } catch (e) {
       errors.push(e instanceof Error ? e.message : String(e))
     }
-    try {
-      const { data, error } = await admin
-        .from('student_groups')
-        .update({ deleted_at: now })
-        .in('id', groupIds)
-        .is('deleted_at', null)
-        .select('id')
-      if (error) throw new Error(`student_groups: ${error.message}`)
-      if ((data?.length ?? 0) > 0) console.log(`[cleanup] student_groups: ${data?.length} row(s)`)
-    } catch (e) {
-      errors.push(e instanceof Error ? e.message : String(e))
-    } finally {
-      groupIds.length = 0
+    if (errors.length === 0) {
+      try {
+        const { data, error } = await admin
+          .from('student_groups')
+          .update({ deleted_at: now })
+          .in('id', groupIds)
+          .is('deleted_at', null)
+          .select('id')
+        if (error) throw new Error(`student_groups: ${error.message}`)
+        if ((data?.length ?? 0) > 0) console.log(`[cleanup] student_groups: ${data?.length} row(s)`)
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      }
     }
+    groupIds.length = 0
     if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
   })
 

@@ -3,20 +3,13 @@
 import { Download, Pencil, UserCheck, UserX } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { formatUtc } from '@/lib/utils/format-utc'
 import type { CourseOption, GroupOption, StudentRow } from '../types'
 import { isSelectableStudent } from './is-selectable-student'
 import { LoginInstructionsCell } from './login-instructions-cell'
+import { ActivityCells, MembershipCells, SelectCell } from './student-row-cells'
+import { StudentTableHeader } from './student-table-header'
 
 type RowActions = {
   onEdit: (student: StudentRow) => void
@@ -35,31 +28,6 @@ type Props = RowActions & {
 
 function roleTone(role: StudentRow['role']) {
   return role === 'admin' ? ('info' as const) : ('neutral' as const)
-}
-
-function formatDate(iso: string) {
-  return formatUtc(
-    iso,
-    {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    },
-    { label: false },
-  )
-}
-
-function TagBadges({ tags }: Readonly<{ tags: { id: string; label: string }[] }>) {
-  if (tags.length === 0) return <span className="text-muted-foreground">—</span>
-  return (
-    <div className="flex flex-wrap gap-1">
-      {tags.map((tag) => (
-        <Badge key={tag.id} tone="neutral">
-          {tag.label}
-        </Badge>
-      ))}
-    </div>
-  )
 }
 
 type IconActionProps = {
@@ -125,15 +93,7 @@ function StudentRowView({
 }: Readonly<RowProps>) {
   return (
     <TableRow data-state={selected ? 'selected' : undefined}>
-      <TableCell>
-        {isSelectableStudent(s) ? (
-          <Checkbox
-            checked={selected}
-            onCheckedChange={() => onToggle(s.id)}
-            aria-label={`Select ${s.full_name ?? s.email}`}
-          />
-        ) : null}
-      </TableCell>
+      <SelectCell student={s} selected={selected} onToggle={onToggle} />
       <TableCell className="font-medium">{s.full_name ?? '—'}</TableCell>
       <TableCell className="text-caption text-muted-foreground">{s.email}</TableCell>
       <TableCell>
@@ -141,33 +101,8 @@ function StudentRowView({
           {s.role}
         </Badge>
       </TableCell>
-      <TableCell>
-        <TagBadges
-          tags={courses
-            .filter((c) => s.course_ids.includes(c.id))
-            .map((c) => ({ id: c.id, label: c.short }))}
-        />
-      </TableCell>
-      <TableCell>
-        <TagBadges
-          tags={groups
-            .filter((g) => s.group_ids.includes(g.id))
-            .map((g) => ({ id: g.id, label: g.name }))}
-        />
-      </TableCell>
-      <TableCell>
-        {s.deleted_at === null ? (
-          <Badge tone="success">Active</Badge>
-        ) : (
-          <Badge tone="neutral">Inactive</Badge>
-        )}
-      </TableCell>
-      <TableCell className="text-caption tabular-nums text-muted-foreground">
-        {s.last_active_at ? formatDate(s.last_active_at) : 'Never'}
-      </TableCell>
-      <TableCell className="text-caption tabular-nums text-muted-foreground">
-        {formatDate(s.created_at)}
-      </TableCell>
+      <MembershipCells student={s} courses={courses} groups={groups} />
+      <ActivityCells student={s} />
       <TableCell>
         <LoginInstructionsCell student={s} />
       </TableCell>
@@ -192,30 +127,11 @@ export function StudentTable({
 
   return (
     <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead className="w-10">
-            <Checkbox
-              render={<Button variant="bare" />}
-              nativeButton
-              checked={allSelected}
-              disabled={selectableCount === 0}
-              onCheckedChange={() => onToggleAll()}
-              aria-label="Select all students on this page"
-            />
-          </TableHead>
-          <TableHead className="min-w-col-md">Name</TableHead>
-          <TableHead className="min-w-col-lg">Email</TableHead>
-          <TableHead className="w-col-sm">Role</TableHead>
-          <TableHead className="w-col-md">Courses</TableHead>
-          <TableHead className="w-col-md">Groups</TableHead>
-          <TableHead className="w-col-code">Status</TableHead>
-          <TableHead className="w-menu-min">Last Active (UTC)</TableHead>
-          <TableHead className="w-col-sm">Created (UTC)</TableHead>
-          <TableHead className="w-col-lg">Login</TableHead>
-          <TableHead className="w-col-xs">Actions</TableHead>
-        </TableRow>
-      </TableHeader>
+      <StudentTableHeader
+        allSelected={allSelected}
+        selectableCount={selectableCount}
+        onToggleAll={onToggleAll}
+      />
       <TableBody>
         {students.map((s) => (
           <StudentRowView

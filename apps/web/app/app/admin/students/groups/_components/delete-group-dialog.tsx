@@ -1,9 +1,7 @@
 'use client'
 
-import { useState, useTransition } from 'react'
-import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { deleteGroup } from '../actions/delete-group'
+import { useDeleteGroupDialog } from '../_hooks/use-delete-group-dialog'
 import type { GroupRow } from '../types'
 
 type Props = {
@@ -12,31 +10,10 @@ type Props = {
 }
 
 export function DeleteGroupDialog({ group, onOpenChange }: Readonly<Props>) {
-  const [isPending, startTransition] = useTransition()
-  const [error, setError] = useState<string | null>(null)
-
-  function handleOpenChange(next: boolean) {
-    if (!next) setError(null)
-    onOpenChange(next)
-  }
-
-  function handleConfirm() {
-    if (!group) return
-    startTransition(async () => {
-      try {
-        const result = await deleteGroup({ groupId: group.id })
-        if (!result.success) {
-          setError(result.error)
-          return
-        }
-        toast.success('Group deleted')
-        handleOpenChange(false)
-      } catch {
-        setError('Service error. Please try again.')
-      }
-    })
-  }
-
+  const { isPending, error, handleOpenChange, handleConfirm } = useDeleteGroupDialog({
+    group,
+    onOpenChange,
+  })
   return (
     <ConfirmDialog
       open={group !== null}
