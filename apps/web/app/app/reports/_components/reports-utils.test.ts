@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { formatDate, formatDurationMinutes } from './reports-utils'
+import { formatDate, formatDurationMinutes, formatTableDate } from './reports-utils'
 
 const originalTz = process.env.TZ
 afterEach(() => {
@@ -10,26 +10,26 @@ afterEach(() => {
 describe('formatDate', () => {
   it('renders the UTC day under America/Los_Angeles', () => {
     process.env.TZ = 'America/Los_Angeles'
-    expect(formatDate('2026-03-15T00:30:00Z')).toBe('15 Mar 2026')
+    expect(formatDate('2026-03-15T00:30:00Z')).toBe('15 Mar 2026 UTC')
   })
 
   it('renders the UTC day under Pacific/Kiritimati', () => {
     process.env.TZ = 'Pacific/Kiritimati'
-    expect(formatDate('2026-03-15T23:30:00Z')).toBe('15 Mar 2026')
+    expect(formatDate('2026-03-15T23:30:00Z')).toBe('15 Mar 2026 UTC')
   })
 
-  it('formats an ISO date string as "D Mon YYYY" in en-GB locale', () => {
+  it('formats an ISO date string as "D Mon YYYY UTC"', () => {
     // 10 Mar 2026 — fixed date to avoid locale-specific separators
-    expect(formatDate('2026-03-10T10:00:00Z')).toBe('10 Mar 2026')
+    expect(formatDate('2026-03-10T10:00:00Z')).toBe('10 Mar 2026 UTC')
   })
 
   it('formats a date at the start of the year correctly', () => {
-    expect(formatDate('2026-01-01T00:00:00Z')).toBe('1 Jan 2026')
+    expect(formatDate('2026-01-01T00:00:00Z')).toBe('1 Jan 2026 UTC')
   })
 
   it('formats a date at the end of the year correctly', () => {
     // Use midday UTC to avoid date rolling over in any local timezone
-    expect(formatDate('2025-12-31T12:00:00Z')).toBe('31 Dec 2025')
+    expect(formatDate('2025-12-31T12:00:00Z')).toBe('31 Dec 2025 UTC')
   })
 })
 
@@ -53,5 +53,16 @@ describe('formatDurationMinutes', () => {
   it('renders long sessions with an hours unit instead of raw minutes', () => {
     // 1629 min = 27 h 9 m — the reported raw-minutes case
     expect(formatDurationMinutes(1629)).toBe('27h 9m')
+  })
+})
+
+describe('formatTableDate', () => {
+  it('renders the UTC day without a UTC label', () => {
+    process.env.TZ = 'Pacific/Kiritimati'
+    expect(formatTableDate('2026-03-15T23:30:00Z')).toBe('15 Mar 2026')
+  })
+
+  it('leaves formatDate labelled for the session card', () => {
+    expect(formatDate('2026-03-15T12:00:00Z')).toBe('15 Mar 2026 UTC')
   })
 })

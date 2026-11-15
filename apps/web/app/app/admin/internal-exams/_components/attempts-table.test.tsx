@@ -161,3 +161,18 @@ describe('AttemptsTable', () => {
     expect(screen.getByText('Showing 26–50 of 60 attempts')).toBeInTheDocument()
   })
 })
+
+describe('AttemptsTable — UTC date columns', () => {
+  it('labels Started and Ended headers (UTC)', () => {
+    render(<AttemptsTable rows={[baseRow]} totalCount={0} pageSize={25} />)
+    expect(screen.getByRole('columnheader', { name: 'Started (UTC)' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Ended (UTC)' })).toBeInTheDocument()
+  })
+
+  it('renders date cells without a UTC label', () => {
+    render(<AttemptsTable rows={[baseRow]} totalCount={0} pageSize={25} />)
+    const row = screen.getByText('Alice').closest('tr') as HTMLElement
+    expect(row.textContent).toContain('28/04/2026')
+    expect(row.textContent).not.toContain('UTC')
+  })
+})

@@ -17,7 +17,7 @@ import { reportUrl } from '@/lib/constants/report-paths'
 import type { SessionReport, SortDir, SortKey } from '@/lib/queries/reports'
 import { formatCorrectFraction } from '@/lib/utils/format-correct-fraction'
 import { scoreColor } from '@/lib/utils/score-color'
-import { formatDate, formatDurationMinutes } from './reports-utils'
+import { formatDurationMinutes, formatTableDate } from './reports-utils'
 
 type Props = Readonly<{
   sessions: SessionReport[]
@@ -33,7 +33,7 @@ export function SessionTable({ sessions, sort, dir, onSort }: Readonly<Props>) {
         <TableRow>
           <SortableTableHead
             field="date"
-            label="Date"
+            label="Date (UTC)"
             activeSort={sort}
             activeDir={dir}
             onSort={onSort}
@@ -87,7 +87,7 @@ function SessionRow({ session: s }: Readonly<{ session: SessionReport }>) {
       }}
     >
       <TableCell className="whitespace-normal text-muted-foreground">
-        {formatDate(s.startedAt)}
+        {formatTableDate(s.startedAt)}
       </TableCell>
       <TableCell className="whitespace-normal font-medium">
         <Link href={href} prefetch={false} onClick={(e) => e.stopPropagation()}>

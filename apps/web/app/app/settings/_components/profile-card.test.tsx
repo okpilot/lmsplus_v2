@@ -36,8 +36,8 @@ describe('ProfileCard', () => {
 
   it('renders the member since date in readable format', () => {
     render(<ProfileCard {...defaultProps} />)
-    // Date formatted as "15 January 2024" via en-GB locale
-    expect(screen.getByText('15 January 2024')).toBeInTheDocument()
+    // formatUtc: "15 January 2024 UTC"
+    expect(screen.getByText('15 January 2024 UTC')).toBeInTheDocument()
   })
 
   it('renders no quiz statistics', () => {

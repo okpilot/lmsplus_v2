@@ -77,8 +77,8 @@ export function CodesTable({ rows, status, totalCount, pageSize }: Readonly<Prop
             <TableHead className="min-w-col-sm">Code</TableHead>
             <TableHead className="min-w-col-md">Student</TableHead>
             <TableHead className="min-w-col-sm">Subject</TableHead>
-            <TableHead className="w-col-md">Issued</TableHead>
-            <TableHead className="w-col-md">Expires</TableHead>
+            <TableHead className="w-col-md">Issued (UTC)</TableHead>
+            <TableHead className="w-col-md">Expires (UTC)</TableHead>
             <TableHead className="w-col-sm">Email</TableHead>
             <TableHead className="w-col-code">Action</TableHead>
           </TableRow>

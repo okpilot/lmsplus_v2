@@ -26,7 +26,7 @@ type Props = {
 
 function formatAbsolute(iso: string | null): string {
   if (!iso) return '—'
-  return formatUtc(iso, { dateStyle: 'short', timeStyle: 'short' })
+  return formatUtc(iso, { dateStyle: 'short', timeStyle: 'short' }, { label: false })
 }
 
 function formatScore(score: number | null): string {
@@ -45,8 +45,8 @@ export function AttemptsTable({ rows, totalCount, pageSize }: Readonly<Props>) {
           <TableRow>
             <TableHead className="min-w-col-md">Student</TableHead>
             <TableHead className="min-w-col-sm">Subject</TableHead>
-            <TableHead className="w-col-md">Started</TableHead>
-            <TableHead className="w-col-md">Ended</TableHead>
+            <TableHead className="w-col-md">Started (UTC)</TableHead>
+            <TableHead className="w-col-md">Ended (UTC)</TableHead>
             <TableHead className="w-col-xs">Score</TableHead>
             <TableHead className="w-col-code">Result</TableHead>
             <TableHead className="w-col-code">Answered</TableHead>

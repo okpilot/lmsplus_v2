@@ -185,3 +185,18 @@ describe('ClickableSessionRow', () => {
     expect(row).toHaveAttribute('tabIndex', '0')
   })
 })
+
+describe('ClickableSessionRow — date cell', () => {
+  it('renders the date without a UTC label', () => {
+    render(
+      <table>
+        <tbody>
+          <ClickableSessionRow session={makeSession({ startedAt: '2026-03-12T10:00:00Z' })} />
+        </tbody>
+      </table>,
+    )
+    const row = screen.getByRole('row')
+    expect(row.textContent).toContain('12 Mar 2026')
+    expect(row.textContent).not.toContain('UTC')
+  })
+})

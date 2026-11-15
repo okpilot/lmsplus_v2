@@ -212,3 +212,11 @@ describe('CodesTable', () => {
     expect(screen.getByText('Showing 26–50 of 60 codes')).toBeInTheDocument()
   })
 })
+
+describe('CodesTable — UTC date columns', () => {
+  it('labels Issued and Expires headers (UTC)', () => {
+    render(<CodesTable rows={[baseRow]} totalCount={0} pageSize={25} />)
+    expect(screen.getByRole('columnheader', { name: 'Issued (UTC)' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Expires (UTC)' })).toBeInTheDocument()
+  })
+})

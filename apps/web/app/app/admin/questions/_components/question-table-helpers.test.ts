@@ -41,7 +41,7 @@ describe('formatDate', () => {
     expect(formatDate('2026-03-15T23:30:00Z')).toBe('15 Mar 2026')
   })
 
-  it('formats an ISO timestamp as DD Mon YYYY in en-GB locale', () => {
+  it('formats an ISO timestamp as "DD Mon YYYY, no UTC label"', () => {
     expect(formatDate('2026-03-15T00:00:00Z')).toBe('15 Mar 2026')
   })
 

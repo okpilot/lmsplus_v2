@@ -14,22 +14,22 @@ describe('formatUtc', () => {
     'formats identically in en-GB UTC whatever the host TZ (%s)',
     (tz) => {
       process.env.TZ = tz
-      expect(formatUtc(ISO, { dateStyle: 'medium' })).toBe('15 Mar 2026')
+      expect(formatUtc(ISO, { dateStyle: 'medium' })).toBe('15 Mar 2026 UTC')
     },
   )
 
   it('accepts an ISO string, epoch ms and a Date alike', () => {
     const opts = { dateStyle: 'medium' } as const
     const ms = Date.parse(ISO)
-    expect(formatUtc(ms, opts)).toBe('15 Mar 2026')
-    expect(formatUtc(new Date(ms), opts)).toBe('15 Mar 2026')
-    expect(formatUtc(ISO, opts)).toBe('15 Mar 2026')
+    expect(formatUtc(ms, opts)).toBe('15 Mar 2026 UTC')
+    expect(formatUtc(new Date(ms), opts)).toBe('15 Mar 2026 UTC')
+    expect(formatUtc(ISO, opts)).toBe('15 Mar 2026 UTC')
   })
 
   it('ignores a caller-supplied timeZone', () => {
     // @ts-expect-error -- timeZone is not accepted; a runtime caller bypassing the type still gets UTC
     expect(formatUtc(ISO, { dateStyle: 'medium', timeZone: 'Pacific/Kiritimati' })).toBe(
-      '15 Mar 2026',
+      '15 Mar 2026 UTC',
     )
   })
 
@@ -43,8 +43,29 @@ describe('formatUtc', () => {
     expect(formatUtc(ISO, { hour: '2-digit', minute: '2-digit' })).toBe('23:30 UTC')
   })
 
-  it('adds no suffix for date-only options', () => {
-    expect(formatUtc(ISO, { day: '2-digit', month: 'short', year: 'numeric' })).toBe('15 Mar 2026')
+  it('labels date-only options as UTC', () => {
+    expect(formatUtc(ISO, { day: 'numeric', month: 'short', year: 'numeric' })).toBe(
+      '15 Mar 2026 UTC',
+    )
+    expect(formatUtc(ISO, { dateStyle: 'long' })).toBe('15 March 2026 UTC')
+  })
+
+  it('labels weekday-only output as UTC', () => {
+    expect(formatUtc(ISO, { weekday: 'long' })).toBe('Sunday UTC')
+  })
+
+  it('adds no label to month-only or month-and-year output', () => {
+    expect(formatUtc(ISO, { month: 'long' })).toBe('March')
+    expect(formatUtc(ISO, { month: 'short', year: 'numeric' })).toBe('Mar 2026')
+  })
+
+  it('formats dateStyle short + timeStyle short as day, time and one UTC label', () => {
+    expect(formatUtc(ISO, { dateStyle: 'short', timeStyle: 'short' })).toBe('15/03/2026, 23:30 UTC')
+  })
+
+  it('shows UTC exactly once when timeZoneName is requested without a day', () => {
+    const out = formatUtc(ISO, { month: 'short', year: 'numeric', timeZoneName: 'short' })
+    expect(out.match(/UTC/g)).toHaveLength(1)
   })
 
   it('appends " UTC" when only minute and second are shown', () => {
@@ -74,5 +95,20 @@ describe('formatUtc', () => {
     })
     expect(out.match(/UTC/g)).toHaveLength(1)
     expect(out).not.toMatch(/UTC UTC/)
+  })
+
+  it('omits the UTC label when label is false', () => {
+    expect(
+      formatUtc(ISO, { day: 'numeric', month: 'short', year: 'numeric' }, { label: false }),
+    ).toBe('15 Mar 2026')
+    expect(formatUtc(ISO, { dateStyle: 'short', timeStyle: 'short' }, { label: false })).toBe(
+      '15/03/2026, 23:30',
+    )
+  })
+
+  it('keeps the label by default and when label is true', () => {
+    const o = { day: 'numeric', month: 'short', year: 'numeric' } as const
+    expect(formatUtc(ISO, o)).toBe('15 Mar 2026 UTC')
+    expect(formatUtc(ISO, o, { label: true })).toBe('15 Mar 2026 UTC')
   })
 })

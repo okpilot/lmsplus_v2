@@ -141,3 +141,10 @@ describe('SessionCard', () => {
     expect(screen.getByText('custom_mode')).toBeInTheDocument()
   })
 })
+
+describe('SessionCard — UTC date', () => {
+  it('keeps the inline UTC label on the date', () => {
+    render(<SessionCard session={makeSession({ startedAt: '2026-03-10T10:00:00Z' })} />)
+    expect(screen.getByText(/10 Mar 2026 UTC/)).toBeInTheDocument()
+  })
+})

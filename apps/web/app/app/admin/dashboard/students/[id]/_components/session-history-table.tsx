@@ -72,7 +72,7 @@ export function SessionHistoryTable({
           <TableRow>
             <SortableTableHead
               field="date"
-              label="Date"
+              label="Date (UTC)"
               activeSort={filters.sort}
               activeDir={filters.dir}
               onSort={handleSort}

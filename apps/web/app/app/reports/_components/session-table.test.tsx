@@ -265,3 +265,17 @@ describe('SessionTable row keyboard navigation', () => {
     expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/report?session=click-1')
   })
 })
+
+describe('SessionTable — UTC date column', () => {
+  it('labels the sortable date header "Date (UTC)"', () => {
+    render(<SessionTable {...SORT_PROPS} sessions={[makeSession()]} />)
+    expect(screen.getByRole('columnheader', { name: /Date \(UTC\)/ })).toBeInTheDocument()
+  })
+
+  it('renders the date cell without a UTC label', () => {
+    render(<SessionTable {...SORT_PROPS} sessions={[makeSession()]} />)
+    const row = screen.getAllByRole('row')[1] as HTMLElement
+    expect(row.textContent).toContain('10 Mar 2026')
+    expect(row.textContent).not.toContain('UTC')
+  })
+})
