@@ -92,7 +92,7 @@ describe('StudentsBulkBar', () => {
     await user.selectOptions(screen.getByLabelText('Group'), G1)
     await user.click(screen.getByRole('button', { name: 'Remove from group' }))
     expect(mockRemove).toHaveBeenCalledWith({ groupId: G1, userIds: IDS })
-    expect(mockToast.success).toHaveBeenCalledWith('Removed 1 students from Cohort A')
+    expect(mockToast.success).toHaveBeenCalledWith('Removed 1 student from Cohort A')
   })
 
   it('shows the error as a toast and keeps the selection on failure', async () => {

@@ -4,6 +4,7 @@ import { Pencil, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { buttonVariants } from '@/components/ui/button-variants'
 import { Empty, EmptyDescription } from '@/components/ui/empty'
 import {
   Table,
@@ -43,13 +44,12 @@ function GroupRowView({ group, onEdit, onDelete }: Readonly<RowProps>) {
       </TableCell>
       <TableCell>
         <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            render={<Link href={`/app/admin/students?group=${group.id}`} />}
+          <Link
+            href={`/app/admin/students?group=${group.id}`}
+            className={buttonVariants({ variant: 'ghost', size: 'sm' })}
           >
             View students
-          </Button>
+          </Link>
           <Button
             variant="ghost"
             size="icon-sm"

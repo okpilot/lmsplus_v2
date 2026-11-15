@@ -29,11 +29,11 @@ type Mode = 'add' | 'remove'
 function successMessage(mode: Mode, count: number, groupName: string): string {
   if (mode === 'add') {
     return count > 0
-      ? `Added ${count} students to ${groupName}`
+      ? `Added ${count} ${count === 1 ? 'student' : 'students'} to ${groupName}`
       : `Selected students are already in ${groupName}`
   }
   return count > 0
-    ? `Removed ${count} students from ${groupName}`
+    ? `Removed ${count} ${count === 1 ? 'student' : 'students'} from ${groupName}`
     : `None of the selected students are in ${groupName}`
 }
 

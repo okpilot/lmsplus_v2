@@ -1,6 +1,7 @@
 import { Plus } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { buttonVariants } from '@/components/ui/button-variants'
 import { PageHeader } from '@/components/ui/heading'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { GroupFormDialog } from './_components/group-form-dialog'
@@ -18,9 +19,12 @@ export default async function GroupsPage() {
         description="Organise students into groups for bulk management."
         actions={
           <>
-            <Button variant="outline" size="sm" render={<Link href="/app/admin/students" />}>
+            <Link
+              href="/app/admin/students"
+              className={buttonVariants({ variant: 'outline', size: 'sm' })}
+            >
               Back to students
-            </Button>
+            </Link>
             <GroupFormDialog
               trigger={
                 <Button size="sm">
