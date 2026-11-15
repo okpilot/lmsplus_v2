@@ -143,7 +143,7 @@ describe('control, avatar and column sizes', () => {
     ['admin/internal-exams/codes-table.tsx', ['w-col-md', 'w-col-code', 'w-col-sm']],
     ['admin/questions/question-table.tsx', ['w-col-md', 'w-col-code', 'w-col-sm', 'w-col-xs']],
     [
-      'admin/students/student-table.tsx',
+      'admin/students/student-table-header.tsx',
       ['w-col-md', 'w-col-code', 'w-col-sm', 'w-col-xs', 'w-col-lg'],
     ],
     ['admin/students/student-filter-selects.tsx', ['w-col-sm', 'w-col-md']],
