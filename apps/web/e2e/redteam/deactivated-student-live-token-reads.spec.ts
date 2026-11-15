@@ -11,7 +11,7 @@
  * non-zero RPC output.
  *
  * Hermetic (code-style.md §7): dedicated throwaway student (E2E_REDTEAM_JU_STUDENT_EMAIL).
- * quiz_sessions / flagged_questions / course_enrolments soft-deleted (one soft-deleted course_enrolments row per run); quiz_drafts, quiz_session_progress, fsrs_cards
+ * quiz_sessions / flagged_questions / course_enrolments soft-deleted (one soft-deleted course_enrolments row per run; one soft-deleted student_group + student_group_members row per run); quiz_drafts, quiz_session_progress, fsrs_cards
  * removed by service-role test teardown (mirrors packages/db/src/__integration__/cleanup.ts). student_responses,
  * quiz_session_answers, audit_events, user_consents are append-only: one row per run, left.
  *
@@ -42,6 +42,7 @@ const OWNED = [
   ['fsrs_cards', 'student_id'],
   ['user_consents', 'user_id'],
   ['course_enrolments', 'user_id'],
+  ['student_group_members', 'user_id'],
   ['audit_events', 'actor_id'],
 ] as const
 
@@ -55,6 +56,7 @@ test.describe('Red Team: deactivated student live-token reads (JU, JV)', () => {
   let orgId: string
   let studentId: string
   let qId: string
+  let groupId: string | null = null
   let deactivated = false
 
   const ok = async (label: string, p: PromiseLike<Result>) => {
@@ -171,6 +173,19 @@ test.describe('Red Team: deactivated student live-token reads (JU, JV)', () => {
           .from('course_enrolments')
           .insert({ organization_id: orgId, user_id: studentId, course_id: PPL_A_ID }),
       )
+    const { data: grp, error: grpErr } = await admin
+      .from('student_groups')
+      .insert({ organization_id: orgId, name: `${E2E_REDTEAM_JU_MARKER}-${Date.now()}` })
+      .select('id')
+      .single()
+    if (grpErr || typeof grp?.id !== 'string') throw new Error(`student_groups: ${grpErr?.message}`)
+    groupId = grp.id
+    await ok(
+      'student_group_members',
+      admin
+        .from('student_group_members')
+        .insert({ organization_id: orgId, group_id: grp.id, user_id: studentId }),
+    )
     await ok(
       'audit_events',
       admin.from('audit_events').insert({
@@ -245,10 +260,14 @@ test.describe('Red Team: deactivated student live-token reads (JU, JV)', () => {
 
   test.afterEach(async () => {
     const errors: string[] = []
-    const step = async (label: string, fn: () => PromiseLike<Result>) => {
+    const step = async (
+      label: string,
+      fn: () => PromiseLike<Result & { data?: unknown[] | null }>,
+    ) => {
       try {
-        const { error } = await fn()
+        const { error, data } = await fn()
         if (error) errors.push(`${label}: ${error.message}`)
+        else if ((data?.length ?? 0) > 0) console.log(`[cleanup] ${label}: ${data?.length} row(s)`)
       } catch (e) {
         errors.push(`${label}: ${e instanceof Error ? e.message : String(e)}`)
       }
@@ -259,34 +278,65 @@ test.describe('Red Team: deactivated student live-token reads (JU, JV)', () => {
         return { error: null }
       })
     await step('progress (service-role test teardown)', () =>
-      admin.from('quiz_session_progress').delete().eq('student_id', studentId),
+      admin.from('quiz_session_progress').delete().eq('student_id', studentId).select('student_id'),
     )
     await step('fsrs_cards (service-role test teardown)', () =>
-      admin.from('fsrs_cards').delete().eq('student_id', studentId).eq('question_id', qId),
+      admin
+        .from('fsrs_cards')
+        .delete()
+        .eq('student_id', studentId)
+        .eq('question_id', qId)
+        .select('id'),
     )
     await step('drafts (hard-delete by design, docs/database.md)', () =>
-      admin.from('quiz_drafts').delete().eq('session_config->>e2e_marker', E2E_REDTEAM_JU_MARKER),
+      admin
+        .from('quiz_drafts')
+        .delete()
+        .eq('session_config->>e2e_marker', E2E_REDTEAM_JU_MARKER)
+        .select('id'),
     )
     await step('flags', () =>
       admin
         .from('flagged_questions')
         .update({ deleted_at: new Date().toISOString() })
         .eq('student_id', studentId)
-        .is('deleted_at', null),
+        .is('deleted_at', null)
+        .select('student_id'),
     )
     await step('sessions', () =>
       admin
         .from('quiz_sessions')
         .update({ deleted_at: new Date().toISOString() })
         .eq('config->>e2e_marker', E2E_REDTEAM_JU_MARKER)
-        .is('deleted_at', null),
+        .is('deleted_at', null)
+        .select('id'),
     )
+    await step('student_group_members', () =>
+      admin
+        .from('student_group_members')
+        .update({ deleted_at: new Date().toISOString(), deleted_by: studentId })
+        .eq('user_id', studentId)
+        .is('deleted_at', null)
+        .select('id'),
+    )
+    await step('student_groups', async () => {
+      if (groupId === null) return { error: null }
+      const id = groupId
+      groupId = null
+      return admin
+        .from('student_groups')
+        .update({ deleted_at: new Date().toISOString(), deleted_by: studentId })
+        .eq('id', id)
+        .is('deleted_at', null)
+        .select('id')
+    })
     await step('course_enrolments', () =>
       admin
         .from('course_enrolments')
         .update({ deleted_at: new Date().toISOString(), deleted_by: studentId })
         .eq('user_id', studentId)
-        .is('deleted_at', null),
+        .is('deleted_at', null)
+        .select('id'),
     )
     if (errors.length > 0) throw new Error(`afterEach: ${errors.join('; ')}`)
   })

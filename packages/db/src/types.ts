@@ -1160,6 +1160,133 @@ export type Database = {
           },
         ]
       }
+      student_group_members: {
+        Row: {
+          added_at: string
+          added_by: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          group_id: string
+          id: string
+          organization_id: string
+          user_id: string
+        }
+        Insert: {
+          added_at?: string
+          added_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          group_id: string
+          id?: string
+          organization_id: string
+          user_id: string
+        }
+        Update: {
+          added_at?: string
+          added_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          group_id?: string
+          id?: string
+          organization_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'student_group_members_added_by_fkey'
+            columns: ['added_by']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'student_group_members_deleted_by_fkey'
+            columns: ['deleted_by']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'student_group_members_group_id_organization_id_fkey'
+            columns: ['group_id', 'organization_id']
+            isOneToOne: false
+            referencedRelation: 'student_groups'
+            referencedColumns: ['id', 'organization_id']
+          },
+          {
+            foreignKeyName: 'student_group_members_organization_id_fkey'
+            columns: ['organization_id']
+            isOneToOne: false
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'student_group_members_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      student_groups: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          description: string | null
+          id: string
+          name: string
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'student_groups_created_by_fkey'
+            columns: ['created_by']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'student_groups_deleted_by_fkey'
+            columns: ['deleted_by']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'student_groups_organization_id_fkey'
+            columns: ['organization_id']
+            isOneToOne: false
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       student_responses: {
         Row: {
           blank_index: number | null
@@ -1552,6 +1679,10 @@ export type Database = {
           p3: number
         }[]
       }
+      add_student_group_members: {
+        Args: { p_group_id: string; p_user_ids: string[] }
+        Returns: number
+      }
       answer_matches: {
         Args: { p_candidate: string; p_norm_response: string }
         Returns: boolean
@@ -1594,6 +1725,11 @@ export type Database = {
         Args: { p_session_id: string }
         Returns: Json
       }
+      create_student_group: {
+        Args: { p_description?: string; p_name: string }
+        Returns: string
+      }
+      delete_student_group: { Args: { p_group_id: string }; Returns: undefined }
       dialog_fill_blanks_delimiter_free: {
         Args: { p_blanks: Json }
         Returns: boolean
@@ -1910,6 +2046,10 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: undefined
       }
+      remove_student_group_members: {
+        Args: { p_group_id: string; p_user_ids: string[] }
+        Returns: number
+      }
       resume_saved_quiz: {
         Args: { p_device_id: string; p_session_id: string }
         Returns: undefined
@@ -1995,6 +2135,10 @@ export type Database = {
       start_vfr_rt_exam_session: {
         Args: { p_subject_id: string }
         Returns: Json
+      }
+      update_student_group: {
+        Args: { p_description?: string; p_group_id: string; p_name: string }
+        Returns: undefined
       }
       upsert_exam_config: {
         Args: {
