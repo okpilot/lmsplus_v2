@@ -15,6 +15,7 @@ DECLARE
   v_caller_role text;
   v_group_id    uuid;
   v_added       uuid[];
+  v_to_add      uuid[];
 BEGIN
   IF v_caller_id IS NULL THEN
     RAISE EXCEPTION 'not_authenticated';
@@ -49,9 +50,21 @@ BEGIN
     RAISE EXCEPTION 'group_not_found';
   END IF;
 
+  -- Existing active members are skipped, not revalidated (they may have been deactivated since).
+  SELECT COALESCE(array_agg(w.id), '{}') INTO v_to_add
+  FROM unnest(p_user_ids) AS w(id)
+  WHERE NOT EXISTS (
+    SELECT 1 FROM public.student_group_members m
+    WHERE m.group_id = p_group_id AND m.user_id = w.id AND m.deleted_at IS NULL
+  );
+
+  IF cardinality(v_to_add) = 0 THEN
+    RETURN 0;
+  END IF;
+
   -- Lock target users FOR SHARE (conflicts with deactivation UPDATE); count in a later statement sees fresh state.
   PERFORM 1 FROM public.users u
-  WHERE u.id = ANY (p_user_ids)
+  WHERE u.id = ANY (v_to_add)
     AND u.organization_id = v_caller_org
     AND u.role = 'student'
     AND u.deleted_at IS NULL
@@ -60,22 +73,18 @@ BEGIN
 
   IF (
     SELECT count(*) FROM public.users u
-    WHERE u.id = ANY (p_user_ids)
+    WHERE u.id = ANY (v_to_add)
       AND u.organization_id = v_caller_org
       AND u.role = 'student'
       AND u.deleted_at IS NULL
-  ) <> cardinality(p_user_ids) THEN
+  ) <> cardinality(v_to_add) THEN
     RAISE EXCEPTION 'student_not_found';
   END IF;
 
   WITH added AS (
     INSERT INTO public.student_group_members (organization_id, group_id, user_id, added_by)
     SELECT v_caller_org, p_group_id, w.id, v_caller_id
-    FROM unnest(p_user_ids) AS w(id)
-    WHERE NOT EXISTS (
-      SELECT 1 FROM public.student_group_members m
-      WHERE m.group_id = p_group_id AND m.user_id = w.id AND m.deleted_at IS NULL
-    )
+    FROM unnest(v_to_add) AS w(id)
     RETURNING user_id
   )
   SELECT COALESCE(array_agg(user_id), '{}') INTO v_added FROM added;

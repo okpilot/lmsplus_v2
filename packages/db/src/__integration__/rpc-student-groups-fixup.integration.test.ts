@@ -2,7 +2,13 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupTestData } from './cleanup'
 import { fixtureSuffix } from './fixture-suffix'
-import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
+import {
+  createTestOrg,
+  createTestUser,
+  getAdminClient,
+  getAnonClient,
+  getAuthenticatedClient,
+} from './setup'
 
 /** Round-1 fixup: description keep/clear, audit fields, composite org FK. #1776 PR 1a. */
 describe('RPC: student group fixup', () => {
@@ -14,6 +20,8 @@ describe('RPC: student group fixup', () => {
   let adminId: string
   let studentId: string
   let otherStudentId: string
+  let student2Id: string
+  let studentClient: SupabaseClient
   let adminClient: SupabaseClient
   const userIds: string[] = []
   const otherUserIds: string[] = []
@@ -36,9 +44,14 @@ describe('RPC: student group fixup', () => {
     }
     adminId = await mk(orgId, 'sgf-admin', 'admin', userIds)
     studentId = await mk(orgId, 'sgf-student', 'student', userIds)
+    student2Id = await mk(orgId, 'sgf-student2', 'student', userIds)
     otherStudentId = await mk(otherOrgId, 'sgf-ostudent', 'student', otherUserIds)
     adminClient = await getAuthenticatedClient({
       email: `sgf-admin-${suffix}@test.local`,
+      password: pw,
+    })
+    studentClient = await getAuthenticatedClient({
+      email: `sgf-student-${suffix}@test.local`,
       password: pw,
     })
   })
@@ -133,5 +146,70 @@ describe('RPC: student group fixup', () => {
       added_by: adminId,
     })
     expect(error?.code).toBe('23503')
+  })
+
+  it('bulk add skips an existing member who was since deactivated and adds the new student', async () => {
+    const id = await create(nm('bulk'), null)
+    const first = await adminClient.rpc('add_student_group_members', {
+      p_group_id: id,
+      p_user_ids: [studentId],
+    })
+    expect(first.error).toBeNull()
+    await admin.from('users').update({ deleted_at: new Date().toISOString() }).eq('id', studentId)
+    try {
+      const { data, error } = await adminClient.rpc('add_student_group_members', {
+        p_group_id: id,
+        p_user_ids: [studentId, student2Id],
+      })
+      expect(error).toBeNull()
+      expect(data).toBe(1)
+      const again = await adminClient.rpc('add_student_group_members', {
+        p_group_id: id,
+        p_user_ids: [studentId],
+      })
+      expect(again.error).toBeNull()
+      expect(again.data).toBe(0)
+    } finally {
+      await admin.from('users').update({ deleted_at: null }).eq('id', studentId)
+    }
+  })
+
+  it('tab-padded name is stored trimmed and detected as a duplicate', async () => {
+    const id = await create(`\t${nm('pad')}\t`, null)
+    expect((await getGroup(id))?.name).toBe(nm('pad'))
+    const dup = await adminClient.rpc('create_student_group', {
+      p_name: ` ${nm('PAD')}\t`,
+      p_description: null,
+    })
+    expect(dup.error?.message).toContain('group_name_taken')
+  })
+
+  it('anon gets 42501 on every student-group RPC', async () => {
+    const anon = getAnonClient()
+    const g = '00000000-0000-4000-a000-000000000001'
+    const calls = [
+      anon.rpc('create_student_group', { p_name: 'x', p_description: null }),
+      anon.rpc('update_student_group', { p_group_id: g, p_name: 'x', p_description: null }),
+      anon.rpc('delete_student_group', { p_group_id: g }),
+      anon.rpc('add_student_group_members', { p_group_id: g, p_user_ids: [g] }),
+      anon.rpc('remove_student_group_members', { p_group_id: g, p_user_ids: [g] }),
+    ]
+    for (const { error } of await Promise.all(calls)) expect(error?.code).toBe('42501')
+  })
+
+  it('a member reads id, name from their group but not description or created_by', async () => {
+    const id = await create(nm('cols'), 'admin note')
+    const add = await adminClient.rpc('add_student_group_members', {
+      p_group_id: id,
+      p_user_ids: [studentId],
+    })
+    expect(add.error).toBeNull()
+    const ok = await studentClient.from('student_groups').select('id, name').eq('id', id)
+    expect(ok.error).toBeNull()
+    expect(ok.data).toHaveLength(1)
+    for (const col of ['description', 'created_by']) {
+      const { error } = await studentClient.from('student_groups').select(col).eq('id', id)
+      expect(error?.code).toBe('42501')
+    }
   })
 })

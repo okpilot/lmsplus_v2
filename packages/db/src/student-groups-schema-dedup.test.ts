@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { StudentGroupMembersSchema } from './schema'
+import { CreateStudentGroupSchema, StudentGroupMembersSchema } from './schema'
 
 const A = '00000000-0000-4000-a000-00000000000a'
 const B = '00000000-0000-4000-a000-00000000000b'
@@ -15,5 +15,18 @@ describe('StudentGroupMembersSchema duplicate userIds', () => {
   })
   it('accepts distinct ids', () => {
     expect(StudentGroupMembersSchema.safeParse({ groupId: G, userIds: [A, B] }).success).toBe(true)
+  })
+})
+
+describe('CreateStudentGroupSchema description trim', () => {
+  it('accepts surrounding spaces around 500 inner chars and trims them', () => {
+    const inner = 'x'.repeat(500)
+    const r = CreateStudentGroupSchema.safeParse({ name: 'n', description: `  ${inner}  ` })
+    expect(r.success).toBe(true)
+    if (r.success) expect(r.data.description).toBe(inner)
+  })
+  it('rejects 501 inner chars', () => {
+    const r = CreateStudentGroupSchema.safeParse({ name: 'n', description: 'x'.repeat(501) })
+    expect(r.success).toBe(false)
   })
 })

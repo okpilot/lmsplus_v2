@@ -3,7 +3,7 @@
 CREATE TABLE public.student_groups (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id uuid NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
-  name            text NOT NULL CHECK (name = btrim(name) AND char_length(name) BETWEEN 1 AND 80),
+  name            text NOT NULL CHECK (name !~ '^\s' AND name !~ '\s$' AND char_length(name) BETWEEN 1 AND 80),
   description     text CHECK (description IS NULL OR char_length(description) <= 500),
   created_by      uuid REFERENCES public.users(id) ON DELETE SET NULL,
   created_at      timestamptz NOT NULL DEFAULT now(),
@@ -86,5 +86,9 @@ CREATE POLICY student_groups_select_active_caller ON public.student_groups
 CREATE POLICY student_group_members_select_active_caller ON public.student_group_members
   AS RESTRICTIVE FOR SELECT TO authenticated USING ((SELECT private.is_active_user()));
 
-GRANT SELECT ON public.student_groups TO authenticated;
+-- Default privileges give authenticated table-level SELECT, so clear it first (precedent: 20261002000200).
+REVOKE ALL ON public.student_groups FROM PUBLIC, anon, authenticated;
+-- Explicit column list (precedent: questions, migration 094): description/created_by/deleted_by stay admin-only.
+GRANT SELECT (id, organization_id, name, created_at, updated_at, deleted_at)
+  ON public.student_groups TO authenticated;
 GRANT SELECT ON public.student_group_members TO authenticated;

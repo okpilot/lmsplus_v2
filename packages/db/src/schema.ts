@@ -127,7 +127,7 @@ export const ToggleStudentStatusSchema = z.object({
 
 export const CreateStudentGroupSchema = z.object({
   name: z.string().trim().min(1).max(80),
-  description: z.string().max(500).optional(),
+  description: z.string().trim().max(500).optional(),
 })
 
 export type CreateStudentGroupInput = z.infer<typeof CreateStudentGroupSchema>

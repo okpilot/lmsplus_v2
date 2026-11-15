@@ -352,7 +352,7 @@ CREATE INDEX idx_course_enrolments_organization_id ON course_enrolments(organiza
 - RESTRICTIVE SELECT: `(SELECT private.is_active_user())`
 - No INSERT/UPDATE/DELETE policy.
 
-**GRANTs to `authenticated`:** `SELECT` only.
+**GRANTs to `authenticated`:** `SELECT (id, organization_id, name, created_at, updated_at, deleted_at)` only: `REVOKE ALL … FROM PUBLIC, anon, authenticated` first (default privileges otherwise leave a table-level `SELECT`), then an explicit column list, so `description`, `created_by`, `deleted_by` are not selectable by `authenticated` (42501; a student member must not read admin notes) and any new column stays unselectable until added to the grant. Admin reads that need those columns use the service role with an explicit `organization_id` filter (`select('*')` with a user client errors).
 
 **Helper:** `private.accessible_subject_ids() RETURNS SETOF uuid` (mig `20261028000100`, #1637) — `sql STABLE SECURITY DEFINER SET search_path = public, pg_temp`; EXECUTE `authenticated` only (revoked from PUBLIC, `anon`). Active admin/instructor: every subject. Active other caller: subjects whose `course_id` has a live enrolment. NULL uid or deactivated caller: empty. Soft-deleted subjects are included (no `deleted_at` predicate on `easa_subjects`; `docs/security.md` §15 (d)(iv)).
 
@@ -366,7 +366,7 @@ Org-scoped named groups of students (mig `20261115000100`, #1776). Written only 
 CREATE TABLE student_groups (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-  name            TEXT NOT NULL CHECK (name = btrim(name) AND char_length(name) BETWEEN 1 AND 80),
+  name            TEXT NOT NULL CHECK (name !~ '^\s' AND name !~ '\s$' AND char_length(name) BETWEEN 1 AND 80),
   description     TEXT NULL CHECK (description IS NULL OR char_length(description) <= 500),
   created_by      UUID NULL REFERENCES users(id) ON DELETE SET NULL,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -1485,7 +1485,7 @@ Admin-only RPCs. Signatures: `create_student_group(p_name text, p_description te
 - Rule 7 — `auth.uid()` null-check raises `not_authenticated`
 - `is_admin()` gate raises `not_admin`
 - Caller row (`auth.uid()`, `deleted_at IS NULL`) supplies `actor_id`, `actor_role`, `organization_id` — missing row raises `admin_not_found`
-- Name trimmed, 1-80 chars; description trimmed, ≤500 — else `invalid_input` (`p_group_id IS NULL` too for update/delete)
+- Name trimmed (leading/trailing `\s` stripped by `regexp_replace`), 1-80 chars; description trimmed the same way, ≤500 — else `invalid_input` (`p_group_id IS NULL` too for update/delete)
 - update/delete: group looked up by id + caller org + `deleted_at IS NULL` with `FOR UPDATE` — else `group_not_found`
 - create/update: `unique_violation` on `student_groups_active_name_uniq` raises `group_name_taken`
 - `SET search_path = public, pg_temp`
@@ -1504,7 +1504,7 @@ Admin-only RPCs: `(p_group_id uuid, p_user_ids uuid[]) RETURNS integer` (rows ad
 - `not_authenticated`, `not_admin`, `admin_not_found` as above
 - `p_user_ids` NULL, empty, >500, containing NULL or duplicates, or `p_group_id` NULL raises `invalid_input`
 - Group looked up by id + caller org + `deleted_at IS NULL` with `FOR UPDATE` (serializes membership changes) — else `group_not_found`
-- add: target `users` rows are locked `FOR SHARE` (ordered by id) before the count, so a concurrent deactivation cannot slip in; every id must be an active (`deleted_at IS NULL`) `role = 'student'` user of the caller org — else `student_not_found`, nothing written. Already-active members are skipped (idempotent). remove: no user check, so deactivated users can be cleaned up.
+- add: ids that are already active members are skipped first (never revalidated; returns 0 with no audit when all are). The remaining ids' `users` rows are locked `FOR SHARE` (ordered by id) before the count, so a concurrent deactivation cannot slip in; each must be an active (`deleted_at IS NULL`) `role = 'student'` user of the caller org — else `student_not_found`, nothing written. remove: no user check, so deactivated users can be cleaned up.
 - `SET search_path = public, pg_temp`
 
 **Audit payloads:** `student_group.members_added` / `student_group.members_removed`, `resource_type = 'student_group'`, `resource_id` = group id, `metadata = { user_ids: [user_id…] }` (only the ids actually changed). Written only when the returned count is > 0.

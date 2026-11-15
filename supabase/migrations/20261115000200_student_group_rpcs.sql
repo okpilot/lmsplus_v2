@@ -13,8 +13,8 @@ DECLARE
   v_caller_id   uuid := auth.uid();
   v_caller_org  uuid;
   v_caller_role text;
-  v_name        text := btrim(p_name);
-  v_desc        text := NULLIF(btrim(p_description), '');
+  v_name        text := regexp_replace(p_name, '^\s+|\s+$', '', 'g');
+  v_desc        text := NULLIF(regexp_replace(p_description, '^\s+|\s+$', '', 'g'), '');
   v_id          uuid;
 BEGIN
   IF v_caller_id IS NULL THEN
@@ -73,8 +73,8 @@ DECLARE
   v_caller_id   uuid := auth.uid();
   v_caller_org  uuid;
   v_caller_role text;
-  v_name        text := btrim(p_name);
-  v_desc        text := NULLIF(btrim(p_description), '');
+  v_name        text := regexp_replace(p_name, '^\s+|\s+$', '', 'g');
+  v_desc        text := NULLIF(regexp_replace(p_description, '^\s+|\s+$', '', 'g'), '');
   v_old_name    text;
   v_old_desc    text;
   v_new_desc    text;
