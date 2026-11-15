@@ -49,13 +49,13 @@ function formatDate(iso: string) {
   )
 }
 
-function TagBadges({ names }: Readonly<{ names: string[] }>) {
-  if (names.length === 0) return <span className="text-muted-foreground">—</span>
+function TagBadges({ tags }: Readonly<{ tags: { id: string; label: string }[] }>) {
+  if (tags.length === 0) return <span className="text-muted-foreground">—</span>
   return (
     <div className="flex flex-wrap gap-1">
-      {names.map((name) => (
-        <Badge key={name} tone="neutral">
-          {name}
+      {tags.map((tag) => (
+        <Badge key={tag.id} tone="neutral">
+          {tag.label}
         </Badge>
       ))}
     </div>
@@ -142,10 +142,18 @@ function StudentRowView({
         </Badge>
       </TableCell>
       <TableCell>
-        <TagBadges names={courses.filter((c) => s.course_ids.includes(c.id)).map((c) => c.short)} />
+        <TagBadges
+          tags={courses
+            .filter((c) => s.course_ids.includes(c.id))
+            .map((c) => ({ id: c.id, label: c.short }))}
+        />
       </TableCell>
       <TableCell>
-        <TagBadges names={groups.filter((g) => s.group_ids.includes(g.id)).map((g) => g.name)} />
+        <TagBadges
+          tags={groups
+            .filter((g) => s.group_ids.includes(g.id))
+            .map((g) => ({ id: g.id, label: g.name }))}
+        />
       </TableCell>
       <TableCell>
         {s.deleted_at === null ? (

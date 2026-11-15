@@ -1,7 +1,6 @@
 'use client'
 
-import { useRouter, useSearchParams } from 'next/navigation'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -11,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { useUpdateSearchParams } from '../../../_hooks/use-update-search-params'
 import type { GroupOption, StudentFilters } from '../types'
 
 type Props = {
@@ -72,44 +72,25 @@ function FilterSelect({
   )
 }
 
-function useFilterUpdater() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  return useCallback(
-    (key: string, value: string | undefined) => {
-      const params = new URLSearchParams(searchParams.toString())
-      params.delete('page')
-      if (value) {
-        params.set(key, value)
-      } else {
-        params.delete(key)
-      }
-      router.push(`/app/admin/students?${params.toString()}`)
-    },
-    [router, searchParams],
-  )
-}
+type Update = ReturnType<typeof useUpdateSearchParams>
 
-/** Debounced push of the search box into the URL; skips the initial mount. */
-function useDebouncedSearch(searchText: string, updateFilter: ReturnType<typeof useFilterUpdater>) {
-  const isInitialMount = useRef(true)
+/** Debounced push of the search box into the URL; skips when the box already matches the URL. */
+function useDebouncedSearch(searchText: string, urlSearch: string | undefined, update: Update) {
   useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false
-      return
-    }
+    if (searchText.trim() === (urlSearch ?? '')) return
     const timer = setTimeout(() => {
-      updateFilter('search', searchText.trim() || undefined)
+      update({ search: searchText.trim() || null, page: null })
     }, 300)
     return () => clearTimeout(timer)
-  }, [searchText, updateFilter])
+  }, [searchText, urlSearch, update])
 }
 
 export function StudentFiltersBar({ filters, groups }: Readonly<Props>) {
-  const router = useRouter()
   const [searchText, setSearchText] = useState(filters.search ?? '')
-  const updateFilter = useFilterUpdater()
-  useDebouncedSearch(searchText, updateFilter)
+  const update = useUpdateSearchParams()
+  const updateFilter = (key: string, v: string | undefined) =>
+    update({ [key]: v ?? null, page: null })
+  useDebouncedSearch(searchText, filters.search, update)
   const groupItems = [
     { value: ALL, label: 'All' },
     ...groups.map((g) => ({ value: g.id, label: g.name })),
@@ -151,7 +132,14 @@ export function StudentFiltersBar({ filters, groups }: Readonly<Props>) {
         className="w-col-lg"
       />
 
-      <Button variant="ghost" size="sm" onClick={() => router.push('/app/admin/students')}>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => {
+          setSearchText('')
+          update({ status: null, role: null, group: null, search: null, page: null })
+        }}
+      >
         Clear
       </Button>
     </div>

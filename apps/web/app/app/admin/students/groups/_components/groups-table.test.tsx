@@ -42,7 +42,7 @@ describe('GroupsTable', () => {
     const r = screen.getByText('Cohort A').closest('tr') as HTMLElement
     expect(within(r).getByRole('link', { name: /View students/ })).toHaveAttribute(
       'href',
-      `/app/admin/students?group=${G1}`,
+      `/app/admin/students?group=${G1}&status=active&role=student`,
     )
   })
 })

@@ -2,14 +2,13 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockPush, mockUseSearchParams } = vi.hoisted(() => ({
+const { mockPush } = vi.hoisted(() => ({
   mockPush: vi.fn(),
-  mockUseSearchParams: vi.fn(),
 }))
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mockPush }),
-  useSearchParams: mockUseSearchParams,
+  useRouter: () => ({ replace: mockPush }),
+  usePathname: () => '/app/admin/students',
 }))
 
 vi.mock('@/components/ui/select', () => ({
@@ -44,7 +43,7 @@ const GROUPS = [
 
 beforeEach(() => {
   vi.resetAllMocks()
-  mockUseSearchParams.mockReturnValue(new URLSearchParams('page=4&status=active'))
+  window.history.replaceState(null, '', '/app/admin/students?page=4&status=active')
 })
 
 describe('StudentFiltersBar group filter', () => {

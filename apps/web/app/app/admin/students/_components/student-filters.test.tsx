@@ -2,14 +2,13 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockPush, mockUseSearchParams } = vi.hoisted(() => ({
+const { mockPush } = vi.hoisted(() => ({
   mockPush: vi.fn(),
-  mockUseSearchParams: vi.fn(),
 }))
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mockPush }),
-  useSearchParams: mockUseSearchParams,
+  useRouter: () => ({ replace: mockPush }),
+  usePathname: () => '/app/admin/students',
 }))
 
 // Mock Base UI Select to avoid portal complexity in jsdom.
@@ -47,7 +46,7 @@ import { StudentFiltersBar } from './student-filters'
 
 beforeEach(() => {
   vi.resetAllMocks()
-  mockUseSearchParams.mockReturnValue(new URLSearchParams())
+  window.history.replaceState(null, '', '/app/admin/students')
 })
 
 describe('StudentFiltersBar', () => {

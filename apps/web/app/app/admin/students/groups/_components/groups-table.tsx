@@ -45,7 +45,7 @@ function GroupRowView({ group, onEdit, onDelete }: Readonly<RowProps>) {
       <TableCell>
         <div className="flex items-center gap-1">
           <Link
-            href={`/app/admin/students?group=${group.id}`}
+            href={`/app/admin/students?group=${group.id}&status=active&role=student`}
             className={buttonVariants({ variant: 'ghost', size: 'sm' })}
           >
             View students

@@ -48,8 +48,6 @@ export function StudentsPageShell({
     <div className="space-y-section">
       <StudentFiltersBar filters={filters} groups={groups} />
 
-      <StudentsBulkBar selectedIds={selectedIds} groups={groups} onClear={clear} />
-
       <div className="flex items-center justify-between">
         <p className="text-caption text-muted-foreground">
           {totalCount} user{totalCount === 1 ? '' : 's'}
@@ -92,6 +90,8 @@ export function StudentsPageShell({
           onExport={setExportStudent}
         />
       )}
+
+      <StudentsBulkBar selectedIds={selectedIds} groups={groups} onClear={clear} />
 
       <PaginationBar page={page} totalCount={totalCount} pageSize={pageSize} entityLabel="users" />
 
