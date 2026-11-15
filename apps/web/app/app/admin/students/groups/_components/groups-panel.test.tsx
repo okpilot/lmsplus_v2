@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import { redirect } from 'next/navigation'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockGetGroups } = vi.hoisted(() => ({ mockGetGroups: vi.fn() }))
@@ -40,5 +41,25 @@ describe('GroupsPanel', () => {
     mockGetGroups.mockResolvedValue([])
     render(await GroupsPanel())
     expect(screen.getByRole('button', { name: /New Group/ })).toBeInTheDocument()
+  })
+
+  it('shows the failure alert and no table when the fetch rejects', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockGetGroups.mockRejectedValue(new Error('db down'))
+    render(await GroupsPanel())
+    expect(screen.getByText('Failed to load groups. Please refresh the page.')).toBeInTheDocument()
+    expect(screen.queryByTestId('groups-table')).not.toBeInTheDocument()
+  })
+
+  it('rethrows a Next redirect error and renders no alert', async () => {
+    let redirectError: unknown
+    try {
+      redirect('/x')
+    } catch (error) {
+      redirectError = error
+    }
+    mockGetGroups.mockRejectedValue(redirectError)
+    await expect(GroupsPanel()).rejects.toBe(redirectError)
+    expect(screen.queryByText(/Failed to load groups/)).not.toBeInTheDocument()
   })
 })

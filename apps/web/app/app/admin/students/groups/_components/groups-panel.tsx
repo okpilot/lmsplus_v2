@@ -1,12 +1,27 @@
 import { Plus } from 'lucide-react'
+import { unstable_rethrow } from 'next/navigation'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { getGroupsWithCounts } from '../queries'
 import { GroupFormDialog } from './group-form-dialog'
 import { GroupsTable } from './groups-table'
 
-export async function GroupsPanel() {
-  const groups = await getGroupsWithCounts()
+type Groups = Awaited<ReturnType<typeof getGroupsWithCounts>>
 
+export async function GroupsPanel() {
+  try {
+    return <GroupsPanelView groups={await getGroupsWithCounts()} />
+  } catch (error) {
+    unstable_rethrow(error)
+    return (
+      <Alert tone="danger">
+        <AlertDescription>Failed to load groups. Please refresh the page.</AlertDescription>
+      </Alert>
+    )
+  }
+}
+
+function GroupsPanelView({ groups }: Readonly<{ groups: Groups }>) {
   return (
     <div className="space-y-section">
       <div className="flex items-center justify-between">
