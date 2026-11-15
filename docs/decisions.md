@@ -227,4 +227,4 @@
 ## 232 — 2026-11-14 — Amends 231: `formatUtc` appends " UTC" when a day or time part is shown without a zone name, so date-only output is labelled too; month/year-only output stays unlabelled. #1033 Amended by 233.
 ## 233 — 2026-11-14 — Amends 232: table date columns state UTC once in the column header ("(UTC)") and their cells carry no " UTC"; the dashboard heatmap shows a "UTC days" caption; single dates keep the inline " UTC". #1033
 ## 234 — 2026-11-15 — Student groups: many-to-many student_groups + student_group_members, admin-managed via SECURITY DEFINER RPCs only, soft delete with history, students read their own memberships and the groups those memberships belong to (GDPR self-export). #1776
-## 235 — 2026-11-15 — Instructors no longer read audit_events; the audit log is admin-only (audit_read_admins) because instructors only invigilate (#1775); invigilation reads arrive as SECURITY DEFINER RPCs in #1778. #1776
+## 235 — 2026-11-15 — Instructors no longer read audit_events; the audit log is admin-only (`audit_read_admins`). #1776
