@@ -76,6 +76,7 @@ describe('StudentFiltersBar pending search', () => {
     chooseStatus('active')
     vi.advanceTimersByTime(500)
     expect(mockPush).toHaveBeenCalledTimes(1)
+    expect(mockPush).toHaveBeenCalledWith('/app/admin/students?status=active&search=ann')
   })
 
   it('sends no search key when no typing is pending', () => {
