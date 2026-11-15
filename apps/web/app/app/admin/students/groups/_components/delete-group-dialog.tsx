@@ -15,6 +15,11 @@ export function DeleteGroupDialog({ group, onOpenChange }: Readonly<Props>) {
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
 
+  function handleOpenChange(next: boolean) {
+    if (!next) setError(null)
+    onOpenChange(next)
+  }
+
   function handleConfirm() {
     if (!group) return
     startTransition(async () => {
@@ -25,7 +30,7 @@ export function DeleteGroupDialog({ group, onOpenChange }: Readonly<Props>) {
           return
         }
         toast.success('Group deleted')
-        onOpenChange(false)
+        handleOpenChange(false)
       } catch {
         setError('Service error. Please try again.')
       }
@@ -35,10 +40,7 @@ export function DeleteGroupDialog({ group, onOpenChange }: Readonly<Props>) {
   return (
     <ConfirmDialog
       open={group !== null}
-      onOpenChange={(next) => {
-        if (!next) setError(null)
-        onOpenChange(next)
-      }}
+      onOpenChange={handleOpenChange}
       title={`Delete ${group?.name ?? 'group'}?`}
       description="Members are removed from this group. Membership history is kept."
       confirmLabel="Delete group"

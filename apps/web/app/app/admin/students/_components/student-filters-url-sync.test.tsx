@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -69,6 +69,53 @@ describe('StudentFiltersBar URL sync', () => {
       await new Promise((r) => setTimeout(r, 400))
     })
     expect(mockReplace).not.toHaveBeenCalled()
+  })
+
+  it('Clear with a pending typed search makes exactly one update with all keys null', async () => {
+    vi.useFakeTimers()
+    window.history.replaceState(null, '', '/app/admin/students?status=active&role=student&page=2')
+    render(<StudentFiltersBar filters={{ status: 'active', role: 'student' }} groups={[]} />)
+    const box = screen.getByPlaceholderText('Search students...')
+    fireEvent.change(box, { target: { value: 'bob' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }))
+    act(() => {
+      vi.advanceTimersByTime(500)
+    })
+    expect(box).toHaveValue('')
+    expect(mockReplace).toHaveBeenCalledTimes(1)
+    expect(mockReplace).toHaveBeenCalledWith('/app/admin/students')
+  })
+
+  it('shows the URL value when the URL changes with no pending typing', () => {
+    const { rerender } = render(<StudentFiltersBar filters={{ search: 'abc' }} groups={[]} />)
+    const box = screen.getByPlaceholderText('Search students...')
+    expect(box).toHaveValue('abc')
+    rerender(<StudentFiltersBar filters={{}} groups={[]} />)
+    expect(box).toHaveValue('')
+    rerender(<StudentFiltersBar filters={{ search: 'xyz' }} groups={[]} />)
+    expect(box).toHaveValue('xyz')
+  })
+
+  it('keeps typed text when the URL changes while typing is pending', () => {
+    vi.useFakeTimers()
+    const { rerender } = render(<StudentFiltersBar filters={{ search: 'abc' }} groups={[]} />)
+    const box = screen.getByPlaceholderText('Search students...')
+    fireEvent.change(box, { target: { value: 'typed' } })
+    rerender(<StudentFiltersBar filters={{ search: 'other' }} groups={[]} />)
+    expect(box).toHaveValue('typed')
+  })
+
+  it('keeps a trailing space once the URL catches up to the trimmed value', () => {
+    vi.useFakeTimers()
+    const { rerender } = render(<StudentFiltersBar filters={{}} groups={[]} />)
+    const box = screen.getByPlaceholderText('Search students...')
+    fireEvent.change(box, { target: { value: 'abc ' } })
+    act(() => {
+      vi.advanceTimersByTime(300)
+    })
+    expect(mockReplace).toHaveBeenCalledTimes(1)
+    rerender(<StudentFiltersBar filters={{ search: 'abc' }} groups={[]} />)
+    expect(box).toHaveValue('abc ')
   })
 
   it('status change sends page: null', async () => {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -74,23 +74,45 @@ function FilterSelect({
 
 type Update = ReturnType<typeof useUpdateSearchParams>
 
-/** Debounced push of the search box into the URL; skips when the box already matches the URL. */
-function useDebouncedSearch(searchText: string, urlSearch: string | undefined, update: Update) {
+/** Search box: typing is debounced into the URL; the URL re-syncs the box unless typing is pending. */
+function useSearchBox(urlSearch: string | undefined, update: Update) {
+  const [text, setText] = useState(urlSearch ?? '')
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const cancel = () => {
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = null
+  }
   useEffect(() => {
-    if (searchText.trim() === (urlSearch ?? '')) return
-    const timer = setTimeout(() => {
-      update({ search: searchText.trim() || null, page: null })
+    if (!timer.current) {
+      setText((prev) => (prev.trim() === (urlSearch ?? '') ? prev : (urlSearch ?? '')))
+    }
+  }, [urlSearch])
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current)
+    },
+    [],
+  )
+  const onType = (v: string) => {
+    setText(v)
+    cancel()
+    timer.current = setTimeout(() => {
+      timer.current = null
+      update({ search: v.trim() || null, page: null })
     }, 300)
-    return () => clearTimeout(timer)
-  }, [searchText, urlSearch, update])
+  }
+  const reset = () => {
+    cancel()
+    setText('')
+  }
+  return { text, onType, reset }
 }
 
 export function StudentFiltersBar({ filters, groups }: Readonly<Props>) {
-  const [searchText, setSearchText] = useState(filters.search ?? '')
   const update = useUpdateSearchParams()
   const updateFilter = (key: string, v: string | undefined) =>
     update({ [key]: v ?? null, page: null })
-  useDebouncedSearch(searchText, filters.search, update)
+  const search = useSearchBox(filters.search, update)
   const groupItems = [
     { value: ALL, label: 'All' },
     ...groups.map((g) => ({ value: g.id, label: g.name })),
@@ -127,8 +149,9 @@ export function StudentFiltersBar({ filters, groups }: Readonly<Props>) {
         type="search"
         placeholder="Search students..."
         aria-label="Search students"
-        value={searchText}
-        onChange={(e) => setSearchText(e.target.value)}
+        value={search.text}
+        onChange={(e) => search.onType(e.target.value)}
+        maxLength={200}
         className="w-col-lg"
       />
 
@@ -136,7 +159,7 @@ export function StudentFiltersBar({ filters, groups }: Readonly<Props>) {
         variant="ghost"
         size="sm"
         onClick={() => {
-          setSearchText('')
+          search.reset()
           update({ status: null, role: null, group: null, search: null, page: null })
         }}
       >
