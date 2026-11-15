@@ -1,15 +1,9 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { FilterSelect } from '@/app/app/_components/filter-select'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { useUpdateSearchParams } from '../../../_hooks/use-update-search-params'
 import type { GroupOption, StudentFilters } from '../types'
 
@@ -35,7 +29,7 @@ const ROLE_ITEMS = [
   { value: 'student', label: 'Student' },
 ]
 
-type FilterSelectProps = {
+type StudentFilterSelectProps = {
   label: string
   placeholder: string
   value: string | undefined
@@ -44,31 +38,23 @@ type FilterSelectProps = {
   onChange: (value: string | undefined) => void
 }
 
-function FilterSelect({
+function StudentFilterSelect({
   label,
   placeholder,
   value,
   items,
   className,
   onChange,
-}: Readonly<FilterSelectProps>) {
+}: Readonly<StudentFilterSelectProps>) {
   return (
-    <Select
+    <FilterSelect
       value={value ?? ALL}
-      onValueChange={(v) => onChange(v === ALL || v === null ? undefined : v)}
       items={items}
-    >
-      <SelectTrigger className={className} aria-label={label}>
-        <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
-      <SelectContent>
-        {items.map((item) => (
-          <SelectItem key={item.value} value={item.value} label={item.label}>
-            {item.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+      ariaLabel={label}
+      placeholder={placeholder}
+      triggerClassName={className}
+      onValueChange={(v) => onChange(v === ALL || v === null ? undefined : v)}
+    />
   )
 }
 
@@ -120,7 +106,7 @@ export function StudentFiltersBar({ filters, groups }: Readonly<Props>) {
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <FilterSelect
+      <StudentFilterSelect
         label="Status"
         placeholder="All statuses"
         value={filters.status}
@@ -128,7 +114,7 @@ export function StudentFiltersBar({ filters, groups }: Readonly<Props>) {
         className="w-col-sm"
         onChange={(v) => updateFilter('status', v)}
       />
-      <FilterSelect
+      <StudentFilterSelect
         label="Role"
         placeholder="All roles"
         value={filters.role}
@@ -136,7 +122,7 @@ export function StudentFiltersBar({ filters, groups }: Readonly<Props>) {
         className="w-col-sm"
         onChange={(v) => updateFilter('role', v)}
       />
-      <FilterSelect
+      <StudentFilterSelect
         label="Group"
         placeholder="All groups"
         value={filters.group}

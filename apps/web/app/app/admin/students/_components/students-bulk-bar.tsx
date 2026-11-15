@@ -82,7 +82,7 @@ export function StudentsBulkBar({ selectedIds, groups, onClear }: Readonly<Props
         onValueChange={(v) => setGroupId(v ?? '')}
         items={groups.map((g) => ({ value: g.id, label: g.name }))}
       >
-        <SelectTrigger className="w-col-md" aria-label="Group">
+        <SelectTrigger className="w-col-md" aria-label="Target group">
           <SelectValue placeholder="Choose group" />
         </SelectTrigger>
         <SelectContent>

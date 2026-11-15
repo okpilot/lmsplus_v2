@@ -1,6 +1,6 @@
 'use client'
 
-import { FilterSelect } from './filter-select'
+import { FilterSelect } from '@/app/app/_components/filter-select'
 
 const ALL = '__all__'
 

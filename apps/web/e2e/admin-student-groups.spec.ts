@@ -30,7 +30,7 @@ test('admin creates, populates, filters, renames and deletes a group', async ({ 
   await page.goto(`/app/admin/students?search=${encodeURIComponent(TEST_EMAIL)}`)
   const studentRow = page.getByRole('row').filter({ hasText: TEST_EMAIL })
   await studentRow.getByRole('checkbox').check()
-  await page.getByRole('combobox', { name: 'Group' }).last().click()
+  await page.getByRole('combobox', { name: 'Target group' }).click()
   await page.getByRole('option', { name }).click()
   await page.getByRole('button', { name: 'Add to group' }).click()
   await expect(page.getByText(`Added 1 student to ${name}`)).toBeVisible()

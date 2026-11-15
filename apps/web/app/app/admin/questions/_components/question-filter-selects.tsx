@@ -1,8 +1,8 @@
 'use client'
 
+import { FilterSelect } from '@/app/app/_components/filter-select'
 import type { SyllabusTree } from '../../syllabus/types'
 import { CalcFilterSelect } from './calc-filter-select'
-import { FilterSelect } from './filter-select'
 
 type Props = {
   tree: SyllabusTree
