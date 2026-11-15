@@ -352,7 +352,7 @@ CREATE INDEX idx_course_enrolments_organization_id ON course_enrolments(organiza
 - RESTRICTIVE SELECT: `(SELECT private.is_active_user())`
 - No INSERT/UPDATE/DELETE policy.
 
-**GRANTs to `authenticated`:** `SELECT (id, organization_id, name, created_at, updated_at, deleted_at)` only: `REVOKE ALL … FROM PUBLIC, anon, authenticated` first (default privileges otherwise leave a table-level `SELECT`), then an explicit column list, so `description`, `created_by`, `deleted_by` are not selectable by `authenticated` (42501; a student member must not read admin notes) and any new column stays unselectable until added to the grant. Admin reads that need those columns use the service role with an explicit `organization_id` filter (`select('*')` with a user client errors).
+**GRANTs to `authenticated`:** `SELECT` only.
 
 **Helper:** `private.accessible_subject_ids() RETURNS SETOF uuid` (mig `20261028000100`, #1637) — `sql STABLE SECURITY DEFINER SET search_path = public, pg_temp`; EXECUTE `authenticated` only (revoked from PUBLIC, `anon`). Active admin/instructor: every subject. Active other caller: subjects whose `course_id` has a live enrolment. NULL uid or deactivated caller: empty. Soft-deleted subjects are included (no `deleted_at` predicate on `easa_subjects`; `docs/security.md` §15 (d)(iv)).
 
@@ -388,7 +388,7 @@ CREATE INDEX idx_student_groups_organization_id ON student_groups(organization_i
 - RESTRICTIVE SELECT: `student_groups_select_active_caller`, `(SELECT private.is_active_user())`
 - No INSERT/UPDATE/DELETE policy. Instructors read nothing.
 
-**GRANTs to `authenticated`:** `SELECT` only.
+**GRANTs to `authenticated`:** `SELECT (id, organization_id, name, created_at, updated_at, deleted_at)` only: `REVOKE ALL … FROM PUBLIC, anon, authenticated` first (default privileges otherwise leave a table-level `SELECT`), then an explicit column list, so `description`, `created_by`, `deleted_by` are not selectable by `authenticated` (42501; a student member must not read admin notes) and any new column stays unselectable until added to the grant. Admin reads that need those columns use the service role with an explicit `organization_id` filter (`select('*')` with a user client errors).
 
 ### student_group_members
 
