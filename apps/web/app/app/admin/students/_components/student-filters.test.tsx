@@ -2,14 +2,13 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockPush, mockUseSearchParams } = vi.hoisted(() => ({
+const { mockPush } = vi.hoisted(() => ({
   mockPush: vi.fn(),
-  mockUseSearchParams: vi.fn(),
 }))
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mockPush }),
-  useSearchParams: mockUseSearchParams,
+  useRouter: () => ({ replace: mockPush }),
+  usePathname: () => '/app/admin/students',
 }))
 
 // Mock Base UI Select to avoid portal complexity in jsdom.
@@ -47,50 +46,50 @@ import { StudentFiltersBar } from './student-filters'
 
 beforeEach(() => {
   vi.resetAllMocks()
-  mockUseSearchParams.mockReturnValue(new URLSearchParams())
+  window.history.replaceState(null, '', '/app/admin/students')
 })
 
 describe('StudentFiltersBar', () => {
-  it('renders the status and role selects and the search input', () => {
-    render(<StudentFiltersBar filters={{}} />)
+  it('renders the status, role and group selects and the search input', () => {
+    render(<StudentFiltersBar filters={{}} groups={[]} />)
     const selects = screen.getAllByTestId('select')
-    expect(selects).toHaveLength(2)
+    expect(selects).toHaveLength(3)
     expect(screen.getByPlaceholderText('Search students...')).toBeInTheDocument()
   })
 
   it('renders the Clear button', () => {
-    render(<StudentFiltersBar filters={{}} />)
+    render(<StudentFiltersBar filters={{}} groups={[]} />)
     expect(screen.getByRole('button', { name: 'Clear' })).toBeInTheDocument()
   })
 
   it('navigates to the base students URL when Clear is clicked', async () => {
     const user = userEvent.setup({ delay: null })
-    render(<StudentFiltersBar filters={{}} />)
+    render(<StudentFiltersBar filters={{}} groups={[]} />)
     await user.click(screen.getByRole('button', { name: 'Clear' }))
     expect(mockPush).toHaveBeenCalledWith('/app/admin/students')
   })
 
   it('reflects the active status filter value in the status select', () => {
-    render(<StudentFiltersBar filters={{ status: 'active' }} />)
+    render(<StudentFiltersBar filters={{ status: 'active' }} groups={[]} />)
     const selects = screen.getAllByTestId('select')
     // First select = status
     expect((selects[0] as HTMLSelectElement).value).toBe('active')
   })
 
   it('reflects the role filter value in the role select', () => {
-    render(<StudentFiltersBar filters={{ role: 'admin' }} />)
+    render(<StudentFiltersBar filters={{ role: 'admin' }} groups={[]} />)
     const selects = screen.getAllByTestId('select')
     // Second select = role
     expect((selects[1] as HTMLSelectElement).value).toBe('admin')
   })
 
   it('pre-fills the search input from the filter prop', () => {
-    render(<StudentFiltersBar filters={{ search: 'alice' }} />)
+    render(<StudentFiltersBar filters={{ search: 'alice' }} groups={[]} />)
     expect(screen.getByPlaceholderText('Search students...')).toHaveValue('alice')
   })
 
   it('defaults both selects to the __all__ sentinel when no filters are set', () => {
-    render(<StudentFiltersBar filters={{}} />)
+    render(<StudentFiltersBar filters={{}} groups={[]} />)
     const selects = screen.getAllByTestId('select')
     expect((selects[0] as HTMLSelectElement).value).toBe('__all__')
     expect((selects[1] as HTMLSelectElement).value).toBe('__all__')

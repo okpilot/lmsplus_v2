@@ -14,7 +14,7 @@ import {
 } from '@/lib/integration-support/harness'
 import { createStudent } from './actions/create-student'
 import { updateStudent } from './actions/update-student'
-import { getCourses, getStudentsList } from './queries'
+import { getCourses, getStudentsPage } from './queries'
 
 const admin = getAdminClient()
 const suffix = fixtureSuffix()
@@ -141,24 +141,24 @@ describe('course enrolment admin surface (integration)', () => {
     expect(courses[0]).toEqual({ id: PPL, short: 'PPL', name: 'PPL(A)' })
   })
 
-  it('getStudentsList returns active course ids only, excluding removed enrolments', async () => {
+  it('getStudentsPage returns active course ids only, excluding removed enrolments', async () => {
     await signInAs(adminAEmail, password)
-    const rows = await getStudentsList({})
+    const { rows } = await getStudentsPage({ page: 1 })
     const row = rows.find((r) => r.id === studentId)
     expect(row?.course_ids).toEqual([PPL])
   })
 
-  it('getStudentsList still lists a student with zero active enrolments', async () => {
+  it('getStudentsPage still lists a student with zero active enrolments', async () => {
     await signInAs(adminAEmail, password)
-    const rows = await getStudentsList({})
+    const { rows } = await getStudentsPage({ page: 1 })
     const row = rows.find((r) => r.id === bareStudentId)
     expect(row).toBeDefined()
     expect(row?.course_ids).toEqual([])
   })
 
-  it('getStudentsList does not leak another organization students or enrolments', async () => {
+  it('getStudentsPage does not leak another organization students or enrolments', async () => {
     await signInAs(adminAEmail, password)
-    const rows = await getStudentsList({})
+    const { rows } = await getStudentsPage({ page: 1 })
     expect(rows.find((r) => r.id === otherOrgStudentId)).toBeUndefined()
   })
 
@@ -199,7 +199,7 @@ describe('course enrolment admin surface (integration)', () => {
     if (!result.success) return
     createdIds.push(result.id)
     expect(await activeCourseIds(result.id)).toEqual([ATPL])
-    const rows = await getStudentsList({})
+    const { rows } = await getStudentsPage({ page: 1 })
     expect(rows.find((r) => r.id === result.id)?.course_ids).toEqual([ATPL])
   })
 

@@ -52,7 +52,7 @@ test.describe('Admin Student Management — Table', () => {
 
   test('shows user count summary and table with expected columns', async ({ page }) => {
     // User count summary
-    await expect(page.getByText(/\d+ users?/)).toBeVisible()
+    await expect(page.getByText(/\d+ users?/).first()).toBeVisible()
 
     // Column headers
     await expect(page.getByRole('columnheader', { name: 'Name' })).toBeVisible()
@@ -62,7 +62,7 @@ test.describe('Admin Student Management — Table', () => {
   })
 
   test('shows at least one row in the table (seed data present)', async ({ page }) => {
-    await expect(page.locator('tbody tr').first()).toBeVisible()
+    await expect(page.getByTestId('tabpanel-students').locator('tbody tr').first()).toBeVisible()
   })
 
   test('shows New Student button', async ({ page }) => {
@@ -151,7 +151,10 @@ test.describe('Admin Student Management — Edit', () => {
     await page.reload()
 
     // Find our student's row and click Edit
-    const studentRow = page.locator('tbody tr').filter({ hasText: originalName })
+    const studentRow = page
+      .getByTestId('tabpanel-students')
+      .locator('tbody tr')
+      .filter({ hasText: originalName })
     await expect(studentRow).toBeVisible({ timeout: 10_000 })
     await studentRow.getByRole('button', { name: 'Edit student' }).click()
     await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5_000 })
@@ -196,7 +199,10 @@ test.describe('Admin Student Management — Deactivate / Reactivate', () => {
     await page.reload()
 
     // Find the row for our new student and click Deactivate
-    const studentRow = page.locator('tbody tr').filter({ hasText: fullName })
+    const studentRow = page
+      .getByTestId('tabpanel-students')
+      .locator('tbody tr')
+      .filter({ hasText: fullName })
     await expect(studentRow).toBeVisible({ timeout: 10_000 })
     await studentRow.getByRole('button', { name: 'Deactivate student' }).click()
 
@@ -210,7 +216,10 @@ test.describe('Admin Student Management — Deactivate / Reactivate', () => {
 
     // Status badge in the row should change to Inactive after reload
     await page.reload()
-    const updatedRow = page.locator('tbody tr').filter({ hasText: fullName })
+    const updatedRow = page
+      .getByTestId('tabpanel-students')
+      .locator('tbody tr')
+      .filter({ hasText: fullName })
     await expect(updatedRow.getByText('Inactive')).toBeVisible({ timeout: 10_000 })
   })
 
@@ -264,7 +273,10 @@ test.describe('Admin Student Management — Deactivate / Reactivate', () => {
     await page.goto('/app/admin/students?status=inactive')
     await expect(page.getByRole('heading', { name: 'Student Management' })).toBeVisible()
 
-    const studentRow = page.locator('tbody tr').filter({ hasText: fullName })
+    const studentRow = page
+      .getByTestId('tabpanel-students')
+      .locator('tbody tr')
+      .filter({ hasText: fullName })
     await expect(studentRow).toBeVisible({ timeout: 10_000 })
     await studentRow.getByRole('button', { name: 'Reactivate student' }).click()
 
@@ -278,13 +290,18 @@ test.describe('Admin Student Management — Deactivate / Reactivate', () => {
 
     // Should no longer appear in inactive-only view after reload
     await page.reload()
-    await expect(page.locator('tbody tr').filter({ hasText: fullName })).toHaveCount(0, {
+    await expect(
+      page.getByTestId('tabpanel-students').locator('tbody tr').filter({ hasText: fullName }),
+    ).toHaveCount(0, {
       timeout: 10_000,
     })
 
     // Confirm Active badge in the all-students view
     await page.goto('/app/admin/students')
-    const restoredRow = page.locator('tbody tr').filter({ hasText: fullName })
+    const restoredRow = page
+      .getByTestId('tabpanel-students')
+      .locator('tbody tr')
+      .filter({ hasText: fullName })
     await expect(restoredRow.getByText('Active')).toBeVisible({ timeout: 10_000 })
 
     // Reactivation must also UNBAN the auth user, not just clear deleted_at. Without
@@ -324,7 +341,10 @@ test.describe('Admin Student Management — Login Instructions', () => {
     await page.reload()
 
     // Find our student's row: it has never been sent login instructions
-    const studentRow = page.locator('tbody tr').filter({ hasText: fullName })
+    const studentRow = page
+      .getByTestId('tabpanel-students')
+      .locator('tbody tr')
+      .filter({ hasText: fullName })
     await expect(studentRow).toBeVisible({ timeout: 10_000 })
     await expect(studentRow.getByText('Not sent yet')).toBeVisible()
 
@@ -381,8 +401,9 @@ test.describe('Admin Student Management — Filters', () => {
   test('status=active filter shows only active students', async ({ page }) => {
     await page.goto('/app/admin/students?status=active')
     await expect(page.getByRole('heading', { name: 'Student Management' })).toBeVisible()
+    await expect(page.getByText(/^\d+ users?$/)).toBeVisible()
     // All visible status badges should be "Active"
-    const rows = page.locator('tbody tr')
+    const rows = page.getByTestId('tabpanel-students').locator('tbody tr')
     const count = await rows.count()
     if (count > 0) {
       for (let i = 0; i < count; i++) {
@@ -394,7 +415,8 @@ test.describe('Admin Student Management — Filters', () => {
   test('status=inactive filter shows only inactive students', async ({ page }) => {
     await page.goto('/app/admin/students?status=inactive')
     await expect(page.getByRole('heading', { name: 'Student Management' })).toBeVisible()
-    const rows = page.locator('tbody tr')
+    await expect(page.getByText(/^\d+ users?$/)).toBeVisible()
+    const rows = page.getByTestId('tabpanel-students').locator('tbody tr')
     const count = await rows.count()
     // Either shows inactive students or empty state
     if (count === 0) {
@@ -409,12 +431,13 @@ test.describe('Admin Student Management — Filters', () => {
   test('role=student filter shows only student-role users', async ({ page }) => {
     await page.goto('/app/admin/students?role=student')
     await expect(page.getByRole('heading', { name: 'Student Management' })).toBeVisible()
-    const rows = page.locator('tbody tr')
+    await expect(page.getByText(/^\d+ users?$/)).toBeVisible()
+    const rows = page.getByTestId('tabpanel-students').locator('tbody tr')
     const count = await rows.count()
     if (count > 0) {
       for (let i = 0; i < count; i++) {
-        // Check the role badge specifically (third column)
-        const roleCell = rows.nth(i).locator('td').nth(2)
+        // Check the role badge specifically (fourth column)
+        const roleCell = rows.nth(i).locator('td').nth(3)
         await expect(roleCell.getByText('student')).toBeVisible()
       }
     }
@@ -423,7 +446,8 @@ test.describe('Admin Student Management — Filters', () => {
   test('search filter narrows results by name/email', async ({ page }) => {
     await page.goto('/app/admin/students?search=admin')
     await expect(page.getByRole('heading', { name: 'Student Management' })).toBeVisible()
-    const rows = page.locator('tbody tr')
+    await expect(page.getByText(/^\d+ users?$/)).toBeVisible()
+    const rows = page.getByTestId('tabpanel-students').locator('tbody tr')
     const count = await rows.count()
     expect(count).toBeGreaterThan(0)
     // Every visible row should contain "admin" somewhere
@@ -441,7 +465,7 @@ test.describe('Admin Student Management — Filters', () => {
     await expect(clearBtn).toBeVisible()
     await clearBtn.click()
     // After clear, page should reload showing all users (no filter applied)
-    await expect(page.getByText(/\d+ users?/)).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText(/\d+ users?/).first()).toBeVisible({ timeout: 10_000 })
   })
 
   test('shows empty state when search matches no students', async ({ page }) => {
@@ -543,7 +567,10 @@ test.describe('Admin Student Management — Courses', () => {
     await page.getByRole('button', { name: 'Close' }).click()
     await page.reload()
 
-    const row = page.locator('tbody tr').filter({ hasText: fullName })
+    const row = page
+      .getByTestId('tabpanel-students')
+      .locator('tbody tr')
+      .filter({ hasText: fullName })
     await expect(row).toBeVisible({ timeout: 10_000 })
     await expect(row.getByText('RT', { exact: true })).toBeVisible()
     await expect(row.getByText('PPL', { exact: true })).toHaveCount(0)
@@ -557,7 +584,10 @@ test.describe('Admin Student Management — Courses', () => {
     await expect(page.getByText('Student updated')).toBeVisible({ timeout: 10_000 })
 
     await page.reload()
-    const updated = page.locator('tbody tr').filter({ hasText: fullName })
+    const updated = page
+      .getByTestId('tabpanel-students')
+      .locator('tbody tr')
+      .filter({ hasText: fullName })
     await expect(updated.getByText('RT', { exact: true })).toBeVisible({ timeout: 10_000 })
     await expect(updated.getByText('ATPL', { exact: true })).toBeVisible()
   })

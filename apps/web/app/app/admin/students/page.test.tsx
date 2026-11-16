@@ -7,6 +7,9 @@ vi.mock('./_components/students-content', () => ({
   },
 }))
 
+vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams() }))
+vi.mock('./groups/_components/groups-panel', () => ({ GroupsPanel: () => <div /> }))
+
 import StudentsPage from './page'
 
 vi.mock('@/lib/auth/require-admin', () => ({
@@ -19,6 +22,11 @@ describe('StudentsPage', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Student Management' })).toHaveClass(
       'text-title',
     )
+  })
+
+  it('describes students and groups', async () => {
+    render(await StudentsPage({ searchParams: Promise.resolve({}) }))
+    expect(screen.getByText('Register and manage students and groups.')).toBeInTheDocument()
   })
 
   it('shows a skeleton while the students load', async () => {

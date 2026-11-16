@@ -856,7 +856,7 @@ GRANT SELECT (
 
 **Rationale for relocation (mig 111, #823):** The MC answer key was originally stored as `correct: boolean` inside the `options` JSONB array. Column-level REVOKE cannot target keys nested in JSONB, only top-level columns. Moving the key to a dedicated `correct_option_id` column allows the privilege layer to protect it consistently alongside the other answer-key columns. The `options` column no longer carries `correct`; a trigger (`trg_sanitize_question_options`) strips it on every write.
 
-**`student_groups` (mig `20261115000100`, #1776):** `REVOKE ALL … FROM PUBLIC, anon, authenticated` (default privileges leave `authenticated` a table-level `SELECT`) then the explicit column list `GRANT SELECT (id, organization_id, name, created_at, updated_at, deleted_at)` (precedent: the `questions` list of mig 094 above). `description`, `created_by`, `deleted_by` are not selectable by `authenticated` (admins included); a student member reads the group row through `user_read_own_student_groups` but gets 42501 on those columns.
+**`student_groups` (mig `20261115000100`, #1776):** `REVOKE ALL … FROM PUBLIC, anon, authenticated`, then `GRANT SELECT (id, organization_id, name, created_at, updated_at, deleted_at)`. `description`, `created_by`, `deleted_by` are not selectable by `authenticated` (admins included).
 
 **Precedent:** Mig 20260605000001 applied the same pattern to `quiz_sessions` scoring columns (`ended_at`, `correct_count`, `score_percentage`, `passed`) — students cannot UPDATE them directly, only SECURITY DEFINER RPCs can write scores. The `questions` column REVOKE/GRANT extends this pattern from write-protection to read-protection.
 
@@ -934,6 +934,7 @@ We store student PII: email address, full name, learning history, exam scores.
 
 ### Required Capabilities
 - **Data export:** admin Server Action `exportStudentData` (`apps/web/app/app/admin/students/actions/export-student-data.ts`); student self-export Server Action `exportMyData` (`apps/web/app/app/settings/gdpr-actions.ts`)
+- **Export key `student_group_memberships`** (`group_name` null when the group is unreadable): self-export (user client) returns active rows only via the own-row policies; admin export also returns removed rows and deleted groups' names.
 - **Non-training data erasure on deactivation:** NOT BUILT (#1030); deactivation soft-deletes only. Privacy policy §6 keeps non-training data only while the account is active.
 
 ### Erasure and Retention

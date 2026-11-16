@@ -24,6 +24,7 @@ function buildStudent(overrides: Partial<StudentRow> = {}): StudentRow {
     login_instructions_sent_at: null,
     temp_password_expires_at: null,
     course_ids: [],
+    group_ids: [],
     ...overrides,
   }
 }

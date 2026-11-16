@@ -10,12 +10,19 @@ export type StudentRow = {
   login_instructions_sent_at: string | null
   temp_password_expires_at: string | null
   course_ids: string[]
+  group_ids: string[]
 }
 
 export type CourseOption = { id: string; short: string; name: string }
+
+export type GroupOption = { id: string; name: string }
 
 export type StudentFilters = {
   status?: 'active' | 'inactive'
   role?: 'admin' | 'instructor' | 'student'
   search?: string
+  group?: string
+  page?: number
 }
+
+export type StudentsPageResult = { rows: StudentRow[]; totalCount: number }

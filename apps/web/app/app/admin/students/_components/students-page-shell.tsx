@@ -1,86 +1,62 @@
 'use client'
 
-import { Plus } from 'lucide-react'
-import { useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Empty, EmptyDescription } from '@/components/ui/empty'
-import type { CourseOption, StudentFilters, StudentRow } from '../types'
-import { ExportStudentDialog } from './export-student-dialog'
+import { PaginationBar } from '../../../_components/pagination-bar'
+import { useScopedSelection } from '../../../_hooks/use-scoped-selection'
+import { useStudentDialogs } from '../_hooks/use-student-dialogs'
+import type { CourseOption, GroupOption, StudentFilters, StudentRow } from '../types'
+import { isSelectableStudent } from './is-selectable-student'
+import { StudentDialogs } from './student-dialogs'
 import { StudentFiltersBar } from './student-filters'
-import { StudentFormDialog } from './student-form-dialog'
-import { StudentTable } from './student-table'
-import { ToggleStatusDialog } from './toggle-status-dialog'
+import { StudentListBody } from './student-list-body'
+import { StudentsBulkBar } from './students-bulk-bar'
+import { StudentsToolbar } from './students-toolbar'
 
 type Props = {
   students: StudentRow[]
   courses: CourseOption[]
+  groups: GroupOption[]
   filters: StudentFilters
+  page: number
+  totalCount: number
+  pageSize: number
 }
 
-export function StudentsPageShell({ students, courses, filters }: Readonly<Props>) {
-  const [editStudent, setEditStudent] = useState<StudentRow | null>(null)
-  const [toggleStudent, setToggleStudent] = useState<StudentRow | null>(null)
-  const [exportStudent, setExportStudent] = useState<StudentRow | null>(null)
+export function StudentsPageShell({
+  students,
+  courses,
+  groups,
+  filters,
+  page,
+  totalCount,
+  pageSize,
+}: Readonly<Props>) {
+  const dialogs = useStudentDialogs()
+  const { selectedIds, toggle, toggleAll, clear, deselect } = useScopedSelection(
+    JSON.stringify({ ...filters, page }),
+    students.filter(isSelectableStudent).map((s) => s.id),
+  )
 
   return (
     <div className="space-y-section">
-      <StudentFiltersBar filters={filters} />
-
-      <div className="flex items-center justify-between">
-        <p className="text-caption text-muted-foreground">
-          {students.length} user{students.length === 1 ? '' : 's'}
-        </p>
-        <StudentFormDialog
-          courses={courses}
-          trigger={
-            <Button size="sm">
-              <Plus className="mr-1.5 size-icon" />
-              New Student
-            </Button>
-          }
-        />
-      </div>
-
-      {students.length === 0 ? (
-        <Empty>
-          <EmptyDescription>
-            No students found. Adjust filters or create a new student.
-          </EmptyDescription>
-        </Empty>
-      ) : (
-        <StudentTable
-          students={students}
-          courses={courses}
-          onEdit={setEditStudent}
-          onToggleStatus={setToggleStudent}
-          onExport={setExportStudent}
-        />
-      )}
-
-      <StudentFormDialog
-        student={editStudent ?? undefined}
+      <StudentFiltersBar filters={filters} groups={groups} />
+      <StudentsToolbar totalCount={totalCount} courses={courses} />
+      <StudentListBody
+        students={students}
         courses={courses}
-        open={editStudent !== null}
-        onOpenChange={(v) => {
-          if (!v) setEditStudent(null)
-        }}
+        groups={groups}
+        selectedIds={selectedIds}
+        onToggle={toggle}
+        onToggleAll={toggleAll}
+        dialogs={dialogs}
       />
-
-      <ToggleStatusDialog
-        student={toggleStudent}
-        open={toggleStudent !== null}
-        onOpenChange={(v) => {
-          if (!v) setToggleStudent(null)
-        }}
+      <StudentsBulkBar
+        selectedIds={selectedIds}
+        groups={groups}
+        onClear={clear}
+        onDone={deselect}
       />
-
-      <ExportStudentDialog
-        student={exportStudent}
-        open={exportStudent !== null}
-        onOpenChange={(v) => {
-          if (!v) setExportStudent(null)
-        }}
-      />
+      <PaginationBar page={page} totalCount={totalCount} pageSize={pageSize} entityLabel="users" />
+      <StudentDialogs courses={courses} dialogs={dialogs} />
     </div>
   )
 }

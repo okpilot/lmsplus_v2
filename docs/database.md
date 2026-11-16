@@ -388,7 +388,7 @@ CREATE INDEX idx_student_groups_organization_id ON student_groups(organization_i
 - RESTRICTIVE SELECT: `student_groups_select_active_caller`, `(SELECT private.is_active_user())`
 - No INSERT/UPDATE/DELETE policy. Instructors read nothing.
 
-**GRANTs to `authenticated`:** `SELECT (id, organization_id, name, created_at, updated_at, deleted_at)` only: `REVOKE ALL … FROM PUBLIC, anon, authenticated` first (default privileges otherwise leave a table-level `SELECT`), then an explicit column list, so `description`, `created_by`, `deleted_by` are not selectable by `authenticated` (42501; a student member must not read admin notes) and any new column stays unselectable until added to the grant.
+**GRANTs to `authenticated`:** `REVOKE ALL … FROM PUBLIC, anon, authenticated`, then `SELECT (id, organization_id, name, created_at, updated_at, deleted_at)` only. `description`, `created_by`, `deleted_by` are not selectable by `authenticated`.
 
 ### student_group_members
 
@@ -422,6 +422,8 @@ CREATE INDEX idx_student_group_members_organization_id ON student_group_members(
 - No INSERT/UPDATE/DELETE policy.
 
 **GRANTs to `authenticated`:** `SELECT` only.
+
+**GDPR export:** key `student_group_memberships` (`collect-user-data-queries.ts` `fetchStudentGroupMemberships`): `group_id, group_name, added_at, added_by, deleted_at, deleted_by`; admin export includes removed rows.
 
 ### quiz_sessions
 
@@ -1521,6 +1523,7 @@ Admin-only read: `RETURNS TABLE (id, name, description, created_at, active_count
 - Guards: `not_authenticated`, `not_admin`, `admin_not_found` as above; `SET search_path = public, pg_temp`
 - Counts: active (`deleted_at IS NULL`) memberships whose user is a same-org `role = 'student'`, split by `users.deleted_at` (§15 (e)); a member no longer `student` is in neither count
 - No audit row
+- Caller: `getGroupsWithCounts` (admin Students page, Groups tab)
 
 **Grants:** `REVOKE EXECUTE … FROM PUBLIC, anon`; `GRANT EXECUTE … TO authenticated`.
 

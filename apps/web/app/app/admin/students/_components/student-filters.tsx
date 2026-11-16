@@ -1,124 +1,83 @@
 'use client'
 
-import { useRouter, useSearchParams } from 'next/navigation'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import type { StudentFilters } from '../types'
+import { useUpdateSearchParams } from '../../../_hooks/use-update-search-params'
+import type { GroupOption, StudentFilters } from '../types'
+import { StudentFilterSelects } from './student-filter-selects'
 
 type Props = {
   filters: StudentFilters
+  groups: GroupOption[]
 }
 
-const ALL = '__all__'
+type Update = ReturnType<typeof useUpdateSearchParams>
 
-const STATUS_ITEMS = [
-  { value: ALL, label: 'All' },
-  { value: 'active', label: 'Active' },
-  { value: 'inactive', label: 'Inactive' },
-]
-
-const ROLE_ITEMS = [
-  { value: ALL, label: 'All' },
-  { value: 'admin', label: 'Admin' },
-  { value: 'instructor', label: 'Instructor' },
-  { value: 'student', label: 'Student' },
-]
-
-export function StudentFiltersBar({ filters }: Readonly<Props>) {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const [searchText, setSearchText] = useState(filters.search ?? '')
-  const isInitialMount = useRef(true)
-
-  const updateFilter = useCallback(
-    (key: string, value: string | undefined) => {
-      const params = new URLSearchParams(searchParams.toString())
-      if (value) {
-        params.set(key, value)
-      } else {
-        params.delete(key)
-      }
-      router.push(`/app/admin/students?${params.toString()}`)
-    },
-    [router, searchParams],
-  )
-
+/** Search box: typing is debounced into the URL; the URL re-syncs the box unless typing is pending. */
+function useSearchBox(urlSearch: string | undefined, update: Update) {
+  const [text, setText] = useState(urlSearch ?? '')
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const cancel = () => {
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = null
+  }
   useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false
-      return
+    if (!timer.current) {
+      setText((prev) => (prev.trim() === (urlSearch ?? '') ? prev : (urlSearch ?? '')))
     }
-    const timer = setTimeout(() => {
-      updateFilter('search', searchText.trim() || undefined)
+  }, [urlSearch])
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current)
+    },
+    [],
+  )
+  const onType = (v: string) => {
+    setText(v)
+    cancel()
+    timer.current = setTimeout(() => {
+      timer.current = null
+      update({ search: v.trim() || null, page: null })
     }, 300)
-    return () => clearTimeout(timer)
-  }, [searchText, updateFilter])
+  }
+  const reset = () => {
+    cancel()
+    setText('')
+  }
+  const takePending = (): Record<string, string | null> => {
+    if (!timer.current) return {}
+    cancel()
+    return { search: text.trim() || null }
+  }
+  return { text, onType, reset, takePending }
+}
+
+export function StudentFiltersBar({ filters, groups }: Readonly<Props>) {
+  const update = useUpdateSearchParams()
+  const search = useSearchBox(filters.search, update)
+  const updateFilter = (key: string, v: string | undefined) =>
+    update({ [key]: v ?? null, ...search.takePending(), page: null })
+  const clearAll = () => {
+    search.reset()
+    update({ status: null, role: null, group: null, search: null, page: null })
+  }
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <Select
-        value={filters.status ?? ALL}
-        onValueChange={(v) => updateFilter('status', v === ALL || v === null ? undefined : v)}
-        items={STATUS_ITEMS}
-      >
-        <SelectTrigger className="w-col-sm" aria-label="Status">
-          <SelectValue placeholder="All statuses" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={ALL} label="All">
-            All
-          </SelectItem>
-          <SelectItem value="active" label="Active">
-            Active
-          </SelectItem>
-          <SelectItem value="inactive" label="Inactive">
-            Inactive
-          </SelectItem>
-        </SelectContent>
-      </Select>
-
-      <Select
-        value={filters.role ?? ALL}
-        onValueChange={(v) => updateFilter('role', v === ALL || v === null ? undefined : v)}
-        items={ROLE_ITEMS}
-      >
-        <SelectTrigger className="w-col-sm" aria-label="Role">
-          <SelectValue placeholder="All roles" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={ALL} label="All">
-            All
-          </SelectItem>
-          <SelectItem value="admin" label="Admin">
-            Admin
-          </SelectItem>
-          <SelectItem value="instructor" label="Instructor">
-            Instructor
-          </SelectItem>
-          <SelectItem value="student" label="Student">
-            Student
-          </SelectItem>
-        </SelectContent>
-      </Select>
+      <StudentFilterSelects filters={filters} groups={groups} updateFilter={updateFilter} />
 
       <Input
         type="search"
         placeholder="Search students..."
         aria-label="Search students"
-        value={searchText}
-        onChange={(e) => setSearchText(e.target.value)}
+        value={search.text}
+        onChange={(e) => search.onType(e.target.value)}
+        maxLength={200}
         className="w-col-lg"
       />
 
-      <Button variant="ghost" size="sm" onClick={() => router.push('/app/admin/students')}>
+      <Button variant="ghost" size="sm" onClick={clearAll}>
         Clear
       </Button>
     </div>

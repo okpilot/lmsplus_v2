@@ -37,6 +37,7 @@ const STUDENT: StudentRow = {
   login_instructions_sent_at: null,
   temp_password_expires_at: null,
   course_ids: [PPL, RT],
+  group_ids: [],
 }
 
 beforeEach(() => {
