@@ -344,6 +344,8 @@
 | LZ | student_group_members-student-peer-enumeration-embed | MEDIUM | student-groups-scope.spec.ts | BLOCKED |  | idor |
 | MA | student-group-rpcs-cross-org-admin-write | HIGH | student-groups-scope.spec.ts | BLOCKED |  | cross-tenant |
 | MB | student_group-audit_events-instructor-reads-description-and-members | LOW | student-groups-audit-instructor-read.spec.ts | BLOCKED |  | sibling-guard-gap |
+| MF | get_student_groups_with_counts-non-admin-soft-deleted-admin-cross-org-admin | HIGH | student-groups-counts-rpc.spec.ts | BLOCKED |  | cross-tenant |
+| MG | get_student_groups_with_counts-forged-membership-and-deleted-group-count-inflation | LOW | student-groups-counts-rpc.spec.ts | BLOCKED |  | soft-delete-bypass |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 

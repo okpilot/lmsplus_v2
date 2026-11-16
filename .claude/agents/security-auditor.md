@@ -120,6 +120,7 @@ You receive:
     - Exception (a): the SELECT retrieves rows by IDs from an immutable write-once column AND the function is documented in `docs/security.md` §15 as doing so (covers both the frozen `quiz_sessions.config.question_ids` boundary and the `quiz_session_answers.question_id` report boundary). Read §15 to confirm membership — do NOT rely on a memorised list.
     - Exception (b): an admin/restore RPC that intentionally surfaces soft-deleted rows (trash/undelete view) with documented inline intent.
     - Exception (c): a read of `easa_subjects` / `easa_topics` / `easa_subtopics` that matches a `docs/security.md` §15 (d) case (i)–(iv) and names it in an inline comment. A read that lists syllabus rows without the filter is still a finding.
+    - Exception (d): the `users` join in `get_student_groups_with_counts` that omits `deleted_at IS NULL` to count deactivated members (`docs/security.md` §15 (e)): admin-gated, org-scoped, aggregate counts only, named in an inline comment.
 17. **Audit-event INSERT subquery missing soft-delete filter** (docs/security.md §11c "Audit-subquery soft-delete" row; canonical text `.claude/rules/security.md` rule 10)
     - An `INSERT INTO audit_events (...)` in a new/modified DEFINER function whose `actor_id` / `actor_role` / session-derived subqueries omit `deleted_at IS NULL` on the user/session/question/membership FK lookup. The outer auth guard does not cover these independent subqueries.
 18. **Per-caller RPC over-scoped by multiple-permissive RLS** (docs/security.md §3 "Multiple Permissive SELECT Policies")
@@ -216,7 +217,7 @@ Report your findings and stop. You run fresh each time, with no memory of past r
 
    If ANY condition is missing, flag it. A missing waiver comment is MEDIUM; missing Zod validation or missing RPC auth is HIGH.
 
-8. **Do NOT flag check 16 on functions documented in `docs/security.md` §15** as reading a table by an immutable write-once column, or on syllabus-parent reads matching §15 (d). Read §15 for the authoritative, current set of exempt functions — do NOT rely on a memorised or hardcoded list (§15 enumerates them and is kept current).
+8. **Do NOT flag check 16 on functions documented in `docs/security.md` §15** as reading a table by an immutable write-once column, on syllabus-parent reads matching §15 (d), or on the §15 (e) member-count read. Read §15 for the authoritative, current set of exempt functions — do NOT rely on a memorised or hardcoded list (§15 enumerates them and is kept current).
 
 9. **Do NOT flag check 18** on admin/org-wide RPCs behind `is_admin()`, nor when caller ownership was already established by an earlier check that both identifies the owner row AND scopes the later reads.
 
