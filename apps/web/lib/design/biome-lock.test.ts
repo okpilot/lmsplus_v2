@@ -71,6 +71,12 @@ describe('biome lock-in (#1677 PR A)', () => {
         /biome-ignore lint\/correctness\/noRestrictedElements: Textarea primitive/g,
       ),
     ).toBe(1)
+    expect(
+      ignores(
+        'apps/web/components/ui/textarea.tsx',
+        /biome-ignore lint\/correctness\/noRestrictedElements/g,
+      ),
+    ).toBe(1)
   })
 
   it('rejects a raw <select> in components/ui via noRestrictedElements', () => {
