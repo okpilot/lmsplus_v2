@@ -33,7 +33,14 @@ import {
 } from './helpers/seed-users'
 
 type Admin = ReturnType<typeof getAdminClient>
-type Row = { id: string; active_count: number; deactivated_count: number }
+type Row = {
+  id: string
+  name: string
+  description: string | null
+  created_at: string
+  active_count: number
+  deactivated_count: number
+}
 
 const DEACTIVATED_EMAIL = 'redteam-sgc-deactivated@lmsplus.local'
 const DEACTIVATED_PASSWORD = 'redteam-sgc-deactivated-2026!'
@@ -51,7 +58,7 @@ async function setDeleted(admin: Admin, userId: string, deleted: boolean): Promi
 
 async function seedGroup(
   admin: Admin,
-  opts: { orgId: string; label: string; deleted?: boolean },
+  opts: { orgId: string; label: string; deleted?: boolean; description?: string },
   track: string[],
 ): Promise<string> {
   const { data, error } = await admin
@@ -59,6 +66,7 @@ async function seedGroup(
     .insert({
       organization_id: opts.orgId,
       name: `${E2E_REDTEAM_SG_MARKER}-sgc-${opts.label}-${Date.now()}`,
+      description: opts.description ?? null,
       deleted_at: opts.deleted ? new Date().toISOString() : null,
     })
     .select('id')
@@ -125,7 +133,11 @@ test.describe('Red Team: get_student_groups_with_counts (MF, MG)', () => {
     await setDeleted(admin, softDelAdminId, false)
     softDelAdmin = await createAuthenticatedClient(SOFTDEL_ADMIN_EMAIL, SOFTDEL_ADMIN_PASSWORD)
 
-    groupId = await seedGroup(admin, { orgId, label: 'counts' }, groupIds)
+    groupId = await seedGroup(
+      admin,
+      { orgId, label: 'counts', description: 'sgc-description' },
+      groupIds,
+    )
     deletedGroupId = await seedGroup(admin, { orgId, label: 'deleted', deleted: true }, groupIds)
     otherOrgGroupId = await seedGroup(admin, { orgId: cross.orgId, label: 'other' }, groupIds)
     await addMembers(admin, [
@@ -198,7 +210,17 @@ test.describe('Red Team: get_student_groups_with_counts (MF, MG)', () => {
   test('MG: forged memberships and a soft-deleted group do not reach the counts', async () => {
     const all = await rows(egmontAdmin)
     expect(all.map((r) => r.id)).not.toContain(deletedGroupId)
-    const row = all.find((r) => r.id === groupId)
-    expect(row).toMatchObject({ active_count: 1, deactivated_count: 1 })
+    const { data: stored, error } = await admin
+      .from('student_groups')
+      .select('id, name, description, created_at')
+      .eq('id', groupId)
+      .single()
+    expect(error).toBeNull()
+    expect(stored?.description).toBe('sgc-description')
+    expect(all.find((r) => r.id === groupId)).toEqual({
+      ...stored,
+      active_count: 1,
+      deactivated_count: 1,
+    })
   })
 })
