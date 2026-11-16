@@ -87,7 +87,7 @@ describe('S3 3a numeric fields use Input', () => {
   })
 })
 
-describe('S3 AC 5 biome forbids raw input and headings', () => {
+describe('S3 AC 5 biome forbids raw input, select, textarea and headings', () => {
   const biome = readFileSync(path.join(REPO, 'biome.json'), 'utf8')
   const cfg = JSON.parse(biome) as {
     linter: {

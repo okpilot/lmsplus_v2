@@ -42,7 +42,7 @@ beforeAll(() => {
 afterAll(() => rmSync(dir, { recursive: true, force: true }))
 
 describe('biome lock-in (#1677 PR A)', () => {
-  it('noRestrictedElements is relaxed only by the test-file globs; heading has 3 ignores; question-table has none', () => {
+  it('noRestrictedElements is relaxed only by the test-file globs; heading has 3 ignores; textarea has 1; question-table has none', () => {
     const level = (v: unknown) =>
       typeof v === 'object' && v !== null && 'level' in v ? (v as { level: unknown }).level : v
     const relaxed = cfg.overrides.filter((o) => {
