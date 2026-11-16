@@ -116,4 +116,27 @@ describe('useScopedSelection', () => {
 
     expect(result.current.selectedIds).toEqual(['2'])
   })
+
+  it('removes only the given rows with deselect and keeps rows selected since', () => {
+    const { result } = setup({ scope: 'A', ids: ['1', '2', '3'] })
+    act(() => result.current.toggle('1'))
+    act(() => result.current.toggle('2'))
+    act(() => result.current.toggle('3'))
+
+    act(() => result.current.deselect(['1', '2']))
+
+    expect(result.current.selectedIds).toEqual(['3'])
+  })
+
+  it('ignores a deselect captured under an old scope so the new selection survives', () => {
+    const { result, rerender } = setup({ scope: 'A', ids: ['1', '2'] })
+    act(() => result.current.toggle('1'))
+    const staleDeselect = result.current.deselect
+
+    rerender({ scope: 'B', ids: ['1', '2'] })
+    act(() => result.current.toggle('1'))
+    act(() => staleDeselect(['1']))
+
+    expect(result.current.selectedIds).toEqual(['1'])
+  })
 })

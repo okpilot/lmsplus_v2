@@ -43,8 +43,11 @@ const GROUPS = [{ id: G1, name: 'Cohort A' }]
 
 function setup(selectedIds: string[] = IDS) {
   const onClear = vi.fn()
-  render(<StudentsBulkBar selectedIds={selectedIds} groups={GROUPS} onClear={onClear} />)
-  return { onClear }
+  const onDone = vi.fn()
+  render(
+    <StudentsBulkBar selectedIds={selectedIds} groups={GROUPS} onClear={onClear} onDone={onDone} />,
+  )
+  return { onClear, onDone }
 }
 
 beforeEach(() => {
@@ -65,15 +68,15 @@ describe('StudentsBulkBar', () => {
     expect(screen.getByRole('button', { name: 'Clear' })).toBeInTheDocument()
   })
 
-  it('adds the selection to the chosen group, toasts the count and clears', async () => {
+  it('adds the selection to the chosen group, toasts the count and reports the submitted ids', async () => {
     const user = userEvent.setup({ delay: null })
     mockAdd.mockResolvedValue({ success: true, count: 2 })
-    const { onClear } = setup()
+    const { onDone } = setup()
     await user.selectOptions(screen.getByLabelText('Group'), G1)
     await user.click(screen.getByRole('button', { name: 'Add to group' }))
     expect(mockAdd).toHaveBeenCalledWith({ groupId: G1, userIds: IDS })
     expect(mockToast.success).toHaveBeenCalledWith('Added 2 students to Cohort A')
-    expect(onClear).toHaveBeenCalled()
+    expect(onDone).toHaveBeenCalledWith(IDS)
   })
 
   it('toasts that the students are already members when the count is 0', async () => {
@@ -101,11 +104,11 @@ describe('StudentsBulkBar', () => {
       success: false,
       error: 'Some selected students are inactive or not found',
     })
-    const { onClear } = setup()
+    const { onDone } = setup()
     await user.selectOptions(screen.getByLabelText('Group'), G1)
     await user.click(screen.getByRole('button', { name: 'Add to group' }))
     expect(mockToast.error).toHaveBeenCalledWith('Some selected students are inactive or not found')
-    expect(onClear).not.toHaveBeenCalled()
+    expect(onDone).not.toHaveBeenCalled()
   })
 
   it('calls onClear when Clear is clicked', async () => {

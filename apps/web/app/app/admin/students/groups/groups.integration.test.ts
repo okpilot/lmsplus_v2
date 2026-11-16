@@ -29,6 +29,7 @@ let activeStudent: string
 let deactivatedStudent: string
 let removedStudent: string
 let countedGroupId: string
+let otherGroupId: string
 
 async function seedMember(groupId: string, userId: string, removed = false) {
   const { error } = await admin.from('student_group_members').insert({
@@ -65,6 +66,18 @@ describe('student groups (app-layer integration)', () => {
     deactivatedStudent = await mk(orgId, `int-grp-s2-${suffix}@test.local`, 'student', orgUserIds)
     removedStudent = await mk(orgId, `int-grp-s3-${suffix}@test.local`, 'student', orgUserIds)
     await mk(otherOrgId, otherAdminEmail, 'admin', otherUserIds)
+
+    await signInAs(otherAdminEmail, password)
+    const otherCreated = await createGroup({ name: `Other ${suffix}` })
+    if (!otherCreated.success) throw new Error(`seed other group: ${otherCreated.error}`)
+    const { data: otherRow, error: otherErr } = await admin
+      .from('student_groups')
+      .select('id')
+      .eq('organization_id', otherOrgId)
+      .eq('name', `Other ${suffix}`)
+      .single()
+    if (otherErr) throw new Error(`seed other group read: ${otherErr.message}`)
+    otherGroupId = otherRow.id
 
     await signInAs(adminEmail, password)
     const created = await createGroup({ name: `Counted ${suffix}`, description: 'desc' })
@@ -106,8 +119,6 @@ describe('student groups (app-layer integration)', () => {
 
   it('lists only the caller organisation, ordered by name, excluding deleted groups', async () => {
     await signInAs(otherAdminEmail, password)
-    const created = await createGroup({ name: `Other ${suffix}` })
-    expect(created).toEqual({ success: true })
     expect((await getGroupsWithCounts()).map((g) => g.name)).toEqual([`Other ${suffix}`])
 
     await signInAs(adminEmail, password)
@@ -152,17 +163,12 @@ describe('student groups (app-layer integration)', () => {
   })
 
   it('update and delete report group_not_found for a group of another organisation', async () => {
-    const { data } = await admin
-      .from('student_groups')
-      .select('id')
-      .eq('name', `Other ${suffix}`)
-      .single()
     await signInAs(adminEmail, password)
-    expect(await updateGroup({ groupId: data?.id as string, name: 'x' })).toEqual({
+    expect(await updateGroup({ groupId: otherGroupId, name: 'x' })).toEqual({
       success: false,
       error: 'Group not found',
     })
-    expect(await deleteGroup({ groupId: data?.id as string })).toEqual({
+    expect(await deleteGroup({ groupId: otherGroupId })).toEqual({
       success: false,
       error: 'Group not found',
     })

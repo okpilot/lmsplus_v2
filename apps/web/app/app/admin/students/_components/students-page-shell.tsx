@@ -31,7 +31,7 @@ export function StudentsPageShell({
   pageSize,
 }: Readonly<Props>) {
   const dialogs = useStudentDialogs()
-  const { selectedIds, toggle, toggleAll, clear } = useScopedSelection(
+  const { selectedIds, toggle, toggleAll, clear, deselect } = useScopedSelection(
     JSON.stringify({ ...filters, page }),
     students.filter(isSelectableStudent).map((s) => s.id),
   )
@@ -49,7 +49,12 @@ export function StudentsPageShell({
         onToggleAll={toggleAll}
         dialogs={dialogs}
       />
-      <StudentsBulkBar selectedIds={selectedIds} groups={groups} onClear={clear} />
+      <StudentsBulkBar
+        selectedIds={selectedIds}
+        groups={groups}
+        onClear={clear}
+        onDone={deselect}
+      />
       <PaginationBar page={page} totalCount={totalCount} pageSize={pageSize} entityLabel="users" />
       <StudentDialogs courses={courses} dialogs={dialogs} />
     </div>

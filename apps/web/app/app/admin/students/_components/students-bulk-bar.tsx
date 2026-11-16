@@ -11,13 +11,14 @@ type Props = {
   selectedIds: string[]
   groups: GroupOption[]
   onClear: () => void
+  onDone: (ids: string[]) => void
 }
 
-export function StudentsBulkBar({ selectedIds, groups, onClear }: Readonly<Props>) {
+export function StudentsBulkBar({ selectedIds, groups, onClear, onDone }: Readonly<Props>) {
   const { groupId, setPicked, isPending, run } = useBulkGroupAction({
     selectedIds,
     groups,
-    onClear,
+    onDone,
   })
 
   if (selectedIds.length === 0) return null

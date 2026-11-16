@@ -126,6 +126,7 @@ test.describe('Red Team: student-group membership races (MC, MD)', () => {
     ])
     for (const r of results) expect(r.error).toBeNull()
     expect(results.reduce((n, r) => n + (r.data as number), 0)).toBe(1)
+    expect(results.map((r) => r.data as number).sort()).toEqual([0, 0, 0, 1])
     expect(await activeMembers(groupId)).toEqual([studentId])
     expect(await auditRows(groupId, 'student_group.members_added')).toHaveLength(1)
 

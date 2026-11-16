@@ -11,7 +11,7 @@ export type BulkMode = 'add' | 'remove'
 type Opts = {
   selectedIds: string[]
   groups: GroupOption[]
-  onClear: () => void
+  onDone: (ids: string[]) => void
 }
 
 function successMessage(mode: BulkMode, count: number, groupName: string): string {
@@ -33,7 +33,7 @@ function runMode(
 }
 
 /** Bulk add/remove of the selected students for the picked group. A picked group no longer in `groups` reads as unpicked. */
-export function useBulkGroupAction({ selectedIds, groups, onClear }: Readonly<Opts>) {
+export function useBulkGroupAction({ selectedIds, groups, onDone }: Readonly<Opts>) {
   const router = useRouter()
   const [picked, setPicked] = useState('')
   const [isPending, startTransition] = useTransition()
@@ -43,13 +43,14 @@ export function useBulkGroupAction({ selectedIds, groups, onClear }: Readonly<Op
 
   async function execute(mode: BulkMode) {
     try {
-      const result = await runMode(mode, { groupId, userIds: selectedIds })
+      const submittedIds = selectedIds
+      const result = await runMode(mode, { groupId, userIds: submittedIds })
       if (!result.success) {
         toast.error(result.error)
         return
       }
       toast.success(successMessage(mode, result.count, groupName))
-      onClear()
+      onDone(submittedIds)
       router.refresh()
     } catch {
       toast.error('Group update failed')

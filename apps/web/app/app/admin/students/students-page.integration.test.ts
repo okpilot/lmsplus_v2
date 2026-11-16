@@ -33,6 +33,7 @@ let otherOrgStudent: string
 let groupA: string
 let groupB: string
 let groupGone: string
+let groupC: string
 let otherGroup: string
 const orgUsers: string[] = []
 const otherUsers: string[] = []
@@ -108,6 +109,7 @@ describe('students page query + group actions (integration)', () => {
     groupA = await createGroup(client, `Group A ${suffix}`)
     groupB = await createGroup(client, `Group B ${suffix}`)
     groupGone = await createGroup(client, `Group Gone ${suffix}`)
+    groupC = await createGroup(client, `Group C ${suffix}`)
     for (const [g, ids] of [
       [groupA, [alice, bob, removedMember]],
       [groupB, [alice]],
@@ -120,6 +122,11 @@ describe('students page query + group actions (integration)', () => {
     }
     const otherClient = await getAuthenticatedClient({ email: otherAdminEmail, password })
     otherGroup = await createGroup(otherClient, `Group Other ${suffix}`)
+    const addC = await client.rpc('add_student_group_members', {
+      p_group_id: groupC,
+      p_user_ids: [deactivated],
+    })
+    if (addC.error) throw new Error(addC.error.message)
     const rm = await client.rpc('remove_student_group_members', {
       p_group_id: groupA,
       p_user_ids: [removedMember],
@@ -127,7 +134,11 @@ describe('students page query + group actions (integration)', () => {
     if (rm.error) throw new Error(rm.error.message)
     const del = await client.rpc('delete_student_group', { p_group_id: groupGone })
     if (del.error) throw new Error(del.error.message)
-    await admin.from('users').update({ deleted_at: new Date().toISOString() }).eq('id', deactivated)
+    const { error: deactErr } = await admin
+      .from('users')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', deactivated)
+    if (deactErr) throw new Error(deactErr.message)
   })
 
   afterAll(async () => {
@@ -200,6 +211,16 @@ describe('students page query + group actions (integration)', () => {
     expect(miss.totalCount).toBe(0)
   })
 
+  it('status filter keeps a deactivated group member out of active and in inactive', async () => {
+    await signInAs(adminEmail, password)
+    const active = await getStudentsPage({ page: 1, group: groupC, status: 'active' })
+    expect(active.rows.map((r) => r.id)).not.toContain(deactivated)
+    expect(active.totalCount).toBe(0)
+    const inactive = await getStudentsPage({ page: 1, group: groupC, status: 'inactive' })
+    expect(inactive.rows.map((r) => r.id)).toEqual([deactivated])
+    expect(inactive.totalCount).toBe(1)
+  })
+
   it('returns the exact total and pages 25 per page without overlap', async () => {
     await signInAs(adminEmail, password)
     const total = orgUsers.length
@@ -230,7 +251,7 @@ describe('students page query + group actions (integration)', () => {
   it('getGroupOptions lists only the caller org active groups, for each org admin', async () => {
     await signInAs(adminEmail, password)
     const options = await getGroupOptions()
-    expect(options.map((o) => o.id).sort()).toEqual([groupA, groupB].sort())
+    expect(options.map((o) => o.id).sort()).toEqual([groupA, groupB, groupC].sort())
     expect(options.map((o) => o.id)).not.toContain(otherGroup)
 
     await signInAs(otherAdminEmail, password)

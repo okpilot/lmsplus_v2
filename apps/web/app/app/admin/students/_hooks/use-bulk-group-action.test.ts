@@ -30,19 +30,35 @@ beforeEach(() => {
 
 describe('useBulkGroupAction', () => {
   it('runs the action for a picked group that is still listed', async () => {
-    const onClear = vi.fn()
+    const onDone = vi.fn()
     const { result } = renderHook(() =>
-      useBulkGroupAction({ selectedIds: IDS, groups: BOTH, onClear }),
+      useBulkGroupAction({ selectedIds: IDS, groups: BOTH, onDone }),
     )
     act(() => result.current.setPicked(G1))
     await act(async () => result.current.run('add'))
     expect(mockAdd).toHaveBeenCalledWith({ groupId: G1, userIds: IDS })
-    expect(onClear).toHaveBeenCalled()
+    expect(onDone).toHaveBeenCalledWith(IDS)
+  })
+
+  it('reports only the submitted ids when the selection grows during the request', async () => {
+    const LATE = 'b0000000-0000-4000-8000-000000000002'
+    let release: (v: { success: true; count: number }) => void = () => {}
+    mockAdd.mockReturnValue(new Promise((resolve) => (release = resolve)))
+    const onDone = vi.fn()
+    const { result, rerender } = renderHook(
+      ({ selectedIds }) => useBulkGroupAction({ selectedIds, groups: BOTH, onDone }),
+      { initialProps: { selectedIds: IDS } },
+    )
+    act(() => result.current.setPicked(G1))
+    act(() => result.current.run('add'))
+    rerender({ selectedIds: [...IDS, LATE] })
+    await act(async () => release({ success: true, count: 1 }))
+    expect(onDone).toHaveBeenCalledWith(IDS)
   })
 
   it('reads a picked group that left the list as unpicked and does not run', async () => {
     const { result, rerender } = renderHook(
-      ({ groups }) => useBulkGroupAction({ selectedIds: IDS, groups, onClear: vi.fn() }),
+      ({ groups }) => useBulkGroupAction({ selectedIds: IDS, groups, onDone: vi.fn() }),
       { initialProps: { groups: BOTH } },
     )
     act(() => result.current.setPicked(G1))

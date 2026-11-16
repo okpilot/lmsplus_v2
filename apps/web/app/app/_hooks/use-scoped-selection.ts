@@ -44,5 +44,9 @@ export function useScopedSelection(scope: string, visibleIds: readonly string[])
     update(() => [])
   }
 
-  return { selectedIds: ids, toggle, toggleAll, clear }
+  function deselect(drop: readonly string[]) {
+    update((base) => base.filter((id) => !drop.includes(id)))
+  }
+
+  return { selectedIds: ids, toggle, toggleAll, clear, deselect }
 }

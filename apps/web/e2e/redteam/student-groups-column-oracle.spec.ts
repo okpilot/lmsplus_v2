@@ -100,7 +100,9 @@ test.describe('Red Team: student_groups revoked-column filter oracle (ME)', () =
     expect(ctlOrder.data).toEqual([{ id }])
     const ctlEmbed = await student
       .from('student_group_members')
-      .select('group_id, student_groups!inner(id)')
+      .select(
+        'group_id, student_groups!student_group_members_group_id_organization_id_fkey!inner(id)',
+      )
       .ilike('student_groups.name', groupName)
     expect(ctlEmbed.error).toBeNull()
     expect((ctlEmbed.data ?? []).map((r) => r.group_id)).toEqual([id])
@@ -113,7 +115,9 @@ test.describe('Red Team: student_groups revoked-column filter oracle (ME)', () =
       student.from('student_groups').select('id').eq('created_by', adminUserId),
       student
         .from('student_group_members')
-        .select('group_id, student_groups!inner(id)')
+        .select(
+          'group_id, student_groups!student_group_members_group_id_organization_id_fkey!inner(id)',
+        )
         .ilike('student_groups.description', `%${SECRET}%`),
     ]
     for (const res of await Promise.all(probes)) {
