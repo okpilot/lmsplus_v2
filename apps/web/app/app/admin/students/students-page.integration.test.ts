@@ -29,6 +29,7 @@ let alice: string
 let bob: string
 let removedMember: string
 let deactivated: string
+let groupCActive: string
 let otherOrgStudent: string
 let groupA: string
 let groupB: string
@@ -93,6 +94,7 @@ describe('students page query + group actions (integration)', () => {
     bob = await mk(orgId, orgUsers, 'bob', 'student', 'Bob Plain')
     removedMember = await mk(orgId, orgUsers, 'removed', 'student', 'Removed Member')
     deactivated = await mk(orgId, orgUsers, 'deact', 'student', 'Deact Student')
+    groupCActive = await mk(orgId, orgUsers, 'cactive', 'student', 'Group C Active')
     for (let i = 0; i < FILLERS; i++) await mk(orgId, orgUsers, `f${i}`, 'student', `Filler ${i}`)
     otherOrgStudent = await mk(otherOrgId, otherUsers, 'other', 'student', 'Other Org Student')
     otherUsers.push(
@@ -124,7 +126,7 @@ describe('students page query + group actions (integration)', () => {
     otherGroup = await createGroup(otherClient, `Group Other ${suffix}`)
     const addC = await client.rpc('add_student_group_members', {
       p_group_id: groupC,
-      p_user_ids: [deactivated],
+      p_user_ids: [deactivated, groupCActive],
     })
     if (addC.error) throw new Error(addC.error.message)
     const rm = await client.rpc('remove_student_group_members', {
@@ -211,11 +213,11 @@ describe('students page query + group actions (integration)', () => {
     expect(miss.totalCount).toBe(0)
   })
 
-  it('status filter keeps a deactivated group member out of active and in inactive', async () => {
+  it('status filter splits a group into its active and its deactivated members', async () => {
     await signInAs(adminEmail, password)
     const active = await getStudentsPage({ page: 1, group: groupC, status: 'active' })
-    expect(active.rows.map((r) => r.id)).not.toContain(deactivated)
-    expect(active.totalCount).toBe(0)
+    expect(active.rows.map((r) => r.id)).toEqual([groupCActive])
+    expect(active.totalCount).toBe(1)
     const inactive = await getStudentsPage({ page: 1, group: groupC, status: 'inactive' })
     expect(inactive.rows.map((r) => r.id)).toEqual([deactivated])
     expect(inactive.totalCount).toBe(1)

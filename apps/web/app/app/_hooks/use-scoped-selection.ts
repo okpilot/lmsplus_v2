@@ -44,8 +44,11 @@ export function useScopedSelection(scope: string, visibleIds: readonly string[])
     update(() => [])
   }
 
+  /** Safe to call after an await: filters the current selection, not this render's visible rows. */
   function deselect(drop: readonly string[]) {
-    update((base) => base.filter((id) => !drop.includes(id)))
+    setState((prev) =>
+      prev.scope === scope ? { scope, ids: prev.ids.filter((id) => !drop.includes(id)) } : prev,
+    )
   }
 
   return { selectedIds: ids, toggle, toggleAll, clear, deselect }
