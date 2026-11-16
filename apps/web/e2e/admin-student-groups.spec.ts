@@ -101,11 +101,6 @@ test('admin removes a student from a group via the bulk bar', async ({ page }) =
   )
 })
 
-test('cleanup helper is a no-op when no marked groups exist', async () => {
-  await cleanupE2eStudentGroups()
-  await cleanupE2eStudentGroups()
-})
-
 test('admin switches between Students and Groups tabs', async ({ page }) => {
   await page.goto('/app/admin/students')
   await page.getByRole('tab', { name: 'Groups' }).click()
