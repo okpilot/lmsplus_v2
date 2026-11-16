@@ -42,7 +42,7 @@ beforeAll(() => {
 afterAll(() => rmSync(dir, { recursive: true, force: true }))
 
 describe('biome lock-in (#1677 PR A)', () => {
-  it('noRestrictedElements is relaxed only by the test-file globs; heading has 3 ignores; question-table has none', () => {
+  it('noRestrictedElements is relaxed only by the test-file globs; heading has 3 ignores; textarea has 1; question-table has none', () => {
     const level = (v: unknown) =>
       typeof v === 'object' && v !== null && 'level' in v ? (v as { level: unknown }).level : v
     const relaxed = cfg.overrides.filter((o) => {
@@ -65,6 +65,33 @@ describe('biome lock-in (#1677 PR A)', () => {
         /biome-ignore lint\/correctness\/noRestrictedElements/g,
       ),
     ).toBe(0)
+    expect(
+      ignores(
+        'apps/web/components/ui/textarea.tsx',
+        /biome-ignore lint\/correctness\/noRestrictedElements: Textarea primitive/g,
+      ),
+    ).toBe(1)
+    expect(
+      ignores(
+        'apps/web/components/ui/textarea.tsx',
+        /biome-ignore lint\/correctness\/noRestrictedElements/g,
+      ),
+    ).toBe(1)
+  })
+
+  it('rejects a raw <select> in components/ui via noRestrictedElements', () => {
+    const r = lint(
+      'apps/web/components/ui/sel.tsx',
+      'export const S = () => <select><option>a</option></select>',
+    )
+    expect(r.status).not.toBe(0)
+    expect(rules(r)).toContain('lint/correctness/noRestrictedElements')
+  })
+
+  it('rejects a raw <textarea> in components/ui via noRestrictedElements', () => {
+    const r = lint('apps/web/components/ui/ta.tsx', 'export const T = () => <textarea />')
+    expect(r.status).not.toBe(0)
+    expect(rules(r)).toContain('lint/correctness/noRestrictedElements')
   })
 
   it('rejects a raw <button> in components/ui via noRestrictedElements', () => {

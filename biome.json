@@ -43,7 +43,9 @@
               "input": "Use Input from @/components/ui/input.",
               "h1": "Use Heading from @/components/ui/heading.",
               "h2": "Use Heading from @/components/ui/heading.",
-              "h3": "Use Heading from @/components/ui/heading."
+              "h3": "Use Heading from @/components/ui/heading.",
+              "select": "Use Select from @/components/ui/select.",
+              "textarea": "Use Textarea from @/components/ui/textarea."
             }
           }
         }

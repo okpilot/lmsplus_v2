@@ -87,7 +87,7 @@ describe('S3 3a numeric fields use Input', () => {
   })
 })
 
-describe('S3 AC 5 biome forbids raw input and headings', () => {
+describe('S3 AC 5 biome forbids raw input, select, textarea and headings', () => {
   const biome = readFileSync(path.join(REPO, 'biome.json'), 'utf8')
   const cfg = JSON.parse(biome) as {
     linter: {
@@ -106,5 +106,10 @@ describe('S3 AC 5 biome forbids raw input and headings', () => {
     expect(els.input).toBe('Use Input from @/components/ui/input.')
     for (const h of ['h1', 'h2', 'h3'])
       expect(els[h]).toBe('Use Heading from @/components/ui/heading.')
+  })
+  it('elements has select and textarea with the primitive messages', () => {
+    const els = cfg.linter.rules.correctness.noRestrictedElements.options.elements
+    expect(els.select).toBe('Use Select from @/components/ui/select.')
+    expect(els.textarea).toBe('Use Textarea from @/components/ui/textarea.')
   })
 })

@@ -111,7 +111,7 @@ Default to Server Components. Add `'use client'` only at the lowest component th
 ### UI Rules — Redesign (#1416)
 Enforced by prevention (Decision 111) and a class-scan guard for class tokens (Decision 212).
 - Font is Geist only. `apps/web/app/globals.css` maps `--font-mono` to `--font-sans` and sets `code`/`kbd`/`samp`/`pre` to `font-family: inherit`. Use `tabular-nums` where digits must align.
-- Raw `<button>`, `<input>`, `<h1>`, `<h2>`, `<h3>` outside test files — use `Button`, `Input`, `Heading`. Biome `noRestrictedElements` (error); a deliberate exception, `components/ui/**` included, is a per-line `biome-ignore` naming its reason or issue.
+- Raw `<button>`, `<input>`, `<select>`, `<textarea>`, `<h1>`, `<h2>`, `<h3>` outside test files — use `Button`, `Input`, `Select`, `Textarea`, `Heading`. Biome `noRestrictedElements` (error); a deliberate exception, `components/ui/**` included, is a per-line `biome-ignore` naming its reason or issue.
 - `window.confirm|alert|prompt` and bare `confirm|alert|prompt` — use `ConfirmDialog`. Biome `noJsRestrictedProperties` / `noRestrictedGlobals` (error).
 - Reduced motion: one global `prefers-reduced-motion: reduce` rule in `apps/web/app/globals.css`. No per-class `motion-reduce:` needed.
 - Every page directory (one with `page.tsx`) has its own `error.tsx` and `loading.tsx`. `apps/web/app/segment-boundaries.test.ts` fails on a new gap and on a listed gap that is fixed.
