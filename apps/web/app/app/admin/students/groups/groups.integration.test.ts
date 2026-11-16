@@ -88,13 +88,7 @@ describe('student groups (app-layer integration)', () => {
     ] as const) {
       if (!org) continue
       try {
-        const members = await admin
-          .from('student_group_members')
-          .delete()
-          .eq('organization_id', org)
-        if (members.error) throw new Error(`members: ${members.error.message}`)
-        const groups = await admin.from('student_groups').delete().eq('organization_id', org)
-        if (groups.error) throw new Error(`groups: ${groups.error.message}`)
+        // Group and membership rows cascade from the org delete.
         await cleanupTestData({ admin, orgId: org, userIds: [...userIds] })
       } catch (e) {
         failures.push(`${org}: ${e instanceof Error ? e.message : String(e)}`)

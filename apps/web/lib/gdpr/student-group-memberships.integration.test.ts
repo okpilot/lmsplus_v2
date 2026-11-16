@@ -89,29 +89,8 @@ describe('collectUserData student group memberships (app-layer integration)', ()
 
   afterAll(async () => {
     if (!orgId) return
-    const errors: string[] = []
-    const members = await admin
-      .from('student_group_members')
-      .delete()
-      .eq('organization_id', orgId)
-      .select('id')
-    if (members.error) errors.push(`members: ${members.error.message}`)
-    if (errors.length === 0) {
-      const groups = await admin
-        .from('student_groups')
-        .delete()
-        .eq('organization_id', orgId)
-        .select('id')
-      if (groups.error) errors.push(`groups: ${groups.error.message}`)
-    }
-    if (errors.length === 0) {
-      try {
-        await cleanupTestData({ admin, orgId, userIds: [adminId, studentId, otherStudentId] })
-      } catch (e) {
-        errors.push(e instanceof Error ? e.message : String(e))
-      }
-    }
-    if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
+    // Group and membership rows cascade from the org delete.
+    await cleanupTestData({ admin, orgId, userIds: [adminId, studentId, otherStudentId] })
   })
 
   it('admin export returns removed memberships and the name of a deleted group', async () => {

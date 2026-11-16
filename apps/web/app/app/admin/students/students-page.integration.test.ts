@@ -136,29 +136,12 @@ describe('students page query + group actions (integration)', () => {
       [orgId, orgUsers],
       [otherOrgId, otherUsers],
     ] as const) {
-      const orgErrors: string[] = []
-      const members = await admin
-        .from('student_group_members')
-        .delete()
-        .eq('organization_id', org)
-        .select('id')
-      if (members.error) orgErrors.push(`members: ${members.error.message}`)
-      if (orgErrors.length === 0) {
-        const groups = await admin
-          .from('student_groups')
-          .delete()
-          .eq('organization_id', org)
-          .select('id')
-        if (groups.error) orgErrors.push(`groups: ${groups.error.message}`)
+      // Group and membership rows cascade from the org delete.
+      try {
+        await cleanupTestData({ admin, orgId: org, userIds: ids })
+      } catch (e) {
+        errors.push(`${org}: ${e instanceof Error ? e.message : String(e)}`)
       }
-      if (orgErrors.length === 0) {
-        try {
-          await cleanupTestData({ admin, orgId: org, userIds: ids })
-        } catch (e) {
-          orgErrors.push(e instanceof Error ? e.message : String(e))
-        }
-      }
-      errors.push(...orgErrors.map((m) => `${org}: ${m}`))
     }
     if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
   })
