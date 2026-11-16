@@ -1,6 +1,6 @@
 # Red Team — Attack Surface Map
 
-> Last updated: 2026-11-07 (branch chore/techdebt-group-d1.)
+> Last updated: 2026-11-16 (#1776: MC, MD, ME student-group race and column-oracle rows)
 
 > `answer_matches`: EXECUTE revoked from PUBLIC, anon, authenticated; granted to service_role.
 
