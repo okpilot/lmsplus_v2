@@ -229,3 +229,4 @@
 ## 234 — 2026-11-15 — Student groups: many-to-many student_groups + student_group_members, admin-managed via SECURITY DEFINER RPCs only, soft delete with history, students read their own memberships and the groups those memberships belong to (GDPR self-export). #1776
 ## 235 — 2026-11-15 — audit_events: `audit_read_instructors` replaced by `audit_read_admins` (admins read their org); instructors read only their own events (`audit_read_own`). #1776
 ## 236 — 2026-11-15 — security.md §15 exception (e): `get_student_groups_with_counts` reads `users` without `deleted_at IS NULL` to count deactivated group members separately; admin-gated, org-scoped, aggregate counts only. #1776
+## 237 — 2026-11-15 — Deactivated students keep their `student_group_members` rows (graduates stay in their groups); the Groups tab shows Active and Deactivated member counts. #1776 #1788
