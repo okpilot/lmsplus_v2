@@ -1,6 +1,6 @@
 # Red Team — Attack Surface Map
 
-> Last updated: 2026-11-16 (#1776: MC, MD, ME student-group race and column-oracle rows)
+> Last updated: 2026-11-16 (#1776: MC, MD, ME student-group race and column-oracle rows; MF, MG group counts RPC rows)
 
 > `answer_matches`: EXECUTE revoked from PUBLIC, anon, authenticated; granted to service_role.
 
@@ -347,6 +347,8 @@
 | MC | add_student_group_members-parallel-duplicate-add | MEDIUM | student-groups-race.spec.ts | BLOCKED |  | race |
 | MD | add_student_group_members-vs-delete_student_group-race | MEDIUM | student-groups-race.spec.ts | BLOCKED |  | race |
 | ME | student_groups-revoked-column-filter-order-oracle | LOW | student-groups-column-oracle.spec.ts | BLOCKED |  | rls-bypass |
+| MF | get_student_groups_with_counts-non-admin-soft-deleted-admin-cross-org-admin | HIGH | student-groups-counts-rpc.spec.ts | BLOCKED |  | cross-tenant |
+| MG | get_student_groups_with_counts-forged-membership-and-deleted-group-count-inflation | LOW | student-groups-counts-rpc.spec.ts | BLOCKED |  | soft-delete-bypass |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
