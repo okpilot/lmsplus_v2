@@ -107,4 +107,9 @@ describe('S3 AC 5 biome forbids raw input and headings', () => {
     for (const h of ['h1', 'h2', 'h3'])
       expect(els[h]).toBe('Use Heading from @/components/ui/heading.')
   })
+  it('elements has select and textarea with the primitive messages', () => {
+    const els = cfg.linter.rules.correctness.noRestrictedElements.options.elements
+    expect(els.select).toBe('Use Select from @/components/ui/select.')
+    expect(els.textarea).toBe('Use Textarea from @/components/ui/textarea.')
+  })
 })

@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 
 function Textarea({ className, ...props }: Readonly<React.ComponentProps<'textarea'>>) {
   return (
+    // biome-ignore lint/correctness/noRestrictedElements: Textarea primitive
     <textarea
       data-slot="textarea"
       className={cn(

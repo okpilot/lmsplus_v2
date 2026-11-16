@@ -65,6 +65,27 @@ describe('biome lock-in (#1677 PR A)', () => {
         /biome-ignore lint\/correctness\/noRestrictedElements/g,
       ),
     ).toBe(0)
+    expect(
+      ignores(
+        'apps/web/components/ui/textarea.tsx',
+        /biome-ignore lint\/correctness\/noRestrictedElements: Textarea primitive/g,
+      ),
+    ).toBe(1)
+  })
+
+  it('rejects a raw <select> in components/ui via noRestrictedElements', () => {
+    const r = lint(
+      'apps/web/components/ui/sel.tsx',
+      'export const S = () => <select><option>a</option></select>',
+    )
+    expect(r.status).not.toBe(0)
+    expect(rules(r)).toContain('lint/correctness/noRestrictedElements')
+  })
+
+  it('rejects a raw <textarea> in components/ui via noRestrictedElements', () => {
+    const r = lint('apps/web/components/ui/ta.tsx', 'export const T = () => <textarea />')
+    expect(r.status).not.toBe(0)
+    expect(rules(r)).toContain('lint/correctness/noRestrictedElements')
   })
 
   it('rejects a raw <button> in components/ui via noRestrictedElements', () => {
