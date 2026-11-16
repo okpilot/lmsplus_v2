@@ -67,7 +67,8 @@ function GroupRowView({ group, onEdit, onDelete }: Readonly<RowProps>) {
       <TableCell className="text-caption text-muted-foreground">
         {group.description ?? '—'}
       </TableCell>
-      <TableCell className="tabular-nums">{group.member_count}</TableCell>
+      <TableCell className="tabular-nums">{group.active_count}</TableCell>
+      <TableCell className="tabular-nums">{group.deactivated_count}</TableCell>
       <TableCell className="text-caption tabular-nums text-muted-foreground">
         {formatCreated(group.created_at)}
       </TableCell>
@@ -87,7 +88,8 @@ function GroupsList({ groups, onEdit, onDelete }: Readonly<ListProps>) {
         <TableRow>
           <TableHead className="min-w-col-md">Name</TableHead>
           <TableHead className="min-w-col-lg">Description</TableHead>
-          <TableHead className="w-col-sm">Members</TableHead>
+          <TableHead className="w-col-sm">Active</TableHead>
+          <TableHead className="w-col-sm">Deactivated</TableHead>
           <TableHead className="w-col-sm">Created (UTC)</TableHead>
           <TableHead className="w-col-lg">Actions</TableHead>
         </TableRow>

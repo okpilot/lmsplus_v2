@@ -14,27 +14,30 @@ const GROUPS = [
     id: G1,
     name: 'Cohort A',
     description: 'Spring intake',
-    member_count: 7,
+    active_count: 7,
+    deactivated_count: 3,
     created_at: '2026-03-01T00:00:00Z',
   },
   {
     id: 'a0000000-0000-4000-8000-000000000002',
     name: 'Cohort B',
     description: null,
-    member_count: 0,
+    active_count: 0,
+    deactivated_count: 0,
     created_at: '2026-03-02T00:00:00Z',
   },
 ]
 
 describe('GroupsTable', () => {
-  it('lists name, description, member count and created columns', () => {
+  it('lists name, description, active, deactivated and created columns', () => {
     render(<GroupsTable groups={GROUPS} />)
-    for (const h of ['Name', 'Description', 'Members', 'Created']) {
+    for (const h of ['Name', 'Description', 'Active', 'Deactivated', 'Created']) {
       expect(screen.getByRole('columnheader', { name: new RegExp(h) })).toBeInTheDocument()
     }
     const r = screen.getByText('Cohort A').closest('tr') as HTMLElement
     expect(within(r).getByText('Spring intake')).toBeInTheDocument()
     expect(within(r).getByText('7')).toBeInTheDocument()
+    expect(within(r).getByText('3')).toBeInTheDocument()
   })
 
   it('links "View students" to the students page filtered by the group', () => {

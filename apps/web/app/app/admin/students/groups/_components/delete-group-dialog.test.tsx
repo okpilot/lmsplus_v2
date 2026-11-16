@@ -17,7 +17,8 @@ const GROUP: GroupRow = {
   id: 'a0000000-0000-4000-8000-000000000001',
   name: 'Cohort A',
   description: null,
-  member_count: 3,
+  active_count: 3,
+  deactivated_count: 1,
   created_at: '2026-03-01T00:00:00Z',
 }
 

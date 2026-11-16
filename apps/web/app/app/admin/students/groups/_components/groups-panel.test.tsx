@@ -12,7 +12,13 @@ vi.mock('./group-form-dialog', () => ({
 
 import { GroupsPanel } from './groups-panel'
 
-const G = (id: string) => ({ id, name: id, description: null, member_count: 0 })
+const G = (id: string) => ({
+  id,
+  name: id,
+  description: null,
+  active_count: 0,
+  deactivated_count: 0,
+})
 
 beforeEach(() => {
   vi.resetAllMocks()

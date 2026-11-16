@@ -1523,6 +1523,7 @@ Admin-only read: `RETURNS TABLE (id, name, description, created_at, active_count
 - Guards: `not_authenticated`, `not_admin`, `admin_not_found` as above; `SET search_path = public, pg_temp`
 - Counts: active (`deleted_at IS NULL`) memberships whose user is a same-org `role = 'student'`, split by `users.deleted_at` (§15 (e)); a member no longer `student` is in neither count
 - No audit row
+- Caller: `getGroupsWithCounts` (admin Students page, Groups tab)
 
 **Grants:** `REVOKE EXECUTE … FROM PUBLIC, anon`; `GRANT EXECUTE … TO authenticated`.
 

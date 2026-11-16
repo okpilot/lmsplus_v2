@@ -1,6 +1,6 @@
 // App-layer integration tier (#925) — groups list, member counts and the group CRUD actions
 // against real Postgres. Unit tests mock the client and cannot see the column grant on
-// student_groups, the users join in the count, or the RPC error texts.
+// student_groups, the users join inside get_student_groups_with_counts, or the RPC error texts.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   cleanupTestData,
@@ -110,11 +110,16 @@ describe('student groups (app-layer integration)', () => {
     if (failures.length > 0) throw new Error(`cleanup failed: ${failures.join('; ')}`)
   })
 
-  it('counts only active students with an active membership', async () => {
+  it('counts active and deactivated students with an active membership separately', async () => {
     await signInAs(adminEmail, password)
     const groups = await getGroupsWithCounts()
     const g = groups.find((x) => x.id === countedGroupId)
-    expect(g).toMatchObject({ name: `Counted ${suffix}`, description: 'desc', member_count: 1 })
+    expect(g).toMatchObject({
+      name: `Counted ${suffix}`,
+      description: 'desc',
+      active_count: 1,
+      deactivated_count: 1,
+    })
   })
 
   it('lists only the caller organisation, ordered by name, excluding deleted groups', async () => {

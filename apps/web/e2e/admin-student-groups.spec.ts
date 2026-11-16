@@ -37,9 +37,9 @@ test('admin creates, populates, filters, renames and deletes a group', async ({ 
 
   // Member count and group filter link
   await page.goto('/app/admin/students?tab=groups')
-  await expect(page.getByRole('row').filter({ hasText: name }).getByRole('cell').nth(2)).toHaveText(
-    '1',
-  )
+  const countRow = page.getByRole('row').filter({ hasText: name })
+  await expect(countRow.getByRole('cell').nth(2)).toHaveText('1')
+  await expect(countRow.getByRole('cell').nth(3)).toHaveText('0')
   await page
     .getByRole('row')
     .filter({ hasText: name })
