@@ -16,7 +16,8 @@ BEGIN
 
   IF EXISTS (SELECT 1 FROM public.internal_exam_codes c
                JOIN public.exam_sitting_entries e ON e.id = c.sitting_entry_id
-              WHERE e.sitting_id = p_sitting_id AND c.consumed_at IS NOT NULL) THEN
+              WHERE e.sitting_id = p_sitting_id AND c.consumed_at IS NOT NULL
+                AND c.deleted_at IS NULL) THEN
     RAISE EXCEPTION 'sitting_has_attempts';
   END IF;
 

@@ -26,10 +26,12 @@ AS $$
                         AND q.mode = 'internal_exam' AND q.deleted_at IS NULL AND q.ended_at IS NOT NULL
                         AND q.passed IS TRUE
                         AND NOT EXISTS (SELECT 1 FROM public.internal_exam_codes c2
-                                         WHERE c2.consumed_session_id = q.id AND c2.voided_at IS NOT NULL)) AS passed,
+                                         WHERE c2.consumed_session_id = q.id AND c2.voided_at IS NOT NULL
+                                           AND c2.deleted_at IS NULL)) AS passed,
              -- security.md §15 exception (f)
              EXISTS (SELECT 1 FROM public.users u WHERE u.id = e.user_id AND u.deleted_at IS NOT NULL) AS deactivated,
              EXISTS (SELECT 1 FROM public.course_enrolments ce
+                       -- security.md §15 exception (d)(i)
                        JOIN public.easa_subjects es ON es.course_id = ce.course_id
                       WHERE ce.user_id = e.user_id AND ce.organization_id = p_org
                         AND ce.deleted_at IS NULL AND es.id = e.subject_id) AS enrolled,

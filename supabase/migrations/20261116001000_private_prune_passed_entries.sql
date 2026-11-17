@@ -19,13 +19,15 @@ BEGIN
    WHERE e.sitting_id = p_sitting_id AND e.organization_id = p_org AND e.deleted_at IS NULL
      AND s.status IN ('scheduled', 'open')
      AND NOT EXISTS (SELECT 1 FROM public.internal_exam_codes c
-                      WHERE c.sitting_entry_id = e.id AND c.consumed_at IS NOT NULL)
+                      WHERE c.sitting_entry_id = e.id AND c.consumed_at IS NOT NULL
+                         AND c.deleted_at IS NULL)
      AND EXISTS (SELECT 1 FROM public.quiz_sessions q
                   WHERE q.student_id = e.user_id AND q.subject_id = e.subject_id
                     AND q.organization_id = p_org AND q.mode = 'internal_exam' AND q.deleted_at IS NULL
                     AND q.ended_at IS NOT NULL AND q.passed IS TRUE
                     AND NOT EXISTS (SELECT 1 FROM public.internal_exam_codes c2
-                                     WHERE c2.consumed_session_id = q.id AND c2.voided_at IS NOT NULL));
+                                     WHERE c2.consumed_session_id = q.id AND c2.voided_at IS NOT NULL
+                                      AND c2.deleted_at IS NULL));
   IF cardinality(v_ids) = 0 THEN RETURN 0; END IF;
 
   PERFORM private.void_unused_sitting_codes(p_sitting_id, v_ids, 'passed_elsewhere', p_actor, p_role, p_org);
@@ -46,7 +48,8 @@ BEGIN
          WHERE q.student_id = u.user_id AND q.subject_id = u.subject_id AND q.organization_id = p_org
            AND q.mode = 'internal_exam' AND q.deleted_at IS NULL AND q.ended_at IS NOT NULL AND q.passed IS TRUE
            AND NOT EXISTS (SELECT 1 FROM public.internal_exam_codes c2
-                            WHERE c2.consumed_session_id = q.id AND c2.voided_at IS NOT NULL)
+                            WHERE c2.consumed_session_id = q.id AND c2.voided_at IS NOT NULL
+                                      AND c2.deleted_at IS NULL)
          ORDER BY q.ended_at DESC LIMIT 1) ps ON true
     RETURNING 1
   )

@@ -22,7 +22,8 @@ BEGIN
   IF v_found <> cardinality(v_ids) THEN RAISE EXCEPTION 'entry_not_found'; END IF;
 
   IF EXISTS (SELECT 1 FROM public.internal_exam_codes c
-              WHERE c.sitting_entry_id = ANY(v_ids) AND c.consumed_at IS NOT NULL) THEN
+              WHERE c.sitting_entry_id = ANY(v_ids) AND c.consumed_at IS NOT NULL
+                AND c.deleted_at IS NULL) THEN
     RAISE EXCEPTION 'entry_has_attempt';
   END IF;
 

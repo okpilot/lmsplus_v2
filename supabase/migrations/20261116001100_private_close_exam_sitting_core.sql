@@ -40,12 +40,14 @@ BEGIN
       FROM public.internal_exam_codes c
       JOIN public.exam_sitting_entries e ON e.id = c.sitting_entry_id
       JOIN public.quiz_sessions qs ON qs.id = c.consumed_session_id
-     WHERE e.sitting_id = p_sitting_id AND e.deleted_at IS NULL AND qs.ended_at IS NULL AND qs.deleted_at IS NULL;
+     WHERE e.sitting_id = p_sitting_id AND e.deleted_at IS NULL AND qs.ended_at IS NULL AND qs.deleted_at IS NULL
+       AND c.deleted_at IS NULL;
     SELECT count(*) INTO v_absent
       FROM public.exam_sitting_entries e
      WHERE e.sitting_id = p_sitting_id AND e.deleted_at IS NULL
        AND NOT EXISTS (SELECT 1 FROM public.internal_exam_codes c
-                        WHERE c.sitting_entry_id = e.id AND c.consumed_at IS NOT NULL);
+                        WHERE c.sitting_entry_id = e.id AND c.consumed_at IS NOT NULL
+                           AND c.deleted_at IS NULL);
 
     INSERT INTO public.audit_events
       (organization_id, actor_id, actor_role, event_type, resource_type, resource_id, metadata)

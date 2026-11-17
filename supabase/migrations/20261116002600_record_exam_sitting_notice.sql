@@ -22,6 +22,7 @@ BEGIN
     RAISE EXCEPTION 'invalid_input';
   END IF;
 
+  -- security.md §15 exception (b): cancelled sittings are soft-deleted and stay readable
   PERFORM 1 FROM public.exam_sittings s
    WHERE s.id = p_sitting_id AND s.organization_id = v_g.org_id
      AND (s.deleted_at IS NULL OR p_kind IN ('cancelled', 'entry_auto_removed'));
@@ -44,13 +45,14 @@ BEGIN
 
   SELECT count(*) INTO v_n FROM public.internal_exam_codes c
     JOIN public.exam_sitting_entries e ON e.id = c.sitting_entry_id
-   WHERE c.id = ANY(v_codes) AND e.sitting_id = p_sitting_id AND c.organization_id = v_g.org_id;
+   WHERE c.id = ANY(v_codes) AND e.sitting_id = p_sitting_id AND c.organization_id = v_g.org_id
+     AND c.deleted_at IS NULL AND e.deleted_at IS NULL;
   IF v_n <> cardinality(v_codes) THEN RAISE EXCEPTION 'invalid_input'; END IF;
   INSERT INTO public.audit_events
     (organization_id, actor_id, actor_role, event_type, resource_type, resource_id, metadata)
   SELECT v_g.org_id, v_g.admin_id, v_g.admin_role, 'exam_sitting.notice_emailed', 'exam_sitting', p_sitting_id,
          jsonb_build_object('kind', p_kind, 'code_id', c.id, 'student_id', c.student_id)
-    FROM public.internal_exam_codes c WHERE c.id = ANY(v_codes);
+    FROM public.internal_exam_codes c WHERE c.id = ANY(v_codes) AND c.deleted_at IS NULL;
   RETURN v_n;
 END;
 $$;

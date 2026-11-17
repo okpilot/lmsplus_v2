@@ -24,14 +24,17 @@ DECLARE
 BEGIN
   SELECT * INTO v_g FROM private.sitting_admin_guard();
   PERFORM private.close_expired_sittings(v_g.org_id);
+  -- security.md §15 exception (b): cancelled sittings are soft-deleted and stay readable
   SELECT * INTO v_s FROM public.exam_sittings s WHERE s.id = p_sitting_id AND s.organization_id = v_g.org_id;
   IF NOT FOUND THEN RAISE EXCEPTION 'sitting_not_found'; END IF;
   IF v_s.status IN ('scheduled', 'open') AND private.sitting_day_ended(v_s.scheduled_at) THEN
     PERFORM 1 FROM private.close_exam_sitting_core(p_sitting_id, NULL, NULL, true);
+    -- security.md §15 exception (b): cancelled sittings are soft-deleted and stay readable
     SELECT * INTO v_s FROM public.exam_sittings s WHERE s.id = p_sitting_id AND s.organization_id = v_g.org_id;
   END IF;
   IF v_s.status IN ('scheduled', 'open') THEN
     PERFORM private.prune_passed_entries(v_g.org_id, p_sitting_id, v_g.admin_id, v_g.admin_role);
+    -- security.md §15 exception (b): cancelled sittings are soft-deleted and stay readable
     SELECT * INTO v_s FROM public.exam_sittings s WHERE s.id = p_sitting_id AND s.organization_id = v_g.org_id;
   END IF;
 
@@ -47,15 +50,17 @@ BEGIN
                   AND (c.voided_at IS NULL OR c.consumed_at IS NOT NULL));
   SELECT count(*) INTO v_attempt FROM public.exam_sitting_entries e
    WHERE e.sitting_id = p_sitting_id AND e.deleted_at IS NULL
-     AND EXISTS (SELECT 1 FROM public.internal_exam_codes c WHERE c.sitting_entry_id = e.id AND c.consumed_at IS NOT NULL);
+     AND EXISTS (SELECT 1 FROM public.internal_exam_codes c WHERE c.sitting_entry_id = e.id AND c.consumed_at IS NOT NULL
+                  AND c.deleted_at IS NULL);
   SELECT count(*) INTO v_running FROM public.exam_sitting_entries e
    WHERE e.sitting_id = p_sitting_id AND e.deleted_at IS NULL
      AND EXISTS (SELECT 1 FROM public.internal_exam_codes c JOIN public.quiz_sessions q ON q.id = c.consumed_session_id
                   WHERE c.sitting_entry_id = e.id AND c.consumed_at IS NOT NULL AND q.ended_at IS NULL
-                    AND q.deleted_at IS NULL);
+                    AND q.deleted_at IS NULL AND c.deleted_at IS NULL);
   SELECT count(*), count(DISTINCT e.user_id) INTO v_ns_entries, v_ns_students FROM public.exam_sitting_entries e
    WHERE e.sitting_id = p_sitting_id AND e.deleted_at IS NULL
-     AND NOT EXISTS (SELECT 1 FROM public.internal_exam_codes c WHERE c.sitting_entry_id = e.id AND c.consumed_at IS NOT NULL);
+     AND NOT EXISTS (SELECT 1 FROM public.internal_exam_codes c WHERE c.sitting_entry_id = e.id AND c.consumed_at IS NOT NULL
+                  AND c.deleted_at IS NULL);
   SELECT count(*) INTO v_issuable FROM private.sitting_issue_plan(v_g.org_id, p_sitting_id, NULL, NULL) p WHERE p.action <> 'skip';
   SELECT count(*) INTO v_pending FROM public.audit_events a
    WHERE a.organization_id = v_g.org_id AND a.resource_id = p_sitting_id

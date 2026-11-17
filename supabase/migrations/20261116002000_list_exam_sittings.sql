@@ -31,13 +31,15 @@ BEGIN
             AND EXISTS (SELECT 1 FROM public.internal_exam_codes c
                           JOIN public.quiz_sessions q ON q.id = c.consumed_session_id
                          WHERE c.sitting_entry_id = e.id AND c.consumed_at IS NOT NULL AND q.ended_at IS NOT NULL
-                           AND q.deleted_at IS NULL)),
+                           AND q.deleted_at IS NULL AND c.deleted_at IS NULL)),
          (SELECT count(*)::int FROM public.exam_sitting_entries e WHERE s.status = 'closed'
             AND e.sitting_id = s.id AND e.deleted_at IS NULL
             AND NOT EXISTS (SELECT 1 FROM public.internal_exam_codes c
-                             WHERE c.sitting_entry_id = e.id AND c.consumed_at IS NOT NULL)),
+                             WHERE c.sitting_entry_id = e.id AND c.consumed_at IS NOT NULL
+                              AND c.deleted_at IS NULL)),
          s.ended_automatically,
          count(*) OVER ()
+    -- security.md §15 exception (b): cancelled sittings are soft-deleted and stay readable
     FROM public.exam_sittings s
     -- security.md §15 exception (f)
     LEFT JOIN public.users iu ON iu.id = s.invigilator_id
