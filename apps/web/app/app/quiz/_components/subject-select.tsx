@@ -2,6 +2,7 @@
 
 import { ChevronDown } from 'lucide-react'
 import { useId, useState } from 'react'
+import { SubjectCode } from '@/components/kit/subject-code'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Label } from '@/components/ui/label'
@@ -31,7 +32,7 @@ export function SubjectSelect({ subjects, value, onValueChange }: Readonly<Subje
         >
           {selected ? (
             <span className="flex items-center gap-2.5">
-              <span className="text-muted-foreground tabular-nums">{selected.code}</span>
+              <SubjectCode>{selected.code}</SubjectCode>
               <span className="text-foreground">{selected.name}</span>
             </span>
           ) : (
@@ -58,7 +59,7 @@ export function SubjectSelect({ subjects, value, onValueChange }: Readonly<Subje
                   s.id === value ? 'border-l-primary bg-primary-soft' : 'border-l-transparent'
                 }`}
               >
-                <span className="shrink-0 text-muted-foreground tabular-nums">{s.code}</span>
+                <SubjectCode className="shrink-0">{s.code}</SubjectCode>
                 <span
                   className={`flex-1 text-left ${
                     s.id === value ? 'font-medium text-foreground' : 'text-muted-foreground'

@@ -11,6 +11,7 @@ import { upsertTopic } from '../actions/upsert-topic'
 import type { SyllabusTopic } from '../types'
 import { DeleteButton } from './delete-button'
 import { InlineForm } from './inline-form'
+import { QuestionCount } from './question-count'
 import { SubtopicRow } from './subtopic-row'
 
 type Props = {
@@ -101,9 +102,7 @@ export function TopicRow({ topic, subjectId }: Readonly<Props>) {
 
         <span className="w-inset-lg shrink-0 tabular-nums text-body">{topic.code}</span>
         <span className="flex-1 text-body">{topic.name}</span>
-        <span className="text-caption text-muted-foreground tabular-nums">
-          {topic.questionCount} {topic.questionCount === 1 ? 'question' : 'questions'}
-        </span>
+        <QuestionCount count={topic.questionCount} />
         <Button
           variant="ghost"
           size="icon-sm"

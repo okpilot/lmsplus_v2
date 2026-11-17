@@ -159,6 +159,9 @@ describe('StudentRow', () => {
     )
     expect(screen.getByText('Active')).toBeInTheDocument()
     expect(screen.getByText('Active').className).not.toContain('bg-')
+    expect(screen.getByText('Active').closest('td')?.querySelector('span')).toHaveClass(
+      'inline-flex',
+    )
   })
 
   it('renders Inactive as muted text when student is not active', () => {

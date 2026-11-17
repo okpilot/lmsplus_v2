@@ -1,6 +1,7 @@
 'use client'
 
 import { Pencil } from 'lucide-react'
+import { StatusText } from '@/components/kit/status-text'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -100,11 +101,11 @@ export function QuestionTable({
                 )}
               </TableCell>
               <TableCell>
-                <span
-                  className={`capitalize${q.status === 'active' ? '' : ' text-muted-foreground'}`}
-                >
-                  {q.status}
-                </span>
+                {q.status === 'active' ? (
+                  <StatusText label="Active" />
+                ) : (
+                  <StatusText label="Draft" className="text-muted-foreground" />
+                )}
               </TableCell>
               <TableCell className="text-caption tabular-nums text-muted-foreground">
                 {formatDate(q.updated_at)}

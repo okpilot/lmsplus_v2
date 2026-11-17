@@ -8,9 +8,9 @@ import { DesktopStats, MobileStats } from './result-summary-stats'
 
 function PassFailBadge({ passed }: Readonly<{ passed: boolean }>) {
   return passed ? (
-    <StatusText label="Passed" tone="success" className="text-stat" />
+    <StatusText label="Passed" tone="success" size="lg" />
   ) : (
-    <StatusText label="Failed" tone="danger" className="text-stat" />
+    <StatusText label="Failed" tone="danger" size="lg" />
   )
 }
 

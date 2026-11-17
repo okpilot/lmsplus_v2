@@ -1,7 +1,8 @@
 'use client'
 
-import { useTransition } from 'react'
+import { useId, useTransition } from 'react'
 import { toast } from 'sonner'
+import { SubjectCode } from '@/components/kit/subject-code'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { toggleExamConfig } from '../actions/toggle-exam-config'
@@ -15,6 +16,7 @@ type Props = {
 export function SubjectConfigCard({ subject, onEdit }: Readonly<Props>) {
   const [isPending, startTransition] = useTransition()
   const config = subject.config
+  const switchId = useId()
 
   function handleToggle() {
     if (!config) {
@@ -47,7 +49,7 @@ export function SubjectConfigCard({ subject, onEdit }: Readonly<Props>) {
         className="flex min-w-0 flex-1 items-center justify-between p-4 text-left focus-visible:outline-solid focus-visible:outline-focus focus-visible:-outline-offset-focus focus-visible:outline-ring"
       >
         <div className="flex items-center gap-3">
-          <span className="text-muted-foreground tabular-nums">{subject.code}</span>
+          <SubjectCode>{subject.code}</SubjectCode>
           <span className="font-medium">{subject.name}</span>
         </div>
 
@@ -66,12 +68,15 @@ export function SubjectConfigCard({ subject, onEdit }: Readonly<Props>) {
           <span aria-hidden="true" className="text-body text-muted-foreground">
             {config.enabled ? 'Enabled' : 'Disabled'}
           </span>
-          <Switch
-            aria-label={`Exam mode for ${subject.name}`}
-            checked={config.enabled}
-            onCheckedChange={handleToggle}
-            disabled={isPending}
-          />
+          <label htmlFor={switchId} className="inline-flex min-h-control items-center">
+            <Switch
+              id={switchId}
+              aria-label={`Exam mode for ${subject.name}`}
+              checked={config.enabled}
+              onCheckedChange={handleToggle}
+              disabled={isPending}
+            />
+          </label>
         </div>
       )}
     </div>

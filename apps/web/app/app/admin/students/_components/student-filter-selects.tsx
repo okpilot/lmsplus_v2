@@ -1,4 +1,5 @@
 import { FilterSelect } from '@/app/app/_components/filter-select'
+import { ROLE_LABELS } from '@/lib/constants/roles'
 import type { GroupOption, StudentFilters } from '../types'
 
 const ALL = '__all__'
@@ -13,9 +14,7 @@ const STATUS_ITEMS = [
 
 const ROLE_ITEMS = [
   { value: ALL, label: 'All roles' },
-  { value: 'admin', label: 'Admin' },
-  { value: 'instructor', label: 'Instructor' },
-  { value: 'student', label: 'Student' },
+  ...Object.entries(ROLE_LABELS).map(([value, label]) => ({ value, label })),
 ]
 
 type StudentFilterSelectProps = {

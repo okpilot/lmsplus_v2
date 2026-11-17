@@ -4,6 +4,7 @@ import { Download, Pencil, UserCheck, UserX } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { roleLabel } from '@/lib/constants/roles'
 import type { CourseOption, GroupOption, StudentRow } from '../types'
 import { selectionSummary } from './is-selectable-student'
 import { LoginInstructionsCell } from './login-instructions-cell'
@@ -91,9 +92,7 @@ function StudentRowView({
       <SelectCell student={s} selected={selected} onToggle={onToggle} />
       <TableCell className="font-medium">{s.full_name ?? '—'}</TableCell>
       <TableCell className="text-caption text-muted-foreground">{s.email}</TableCell>
-      <TableCell>
-        <span className="capitalize">{s.role}</span>
-      </TableCell>
+      <TableCell>{roleLabel(s.role)}</TableCell>
       <MembershipCells student={s} courses={courses} groups={groups} />
       <ActivityCells student={s} />
       <TableCell>

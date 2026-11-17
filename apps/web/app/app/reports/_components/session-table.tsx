@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { type ExamMode, isExamMode, MODE_LABELS, modeLabel } from '@/lib/constants/exam-modes'
+import { isExamMode, MODE_LABELS, modeLabel } from '@/lib/constants/exam-modes'
 import { reportUrl } from '@/lib/constants/report-paths'
 import type { SessionReport, SortDir, SortKey } from '@/lib/queries/reports'
 import { formatCorrectFraction } from '@/lib/utils/format-correct-fraction'
@@ -95,7 +95,7 @@ function SessionRow({ session: s }: Readonly<{ session: SessionReport }>) {
       </TableCell>
       <TableCell className="whitespace-normal">
         {isExamMode(s.mode) ? (
-          <ExamBadge mode={s.mode} />
+          MODE_LABELS[s.mode]
         ) : (
           <span className="text-muted-foreground">{modeLabel(s.mode)}</span>
         )}
@@ -114,8 +114,4 @@ function SessionRow({ session: s }: Readonly<{ session: SessionReport }>) {
       </TableCell>
     </TableRow>
   )
-}
-
-function ExamBadge({ mode }: Readonly<{ mode: ExamMode }>) {
-  return <span>{MODE_LABELS[mode]}</span>
 }

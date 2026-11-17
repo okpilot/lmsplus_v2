@@ -64,7 +64,7 @@ describe('CodeRow status text', () => {
   ] as const)('shows status %s as plain text, muted only when %s', (label, patch, muted) => {
     const { container } = renderRow({ ...baseRow, ...patch })
     expect(container.querySelector('[data-slot="badge"]')).toBeNull()
-    const el = screen.getByText(label).closest('div') as HTMLElement
+    const el = screen.getByText(label)
     expect(el.classList.contains('text-muted-foreground')).toBe(muted)
   })
 })

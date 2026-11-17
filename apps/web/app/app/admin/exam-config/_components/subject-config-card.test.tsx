@@ -105,6 +105,16 @@ describe('SubjectConfigCard', () => {
       expect(screen.getByText('Disabled')).toHaveClass('text-muted-foreground')
     })
 
+    it('wraps the switch alone in a label that is a 44px tap target below lg', () => {
+      render(<SubjectConfigCard subject={subjectWithConfig} onEdit={vi.fn()} />)
+      const label = screen
+        .getByRole('switch', { name: 'Exam mode for General Knowledge' })
+        .closest('label')
+      expect(label).not.toBeNull()
+      expect(label).toHaveClass('min-h-control')
+      expect(label?.textContent).toBe('')
+    })
+
     it('shows no switch when there is no config', () => {
       render(<SubjectConfigCard subject={baseSubject} onEdit={vi.fn()} />)
       expect(screen.queryByRole('switch')).toBeNull()

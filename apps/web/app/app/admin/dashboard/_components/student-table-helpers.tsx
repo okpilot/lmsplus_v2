@@ -1,3 +1,4 @@
+import { StatusText } from '@/components/kit/status-text'
 import { TableCell, TableRow } from '@/components/ui/table'
 import { masteryTextClass } from '@/lib/utils/mastery-tone'
 import type { DashboardStudent } from '../types'
@@ -44,7 +45,11 @@ export function StudentRow({ student, onClick }: Readonly<StudentRowProps>) {
         {student.mastery}%
       </TableCell>
       <TableCell>
-        {student.isActive ? 'Active' : <span className="text-muted-foreground">Inactive</span>}
+        {student.isActive ? (
+          <StatusText label="Active" />
+        ) : (
+          <StatusText label="Inactive" className="text-muted-foreground" />
+        )}
       </TableCell>
     </TableRow>
   )

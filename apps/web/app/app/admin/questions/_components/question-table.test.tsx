@@ -112,13 +112,12 @@ describe('QuestionTable', () => {
     const question = makeQuestion({ status: 'draft' })
     render(<QuestionTable questions={[question]} {...DEFAULT_PROPS} />)
 
-    expect(screen.getByText('draft')).toBeInTheDocument()
-    expect(screen.getByText('draft').className).toContain('text-muted-foreground')
+    expect(screen.getByText('Draft').className).toContain('text-muted-foreground')
   })
 
   it('shows the active status in the default text colour', () => {
     render(<QuestionTable questions={[makeQuestion({ status: 'active' })]} {...DEFAULT_PROPS} />)
-    expect(screen.getByText('active').className).not.toContain('text-muted-foreground')
+    expect(screen.getByText('Active').className).not.toContain('text-muted-foreground')
   })
 
   it('shows a calc badge when the question involves calculations', () => {

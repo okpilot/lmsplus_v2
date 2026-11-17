@@ -86,15 +86,16 @@ describe('StudentTable — courses column', () => {
 })
 
 describe('StudentTable — role text', () => {
-  it.each(['admin', 'student', 'instructor'] as const)(
-    'shows the %s role as plain text',
-    (role) => {
-      renderTable([row({ role })])
-      const el = screen.getByText(role)
-      expect(el.className).not.toContain('bg-')
-      expect(el.className).toContain('capitalize')
-    },
-  )
+  it.each([
+    ['admin', 'Admin'],
+    ['student', 'Student'],
+    ['instructor', 'Instructor'],
+  ] as const)('shows the %s role as the plain label %s', (role, label) => {
+    renderTable([row({ role })])
+    const cell = screen.getByText(label)
+    expect(cell.className).not.toContain('bg-')
+    expect(cell.className).not.toContain('capitalize')
+  })
 })
 
 describe('StudentTable — status and actions', () => {

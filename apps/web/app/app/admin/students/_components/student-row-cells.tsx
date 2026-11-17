@@ -1,5 +1,6 @@
 'use client'
 
+import { StatusText } from '@/components/kit/status-text'
 import { Checkbox } from '@/components/ui/checkbox'
 import { TableCell } from '@/components/ui/table'
 import { formatUtc } from '@/lib/utils/format-utc'
@@ -72,7 +73,11 @@ export function ActivityCells({ student: s }: Readonly<{ student: StudentRow }>)
   return (
     <>
       <TableCell>
-        {s.deleted_at === null ? 'Active' : <span className="text-muted-foreground">Inactive</span>}
+        {s.deleted_at === null ? (
+          <StatusText label="Active" />
+        ) : (
+          <StatusText label="Inactive" className="text-muted-foreground" />
+        )}
       </TableCell>
       <TableCell className="text-caption tabular-nums text-muted-foreground">
         {s.last_active_at ? formatDate(s.last_active_at) : 'Never'}
