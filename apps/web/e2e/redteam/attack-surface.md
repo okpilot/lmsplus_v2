@@ -1,6 +1,6 @@
 # Red Team — Attack Surface Map
 
-> Last updated: 2026-11-17 (#1777: MH–ML exam sitting rows)
+> Last updated: 2026-11-17 (#1777: MH–ML, MN exam sitting rows)
 
 > `answer_matches`: EXECUTE revoked from PUBLIC, anon, authenticated; granted to service_role.
 
@@ -354,6 +354,8 @@
 | MK | exam_sittings-candidates-entries-student-peer-read-and-direct-dml | MEDIUM | exam-sitting-student-surface.spec.ts | BLOCKED |  | rls-bypass |
 | MH | exam_configs-admin-subject_id-move-bypasses-sitting-in-use-block | LOW | exam-config-sitting-block-subject-move.spec.ts | BLOCKED |  | sibling-guard-gap |
 | ML | list_my_active_internal_exam_codes-list_exam_sittings-cross-org-lazy-close | MEDIUM | exam-sitting-student-surface.spec.ts | BLOCKED |  | cross-tenant |
+| MN | exam-sitting-entry-issue-roster-rpcs-cross-org-admin-student-instructor-soft-deleted-admin | HIGH | exam-sitting-issue-rpc-scope.spec.ts | BLOCKED |  | cross-tenant |
+| MM | start_internal_exam_session-sitting-code-redeemed-before-start_exam_sitting | HIGH | exam-sitting-code-redeem-before-start.spec.ts | OPEN — fix in 2a-2 redeem gate (`sitting_not_open`); spec `test.skip` until then; 2a-1b does not merge before 2a-2 |  | sibling-guard-gap |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
