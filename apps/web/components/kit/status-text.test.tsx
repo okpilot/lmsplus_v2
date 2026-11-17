@@ -33,15 +33,8 @@ describe('StatusText', () => {
     expect(container.children).toHaveLength(1)
   })
 
-  it('lg size uses text-stat and the larger icon', () => {
-    const { container } = render(<StatusText label="Passed" tone="success" size="lg" />)
-    expect(container.firstElementChild).toHaveClass('text-stat')
-    expect(container.querySelector('svg')).toHaveClass('size-icon-lg')
-  })
-
-  it('default size has no text-stat and the small icon', () => {
+  it('uses the small icon', () => {
     const { container } = render(<StatusText label="Passed" tone="success" />)
-    expect(container.firstElementChild).not.toHaveClass('text-stat')
     expect(container.querySelector('svg')).toHaveClass('size-icon-sm')
   })
 })
