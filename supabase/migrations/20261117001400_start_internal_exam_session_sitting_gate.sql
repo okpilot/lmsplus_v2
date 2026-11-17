@@ -18,7 +18,6 @@ DECLARE
   v_code_consumed   timestamptz;
   v_code_voided     timestamptz;
   v_code_entry      uuid;
-  v_pre_sitting     uuid;
   v_sitting_id      uuid;
   v_sitting_status  text;
   v_sitting_at      timestamptz;
@@ -49,23 +48,20 @@ BEGIN
     RAISE EXCEPTION 'user not found or inactive';
   END IF;
 
-  SELECT e.sitting_id INTO v_pre_sitting
+  -- Owner's live unused sitting code: lock its sitting before the code row.
+  -- No s.deleted_at filter: security.md section 15 (g); a cancelled sitting must still return.
+  SELECT s.id, s.status, s.scheduled_at
+  INTO v_sitting_id, v_sitting_status, v_sitting_at
   FROM public.internal_exam_codes iec
   JOIN public.exam_sitting_entries e ON e.id = iec.sitting_entry_id AND e.deleted_at IS NULL
+  JOIN public.exam_sittings s ON s.id = e.sitting_id AND s.organization_id = v_org_id
   WHERE iec.code = p_code
     AND iec.student_id = v_student_id
     AND iec.organization_id = v_org_id
     AND iec.deleted_at IS NULL
     AND iec.voided_at IS NULL
-    AND iec.consumed_at IS NULL;
-  IF v_pre_sitting IS NOT NULL THEN
-    -- No deleted_at filter: security.md section 15 (g); a cancelled sitting must still return.
-    SELECT s.id, s.status, s.scheduled_at
-    INTO v_sitting_id, v_sitting_status, v_sitting_at
-    FROM public.exam_sittings s
-    WHERE s.id = v_pre_sitting AND s.organization_id = v_org_id
-    FOR SHARE;
-  END IF;
+    AND iec.consumed_at IS NULL
+  FOR SHARE OF s;
 
   SELECT iec.id, iec.subject_id, iec.student_id, iec.organization_id,
          iec.expires_at, iec.consumed_at, iec.voided_at, iec.sitting_entry_id
@@ -109,6 +105,8 @@ BEGIN
     RAISE EXCEPTION 'not_enrolled';
   END IF;
 
+  PERFORM private.sitting_redeem_gate(v_code_entry, v_student_id, v_code_subject, v_sitting_status, v_sitting_at);
+
   -- Auto-complete any same-subject internal_exam past +30s grace.
   -- All quiz_sessions columns aliased as qs.* — the function's RETURNS TABLE
   -- exposes time_limit_seconds and started_at as bare names too, so any
@@ -126,11 +124,12 @@ BEGIN
     AND now() > qs.started_at + ((qs.time_limit_seconds + 30) || ' seconds')::interval
   LIMIT 1;
   IF v_old_session_id IS NOT NULL THEN
+    -- Sitting code: the overdue attempt must finish first so its pass counts.
+    IF v_code_entry IS NOT NULL THEN
+      RAISE EXCEPTION 'another_session_active';
+    END IF;
     PERFORM public.complete_overdue_exam_session(v_old_session_id);
   END IF;
-
-  -- After the overdue auto-complete so a pass it records counts; a raise rolls it back.
-  PERFORM private.sitting_redeem_gate(v_code_entry, v_student_id, v_code_subject, v_sitting_status, v_sitting_at);
 
   -- Single-active-session invariant (#1011, mig 136): at most one active session
   -- per student across all modes.
