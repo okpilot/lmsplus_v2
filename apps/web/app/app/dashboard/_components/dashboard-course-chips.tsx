@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState, useTransition } from 'react'
-import { ChoicePills } from '@/components/kit/choice-pills'
+import { FilterSelect } from '@/app/app/_components/filter-select'
 import type { DashboardCourse } from '@/lib/dashboard/resolve-course'
 import { selectDashboardCourse } from '../actions/select-course'
 
@@ -33,11 +33,15 @@ export function DashboardCourseChips({ courses, selectedCode }: Readonly<Props>)
   }
 
   return (
-    <ChoicePills
-      label="Course"
-      options={courses.map((c) => ({ value: c.code, label: c.short }))}
+    <FilterSelect
+      ariaLabel="Course"
+      placeholder="Course"
+      triggerClassName="w-col-sm"
+      items={courses.map((c) => ({ value: c.code, label: c.short }))}
       value={value}
-      onChange={onChange}
+      onValueChange={(code) => {
+        if (code !== null) onChange(code)
+      }}
     />
   )
 }

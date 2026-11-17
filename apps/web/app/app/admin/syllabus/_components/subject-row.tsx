@@ -4,7 +4,6 @@ import { ChevronRight } from 'lucide-react'
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { InsetPanel } from '@/components/kit/inset-panel'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { upsertSubject } from '../actions/upsert-subject'
@@ -12,6 +11,7 @@ import { upsertTopic } from '../actions/upsert-topic'
 import type { SyllabusSubject } from '../types'
 import { DeleteButton } from './delete-button'
 import { InlineForm } from './inline-form'
+import { QuestionCount } from './question-count'
 import { TopicRow } from './topic-row'
 
 type Props = {
@@ -101,7 +101,7 @@ export function SubjectRow({ subject }: Readonly<Props>) {
         <span className="w-inset-lg shrink-0 tabular-nums text-label-strong">{subject.code}</span>
         <span className="flex-1 text-body">{subject.name}</span>
         <span className="text-caption text-muted-foreground">{subject.short}</span>
-        <Badge tone="neutral">{subject.questionCount} Q</Badge>
+        <QuestionCount count={subject.questionCount} />
         <Button
           variant="ghost"
           size="icon-sm"

@@ -39,7 +39,6 @@ const CAPTION_STRONG = [
   `${A}quiz/session/_components/keyboard-legend.tsx`,
   `${A}quiz/session/_components/ordering-input-item.tsx`,
   `${U}table.tsx`,
-  `${U}tabs.tsx`,
 ]
 
 describe('weight roles', () => {

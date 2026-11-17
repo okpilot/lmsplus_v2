@@ -137,8 +137,8 @@ test.describe('practice exam — auto-submit on timer expiry', () => {
     // "Practice Exam Complete" title (isExam=true → mock_exam mode)
     await expect(page.getByText('Practice Exam Complete')).toBeVisible()
 
-    // FAILED badge — 0 correct out of 10, pass mark 70%
-    await expect(page.getByText('FAILED')).toBeVisible()
+    // Failed status — 0 correct out of 10, pass mark 70%
+    await expect(page.getByText('Failed', { exact: true })).toBeVisible()
 
     // Score ring shows 0% — assert the labelled ScoreRing (role=img, "Score: 0%"),
     // not raw getByText('0%') which matches the ring's duplicated SVG <text> nodes.

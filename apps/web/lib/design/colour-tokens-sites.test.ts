@@ -40,14 +40,6 @@ describe('PR17 colour tokens', () => {
     )
   })
 
-  it('badge danger tone uses bg-danger-soft text-danger and aria-invalid:ring-invalid-ring', () => {
-    const s = read('components/ui/badge.tsx')
-    expect(s).toContain('bg-danger-soft text-danger')
-    expect(s).toContain('aria-invalid:ring-invalid-ring')
-    expect(s).not.toContain('[a]:hover')
-    expect(s).not.toContain('dark:hover:bg-foreground/(--state-hover)')
-  })
-
   it('button-variants uses field-fill, invalid tokens and state-hover', () => {
     const s = read('components/ui/button-variants.ts')
     expect(s).toContain('dark:bg-field-fill')
@@ -105,9 +97,8 @@ describe('PR17 colour tokens', () => {
     expect(b).toBeGreaterThan(a)
   })
 
-  it('radio-group and badge keep plain aria-invalid:border-destructive', () => {
+  it('radio-group keeps plain aria-invalid:border-destructive', () => {
     expect(read('components/ui/radio-group.tsx')).toContain('aria-invalid:border-destructive')
-    expect(read('components/ui/badge.tsx')).toContain('aria-invalid:border-destructive')
   })
 
   it.each(['components/ui/input.tsx', 'components/ui/textarea.tsx'])(

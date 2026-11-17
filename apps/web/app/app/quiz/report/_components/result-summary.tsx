@@ -1,14 +1,10 @@
-import { Badge } from '@/components/ui/badge'
+import { PassFailStatus } from '@/components/kit/status-text'
 import { Card, CardContent } from '@/components/ui/card'
 import { isExamMode, MODE_LABELS, type QuizMode } from '@/lib/constants/exam-modes'
 import type { QuizReportSummary } from '@/lib/queries/quiz-report-types'
 import { formatCorrectFraction } from '@/lib/utils/format-correct-fraction'
 import { getReportContext } from '../_utils/report-context'
 import { DesktopStats, MobileStats } from './result-summary-stats'
-
-function PassFailBadge({ passed }: Readonly<{ passed: boolean }>) {
-  return passed ? <Badge tone="success">PASSED</Badge> : <Badge tone="danger">FAILED</Badge>
-}
 
 type Props = Readonly<{ summary: QuizReportSummary }>
 
@@ -71,7 +67,7 @@ export function ResultSummary({ summary }: Readonly<Props>) {
 
         {isExam && summary.passed !== null && (
           <div className="mb-4 flex justify-center">
-            <PassFailBadge passed={summary.passed} />
+            <PassFailStatus passed={summary.passed} />
           </div>
         )}
 

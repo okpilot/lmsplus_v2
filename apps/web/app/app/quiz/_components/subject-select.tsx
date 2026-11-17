@@ -2,7 +2,7 @@
 
 import { ChevronDown } from 'lucide-react'
 import { useId, useState } from 'react'
-import { CodeChip } from '@/components/kit/code-chip'
+import { SubjectCode } from '@/components/kit/subject-code'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Label } from '@/components/ui/label'
@@ -32,7 +32,7 @@ export function SubjectSelect({ subjects, value, onValueChange }: Readonly<Subje
         >
           {selected ? (
             <span className="flex items-center gap-2.5">
-              <CodeChip>{selected.code}</CodeChip>
+              <SubjectCode>{selected.code}</SubjectCode>
               <span className="text-foreground">{selected.name}</span>
             </span>
           ) : (
@@ -59,7 +59,7 @@ export function SubjectSelect({ subjects, value, onValueChange }: Readonly<Subje
                   s.id === value ? 'border-l-primary bg-primary-soft' : 'border-l-transparent'
                 }`}
               >
-                <CodeChip className="shrink-0">{s.code}</CodeChip>
+                <SubjectCode className="shrink-0">{s.code}</SubjectCode>
                 <span
                   className={`flex-1 text-left ${
                     s.id === value ? 'font-medium text-foreground' : 'text-muted-foreground'

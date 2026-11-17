@@ -1,6 +1,5 @@
-import { Badge } from '@/components/ui/badge'
+import { StatusText } from '@/components/kit/status-text'
 import { TableCell, TableRow } from '@/components/ui/table'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { masteryTextClass } from '@/lib/utils/mastery-tone'
 import type { DashboardStudent } from '../types'
 
@@ -36,23 +35,7 @@ export function StudentRow({ student, onClick }: Readonly<StudentRowProps>) {
       }}
     >
       <TableCell>
-        <div className="flex items-center gap-1.5">
-          {student.hasRecentActivity && (
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <span
-                    role="img"
-                    aria-label="Active in last 7 days"
-                    className="size-2 shrink-0 rounded-pill bg-success"
-                  />
-                }
-              />
-              <TooltipContent>Active in last 7 days</TooltipContent>
-            </Tooltip>
-          )}
-          <span className="font-medium">{student.fullName ?? '\u2014'}</span>
-        </div>
+        <div className="font-medium">{student.fullName ?? '\u2014'}</div>
         <div className="text-caption text-muted-foreground">{student.email}</div>
       </TableCell>
       <TableCell suppressHydrationWarning>{formatRelativeTime(student.lastActiveAt)}</TableCell>
@@ -63,9 +46,9 @@ export function StudentRow({ student, onClick }: Readonly<StudentRowProps>) {
       </TableCell>
       <TableCell>
         {student.isActive ? (
-          <Badge tone="success">Active</Badge>
+          <StatusText label="Active" />
         ) : (
-          <Badge tone="neutral">Inactive</Badge>
+          <StatusText label="Inactive" className="text-muted-foreground" />
         )}
       </TableCell>
     </TableRow>

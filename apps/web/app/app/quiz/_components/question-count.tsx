@@ -34,7 +34,6 @@ function CountPill({
       type="button"
       size="sm"
       variant="toggle"
-      className="rounded-pill border-border"
       aria-pressed={pressed}
       disabled={disabled}
       onClick={onClick}

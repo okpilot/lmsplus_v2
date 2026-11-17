@@ -1,12 +1,20 @@
 import Link from 'next/link'
-import { Badge } from '@/components/ui/badge'
 import { PageHeader } from '@/components/ui/heading'
+import { roleLabel } from '@/lib/constants/roles'
 import { formatRelativeTime } from '../../../_components/student-table-helpers'
 import type { StudentDetail } from '../../../types'
 
 type Props = Readonly<{ student: StudentDetail }>
 
 export function StudentHeader({ student }: Readonly<Props>) {
+  const attributes = [
+    student.courses.join(', '),
+    roleLabel(student.role),
+    student.deletedAt ? 'Inactive' : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+
   return (
     <div className="space-y-stack">
       <nav className="text-caption text-muted-foreground">
@@ -19,18 +27,10 @@ export function StudentHeader({ student }: Readonly<Props>) {
 
       <PageHeader
         title={student.fullName ?? 'Unnamed Student'}
-        description={student.email}
-        actions={
+        description={
           <>
-            {student.deletedAt && <Badge tone="neutral">Inactive</Badge>}
-            {student.courses.map((short) => (
-              <Badge key={short} tone="neutral">
-                {short}
-              </Badge>
-            ))}
-            <Badge tone={student.role === 'admin' ? 'info' : 'neutral'} className="capitalize">
-              {student.role}
-            </Badge>
+            {student.email}
+            <span className="block text-caption">{attributes}</span>
           </>
         }
       />

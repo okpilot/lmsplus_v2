@@ -78,21 +78,20 @@ test.describe('Dashboard course chips', () => {
     page,
   }) => {
     await login(page, BOTH_EMAIL)
-    const chips = page.getByRole('group', { name: 'Course' })
-    await expect(chips.getByRole('button', { name: 'PPL' })).toHaveAttribute('aria-pressed', 'true')
+    const course = page.getByRole('combobox', { name: 'Course' })
+    await expect(course).toContainText('PPL')
     await expect(page.getByRole('heading', { name: 'Subject Progress' })).toBeVisible()
     await expect(page.getByText(PPL_SUBJECT, { exact: true })).toBeVisible()
     await expect(page.getByText(NO_SUBJECTS)).toHaveCount(0)
 
-    await chips.getByRole('button', { name: 'RT' }).click()
-    await expect(chips.getByRole('button', { name: 'RT' })).toHaveAttribute('aria-pressed', 'true')
+    await course.click()
+    await page.getByRole('option', { name: 'RT' }).click()
+    await expect(course).toContainText('RT')
     await expect(page.getByText(NO_SUBJECTS)).toBeVisible()
     await expect(page.getByText(PPL_SUBJECT, { exact: true })).toHaveCount(0)
 
     await page.reload()
-    await expect(
-      page.getByRole('group', { name: 'Course' }).getByRole('button', { name: 'RT' }),
-    ).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.getByRole('combobox', { name: 'Course' })).toContainText('RT')
     await expect(page.getByText(NO_SUBJECTS)).toBeVisible()
   })
 
@@ -101,7 +100,7 @@ test.describe('Dashboard course chips', () => {
     await expect(page.getByTestId('dashboard-course-chips-ready')).toBeAttached()
     await expect(page.getByTestId('vfr-rt-nav-ready')).toBeAttached()
     await expect(page.getByText(PPL_SUBJECT, { exact: true })).toBeVisible()
-    await expect(page.getByRole('group', { name: 'Course' })).toHaveCount(0)
+    await expect(page.getByRole('combobox', { name: 'Course' })).toHaveCount(0)
     await expect(page.getByRole('link', { name: 'VFR RT' })).toHaveCount(0)
   })
 

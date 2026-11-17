@@ -29,7 +29,7 @@ export function OptionEditor({
   // takes its arrow keys. The text inputs therefore sit OUTSIDE the group, in a column whose rows
   // line up with the group's rows (same height and gap).
   return (
-    // biome-ignore lint/a11y/useSemanticElements: a <fieldset> brings default border/legend layout (choice-pills precedent)
+    // biome-ignore lint/a11y/useSemanticElements: a <fieldset> brings default border/legend layout
     <div role="group" aria-labelledby={labelId} className="space-y-stack">
       <span id={labelId} className="text-label text-muted-foreground">
         Options

@@ -101,38 +101,20 @@ describe('MyReportsTab', () => {
     expect(screen.getByText('88%')).toBeInTheDocument()
   })
 
-  it('renders the Pass badge when passed is true', () => {
+  it('renders Passed status text when passed is true', () => {
     render(<MyReportsTab rows={[baseRow]} />)
-    expect(screen.getByLabelText('Passed')).toBeInTheDocument()
+    expect(screen.getByText('Passed').querySelector('svg')).toHaveClass('text-success')
   })
 
-  it('renders the Fail badge when passed is false', () => {
+  it('renders Failed status text when passed is false', () => {
     render(<MyReportsTab rows={[{ ...baseRow, passed: false }]} />)
-    expect(screen.getByLabelText('Failed')).toBeInTheDocument()
+    expect(screen.getByText('Failed').querySelector('svg')).toHaveClass('text-danger')
   })
 
-  it('styles the Pass badge with the success tone', () => {
-    render(<MyReportsTab rows={[baseRow]} />)
-    const cls = screen.getByLabelText('Passed').className
-    expect(cls).toContain('bg-success-soft')
-    expect(cls).toContain('text-success')
-    expect(cls).not.toContain('bg-destructive')
-    expect(cls).not.toContain('bg-primary')
-  })
-
-  it('styles the Fail badge with the danger tone', () => {
-    render(<MyReportsTab rows={[{ ...baseRow, passed: false }]} />)
-    const cls = screen.getByLabelText('Failed').className
-    expect(cls).toContain('bg-danger-soft')
-    expect(cls).toContain('text-danger')
-    expect(cls).not.toContain('bg-destructive')
-    expect(cls).not.toContain('bg-primary')
-  })
-
-  it('renders neither pass nor fail badge when passed is null', () => {
+  it('renders neither Passed nor Failed when passed is null', () => {
     render(<MyReportsTab rows={[{ ...baseRow, passed: null }]} />)
-    expect(screen.queryByLabelText('Passed')).toBeNull()
-    expect(screen.queryByLabelText('Failed')).toBeNull()
+    expect(screen.queryByText('Passed')).toBeNull()
+    expect(screen.queryByText('Failed')).toBeNull()
   })
 
   it('renders the answered/total count', () => {

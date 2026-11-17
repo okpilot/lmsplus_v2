@@ -108,31 +108,30 @@ describe('QuestionTable', () => {
     expect(textEl).not.toHaveAttribute('title')
   })
 
-  it('displays the status badge', () => {
+  it('displays the status as muted text when not active', () => {
     const question = makeQuestion({ status: 'draft' })
     render(<QuestionTable questions={[question]} {...DEFAULT_PROPS} />)
 
-    expect(screen.getByText('draft')).toBeInTheDocument()
-    expect(screen.getByText('draft').className).toContain('bg-muted')
+    expect(screen.getByText('Draft').className).toContain('text-muted-foreground')
   })
 
-  it('shows the active status with the success tone', () => {
+  it('shows the active status in the default text colour', () => {
     render(<QuestionTable questions={[makeQuestion({ status: 'active' })]} {...DEFAULT_PROPS} />)
-    expect(screen.getByText('active').className).toContain('bg-success-soft')
+    expect(screen.getByText('Active').className).not.toContain('text-muted-foreground')
   })
 
   it('shows a calc badge when the question involves calculations', () => {
     const question = makeQuestion({ has_calculations: true })
     render(<QuestionTable questions={[question]} {...DEFAULT_PROPS} />)
 
-    expect(screen.getByText('calc')).toBeInTheDocument()
+    expect(screen.getByText('Calculator')).toBeInTheDocument()
   })
 
   it('does not show a calc badge when the question has no calculations', () => {
     const question = makeQuestion({ has_calculations: false })
     render(<QuestionTable questions={[question]} {...DEFAULT_PROPS} />)
 
-    expect(screen.queryByText('calc')).not.toBeInTheDocument()
+    expect(screen.queryByText('Calculator')).not.toBeInTheDocument()
   })
 
   it('displays the subject code from the joined subject relation', () => {

@@ -91,37 +91,33 @@ describe('SubjectConfigCard', () => {
       expect(screen.getByText(/75%/)).toBeTruthy()
     })
 
-    it('shows "Enabled" toggle button when config is enabled', () => {
+    it('shows an on switch with muted "Enabled" text when config is enabled', () => {
       render(<SubjectConfigCard subject={subjectWithConfig} onEdit={vi.fn()} />)
-      expect(screen.getByRole('button', { name: 'Enabled' })).toBeTruthy()
+      expect(screen.getByRole('switch', { name: 'Exam mode for General Knowledge' })).toBeChecked()
+      expect(screen.getByText('Enabled')).toHaveClass('text-muted-foreground')
     })
 
-    it('shows the enabled state as a success badge inside the toggle button', () => {
-      render(<SubjectConfigCard subject={subjectWithConfig} onEdit={vi.fn()} />)
-      const badge = screen
-        .getByRole('button', { name: 'Enabled' })
-        .querySelector('[data-slot="badge"]')
-      expect(badge).toHaveClass('bg-success-soft')
-    })
-
-    it('shows the disabled state as a neutral badge inside the toggle button', () => {
+    it('shows an off switch with muted "Disabled" text when config exists but is disabled', () => {
       render(<SubjectConfigCard subject={subjectWithDisabledConfig} onEdit={vi.fn()} />)
-      const badge = screen
-        .getByRole('button', { name: 'Disabled' })
-        .querySelector('[data-slot="badge"]')
-      expect(badge).toHaveClass('bg-muted')
+      expect(
+        screen.getByRole('switch', { name: 'Exam mode for General Knowledge' }),
+      ).not.toBeChecked()
+      expect(screen.getByText('Disabled')).toHaveClass('text-muted-foreground')
     })
 
-    it('extends the toggle tap area to 44px below lg without growing the badge', () => {
+    it('wraps the switch alone in a label that is a 44px tap target below lg', () => {
       render(<SubjectConfigCard subject={subjectWithConfig} onEdit={vi.fn()} />)
-      const cls = screen.getByRole('button', { name: 'Enabled' }).className
-      expect(cls).toContain('after:-inset-y-3')
-      expect(cls).toContain('lg:after:hidden')
+      const label = screen
+        .getByRole('switch', { name: 'Exam mode for General Knowledge' })
+        .closest('label')
+      expect(label).not.toBeNull()
+      expect(label).toHaveClass('min-h-control')
+      expect(label?.textContent).toBe('')
     })
 
-    it('shows "Disabled" toggle button when config exists but is disabled', () => {
-      render(<SubjectConfigCard subject={subjectWithDisabledConfig} onEdit={vi.fn()} />)
-      expect(screen.getByRole('button', { name: 'Disabled' })).toBeTruthy()
+    it('shows no switch when there is no config', () => {
+      render(<SubjectConfigCard subject={baseSubject} onEdit={vi.fn()} />)
+      expect(screen.queryByRole('switch')).toBeNull()
     })
   })
 
@@ -154,12 +150,18 @@ describe('SubjectConfigCard', () => {
   })
 
   describe('toggle button — with config', () => {
+    it('hides the Enabled/Disabled text from assistive tech', () => {
+      render(<SubjectConfigCard subject={subjectWithConfig} onEdit={vi.fn()} />)
+      expect(screen.getByText('Enabled')).toHaveAttribute('aria-hidden', 'true')
+      expect(screen.getByRole('switch', { name: 'Exam mode for General Knowledge' })).toBeTruthy()
+    })
+
     it('toggles exam mode when clicking the status button', async () => {
       const onEdit = vi.fn()
       vi.mocked(toggleExamConfig).mockResolvedValue({ success: true })
 
       render(<SubjectConfigCard subject={subjectWithConfig} onEdit={onEdit} />)
-      await userEvent.click(screen.getByRole('button', { name: 'Enabled' }))
+      await userEvent.click(screen.getByRole('switch', { name: 'Exam mode for General Knowledge' }))
 
       await waitFor(() => {
         expect(toggleExamConfig).toHaveBeenCalledWith({
@@ -167,7 +169,7 @@ describe('SubjectConfigCard', () => {
           enabled: false,
         })
       })
-      // onEdit must NOT have been called — toggle is a sibling button, not nested inside the card button
+      // onEdit must NOT have been called — toggle is a sibling control, not nested inside the card button
       expect(onEdit).not.toHaveBeenCalled()
     })
 
@@ -175,7 +177,7 @@ describe('SubjectConfigCard', () => {
       vi.mocked(toggleExamConfig).mockResolvedValue({ success: true })
 
       render(<SubjectConfigCard subject={subjectWithConfig} onEdit={vi.fn()} />)
-      await userEvent.click(screen.getByRole('button', { name: 'Enabled' }))
+      await userEvent.click(screen.getByRole('switch', { name: 'Exam mode for General Knowledge' }))
 
       await waitFor(() => {
         expect(toast.success).toHaveBeenCalledWith('Exam mode disabled')
@@ -186,7 +188,7 @@ describe('SubjectConfigCard', () => {
       vi.mocked(toggleExamConfig).mockResolvedValue({ success: true })
 
       render(<SubjectConfigCard subject={subjectWithDisabledConfig} onEdit={vi.fn()} />)
-      await userEvent.click(screen.getByRole('button', { name: 'Disabled' }))
+      await userEvent.click(screen.getByRole('switch', { name: 'Exam mode for General Knowledge' }))
 
       await waitFor(() => {
         expect(toast.success).toHaveBeenCalledWith('Exam mode enabled')
@@ -200,7 +202,7 @@ describe('SubjectConfigCard', () => {
       })
 
       render(<SubjectConfigCard subject={subjectWithConfig} onEdit={vi.fn()} />)
-      await userEvent.click(screen.getByRole('button', { name: 'Enabled' }))
+      await userEvent.click(screen.getByRole('switch', { name: 'Exam mode for General Knowledge' }))
 
       await waitFor(() => {
         expect(toast.error).toHaveBeenCalledWith('Config not found')
@@ -215,7 +217,7 @@ describe('SubjectConfigCard', () => {
       })
 
       render(<SubjectConfigCard subject={subjectWithConfig} onEdit={vi.fn()} />)
-      await userEvent.click(screen.getByRole('button', { name: 'Enabled' }))
+      await userEvent.click(screen.getByRole('switch', { name: 'Exam mode for General Knowledge' }))
 
       await waitFor(() => {
         expect(toast.error).toHaveBeenCalled()
@@ -227,7 +229,7 @@ describe('SubjectConfigCard', () => {
       vi.mocked(toggleExamConfig).mockRejectedValue(new Error('Network failure'))
 
       render(<SubjectConfigCard subject={subjectWithConfig} onEdit={vi.fn()} />)
-      await userEvent.click(screen.getByRole('button', { name: 'Enabled' }))
+      await userEvent.click(screen.getByRole('switch', { name: 'Exam mode for General Knowledge' }))
 
       await waitFor(() => {
         expect(toast.error).toHaveBeenCalledWith('Failed to update exam status')
@@ -235,41 +237,24 @@ describe('SubjectConfigCard', () => {
       expect(toast.success).not.toHaveBeenCalled()
     })
   })
-
-  describe('toggle hover feedback', () => {
-    it('has no hover dimming and dims only while disabled', () => {
-      render(<SubjectConfigCard subject={subjectWithConfig} onEdit={vi.fn()} />)
-      const cls = screen.getByRole('button', { name: 'Enabled' }).className
-      expect(cls).not.toContain('enabled:hover:opacity-80')
-      expect(cls).not.toContain('transition-opacity')
-      expect(cls).toContain('disabled:opacity-disabled')
-    })
-  })
 })
 
-describe('SubjectConfigCard code chip', () => {
-  it('renders the subject code as a CodeChip', () => {
+describe('SubjectConfigCard code', () => {
+  it('renders the subject code as muted text, not a chip', () => {
     const { container } = render(<SubjectConfigCard subject={baseSubject} onEdit={vi.fn()} />)
-    const chip = container.querySelector('[data-slot=code-chip]')
-    expect(chip).not.toBeNull()
-    expect(chip).toHaveTextContent('AGK')
+    expect(container.querySelector('[data-slot=code-chip]')).toBeNull()
+    expect(screen.getByText('AGK')).toHaveClass('text-muted-foreground')
   })
 })
 
 describe('SubjectConfigCard bare buttons (S4a AC 2)', () => {
   it('every button uses the bare focus ring and type=button', () => {
-    render(<SubjectConfigCard subject={subjectWithConfig} onEdit={vi.fn()} />)
+    render(<SubjectConfigCard subject={baseSubject} onEdit={vi.fn()} />)
     const buttons = screen.getAllByRole('button')
-    expect(buttons.length).toBeGreaterThanOrEqual(2)
+    expect(buttons.length).toBeGreaterThanOrEqual(1)
     for (const b of buttons) {
       expect(b).toHaveClass('focus-visible:outline-focus')
       expect(b).toHaveAttribute('type', 'button')
     }
-  })
-  it('enable toggle keeps disabled:opacity-disabled', () => {
-    render(<SubjectConfigCard subject={subjectWithConfig} onEdit={vi.fn()} />)
-    expect(screen.getByRole('button', { name: 'Enabled' }).className).toContain(
-      'disabled:opacity-disabled',
-    )
   })
 })

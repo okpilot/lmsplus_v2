@@ -20,6 +20,11 @@ describe('InternalExamTabs', () => {
     expect(screen.getByTestId('tab-reports')).toHaveAttribute('aria-selected', 'false')
   })
 
+  it('reads the tab accessible name as "Available 2"', () => {
+    render(<InternalExamTabs available={AVAILABLE} history={[]} />)
+    expect(screen.getByRole('tab', { name: 'Available 2' })).toBeInTheDocument()
+  })
+
   it('shows the reports panel under tabpanel-reports after clicking the reports tab', async () => {
     const user = userEvent.setup()
     render(<InternalExamTabs available={AVAILABLE} history={[]} />)
@@ -35,11 +40,12 @@ describe('InternalExamTabs', () => {
     expect(screen.getByTestId('tab-available')).toHaveAttribute('aria-controls', panel.id)
   })
 
-  it('renders the available count as a TabCount with testid tab-available-badge', () => {
+  it('renders the available count as muted text with testid tab-available-badge', () => {
     render(<InternalExamTabs available={AVAILABLE} history={[]} />)
     const badge = screen.getByTestId('tab-available-badge')
     expect(badge).toHaveTextContent('2')
-    expect(badge).toHaveClass('bg-card')
+    expect(badge).toHaveClass('text-muted-foreground', 'tabular-nums')
+    expect(badge.className).not.toContain('bg-')
   })
 
   it('styles the active tab with the shared segmented look', () => {

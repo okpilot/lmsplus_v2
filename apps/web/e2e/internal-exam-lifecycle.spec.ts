@@ -89,7 +89,7 @@ async function assertAdminAttemptReport(adminPage: Page, sessionId: string): Pro
   await expect(
     adminPage.getByRole('main').getByRole('link', { name: 'Internal Exams', exact: true }),
   ).toBeVisible()
-  await expect(adminPage.getByText(/^(PASSED|FAILED)$/)).toBeVisible()
+  await expect(adminPage.getByText(/^(Passed|Failed)$/)).toBeVisible()
   await expect(adminPage.getByRole('heading', { name: 'Question Breakdown' })).toBeVisible()
   await expect(adminPage.getByRole('img', { name: /^(Correct|Incorrect)$/ }).first()).toBeVisible()
 
@@ -176,8 +176,8 @@ test.describe('internal exam — lifecycle', () => {
       // ── 4. Land on /app/internal-exam/report with badge + pass/fail ───────
       await page.waitForURL(/\/app\/internal-exam\/report\?session=/, { timeout: 30_000 })
       await expect(page.getByText('Internal Exam Complete')).toBeVisible({ timeout: 10_000 })
-      // Pass or fail badge — both valid outcomes; assert one of them is rendered.
-      const badge = page.getByText(/^(PASSED|FAILED)$/)
+      // Pass or fail status — both valid outcomes; assert one of them is rendered.
+      const badge = page.getByText(/^(Passed|Failed)$/)
       await expect(badge).toBeVisible({ timeout: 10_000 })
       const sessionId = new URL(page.url()).searchParams.get('session')
       if (!sessionId) throw new Error('report URL had no session id')

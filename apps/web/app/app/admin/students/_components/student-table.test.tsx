@@ -55,12 +55,18 @@ describe('StudentTable — courses column', () => {
     expect(screen.getByRole('columnheader', { name: 'Courses' })).toBeInTheDocument()
   })
 
-  it('shows one badge per active course using the short name', () => {
+  it('lists the active courses as one comma-joined text using the short names', () => {
     renderTable([row({ course_ids: [RT, ATPL] })])
     const r = screen.getByText('Alice').closest('tr') as HTMLElement
-    expect(within(r).getByText('RT')).toBeInTheDocument()
-    expect(within(r).getByText('ATPL')).toBeInTheDocument()
-    expect(within(r).queryByText('PPL')).not.toBeInTheDocument()
+    expect(within(r).getByText(/\bRT\b/)).toBeInTheDocument()
+    expect(within(r).getByText(/\bATPL\b/)).toBeInTheDocument()
+    expect(within(r).queryByText(/\bPPL\b/)).not.toBeInTheDocument()
+  })
+
+  it('lets the tag cell wrap', () => {
+    renderTable([row({ course_ids: [RT, ATPL] })])
+    const cell = screen.getByText(/\bRT\b/).closest('td') as HTMLElement
+    expect(cell).toHaveClass('whitespace-normal')
   })
 
   it('shows an em dash for a student with no courses', () => {
@@ -72,38 +78,38 @@ describe('StudentTable — courses column', () => {
     ).toBeInTheDocument()
   })
 
-  it.each(['instructor', 'admin'] as const)('shows course badges for role %s', (role) => {
+  it.each(['instructor', 'admin'] as const)('shows course text for role %s', (role) => {
     renderTable([row({ role, course_ids: [PPL] })])
     const r = screen.getByText('Alice').closest('tr') as HTMLElement
     expect(within(r).getByText('PPL')).toBeInTheDocument()
   })
 })
 
-describe('StudentTable — role tone', () => {
-  it('shows the admin role with the info tone', () => {
-    renderTable([row({ role: 'admin' })])
-    expect(screen.getByText('admin').className).toContain('bg-info-soft')
-  })
-
-  it.each(['student', 'instructor'] as const)('shows the %s role with the neutral tone', (role) => {
+describe('StudentTable — role text', () => {
+  it.each([
+    ['admin', 'Admin'],
+    ['student', 'Student'],
+    ['instructor', 'Instructor'],
+  ] as const)('shows the %s role as the plain label %s', (role, label) => {
     renderTable([row({ role })])
-    expect(screen.getByText(role).className).toContain('bg-muted')
+    const cell = screen.getByText(label)
+    expect(cell.className).not.toContain('bg-')
+    expect(cell.className).not.toContain('capitalize')
   })
 })
 
 describe('StudentTable — status and actions', () => {
-  it('shows an active student with the success badge tone', () => {
+  it('shows an active student as plain text', () => {
     renderTable([row({})])
-    const badge = screen.getByText('Active')
-    expect(badge.className).toContain('bg-success-soft')
-    expect(badge.className).not.toContain('bg-green-600')
+    expect(screen.getByText('Active').closest('td')?.className).not.toContain('bg-')
+    expect(screen.queryByText('Inactive')).toBeNull()
   })
 
-  it('shows Inactive with the neutral tone (bg-muted), not bg-danger-soft', () => {
+  it('shows Inactive as muted text', () => {
     renderTable([row({ deleted_at: '2026-02-01T00:00:00.000Z' })])
-    const badge = screen.getByText('Inactive')
-    expect(badge.className).toContain('bg-muted')
-    expect(badge.className).not.toContain('bg-danger-soft')
+    const el = screen.getByText('Inactive')
+    expect(el).toHaveClass('text-muted-foreground')
+    expect(el.className).not.toContain('bg-')
     expect(screen.queryByText('Active')).toBeNull()
   })
 

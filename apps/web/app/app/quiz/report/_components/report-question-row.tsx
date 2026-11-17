@@ -1,11 +1,10 @@
 'use client'
 
-import { Check, ChevronDown, ChevronUp, Flag, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, CircleCheck, CircleX, Flag } from 'lucide-react'
 import { useState } from 'react'
 import { MarkdownText } from '@/app/app/_components/markdown-text'
 import { ZoomableImage } from '@/app/app/_components/zoomable-image'
 import { InsetPanel } from '@/components/kit/inset-panel'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import type { QuizReportQuestion } from '@/lib/queries/quiz-report'
 import { isQuestionAnswered } from '@/lib/queries/report-question-answered'
@@ -37,13 +36,9 @@ export function ReportQuestionRow({
       <div className="flex items-start gap-3">
         <div className="mt-0.5 shrink-0">
           {question.isCorrect ? (
-            <Badge role="img" aria-label="Correct" tone="success" shape="circle">
-              <Check className="size-icon-sm stroke-icon-bold" aria-hidden />
-            </Badge>
+            <CircleCheck role="img" aria-label="Correct" className="size-icon text-success" />
           ) : (
-            <Badge role="img" aria-label="Incorrect" tone="danger" shape="circle">
-              <X className="size-icon-sm stroke-icon-bold" aria-hidden />
-            </Badge>
+            <CircleX role="img" aria-label="Incorrect" className="size-icon text-danger" />
           )}
         </div>
 

@@ -87,7 +87,6 @@ function buildStudent(overrides: Partial<DashboardStudent> = {}): DashboardStude
     avgScore: 75,
     mastery: 70,
     isActive: true,
-    hasRecentActivity: true,
     ...overrides,
   }
 }
@@ -150,7 +149,7 @@ describe('StudentRow', () => {
     expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(1)
   })
 
-  it('renders Active badge when student is active', () => {
+  it('renders Active as plain text when student is active', () => {
     render(
       <table>
         <tbody>
@@ -159,22 +158,13 @@ describe('StudentRow', () => {
       </table>,
     )
     expect(screen.getByText('Active')).toBeInTheDocument()
-    expect(screen.getByText('Active').className).toContain('bg-success-soft')
-    expect(screen.getByText('Active').className).not.toContain('bg-green-600')
-  })
-
-  it('marks recent activity with a success-toned dot', () => {
-    render(
-      <table>
-        <tbody>
-          <StudentRow student={buildStudent({ hasRecentActivity: true })} onClick={vi.fn()} />
-        </tbody>
-      </table>,
+    expect(screen.getByText('Active').className).not.toContain('bg-')
+    expect(screen.getByText('Active').closest('td')?.querySelector('span')).toHaveClass(
+      'inline-flex',
     )
-    expect(screen.getByRole('img', { name: 'Active in last 7 days' })).toHaveClass('bg-success')
   })
 
-  it('renders Inactive badge when student is not active', () => {
+  it('renders Inactive as muted text when student is not active', () => {
     render(
       <table>
         <tbody>
@@ -183,8 +173,8 @@ describe('StudentRow', () => {
       </table>,
     )
     expect(screen.getByText('Inactive')).toBeInTheDocument()
-    expect(screen.getByText('Inactive').className).toContain('bg-muted')
-    expect(screen.getByText('Inactive').className).not.toContain('bg-danger-soft')
+    expect(screen.getByText('Inactive')).toHaveClass('text-muted-foreground')
+    expect(screen.getByText('Inactive').className).not.toContain('bg-')
   })
 
   it('greys an inactive row with text colour, not opacity', () => {
@@ -334,7 +324,6 @@ describe('StudentRow hydration', () => {
     avgScore: 50,
     mastery: 50,
     isActive: true,
-    hasRecentActivity: false,
   })
 
   function Tree() {

@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { roleLabel } from '@/lib/constants/roles'
 import type { CourseOption } from '../types'
 import { StudentCourseFields } from './student-course-fields'
 
@@ -26,10 +27,9 @@ type Props = {
   onRoleChange: (value: string) => void
 }
 
-const BASE_ROLE_ITEMS = [
-  { value: 'instructor', label: 'Instructor' },
-  { value: 'student', label: 'Student' },
-]
+const roleItem = (value: string) => ({ value, label: roleLabel(value) })
+
+const BASE_ROLE_ITEMS = [roleItem('instructor'), roleItem('student')]
 
 export function StudentFormFields({
   isEdit,
@@ -44,9 +44,7 @@ export function StudentFormFields({
   onFullNameChange,
   onRoleChange,
 }: Readonly<Props>) {
-  const roleItems = isEdit
-    ? [{ value: 'admin', label: 'Admin' }, ...BASE_ROLE_ITEMS]
-    : BASE_ROLE_ITEMS
+  const roleItems = isEdit ? [roleItem('admin'), ...BASE_ROLE_ITEMS] : BASE_ROLE_ITEMS
 
   return (
     <div className="grid gap-4 py-2">

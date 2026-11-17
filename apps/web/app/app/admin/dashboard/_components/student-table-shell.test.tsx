@@ -95,7 +95,6 @@ function makeStudent(overrides: Partial<DashboardStudent> = {}): DashboardStuden
     avgScore: 80,
     mastery: 75,
     isActive: true,
-    hasRecentActivity: true,
     ...overrides,
   }
 }

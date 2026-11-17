@@ -121,9 +121,8 @@ describe('control, avatar and column sizes', () => {
     expect(s).toContain('min-h-control-sm')
     expect(s).not.toMatch(/(?<![\w-])(size-6|h-8|min-h-11|min-h-8)\b/)
   })
-  it('button segment and badge circle use control-sm / avatar', () => {
+  it('button segment uses control-sm', () => {
     expect(root('components/ui/button-variants.ts')).toMatch(/segment:\s*['"`][^'"`]*h-control-sm/)
-    expect(root('components/ui/badge.tsx')).toContain('size-avatar')
   })
   it('info tooltip is w-popover-sm with no md width', () => {
     const s = app('dashboard/info-tooltip.tsx')
@@ -162,8 +161,7 @@ describe('control, avatar and column sizes', () => {
 })
 
 describe('no-look-change sites on exact tokens', () => {
-  it('chip, field-min and popover tokens replace numeric sizes', () => {
-    expect(root('components/ui/badge.tsx')).toContain('h-chip')
+  it('field-min and popover tokens replace numeric sizes', () => {
     expect(root('components/ui/textarea.tsx')).toContain('min-h-field-min')
     expect(root('components/ui/popover.tsx')).toContain('w-popover')
     expect(root('components/ui/select.tsx')).toContain('min-w-menu-min')

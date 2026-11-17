@@ -54,18 +54,18 @@ const baseRow: InternalExamCodeRow = {
   sessionEndedAt: null,
 }
 
-describe('CodeRow status tone', () => {
+describe('CodeRow status text', () => {
   it.each([
-    ['voided', { status: 'voided' }, 'bg-danger-soft'],
-    ['active', { status: 'active' }, 'bg-success-soft'],
-    ['finished', { status: 'consumed', sessionEndedAt: '2026-10-31T10:00:00Z' }, 'bg-success-soft'],
-    ['consumed', { status: 'consumed' }, 'bg-muted'],
-    ['expired', { status: 'expired' }, 'bg-muted'],
-  ] as const)('shows status %s with its tone', (label, patch, cls) => {
+    ['Voided', { status: 'voided' }, true],
+    ['Active', { status: 'active' }, false],
+    ['Finished', { status: 'consumed', sessionEndedAt: '2026-10-31T10:00:00Z' }, false],
+    ['In progress', { status: 'consumed' }, false],
+    ['Expired', { status: 'expired' }, true],
+  ] as const)('shows status %s as plain text, muted only when %s', (label, patch, muted) => {
     const { container } = renderRow({ ...baseRow, ...patch })
-    const badge = container.querySelector('[data-slot="badge"]') as HTMLElement
-    expect(badge).toHaveTextContent(label)
-    expect(badge.className).toContain(cls)
+    expect(container.querySelector('[data-slot="badge"]')).toBeNull()
+    const el = screen.getByText(label)
+    expect(el.classList.contains('text-muted-foreground')).toBe(muted)
   })
 })
 

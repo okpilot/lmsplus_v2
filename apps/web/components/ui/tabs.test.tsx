@@ -2,15 +2,13 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 
-import { TabCount, Tabs, TabsList, TabsPanel, TabsTab } from './tabs'
+import { Tabs, TabsList, TabsPanel, TabsTab } from './tabs'
 
 function Example() {
   return (
     <Tabs defaultValue="one">
       <TabsList aria-label="Sections">
-        <TabsTab value="one">
-          One <TabCount data-testid="count">3</TabCount>
-        </TabsTab>
+        <TabsTab value="one">One</TabsTab>
         <TabsTab value="two">Two</TabsTab>
       </TabsList>
       <TabsPanel value="one">first</TabsPanel>
@@ -51,12 +49,5 @@ describe('Tabs', () => {
   it('draws the list as a muted track', () => {
     render(<Example />)
     expect(screen.getByRole('tablist')).toHaveClass('bg-muted', 'p-1')
-  })
-})
-
-describe('TabCount', () => {
-  it('is a card chip by default and soft blue inside the active tab', () => {
-    render(<Example />)
-    expect(screen.getByTestId('count')).toHaveClass('bg-card', 'group-data-active:bg-primary-soft')
   })
 })

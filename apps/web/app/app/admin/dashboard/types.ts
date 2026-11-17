@@ -21,7 +21,6 @@ export type DashboardStudent = {
   avgScore: number | null
   mastery: number
   isActive: boolean
-  hasRecentActivity: boolean
 }
 
 export type DashboardFilters = {

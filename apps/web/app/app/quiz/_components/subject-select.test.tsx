@@ -189,33 +189,29 @@ function expectFieldLabel(el: HTMLElement) {
   expect(el.className).not.toContain('text-[13px]')
 }
 
-describe('SubjectSelect label and code chip', () => {
+describe('SubjectSelect label and code', () => {
   it('styles "Subject" as a muted field label', () => {
     render(<SubjectSelect subjects={SUBJECTS} value="" onValueChange={vi.fn()} />)
     expectFieldLabel(screen.getByText('Subject'))
   })
 
-  it('renders the selected trigger code as a code-chip without bg-primary/15', () => {
+  it('renders the selected trigger code as muted text, not a chip', () => {
     const { container } = render(
       <SubjectSelect subjects={SUBJECTS} value="sub-1" onValueChange={vi.fn()} />,
     )
-    const chips = container.querySelectorAll('[data-slot=code-chip]')
-    expect(chips.length).toBeGreaterThan(0)
-    for (const c of chips) expect(c.className).not.toContain('bg-primary/15')
+    expect(container.querySelector('[data-slot=code-chip]')).toBeNull()
+    expect(container.innerHTML).not.toContain('bg-primary/15')
   })
 
-  it('renders the selected row code as a code-chip with the row keeping border-l-primary', async () => {
+  it('keeps border-l-primary on the selected row', async () => {
     const user = userEvent.setup()
-    const { container } = render(
-      <SubjectSelect subjects={SUBJECTS} value="sub-1" onValueChange={vi.fn()} />,
-    )
+    render(<SubjectSelect subjects={SUBJECTS} value="sub-1" onValueChange={vi.fn()} />)
     await user.click(screen.getByTestId('collapsible-trigger'))
     const row = screen
       .getAllByTestId('subject-option')
       .find((el) => el.textContent?.includes('Air Law'))
-    expect(row?.querySelector('[data-slot=code-chip]')).not.toBeNull()
+    expect(row?.querySelector('[data-slot=code-chip]')).toBeNull()
     expect(row?.className).toContain('border-l-primary')
-    expect(container.innerHTML).not.toContain('bg-primary/15')
   })
 })
 

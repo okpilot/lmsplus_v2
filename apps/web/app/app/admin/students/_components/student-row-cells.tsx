@@ -1,6 +1,6 @@
 'use client'
 
-import { Badge } from '@/components/ui/badge'
+import { StatusText } from '@/components/kit/status-text'
 import { Checkbox } from '@/components/ui/checkbox'
 import { TableCell } from '@/components/ui/table'
 import { formatUtc } from '@/lib/utils/format-utc'
@@ -19,17 +19,9 @@ function formatDate(iso: string) {
   )
 }
 
-function TagBadges({ tags }: Readonly<{ tags: { id: string; label: string }[] }>) {
+function TagList({ tags }: Readonly<{ tags: { id: string; label: string }[] }>) {
   if (tags.length === 0) return <span className="text-muted-foreground">—</span>
-  return (
-    <div className="flex flex-wrap gap-1">
-      {tags.map((tag) => (
-        <Badge key={tag.id} tone="neutral">
-          {tag.label}
-        </Badge>
-      ))}
-    </div>
-  )
+  return <span className="text-muted-foreground">{tags.map((tag) => tag.label).join(', ')}</span>
 }
 
 type SelectProps = {
@@ -67,11 +59,11 @@ export function MembershipCells({ student: s, courses, groups }: Readonly<Member
     .map((g) => ({ id: g.id, label: g.name }))
   return (
     <>
-      <TableCell>
-        <TagBadges tags={courseTags} />
+      <TableCell className="whitespace-normal">
+        <TagList tags={courseTags} />
       </TableCell>
-      <TableCell>
-        <TagBadges tags={groupTags} />
+      <TableCell className="whitespace-normal">
+        <TagList tags={groupTags} />
       </TableCell>
     </>
   )
@@ -82,9 +74,9 @@ export function ActivityCells({ student: s }: Readonly<{ student: StudentRow }>)
     <>
       <TableCell>
         {s.deleted_at === null ? (
-          <Badge tone="success">Active</Badge>
+          <StatusText label="Active" />
         ) : (
-          <Badge tone="neutral">Inactive</Badge>
+          <StatusText label="Inactive" className="text-muted-foreground" />
         )}
       </TableCell>
       <TableCell className="text-caption tabular-nums text-muted-foreground">

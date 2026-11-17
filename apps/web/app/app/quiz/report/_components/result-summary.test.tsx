@@ -293,19 +293,19 @@ describe('ResultSummary', () => {
       expect(screen.getByText('Internal Exam Complete')).toBeInTheDocument()
     })
 
-    it('shows the pass/fail badge for internal_exam mode', () => {
+    it('shows the pass/fail status for internal_exam mode', () => {
       render(<ResultSummary summary={makeSummary({ mode: 'internal_exam', passed: false })} />)
-      expect(screen.getByText('FAILED')).toBeInTheDocument()
+      expect(screen.getByText('Failed')).toBeInTheDocument()
     })
 
-    it('renders FAILED as a danger badge and PASSED as a success badge', () => {
+    it('renders Failed with a danger symbol and Passed with a success symbol', () => {
       const { rerender } = render(
         <ResultSummary summary={makeSummary({ mode: 'internal_exam', passed: false })} />,
       )
-      expect(screen.getByText('FAILED')).toHaveAttribute('data-slot', 'badge')
-      expect(screen.getByText('FAILED')).toHaveClass('bg-danger-soft')
+      expect(screen.getByText('Failed')).toBeInTheDocument()
+      expect(screen.getByText('Failed').querySelector('svg')).toHaveClass('text-danger')
       rerender(<ResultSummary summary={makeSummary({ mode: 'internal_exam', passed: true })} />)
-      expect(screen.getByText('PASSED')).toHaveClass('bg-success-soft')
+      expect(screen.getByText('Passed').querySelector('svg')).toHaveClass('text-success')
     })
 
     it('renders each summary label and value together in a shared stat', () => {

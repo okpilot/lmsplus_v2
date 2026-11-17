@@ -107,26 +107,26 @@ describe('CommentsTab', () => {
     expect(screen.getByText('Alice')).toBeInTheDocument()
   })
 
-  it('shows the LMS Plus badge for admin comments', () => {
+  it('shows the LMS Plus mark as muted text for admin comments', () => {
     mockUseComments.mockReturnValue(
       defaultHookState({
         comments: [makeComment('c-1', { role: 'admin', full_name: 'Instructor' })],
       }),
     )
     render(<CommentsTab questionId="q-1" currentUserId={CURRENT_USER_ID} />)
-    expect(screen.getByText('LMS Plus')).toBeInTheDocument()
-    expect(screen.getByText('LMS Plus')).toHaveAttribute('data-slot', 'badge')
-    expect(screen.getByText('LMS Plus').className).toContain('bg-info-soft')
+    expect(screen.getByText('· LMS Plus')).toBeInTheDocument()
+    expect(screen.getByText('· LMS Plus')).not.toHaveAttribute('data-slot', 'badge')
+    expect(screen.getByText('· LMS Plus').className).toContain('text-muted-foreground')
   })
 
-  it('does not show LMS Plus badge for student comments', () => {
+  it('does not show LMS Plus mark for student comments', () => {
     mockUseComments.mockReturnValue(
       defaultHookState({
         comments: [makeComment('c-1', { role: 'student' })],
       }),
     )
     render(<CommentsTab questionId="q-1" currentUserId={CURRENT_USER_ID} />)
-    expect(screen.queryByText('LMS Plus')).not.toBeInTheDocument()
+    expect(screen.queryByText('· LMS Plus')).not.toBeInTheDocument()
   })
 
   it('shows Delete button only for comments owned by the current user', () => {

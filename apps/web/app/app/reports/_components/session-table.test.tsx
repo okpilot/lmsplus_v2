@@ -117,20 +117,14 @@ describe('SessionTable', () => {
     expect(screen.getByText('\u2014')).toBeInTheDocument()
   })
 
-  it('renders a Practice Exam badge for mock_exam mode', () => {
+  it('renders Practice Exam as plain text for mock_exam mode', () => {
     render(<SessionTable {...SORT_PROPS} sessions={[makeSession({ mode: 'mock_exam' })]} />)
-    expect(screen.getByText('Practice Exam')).toHaveClass('bg-caution-soft', 'text-caution')
+    expect(screen.getByText('Practice Exam')).not.toHaveClass('bg-caution-soft')
   })
 
-  it('renders the exam badge uppercase', () => {
-    render(<SessionTable {...SORT_PROPS} sessions={[makeSession({ mode: 'mock_exam' })]} />)
-    expect(screen.getByText('Practice Exam')).toHaveClass('uppercase')
-    expect(screen.getByText('Practice Exam').className).not.toMatch(/\btracking-/)
-  })
-
-  it('renders an Internal Exam badge for internal_exam mode', () => {
+  it('renders Internal Exam as plain text for internal_exam mode', () => {
     render(<SessionTable {...SORT_PROPS} sessions={[makeSession({ mode: 'internal_exam' })]} />)
-    expect(screen.getByText('Internal Exam')).toHaveClass('bg-caution-soft', 'text-caution')
+    expect(screen.getByText('Internal Exam')).not.toHaveClass('bg-caution-soft')
   })
 
   it('renders mode label for non-exam modes', () => {
