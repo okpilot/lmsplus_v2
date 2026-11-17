@@ -169,3 +169,107 @@ describe('AC-55 SittingPeopleQuerySchema', () => {
     expect(parse('SittingPeopleQuerySchema', { sittingId: SID, page: 1.5 }).success).toBe(false)
   })
 })
+
+describe('AC-65 AddSittingEntriesSchema', () => {
+  const pairs = (n: number) => ({
+    userIds: Array.from({ length: n }, (_, i) => uid(1000 + (i % 500))),
+    subjectIds: Array.from({ length: n }, (_, i) => uid(5000 + Math.floor(i / 500))),
+  })
+  it('accepts equal-length arrays of up to 1000 distinct pairs', () => {
+    expect(
+      parse('AddSittingEntriesSchema', {
+        sittingId: SID,
+        userIds: [uid(10), uid(10)],
+        subjectIds: [uid(20), uid(21)],
+      }).success,
+    ).toBe(true)
+    expect(parse('AddSittingEntriesSchema', { sittingId: SID, ...pairs(1000) }).success).toBe(true)
+  })
+  it('rejects unequal lengths and empty arrays', () => {
+    expect(
+      parse('AddSittingEntriesSchema', { sittingId: SID, userIds: [uid(10)], subjectIds: [] })
+        .success,
+    ).toBe(false)
+    expect(
+      parse('AddSittingEntriesSchema', { sittingId: SID, userIds: [], subjectIds: [] }).success,
+    ).toBe(false)
+  })
+  it('rejects 1001 pairs, duplicate pairs and non-uuid ids', () => {
+    expect(parse('AddSittingEntriesSchema', { sittingId: SID, ...pairs(1001) }).success).toBe(false)
+    expect(
+      parse('AddSittingEntriesSchema', {
+        sittingId: SID,
+        userIds: [uid(10), uid(10)],
+        subjectIds: [uid(20), uid(20)],
+      }).success,
+    ).toBe(false)
+    expect(
+      parse('AddSittingEntriesSchema', { sittingId: SID, userIds: ['x'], subjectIds: [uid(20)] })
+        .success,
+    ).toBe(false)
+    expect(
+      parse('AddSittingEntriesSchema', { sittingId: SID, userIds: [uid(10)], subjectIds: ['x'] })
+        .success,
+    ).toBe(false)
+  })
+})
+
+describe('AC-66 IssueSittingCodesSchema', () => {
+  it('accepts omitted userIds and entryIds', () => {
+    expect(parse('IssueSittingCodesSchema', { sittingId: SID }).success).toBe(true)
+  })
+  it('accepts 1..500 ids and rejects empty, 501 and duplicates', () => {
+    for (const key of ['userIds', 'entryIds']) {
+      expect(parse('IssueSittingCodesSchema', { sittingId: SID, [key]: ids(500) }).success).toBe(
+        true,
+      )
+      expect(parse('IssueSittingCodesSchema', { sittingId: SID, [key]: [] }).success).toBe(false)
+      expect(parse('IssueSittingCodesSchema', { sittingId: SID, [key]: ids(501) }).success).toBe(
+        false,
+      )
+      expect(
+        parse('IssueSittingCodesSchema', { sittingId: SID, [key]: [uid(7), uid(7)] }).success,
+      ).toBe(false)
+    }
+  })
+})
+
+describe('AC-67 SubjectEligibilityQuerySchema', () => {
+  it('accepts omitted userIds and 1..100 distinct ids', () => {
+    expect(parse('SubjectEligibilityQuerySchema', { sittingId: SID }).success).toBe(true)
+    expect(
+      parse('SubjectEligibilityQuerySchema', { sittingId: SID, userIds: ids(100) }).success,
+    ).toBe(true)
+  })
+  it('rejects empty, 101 and duplicate ids', () => {
+    expect(parse('SubjectEligibilityQuerySchema', { sittingId: SID, userIds: [] }).success).toBe(
+      false,
+    )
+    expect(
+      parse('SubjectEligibilityQuerySchema', { sittingId: SID, userIds: ids(101) }).success,
+    ).toBe(false)
+    expect(
+      parse('SubjectEligibilityQuerySchema', { sittingId: SID, userIds: [uid(7), uid(7)] }).success,
+    ).toBe(false)
+  })
+})
+
+describe('AC-68 RosterQuerySchema', () => {
+  it('trims q and caps it at 100', () => {
+    const ok = parse('RosterQuerySchema', { sittingId: SID, q: `  ${'a'.repeat(100)}  ` })
+    expect(ok.success).toBe(true)
+    expect(ok.data?.q).toBe('a'.repeat(100))
+    expect(parse('RosterQuerySchema', { sittingId: SID, q: 'a'.repeat(101) }).success).toBe(false)
+  })
+  it('requires an integer page >= 1', () => {
+    expect(parse('RosterQuerySchema', { sittingId: SID, page: 1 }).success).toBe(true)
+    expect(parse('RosterQuerySchema', { sittingId: SID, page: 0 }).success).toBe(false)
+    expect(parse('RosterQuerySchema', { sittingId: SID, page: 1.5 }).success).toBe(false)
+  })
+  it('allow-lists show (all, needs_code, not_emailed, has_attempts)', () => {
+    for (const show of ['all', 'needs_code', 'not_emailed', 'has_attempts']) {
+      expect(parse('RosterQuerySchema', { sittingId: SID, show }).success).toBe(true)
+    }
+    expect(parse('RosterQuerySchema', { sittingId: SID, show: 'x' }).success).toBe(false)
+  })
+})
