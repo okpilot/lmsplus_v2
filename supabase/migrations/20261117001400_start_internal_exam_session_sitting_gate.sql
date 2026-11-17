@@ -51,7 +51,7 @@ BEGIN
 
   SELECT e.sitting_id INTO v_pre_sitting
   FROM public.internal_exam_codes iec
-  JOIN public.exam_sitting_entries e ON e.id = iec.sitting_entry_id
+  JOIN public.exam_sitting_entries e ON e.id = iec.sitting_entry_id AND e.deleted_at IS NULL
   WHERE iec.code = p_code
     AND iec.student_id = v_student_id
     AND iec.organization_id = v_org_id
@@ -96,7 +96,7 @@ BEGIN
     RAISE EXCEPTION 'code_not_yours';
   END IF;
 
-  -- Entry present but no sitting locked: code issued after the pre-read.
+  -- Entry present but no sitting locked: entry removed, or code issued after the pre-read.
   IF v_code_entry IS NOT NULL AND v_sitting_id IS NULL THEN
     RAISE EXCEPTION 'code_not_found';
   END IF;
@@ -108,8 +108,6 @@ BEGIN
   IF v_code_subject NOT IN (SELECT private.accessible_subject_ids()) THEN
     RAISE EXCEPTION 'not_enrolled';
   END IF;
-
-  PERFORM private.sitting_redeem_gate(v_code_entry, v_student_id, v_code_subject, v_sitting_status, v_sitting_at);
 
   -- Auto-complete any same-subject internal_exam past +30s grace.
   -- All quiz_sessions columns aliased as qs.* — the function's RETURNS TABLE
@@ -130,6 +128,9 @@ BEGIN
   IF v_old_session_id IS NOT NULL THEN
     PERFORM public.complete_overdue_exam_session(v_old_session_id);
   END IF;
+
+  -- After the overdue auto-complete so a pass it records counts; a raise rolls it back.
+  PERFORM private.sitting_redeem_gate(v_code_entry, v_student_id, v_code_subject, v_sitting_status, v_sitting_at);
 
   -- Single-active-session invariant (#1011, mig 136): at most one active session
   -- per student across all modes.
