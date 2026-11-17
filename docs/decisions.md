@@ -232,5 +232,4 @@
 ## 237 — 2026-11-15 — Deactivated students keep their `student_group_members` rows (graduates stay in their groups); the Groups tab shows Active and Deactivated member counts. #1776 #1788
 ## 238 — 2026-11-16 — Biome noRestrictedElements also bans raw `<select>` and `<textarea>` (use Select, Textarea). #1797
 ## 239 — 2026-11-17 — No chips anywhere: attributes are plain text, status is text (`StatusText`), colour only on a symbol (CircleCheck goal, CircleAlert attention); `Badge`, `CodeChip`, `ChoicePills`, `TabCount` and the `h-chip` size are deleted; interactive pills are existing controls (Switch, FilterSelect). #1433
-## 240 — 2026-11-17 — Per-person detail in tables is an expandable row (chevron disclosure, detail row spanning the table); no side panel and no dialog. #1777
-## 241 — 2026-11-17 — A list's status filter is a dropdown (`FilterSelect`) in the list toolbar, not tabs or pills. #1777
+## 240 — 2026-11-17 — A list's status filter is a dropdown in the list toolbar, not tabs or pills. #1777
