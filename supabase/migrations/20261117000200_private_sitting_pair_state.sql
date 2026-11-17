@@ -21,7 +21,8 @@ AS $$
   sess AS (
     SELECT qs.id, qs.student_id, qs.subject_id, qs.ended_at, qs.passed, qs.score_percentage,
            EXISTS (SELECT 1 FROM public.internal_exam_codes c
-                    WHERE c.consumed_session_id = qs.id AND c.voided_at IS NOT NULL) AS voided
+                    WHERE c.consumed_session_id = qs.id AND c.voided_at IS NOT NULL
+                      AND c.deleted_at IS NULL) AS voided
       FROM public.quiz_sessions qs
      WHERE qs.organization_id = p_org AND qs.mode = 'internal_exam' AND qs.deleted_at IS NULL
        AND qs.student_id = ANY(p_user_ids) AND qs.subject_id = ANY(p_subject_ids)
@@ -57,7 +58,8 @@ AS $$
        AND s2.status IN ('scheduled', 'open') AND NOT private.sitting_day_ended(s2.scheduled_at)
        AND NOT EXISTS (SELECT 1 FROM public.internal_exam_codes c
                          JOIN public.quiz_sessions q ON q.id = c.consumed_session_id
-                        WHERE c.sitting_entry_id = e.id AND q.ended_at IS NOT NULL)
+                        WHERE c.sitting_entry_id = e.id AND q.ended_at IS NOT NULL
+                          AND c.deleted_at IS NULL AND q.deleted_at IS NULL)
      ORDER BY e.user_id, e.subject_id, s2.scheduled_at, s2.id
   )
   SELECT pr.uid, pr.sid,

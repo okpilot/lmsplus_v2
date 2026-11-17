@@ -838,6 +838,11 @@ describe('RPC: list_exam_sitting_roster', () => {
       emailed: true,
       consumedBy: await w.session(w.s4, w.subA, { ended: true, passed: false }),
     })
+    // unemailed but expired (s3) or consumed (s4): not left to email
+    await w.code(await w.enter(sit, w.s3, w.subB), { expired: true })
+    await w.code(await w.enter(sit, w.s4, w.subB), {
+      consumedBy: await w.session(w.s4, w.subB, { ended: true, passed: false }),
+    })
     const ids = async (show: string, o: Record<string, unknown> = {}) =>
       rrows(await roster(sit, { p_show: show, ...o })).map((r) => r.user_id)
     expect(await ids('all')).toHaveLength(4)

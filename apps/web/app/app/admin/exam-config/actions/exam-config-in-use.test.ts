@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { examConfigWriteError } from './exam-config-in-use'
 
 const REFUSAL =
-  'This exam is used by a scheduled or open sitting. Close or cancel that sitting, or remove its candidates for this subject, before disabling the exam.'
+  'This exam is used by a scheduled or open sitting. Close or cancel that sitting, or remove this subject from its candidates, before disabling the exam.'
 
 describe('examConfigWriteError', () => {
   it('explains how to release an exam configuration used by a sitting', () => {
