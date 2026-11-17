@@ -622,7 +622,7 @@ describe('RPC: get_exam_sitting_issue_preview', () => {
     )
   })
 
-  it('AC-32: with nothing changed the counts equal the issue counts except passed, which issue prunes first', async () => {
+  it('AC-32: with nothing changed the counts equal the issue counts, pruned passed entries included', async () => {
     const sit = await w.sitting({ day: 1 })
     await mixed(sit)
     const s5 = await extraUser(w, 'prev-s5', 'student')
@@ -631,7 +631,7 @@ describe('RPC: get_exam_sitting_issue_preview', () => {
     const rs = prows(await preview(sit))
     expect(countOfReason(rs, 'passed')).toBe(1)
     const r = rowOf(must(await issue(sit), 'issue'))
-    expect(r.skipped_passed).toBe(0)
+    expect(r.skipped_passed).toBe(countOfReason(rs, 'passed'))
     expect(r.issued).toBe(countOfReason(rs, 'issue') + countOfReason(rs, 'reissue_after_expiry'))
     expect(r.reissued_after_expiry).toBe(countOfReason(rs, 'reissue_after_expiry'))
     expect(r.skipped_already_issued).toBe(countOfReason(rs, 'already_issued'))
