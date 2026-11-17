@@ -11,7 +11,7 @@ DECLARE
   v_ids uuid[];
   v_n int := 0;
 BEGIN
-  -- security.md §15 exception (b): cancelled sittings are soft-deleted and stay readable
+  -- security.md §15 exception (g): cancelled sittings are soft-deleted and stay readable
   PERFORM 1 FROM public.exam_sittings s
    WHERE s.id = p_sitting_id AND s.organization_id = p_org FOR UPDATE;
   SELECT COALESCE(array_agg(e.id), '{}') INTO v_ids

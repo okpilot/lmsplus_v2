@@ -10,7 +10,7 @@ DECLARE
   v_g record;
 BEGIN
   SELECT * INTO v_g FROM private.sitting_admin_guard();
-  -- security.md §15 exception (b): cancelled sittings are soft-deleted and stay readable
+  -- security.md §15 exception (g): cancelled sittings are soft-deleted and stay readable
   PERFORM 1 FROM public.exam_sittings s WHERE s.id = p_sitting_id AND s.organization_id = v_g.org_id;
   IF NOT FOUND THEN RAISE EXCEPTION 'sitting_not_found'; END IF;
   RETURN QUERY

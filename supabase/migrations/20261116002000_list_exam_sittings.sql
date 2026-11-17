@@ -39,7 +39,7 @@ BEGIN
                               AND c.deleted_at IS NULL)),
          s.ended_automatically,
          count(*) OVER ()
-    -- security.md §15 exception (b): cancelled sittings are soft-deleted and stay readable
+    -- security.md §15 exception (g): cancelled sittings are soft-deleted and stay readable
     FROM public.exam_sittings s
     -- security.md §15 exception (f)
     LEFT JOIN public.users iu ON iu.id = s.invigilator_id

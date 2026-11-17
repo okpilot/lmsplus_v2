@@ -17,7 +17,7 @@ DECLARE
   v_absent int := 0;
   v_emailed int := 0;
 BEGIN
-  -- security.md §15 exception (b): cancelled sittings are soft-deleted and stay readable
+  -- security.md §15 exception (g): cancelled sittings are soft-deleted and stay readable
   SELECT * INTO v_s FROM public.exam_sittings s WHERE s.id = p_sitting_id FOR UPDATE;
   IF NOT FOUND OR v_s.status IN ('closed', 'cancelled') THEN
     RETURN QUERY SELECT 'noop'::text, NULL::timestamptz, 0, 0, 0;
