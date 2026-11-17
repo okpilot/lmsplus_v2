@@ -38,6 +38,12 @@ describe('exam sitting function privileges', () => {
     'get_exam_sitting_group_add_counts',
     'get_exam_sitting_same_day_people',
     'record_exam_sitting_notice',
+    'add_exam_sitting_entries',
+    'issue_sitting_exam_codes',
+    'get_exam_sitting_issue_preview',
+    'get_exam_sitting_subject_eligibility',
+    'list_exam_sitting_roster',
+    'list_exam_sitting_removed_entries',
   ]
   const PRIVATE_FNS = [
     'sitting_day_end',
@@ -53,6 +59,9 @@ describe('exam sitting function privileges', () => {
     'close_exam_sitting_core',
     'close_expired_sittings',
     'trg_exam_config_sitting_block',
+    'insert_internal_exam_code',
+    'sitting_pair_state',
+    'add_sitting_entries_core',
   ]
   const list = (names: string[]) => names.map((n) => `'${n}'`).join(',')
 
@@ -93,12 +102,19 @@ describe('exam sitting function privileges', () => {
       'get_exam_sitting_same_day_people',
       'get_pending_removal_notices',
       'sitting_issue_plan',
+      'get_exam_sitting_subject_eligibility',
+      'list_exam_sitting_roster',
+      'list_exam_sitting_removed_entries',
+      'get_exam_sitting_issue_preview',
+      'sitting_pair_state',
     ]
     const volatile = [
       'list_exam_sittings',
       'get_exam_sitting_summary',
       'start_exam_sitting',
       'list_my_active_internal_exam_codes',
+      'add_exam_sitting_entries',
+      'issue_sitting_exam_codes',
     ]
     const q = (names: string[]) =>
       psql(`SELECT DISTINCT p.provolatile FROM pg_proc p WHERE p.proname IN (${list(names)});`).out
