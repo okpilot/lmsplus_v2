@@ -576,4 +576,27 @@ describe('pending notices for an auto-cancelled sitting', () => {
     )
     expect(await pending(sit)).not.toContain(w.s1)
   })
+
+  it('a changed notice for the code of a removed entry is invalid_input; only sitting_cancelled skips the filter', async () => {
+    const sit = await w.sitting({ day: 1 })
+    const entry = await w.enter(sit, w.s1, w.subA)
+    const c1 = await w.code(entry, { emailed: true })
+    must(
+      await admin
+        .from('exam_sitting_entries')
+        .update({ deleted_at: now() })
+        .eq('id', entry)
+        .is('deleted_at', null)
+        .select('id'),
+      'remove entry',
+    )
+    expectToken(
+      await w.clients.a1.rpc('record_exam_sitting_notice', {
+        p_sitting_id: sit,
+        p_kind: 'changed',
+        p_code_ids: [c1],
+      }),
+      'invalid_input',
+    )
+  })
 })
