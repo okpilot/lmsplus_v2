@@ -1,6 +1,6 @@
 # Red Team — Attack Surface Map
 
-> Last updated: 2026-11-17 (#1777: MI–ML exam sitting rows)
+> Last updated: 2026-11-17 (#1777: MH–ML exam sitting rows)
 
 > `answer_matches`: EXECUTE revoked from PUBLIC, anon, authenticated; granted to service_role.
 
