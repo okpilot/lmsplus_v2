@@ -1,5 +1,5 @@
 -- people of this sitting who also hold a live entry in another scheduled/open sitting on the same UTC day.
--- p_user_ids NULL = every live candidate (<=500); explicit: no NULL element, <=100 distinct ids, non-candidates dropped.
+-- p_user_ids NULL = every live candidate (<=500); explicit: no NULL element, <=100 distinct ids, non-candidates dropped; none a candidate → invalid_input.
 CREATE OR REPLACE FUNCTION public.get_exam_sitting_same_day_people(p_sitting_id uuid, p_user_ids uuid[] DEFAULT NULL)
 RETURNS TABLE(user_id uuid, full_name text, sitting_id uuid, scheduled_at timestamptz)
 LANGUAGE plpgsql
