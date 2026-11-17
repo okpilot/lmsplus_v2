@@ -302,7 +302,7 @@ test.describe('Admin Student Management — Deactivate / Reactivate', () => {
       .getByTestId('tabpanel-students')
       .locator('tbody tr')
       .filter({ hasText: fullName })
-    await expect(restoredRow.getByText('Active')).toBeVisible({ timeout: 10_000 })
+    await expect(restoredRow.getByText('Active', { exact: true })).toBeVisible({ timeout: 10_000 })
 
     // Reactivation must also UNBAN the auth user, not just clear deleted_at. Without
     // this check the test would pass even if reactivation stopped unbanning accounts.
@@ -407,7 +407,7 @@ test.describe('Admin Student Management — Filters', () => {
     const count = await rows.count()
     if (count > 0) {
       for (let i = 0; i < count; i++) {
-        await expect(rows.nth(i).getByText('Active')).toBeVisible()
+        await expect(rows.nth(i).getByText('Active', { exact: true })).toBeVisible()
       }
     }
   })
