@@ -80,14 +80,15 @@ BEGIN
                SELECT e.id AS entry_id, e.subject_id, sj.short, sj.name AS sname, sj.course_id, co.name AS course_name,
                       sj.sort_order,
                       CASE WHEN lc.consumed_at IS NOT NULL AND lc.voided_at IS NOT NULL THEN 'voided_attempt'
-                           WHEN lc.consumed_at IS NOT NULL THEN CASE WHEN q.ended_at IS NULL THEN 'running' ELSE 'finished' END
+                           WHEN lc.consumed_at IS NOT NULL THEN CASE WHEN q.id IS NULL THEN 'discarded'
+                                                                     WHEN q.ended_at IS NULL THEN 'running' ELSE 'finished' END
                            WHEN v_s.status = 'closed' THEN 'absent'
                            WHEN lc.id IS NULL THEN 'no_code'
                            WHEN lc.voided_at IS NOT NULL THEN 'voided'
                            WHEN lc.expires_at <= now() THEN 'expired'
                            WHEN v_s.status = 'scheduled' THEN 'waiting'
                            ELSE 'ready' END AS status,
-                      CASE WHEN lc.consumed_at IS NOT NULL AND lc.voided_at IS NOT NULL THEN NULL
+                      CASE WHEN lc.consumed_at IS NOT NULL AND (lc.voided_at IS NOT NULL OR q.id IS NULL) THEN NULL
                            WHEN lc.consumed_at IS NOT NULL THEN
                              (SELECT count(*)::int FROM public.quiz_sessions q2
                                WHERE q2.student_id = e.user_id AND q2.subject_id = e.subject_id AND q2.organization_id = v_g.org_id

@@ -46,15 +46,14 @@ BEGIN
   SELECT count(*) INTO v_n FROM public.internal_exam_codes c
     JOIN public.exam_sitting_entries e ON e.id = c.sitting_entry_id
    WHERE c.id = ANY(v_codes) AND e.sitting_id = p_sitting_id AND c.organization_id = v_g.org_id
-     -- security.md §15 exception (g): sitting_cancelled codes belong to soft-deleted entries
-     AND (p_kind = 'sitting_cancelled' OR (c.deleted_at IS NULL AND e.deleted_at IS NULL));
+     AND c.deleted_at IS NULL AND e.deleted_at IS NULL
+     AND (p_kind <> 'sitting_cancelled' OR c.void_reason = 'sitting_cancelled');
   IF v_n <> cardinality(v_codes) THEN RAISE EXCEPTION 'invalid_input'; END IF;
   INSERT INTO public.audit_events
     (organization_id, actor_id, actor_role, event_type, resource_type, resource_id, metadata)
   SELECT v_g.org_id, v_g.admin_id, v_g.admin_role, 'exam_sitting.notice_emailed', 'exam_sitting', p_sitting_id,
          jsonb_build_object('kind', p_kind, 'code_id', c.id, 'student_id', c.student_id)
-    FROM public.internal_exam_codes c WHERE c.id = ANY(v_codes)
-     AND (p_kind = 'sitting_cancelled' OR c.deleted_at IS NULL);
+    FROM public.internal_exam_codes c WHERE c.id = ANY(v_codes) AND c.deleted_at IS NULL;
   RETURN v_n;
 END;
 $$;
