@@ -176,32 +176,6 @@ describe('getDashboardStudents', () => {
     expect(students[0]?.isActive).toBe(false)
   })
 
-  it('flags recent activity when last_active_at is within the past 7 days', async () => {
-    const recentDate = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
-    mockStudentsRpc([makeRpcRow({ last_active_at: recentDate })])
-
-    const { students } = await getDashboardStudents(BASE_FILTERS)
-
-    expect(students[0]?.hasRecentActivity).toBe(true)
-  })
-
-  it('does not flag recent activity when last_active_at is older than 7 days', async () => {
-    const oldDate = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString()
-    mockStudentsRpc([makeRpcRow({ last_active_at: oldDate })])
-
-    const { students } = await getDashboardStudents(BASE_FILTERS)
-
-    expect(students[0]?.hasRecentActivity).toBe(false)
-  })
-
-  it('does not flag recent activity when last_active_at is null', async () => {
-    mockStudentsRpc([makeRpcRow({ last_active_at: null })])
-
-    const { students } = await getDashboardStudents(BASE_FILTERS)
-
-    expect(students[0]?.hasRecentActivity).toBe(false)
-  })
-
   // -- totalCount (count(*) OVER() window) --
 
   it('reads totalCount from the first row total_count, the same on every row', async () => {

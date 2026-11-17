@@ -102,7 +102,7 @@ describe('RecentActivityList', () => {
 
   it('displays the session mode as muted text', () => {
     render(<RecentActivityList sessions={[makeSession({ mode: 'quick_quiz' })]} />)
-    expect(screen.getByText('quick_quiz')).toBeInTheDocument()
+    expect(screen.getByText('Study')).toBeInTheDocument()
   })
 
   it('displays the score percentage rounded when scorePercentage is a number', () => {

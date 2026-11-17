@@ -33,13 +33,12 @@ export function QuizTabs({
         <TabsTab value="saved" id="tab-saved" data-testid="tab-saved">
           {savedLabel}
           {draftCount != null && draftCount > 0 && (
-            <span
-              data-testid="draft-count-badge"
-              className="ml-1.5 text-muted-foreground tabular-nums"
-            >
-              {draftCount}
-              <span className="sr-only"> drafts</span>
-            </span>
+            <>
+              {' '}
+              <span data-testid="draft-count-badge" className="text-muted-foreground tabular-nums">
+                {draftCount}
+              </span>
+            </>
           )}
         </TabsTab>
       </TabsList>

@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { Card, CardContent, CardListRow } from '@/components/ui/card'
 import { EmptyNote } from '@/components/ui/empty'
 import { Heading } from '@/components/ui/heading'
+import { modeLabel } from '@/lib/constants/exam-modes'
 import { scoreColor } from '@/lib/utils/score-color'
 import type { RecentSession } from '../types'
 import { formatRelativeTime } from './student-table-helpers'
@@ -44,7 +45,7 @@ function ActivityRow({ session }: Readonly<{ session: RecentSession }>) {
         </p>
       </div>
       <div className="shrink-0 flex items-center gap-2">
-        <span className="text-caption text-muted-foreground capitalize">{session.mode}</span>
+        <span className="text-caption text-muted-foreground">{modeLabel(session.mode)}</span>
         <ActivityScore score={session.scorePercentage} />
         <span className="text-caption text-muted-foreground whitespace-nowrap">
           {formatRelativeTime(session.endedAt)}

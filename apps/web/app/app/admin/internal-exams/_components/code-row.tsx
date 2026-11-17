@@ -14,14 +14,6 @@ function displayStatus(row: InternalExamCodeRow): DisplayStatus {
   return row.status
 }
 
-const STATUS_TONE: Record<DisplayStatus, 'neutral' | 'success' | 'danger'> = {
-  active: 'neutral',
-  consumed: 'neutral',
-  finished: 'neutral',
-  voided: 'neutral',
-  expired: 'neutral',
-}
-
 const STATUS_MUTED: ReadonlySet<DisplayStatus> = new Set(['expired', 'voided'])
 
 function formatAbsolute(iso: string | null): string {
@@ -44,7 +36,6 @@ export function CodeRow({
       <TableCell>
         <StatusText
           label={ds.charAt(0).toUpperCase() + ds.slice(1)}
-          tone={STATUS_TONE[ds]}
           className={STATUS_MUTED.has(ds) ? 'text-muted-foreground' : undefined}
         />
       </TableCell>

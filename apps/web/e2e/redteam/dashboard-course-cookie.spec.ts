@@ -135,8 +135,8 @@ test.describe('Red Team: dashboard course cookie + selectDashboardCourse (KS, KT
     const full = await openSignedIn(browser, FULL_EMAIL, fullId)
     fullCtx = full.ctx
     const { watch } = full
-    const chips = full.page.getByRole('group', { name: 'Course' })
-    await chips.getByRole('button', { name: 'RT' }).click()
+    await full.page.getByRole('combobox', { name: 'Course' }).click()
+    await full.page.getByRole('option', { name: 'RT' }).click()
     await expect.poll(() => watch.headers() !== undefined, { timeout: 15_000 }).toBe(true)
     await expect.poll(() => courseCookie(fullCtx), { timeout: 15_000 }).toBe('VFR_RT')
     const ids = await watch.settle()
@@ -171,7 +171,7 @@ test.describe('Red Team: dashboard course cookie + selectDashboardCourse (KS, KT
     const page = await rtOnlyCtx.newPage()
     await page.goto(DASHBOARD)
     await expect(page.getByRole('main')).toBeVisible()
-    await expect(page.getByRole('group', { name: 'Course' })).toHaveCount(0)
+    await expect(page.getByRole('combobox', { name: 'Course' })).toHaveCount(0)
     await page.close()
 
     // CONTROL: the cookie is honoured for an enrolled student, both ways.

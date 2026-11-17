@@ -87,7 +87,6 @@ function buildStudent(overrides: Partial<DashboardStudent> = {}): DashboardStude
     avgScore: 75,
     mastery: 70,
     isActive: true,
-    hasRecentActivity: true,
     ...overrides,
   }
 }
@@ -322,7 +321,6 @@ describe('StudentRow hydration', () => {
     avgScore: 50,
     mastery: 50,
     isActive: true,
-    hasRecentActivity: false,
   })
 
   function Tree() {

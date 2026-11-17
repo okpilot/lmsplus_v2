@@ -33,6 +33,11 @@ describe('QuizTabs', () => {
     expect(screen.getByTestId('saved-draft')).toBeInTheDocument()
   })
 
+  it('reads the saved tab accessible name with the count after a space', () => {
+    renderTabs(3)
+    expect(screen.getByRole('tab', { name: /^Saved .+ 3$/ })).toBeInTheDocument()
+  })
+
   it('shows badge with count when draftCount > 0', () => {
     renderTabs(3)
     expect(screen.getByTestId('draft-count-badge')).toHaveTextContent('3')

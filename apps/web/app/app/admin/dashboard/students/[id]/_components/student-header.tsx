@@ -3,12 +3,18 @@ import { PageHeader } from '@/components/ui/heading'
 import { formatRelativeTime } from '../../../_components/student-table-helpers'
 import type { StudentDetail } from '../../../types'
 
+const ROLE_LABELS: Record<string, string> = {
+  admin: 'Admin',
+  instructor: 'Instructor',
+  student: 'Student',
+}
+
 type Props = Readonly<{ student: StudentDetail }>
 
 export function StudentHeader({ student }: Readonly<Props>) {
   const attributes = [
     student.courses.join(', '),
-    student.role === 'admin' ? 'Admin' : 'Student',
+    ROLE_LABELS[student.role] ?? 'Student',
     student.deletedAt ? 'Inactive' : null,
   ]
     .filter(Boolean)

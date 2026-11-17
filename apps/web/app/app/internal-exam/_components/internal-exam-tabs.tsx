@@ -37,13 +37,15 @@ export function InternalExamTabs({ available, history }: Readonly<Props>) {
         <TabsTab value="available" id="tab-available" data-testid="tab-available">
           Available
           {available.length > 0 && (
-            <span
-              data-testid="tab-available-badge"
-              className="ml-1.5 text-muted-foreground tabular-nums"
-            >
-              {available.length}
-              <span className="sr-only"> available</span>
-            </span>
+            <>
+              {' '}
+              <span
+                data-testid="tab-available-badge"
+                className="text-muted-foreground tabular-nums"
+              >
+                {available.length}
+              </span>
+            </>
           )}
         </TabsTab>
         <TabsTab value="reports" id="tab-reports" data-testid="tab-reports">

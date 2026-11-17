@@ -76,6 +76,11 @@ describe('StudentHeader', () => {
     expect(screen.getByText('PPL, RT · Student')).toBeInTheDocument()
   })
 
+  it('shows the instructor role in the attribute line', () => {
+    render(<StudentHeader student={makeStudent({ role: 'instructor' })} />)
+    expect(screen.getByText('Instructor')).toBeInTheDocument()
+  })
+
   it('shows the admin role in the attribute line', () => {
     render(<StudentHeader student={makeStudent({ role: 'admin' })} />)
     expect(screen.getByText('Admin')).toBeInTheDocument()

@@ -20,6 +20,11 @@ describe('InternalExamTabs', () => {
     expect(screen.getByTestId('tab-reports')).toHaveAttribute('aria-selected', 'false')
   })
 
+  it('reads the tab accessible name as "Available 2"', () => {
+    render(<InternalExamTabs available={AVAILABLE} history={[]} />)
+    expect(screen.getByRole('tab', { name: 'Available 2' })).toBeInTheDocument()
+  })
+
   it('shows the reports panel under tabpanel-reports after clicking the reports tab', async () => {
     const user = userEvent.setup()
     render(<InternalExamTabs available={AVAILABLE} history={[]} />)

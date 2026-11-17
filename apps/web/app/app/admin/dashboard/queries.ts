@@ -80,7 +80,6 @@ export async function getDashboardStudents(
   }
   const rows = Array.isArray(data) ? (data as Row[]) : []
 
-  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
   const students: DashboardStudent[] = rows.map((r) => ({
     id: r.id,
     fullName: r.full_name,
@@ -90,9 +89,6 @@ export async function getDashboardStudents(
     avgScore: r.avg_score != null ? Number(r.avg_score) : null,
     mastery: Number(r.mastery ?? 0),
     isActive: r.deleted_at === null,
-    hasRecentActivity: r.last_active_at
-      ? new Date(r.last_active_at).getTime() > sevenDaysAgo
-      : false,
   }))
 
   // total_count is the count(*) OVER() window value — identical on every row, and absent
