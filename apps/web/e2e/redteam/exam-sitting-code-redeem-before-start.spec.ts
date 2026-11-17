@@ -142,7 +142,7 @@ test.describe('Red Team: sitting code redeemed before Start (MM)', () => {
     if (errors.length > 0) throw new Error(`MM afterEach: ${errors.join('; ')}`)
   })
 
-  test.skip('MM: a code of a not-started sitting is refused until Start', async () => {
+  test('MM: a code of a not-started sitting is refused until Start', async () => {
     const today = await createSittingRpc(adminClient, adminId)
     track.sittingIds.push(today)
     const tomorrow = await createSittingRpc(
