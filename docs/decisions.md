@@ -243,3 +243,4 @@
 ## 248 — 2026-11-17 — Start is refused before the sitting's UTC day (`sitting_not_due`); a past UTC day is refused at create/reschedule (`scheduled_in_past`). #1777
 ## 249 — 2026-11-17 — Candidates are an explicit snapshot; group expansion is server-side at add time; a candidate with an attempt cannot be removed. #1777
 ## 250 — 2026-11-17 — Group and sitting reads that must show deactivated users read `users` without `deleted_at` (security.md §15 (f)). #1777
+## 251 — 2026-11-17 — SECURITY DEFINER trigger functions (`RETURNS trigger`) with EXECUTE revoked from PUBLIC, anon and authenticated need no `auth.uid()` check; they still set `search_path`. #1777

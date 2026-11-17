@@ -81,7 +81,7 @@ You receive:
    - Exception: ephemeral/scratch tables (`quiz_drafts`) — no audit value in soft-deleting temporary data
 
 8. **`SECURITY DEFINER` without auth check or `SET search_path`**
-   - Any `SECURITY DEFINER` function missing `IF auth.uid() IS NULL THEN RAISE EXCEPTION` at top
+   - Any `SECURITY DEFINER` function missing `IF auth.uid() IS NULL THEN RAISE EXCEPTION` at top (not a trigger function with EXECUTE revoked from PUBLIC, anon and authenticated — docs/security.md §15)
    - Any `SECURITY DEFINER` function missing `SET search_path = public, pg_temp`
 
 9. **Multi-table mutation outside an RPC**
