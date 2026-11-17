@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
 import { fixtureSuffix } from './fixture-suffix'
 import { seedReferenceData } from './seed'
@@ -12,7 +12,6 @@ import {
 } from './setup'
 
 const admin = getAdminClient()
-const suffix = fixtureSuffix()
 const PW = 'test-pass-123'
 const DAY = 86_400_000
 const BAD = '00000000-0000-4000-a000-0000000000ff'
@@ -64,6 +63,8 @@ function psql(sql: string): { out: string; err: string } {
 type SittingState = 'scheduled' | 'open' | 'closed' | 'cancelled'
 
 async function buildWorld(tag: string) {
+  // One namespace per world: seedReferenceData upserts on code, so a shared suffix would alias subjects across worlds.
+  const suffix = fixtureSuffix()
   const orgA = await createTestOrg({
     admin,
     name: `${tag} A ${suffix}`,
@@ -298,6 +299,18 @@ async function buildWorld(tag: string) {
         .single()
       return must<{ id: string }>(r, 'seed session').id
     },
+    /** Soft-delete every live session in org A so no active or passed session leaks between cases. */
+    async resetSessions() {
+      must(
+        await admin
+          .from('quiz_sessions')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('organization_id', orgA)
+          .is('deleted_at', null)
+          .select('id'),
+        'reset sessions',
+      )
+    },
     async audits(type: string, resourceId?: string) {
       let q = admin
         .from('audit_events')
@@ -361,6 +374,9 @@ describe('private.sitting_issue_plan', () => {
   let w: Awaited<ReturnType<typeof buildWorld>>
   beforeAll(async () => {
     w = await buildWorld('plan-sit')
+  })
+  afterEach(async () => {
+    await w?.resetSessions()
   })
   afterAll(async () => {
     await w?.teardown()

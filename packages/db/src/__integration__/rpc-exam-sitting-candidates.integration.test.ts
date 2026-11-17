@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
 import { fixtureSuffix } from './fixture-suffix'
 import { seedReferenceData } from './seed'
@@ -298,6 +298,18 @@ async function buildWorld(tag: string) {
         .single()
       return must<{ id: string }>(r, 'seed session').id
     },
+    /** Soft-delete every live session in org A so no active or passed session leaks between cases. */
+    async resetSessions() {
+      must(
+        await admin
+          .from('quiz_sessions')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('organization_id', orgA)
+          .is('deleted_at', null)
+          .select('id'),
+        'reset sessions',
+      )
+    },
     async audits(type: string, resourceId?: string) {
       let q = admin
         .from('audit_events')
@@ -361,6 +373,9 @@ describe('RPC: exam sitting candidates and entry removal', () => {
   let w: Awaited<ReturnType<typeof buildWorld>>
   beforeAll(async () => {
     w = await buildWorld('cand-sit')
+  })
+  afterEach(async () => {
+    await w?.resetSessions()
   })
   afterAll(async () => {
     await w?.teardown()
@@ -543,6 +558,7 @@ describe('RPC: exam sitting candidates and entry removal', () => {
       const entry = await w.enter(id, w.s1, w.subA)
       await w.code(entry, { consumedBy: await w.session(w.s1, w.subA, { ended: false }), voided })
       expectToken(await rmCand(id, [w.s1]), 'candidate_has_attempt')
+      await w.resetSessions()
     }
   })
 

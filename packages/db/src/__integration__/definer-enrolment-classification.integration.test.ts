@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process'
+import { spawnSync } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
 
 /**
@@ -54,13 +54,22 @@ WHERE p.prosecdef AND p.prokind IN ('f','p') AND n.nspname IN ('public','private
        OR p.prosrc ~* 'insert\\s+into\\s+(public\\.)?quiz_sessions')
 ORDER BY 1;`
 
+/** psql as postgres: host psql, else the supabase db container (same fallback as the sitting suites). */
 function derived(): string[] {
-  const out = execFileSync(
-    'psql',
-    ['-h', 'localhost', '-p', '54322', '-U', 'postgres', '-d', 'postgres', '-tA', '-q'],
-    { input: DERIVE_SQL, encoding: 'utf8', env: { ...process.env, PGPASSWORD: 'postgres' } },
-  )
-  return out.split('\n').filter(Boolean)
+  const args = ['-U', 'postgres', '-d', 'postgres', '-tAq']
+  let r = spawnSync('psql', ['-h', 'localhost', '-p', '54322', ...args], {
+    input: DERIVE_SQL,
+    encoding: 'utf8',
+    env: { ...process.env, PGPASSWORD: 'postgres' },
+  })
+  if (r.error) {
+    r = spawnSync('docker', ['exec', '-i', 'supabase_db_lmsplusv2', 'psql', ...args], {
+      input: DERIVE_SQL,
+      encoding: 'utf8',
+    })
+  }
+  if (r.status !== 0) throw new Error(`psql failed: ${r.stderr ?? r.error?.message}`)
+  return r.stdout.split('\n').filter(Boolean)
 }
 
 describe('SECURITY DEFINER functions touching questions / easa_* / quiz_sessions', () => {
