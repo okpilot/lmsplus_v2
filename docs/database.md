@@ -893,7 +893,7 @@ Immutable append-only GDPR consent audit log. Tracks user acceptance of Terms of
 
 ### internal_exam_codes
 
-Single-use 8-character codes for starting `internal_exam` mode sessions. Admins issue a code targeting a specific student + subject; the student consumes the code once to start a session. Codes expire after 24 hours.
+Single-use 8-character codes for starting `internal_exam` mode sessions. Admins issue a code targeting a specific student + subject; the student consumes the code once to start a session. Codes expire after 24 hours; a sitting code (`sitting_entry_id` set) expires at 23:59:59.999999 UTC of its sitting day (`private.sitting_code_expiry`).
 
 | Column | Type | Constraints |
 |--------|------|-------------|
@@ -903,7 +903,7 @@ Single-use 8-character codes for starting `internal_exam` mode sessions. Admins 
 | student_id | UUID | FK → users(id), NOT NULL (target student) |
 | issued_by | UUID | FK → users(id), NOT NULL (admin who issued) |
 | issued_at | TIMESTAMPTZ | NOT NULL, default now() |
-| expires_at | TIMESTAMPTZ | NOT NULL (issued_at + 24h) |
+| expires_at | TIMESTAMPTZ | NOT NULL (issued_at + 24h; sitting code: `private.sitting_code_expiry(scheduled_at)`) |
 | consumed_at | TIMESTAMPTZ | NULL — set when student starts a session |
 | consumed_session_id | UUID | FK → quiz_sessions(id), NULL — paired with `consumed_at` via CHECK |
 | voided_at | TIMESTAMPTZ | NULL — set when admin voids the code |
@@ -933,7 +933,7 @@ Single-use 8-character codes for starting `internal_exam` mode sessions. Admins 
 - No INSERT or DELETE policies — issuance/consumption/void happen via SECURITY DEFINER RPCs only.
 - GRANTs to `authenticated`: `SELECT` only (UPDATE revoked in mig `20260521000004`).
 
-**Pattern:** Student reads and all writes are RPC-mediated; admin direct SELECT remains RLS-scoped (`admin_read_org_codes`). Four writer RPCs (`issue_internal_exam_code()` admin, `start_internal_exam_session()` student, `void_internal_exam_code()` admin, `record_internal_exam_code_emailed()` admin — stamps `emailed_at` + writes the send audit event) and two student readers (`list_my_active_internal_exam_codes()` for unconsumed/unvoided codes that are unexpired or belong to a scheduled sitting whose day has not ended, `list_my_internal_exam_history()` for session history). The `start_internal_exam_session` RPC additionally guards against duplicate active sessions via the `WHERE consumed_at IS NULL` race-clause on the consumption UPDATE (migration `20260429000010`). The `list_my_active_internal_exam_codes` reader omits the plaintext `code` column from its return signature so that even a leaked PostgREST request cannot harvest active codes.
+**Pattern:** Student reads and all writes are RPC-mediated; admin direct SELECT remains RLS-scoped (`admin_read_org_codes`). Four writer RPCs (`issue_internal_exam_code()` admin, `start_internal_exam_session()` student, `void_internal_exam_code()` admin, `record_internal_exam_code_emailed()` admin — stamps `emailed_at` + writes the send audit event) plus sitting writers `update_exam_sitting()` and `start_exam_sitting()` (re-stamp `expires_at`) and `private.void_unused_sitting_codes()` (void), and two student readers (`list_my_active_internal_exam_codes()` for unconsumed/unvoided codes that are unexpired or belong to a scheduled sitting whose day has not ended, `list_my_internal_exam_history()` for session history). The `start_internal_exam_session` RPC additionally guards against duplicate active sessions via the `WHERE consumed_at IS NULL` race-clause on the consumption UPDATE (migration `20260429000010`). The `list_my_active_internal_exam_codes` reader omits the plaintext `code` column from its return signature so that even a leaked PostgREST request cannot harvest active codes.
 
 ---
 

@@ -29,7 +29,7 @@
 ## 34 — 2026-04-04 — All paginated lists use server-side `.range()` pagination with URL-driven, server-side sort/filter; client-side sort/filter on a paginated subset is disallowed. #472
 ## 35 — 2026-04-27 — An expired zero-answer Practice Exam session completes via `complete_empty_exam_session` (0%, FAIL) and redirects to the report page, falling back to discard only if that RPC fails. #523 Superseded by 124.
 ## 36 — 2026-04-27 — `getActiveExamSession` reads the frozen `question_ids` from `quiz_sessions.config` server-side so `ResumeExamBanner` can rehydrate a cold-started resume with real IDs. #523
-## 37 — 2026-04-29 — Internal Exam Mode ships as admin-issued single-use 8-character codes (Crockford alphabet, 24h expiry, plaintext storage), with dedicated start/void RPCs and no discard or flagging during the exam. #576
+## 37 — 2026-04-29 — Internal Exam Mode ships as admin-issued single-use 8-character codes (Crockford alphabet, 24h expiry, plaintext storage), with dedicated start/void RPCs and no discard or flagging during the exam. #576 Amended by 243.
 ## 38 — 2026-04-30 — Every Playwright spec that mutates shared seed data must restore it in `afterEach`/`afterAll`, codified as E2E Spec Hermiticity with a required marker/cleanup-helper shape. #594
 ## 39 — 2026-06-06 — A GDPR export sub-read failure appends a machine-readable `warnings` field to the payload instead of silently returning an incomplete export or hard-failing. #783
 ## 40 — 2026-06-08 — Adopt Socket.dev (GitHub App) for behavioral supply-chain detection and remove the redundant Snyk integration; `pnpm audit`/Dependabot/CodeQL remain the CVE layer. #805
