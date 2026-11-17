@@ -28,6 +28,7 @@ BEGIN
   RETURN QUERY
   SELECT DISTINCT ON (c.user_id) c.user_id, COALESCE(u.full_name, u.email, ''), s2.id, s2.scheduled_at
     FROM public.exam_sitting_candidates c
+    -- security.md §15 exception (f)
     JOIN public.users u ON u.id = c.user_id AND u.organization_id = v_g.org_id
     JOIN public.exam_sitting_entries e2 ON e2.user_id = c.user_id AND e2.deleted_at IS NULL AND e2.sitting_id <> p_sitting_id
     JOIN public.exam_sittings s2 ON s2.id = e2.sitting_id AND s2.organization_id = v_g.org_id

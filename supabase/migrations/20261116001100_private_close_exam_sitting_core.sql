@@ -26,6 +26,7 @@ BEGIN
   IF v_s.status = 'open' THEN
     IF p_automatic THEN v_actor := v_s.started_by; END IF;
     IF v_role IS NULL THEN
+      -- security.md §15 exception (f)
       SELECT u.role INTO v_role FROM public.users u WHERE u.id = v_actor;
     END IF;
     PERFORM private.prune_passed_entries(v_s.organization_id, p_sitting_id, v_actor, v_role);
@@ -61,6 +62,7 @@ BEGIN
     RETURN;
   END IF;
   v_actor := v_s.created_by;
+  -- security.md §15 exception (f)
   SELECT u.role INTO v_role FROM public.users u WHERE u.id = v_actor;
   SELECT count(*) INTO v_emailed
     FROM public.internal_exam_codes c

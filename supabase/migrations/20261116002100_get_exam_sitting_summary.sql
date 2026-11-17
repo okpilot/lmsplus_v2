@@ -30,6 +30,7 @@ BEGIN
     PERFORM private.prune_passed_entries(v_g.org_id, p_sitting_id, v_g.admin_id, v_g.admin_role);
   END IF;
 
+  -- security.md §15 exception (f)
   SELECT count(*), count(*) FILTER (WHERE u.deleted_at IS NOT NULL) INTO v_cand, v_deact
     FROM public.exam_sitting_candidates c JOIN public.users u ON u.id = c.user_id
    WHERE c.sitting_id = p_sitting_id AND c.deleted_at IS NULL;
@@ -45,7 +46,8 @@ BEGIN
   SELECT count(*) INTO v_running FROM public.exam_sitting_entries e
    WHERE e.sitting_id = p_sitting_id AND e.deleted_at IS NULL
      AND EXISTS (SELECT 1 FROM public.internal_exam_codes c JOIN public.quiz_sessions q ON q.id = c.consumed_session_id
-                  WHERE c.sitting_entry_id = e.id AND c.consumed_at IS NOT NULL AND q.ended_at IS NULL);
+                  WHERE c.sitting_entry_id = e.id AND c.consumed_at IS NOT NULL AND q.ended_at IS NULL
+                    AND q.deleted_at IS NULL);
   SELECT count(*), count(DISTINCT e.user_id) INTO v_ns_entries, v_ns_students FROM public.exam_sitting_entries e
    WHERE e.sitting_id = p_sitting_id AND e.deleted_at IS NULL
      AND NOT EXISTS (SELECT 1 FROM public.internal_exam_codes c WHERE c.sitting_entry_id = e.id AND c.consumed_at IS NOT NULL);

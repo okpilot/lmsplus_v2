@@ -427,7 +427,7 @@ CREATE INDEX idx_student_group_members_organization_id ON student_group_members(
 
 ### exam_sittings
 
-Scheduled invigilated sittings (migs `20261116000100`, provisional; #1777). Written only by the sitting RPCs (`create_exam_sitting`, `update_exam_sitting`, `start_exam_sitting`, `close_exam_sitting`, `cancel_exam_sitting` and the lazy-close core). Cancel is a soft delete (`deleted_at`/`deleted_by`); rows are never hard-deleted and are kept at least 3 years after training completion (G7).
+Scheduled invigilated sittings (migs `20261116000100`, provisional; #1777). Written only by the sitting RPCs (`create_exam_sitting`, `update_exam_sitting`, `start_exam_sitting`, `close_exam_sitting`, `cancel_exam_sitting` and the lazy-close core). Cancel is a soft delete (`deleted_at`/`deleted_by`); rows are never hard-deleted and are kept at least 3 years after training completion (ORA.ATO.120).
 
 ```sql
 CREATE TABLE exam_sittings (
@@ -475,14 +475,13 @@ CREATE TABLE exam_sitting_candidates (
   organization_id UUID NOT NULL REFERENCES organizations(id),
   sitting_id      UUID NOT NULL,
   user_id         UUID NOT NULL REFERENCES users(id),
-  added_by        UUID NULL REFERENCES users(id),
   added_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
   deleted_at      TIMESTAMPTZ NULL,
   deleted_by      UUID NULL REFERENCES users(id),
   FOREIGN KEY (sitting_id, organization_id) REFERENCES exam_sittings(id, organization_id)
 );
-CREATE UNIQUE INDEX exam_sitting_candidates_active_uniq ON exam_sitting_candidates(sitting_id, user_id) WHERE deleted_at IS NULL;
-CREATE INDEX idx_exam_sitting_candidates_user_id ON exam_sitting_candidates(user_id);
+CREATE UNIQUE INDEX exam_sitting_candidates_live_uniq ON exam_sitting_candidates(sitting_id, user_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_exam_sitting_candidates_user ON exam_sitting_candidates(user_id);
 ```
 
 **RLS (ENABLED + FORCED):**
@@ -495,7 +494,7 @@ CREATE INDEX idx_exam_sitting_candidates_user_id ON exam_sitting_candidates(user
 
 ### exam_sitting_entries
 
-One row per (candidate, subject) in a sitting (same migration, #1777). Written by the sitting RPCs only (`remove_exam_sitting_candidates`, `remove_exam_sitting_entries`, the prune and close helpers; add-entries arrives in 2a-1b). Soft delete; never hard-deleted; retention as `exam_sittings`.
+One row per (candidate, subject) in a sitting (same migration, #1777). Written by the sitting RPCs only (`remove_exam_sitting_candidates`, `remove_exam_sitting_entries`, the prune helper; add-entries arrives in 2a-1b). Soft delete; never hard-deleted; retention as `exam_sittings`.
 
 ```sql
 CREATE TABLE exam_sitting_entries (
@@ -504,16 +503,15 @@ CREATE TABLE exam_sitting_entries (
   sitting_id      UUID NOT NULL,
   user_id         UUID NOT NULL REFERENCES users(id),
   subject_id      UUID NOT NULL REFERENCES easa_subjects(id),
-  added_by        UUID NULL REFERENCES users(id),
   added_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
   deleted_at      TIMESTAMPTZ NULL,
   deleted_by      UUID NULL REFERENCES users(id),
   FOREIGN KEY (sitting_id, organization_id) REFERENCES exam_sittings(id, organization_id),
   UNIQUE (id, organization_id, subject_id, user_id)
 );
-CREATE UNIQUE INDEX exam_sitting_entries_active_uniq ON exam_sitting_entries(sitting_id, user_id, subject_id) WHERE deleted_at IS NULL;
-CREATE INDEX idx_exam_sitting_entries_sitting_id ON exam_sitting_entries(sitting_id);
-CREATE INDEX idx_exam_sitting_entries_user_id ON exam_sitting_entries(user_id);
+CREATE UNIQUE INDEX exam_sitting_entries_live_uniq ON exam_sitting_entries(sitting_id, user_id, subject_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_exam_sitting_entries_sitting ON exam_sitting_entries(sitting_id);
+CREATE INDEX idx_exam_sitting_entries_user ON exam_sitting_entries(user_id);
 CREATE INDEX idx_exam_sitting_entries_org_subject ON exam_sitting_entries(organization_id, subject_id);
 ```
 
@@ -1106,9 +1104,9 @@ ORDER BY deleted_at DESC;
 | `course_enrolments` | Yes | Removed enrolments kept as history; `set_user_enrolments` sets `deleted_at`/`deleted_by`, re-adding inserts a new active row |
 | `student_groups` | Yes | Retired groups kept as history; `delete_student_group` sets `deleted_at`/`deleted_by`; the name becomes reusable |
 | `student_group_members` | Yes | Removed memberships kept as history; `remove_student_group_members` / `delete_student_group` set `deleted_at`/`deleted_by`, re-adding inserts a new active row |
-| `exam_sittings` | Yes | Cancel sets `deleted_at`/`deleted_by`; never hard-deleted; kept at least 3 years after training completion (G7) |
-| `exam_sitting_candidates` | Yes | Removal sets `deleted_at`/`deleted_by`; never hard-deleted; kept at least 3 years after training completion (G7) |
-| `exam_sitting_entries` | Yes | Removal sets `deleted_at`/`deleted_by`; never hard-deleted; kept at least 3 years after training completion (G7) |
+| `exam_sittings` | Yes | Cancel sets `deleted_at`/`deleted_by`; never hard-deleted; kept at least 3 years after training completion (ORA.ATO.120) |
+| `exam_sitting_candidates` | Yes | Removal sets `deleted_at`/`deleted_by`; never hard-deleted; kept at least 3 years after training completion (ORA.ATO.120) |
+| `exam_sitting_entries` | Yes | Removal sets `deleted_at`/`deleted_by`; never hard-deleted; kept at least 3 years after training completion (ORA.ATO.120) |
 | `quiz_sessions` | Yes | Sessions can be discarded (soft-deleted via `deleted_at`). A saved-for-later quiz is a soft-deleted row with `saved_at` set; `resume_saved_quiz` clears both, `discard_saved_quiz` clears `saved_at`; `set_user_enrolments` soft-deletes a student's open sessions and clears `saved_at` of their saved quizzes outside the final enrolment set |
 | `quiz_session_answers` | No | Immutable |
 | `quiz_session_progress` | No | Rows are never deleted; lifecycle follows `quiz_sessions` (soft delete). `ON DELETE CASCADE` on `session_id` serves test-teardown hard-deletes only |
@@ -1183,7 +1181,7 @@ verb_noun pattern:
   add_exam_sitting_candidates ← write, admin-only: add 1..500 users and 1..50 groups (server-side expansion, deactivated members skipped), at most 500 live candidates; audit `exam_sitting.candidates_added` (SECURITY DEFINER, mig 20261116001700 #1777)
   remove_exam_sitting_candidates ← write, admin-only: soft-delete 1..500 candidates, their entries, void unused codes (`entry_removed`); `candidate_has_attempt` when a code was consumed; audit `exam_sitting.candidates_removed` (SECURITY DEFINER, mig 20261116001800 #1777)
   remove_exam_sitting_entries ← write, admin-only: soft-delete 1..2000 entries, void unused codes (`entry_removed`); `entry_has_attempt` when a code was consumed; audit `exam_sitting.entries_removed` (SECURITY DEFINER, mig 20261116001900 #1777)
-  list_exam_sittings         ← read with lazy close, admin-only: sittings by scope upcoming/open/past with counts and invigilator name (reads `users` without `deleted_at`, §15 (f)); write-on-read (SECURITY DEFINER, mig 20261116002000 #1777)
+  list_exam_sittings         ← read with lazy close, admin-only: sittings by scope upcoming/past with counts and invigilator name (reads `users` without `deleted_at`, §15 (f)); write-on-read (SECURITY DEFINER, mig 20261116002000 #1777)
   get_exam_sitting_summary   ← read with lazy close and prune, admin-only: counts and pending-notice number for one sitting, any status; write-on-read (SECURITY DEFINER, mig 20261116002100 #1777)
   get_pending_removal_notices ← read, admin-only: auto-removed entries without a `notice_emailed` record, at most 200 (SECURITY DEFINER, mig 20261116002200 #1777)
   list_exam_sitting_people   ← read, admin-only: addable students (not live candidates) filterable by name/email, group, course, status; paged (SECURITY DEFINER, mig 20261116002300 #1777)
@@ -3007,11 +3005,11 @@ CREATE INDEX idx_student_group_members_user_id ON student_group_members(user_id)
 CREATE INDEX idx_student_group_members_organization_id ON student_group_members(organization_id);
 CREATE INDEX idx_exam_sittings_org_scheduled ON exam_sittings(organization_id, scheduled_at DESC);
 CREATE INDEX idx_exam_sittings_invigilator ON exam_sittings(invigilator_id) WHERE deleted_at IS NULL;
-CREATE UNIQUE INDEX exam_sitting_candidates_active_uniq ON exam_sitting_candidates(sitting_id, user_id) WHERE deleted_at IS NULL;
-CREATE INDEX idx_exam_sitting_candidates_user_id ON exam_sitting_candidates(user_id);
-CREATE UNIQUE INDEX exam_sitting_entries_active_uniq ON exam_sitting_entries(sitting_id, user_id, subject_id) WHERE deleted_at IS NULL;
-CREATE INDEX idx_exam_sitting_entries_sitting_id ON exam_sitting_entries(sitting_id);
-CREATE INDEX idx_exam_sitting_entries_user_id ON exam_sitting_entries(user_id);
+CREATE UNIQUE INDEX exam_sitting_candidates_live_uniq ON exam_sitting_candidates(sitting_id, user_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_exam_sitting_candidates_user ON exam_sitting_candidates(user_id);
+CREATE UNIQUE INDEX exam_sitting_entries_live_uniq ON exam_sitting_entries(sitting_id, user_id, subject_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_exam_sitting_entries_sitting ON exam_sitting_entries(sitting_id);
+CREATE INDEX idx_exam_sitting_entries_user ON exam_sitting_entries(user_id);
 CREATE INDEX idx_exam_sitting_entries_org_subject ON exam_sitting_entries(organization_id, subject_id);
 CREATE UNIQUE INDEX uq_internal_exam_codes_live_entry ON internal_exam_codes(sitting_entry_id) WHERE sitting_entry_id IS NOT NULL AND deleted_at IS NULL AND (voided_at IS NULL OR consumed_at IS NOT NULL);
 CREATE INDEX idx_internal_exam_codes_sitting_entry ON internal_exam_codes(sitting_entry_id);

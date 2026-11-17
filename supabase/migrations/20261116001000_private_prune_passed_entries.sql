@@ -45,6 +45,8 @@ BEGIN
         SELECT q.id, q.ended_at FROM public.quiz_sessions q
          WHERE q.student_id = u.user_id AND q.subject_id = u.subject_id AND q.organization_id = p_org
            AND q.mode = 'internal_exam' AND q.deleted_at IS NULL AND q.ended_at IS NOT NULL AND q.passed IS TRUE
+           AND NOT EXISTS (SELECT 1 FROM public.internal_exam_codes c2
+                            WHERE c2.consumed_session_id = q.id AND c2.voided_at IS NOT NULL)
          ORDER BY q.ended_at DESC LIMIT 1) ps
     RETURNING 1
   )

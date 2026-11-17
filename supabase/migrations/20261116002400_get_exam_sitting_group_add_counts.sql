@@ -24,6 +24,7 @@ BEGIN
          (count(*) FILTER (WHERE u.deleted_at IS NOT NULL))::int
     FROM (SELECT DISTINCT m.user_id AS uid FROM public.student_group_members m
            WHERE m.group_id = p_group_id AND m.organization_id = v_g.org_id AND m.deleted_at IS NULL) mm
+    -- security.md §15 exception (f)
     JOIN public.users u ON u.id = mm.uid AND u.organization_id = v_g.org_id AND u.role = 'student'
    WHERE NOT EXISTS (SELECT 1 FROM public.exam_sitting_candidates c
                       WHERE c.sitting_id = p_sitting_id AND c.user_id = mm.uid AND c.deleted_at IS NULL);

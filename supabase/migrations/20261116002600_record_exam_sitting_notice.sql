@@ -14,7 +14,7 @@ DECLARE
   v_n int;
 BEGIN
   SELECT * INTO v_g FROM private.sitting_admin_guard();
-  IF p_kind NOT IN ('changed', 'cancelled', 'entry_auto_removed')
+  IF p_kind IS NULL OR p_kind NOT IN ('changed', 'cancelled', 'entry_auto_removed')
      OR cardinality(v_codes) + cardinality(v_entries) = 0
      OR cardinality(v_codes) > 2000 OR cardinality(v_entries) > 2000
      OR (p_kind = 'entry_auto_removed' AND cardinality(v_codes) > 0)

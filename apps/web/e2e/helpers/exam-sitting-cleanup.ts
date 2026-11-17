@@ -15,33 +15,32 @@ function logDeleted(table: string, count: number): void {
   if (count > 0) console.log(`cleanupE2eExamSittings: soft-deleted ${count} ${table} row(s)`)
 }
 
-/** Void unused codes, then soft-delete entries, candidates and sittings of marked sittings. */
+/** Void unused codes, then soft-delete entries, candidates and open sittings of marked sittings (closed sittings cannot be soft-deleted). */
 export async function cleanupE2eExamSittings(): Promise<void> {
   const admin = getAdminClient()
   const now = new Date().toISOString()
   const { data: sittings, error: findErr } = await admin
     .from('exam_sittings')
-    .select('id, created_by')
+    .select('id, created_by, closed_at')
     .like('permitted_materials', MATERIALS_LIKE)
     .is('deleted_at', null)
   if (findErr) throw new Error(`cleanupE2eExamSittings: ${findErr.message}`)
   const rows = sittings ?? []
   if (rows.length === 0) return
   const ids = rows.map((s) => s.id)
-  const createdBy = rows[0]?.created_by
 
   const { data: entries, error: entryLookupErr } = await admin
     .from('exam_sitting_entries')
-    .select('id')
+    .select('id, sitting_id')
     .in('sitting_id', ids)
     .is('deleted_at', null)
   if (entryLookupErr) throw new Error(`cleanupE2eExamSittings entries: ${entryLookupErr.message}`)
-  const entryIds = (entries ?? []).map((e) => e.id)
-
-  if (entryIds.length > 0) {
+  for (const sitting of rows) {
+    const entryIds = (entries ?? []).filter((e) => e.sitting_id === sitting.id).map((e) => e.id)
+    if (entryIds.length === 0) continue
     const { error: codeErr } = await admin
       .from('internal_exam_codes')
-      .update({ voided_at: now, voided_by: createdBy, void_reason: 'e2e_cleanup' })
+      .update({ voided_at: now, voided_by: sitting.created_by, void_reason: 'e2e_cleanup' })
       .in('sitting_entry_id', entryIds)
       .is('consumed_at', null)
       .is('voided_at', null)
@@ -66,12 +65,13 @@ export async function cleanupE2eExamSittings(): Promise<void> {
   if (candErr) throw new Error(`cleanupE2eExamSittings candidates: ${candErr.message}`)
   logDeleted('exam_sitting_candidates', cand?.length ?? 0)
 
-  for (const s of rows) {
+  const openRows = rows.filter((s) => s.closed_at === null)
+  for (const s of openRows) {
     const { error } = await admin
       .from('exam_sittings')
       .update({ deleted_at: now, deleted_by: s.created_by })
       .eq('id', s.id)
     if (error) throw new Error(`cleanupE2eExamSittings sittings: ${error.message}`)
   }
-  logDeleted('exam_sittings', rows.length)
+  logDeleted('exam_sittings', openRows.length)
 }

@@ -31,7 +31,7 @@ function buildChain(result: Result, calls: Call[], table: string) {
 }
 
 const ok = (data: unknown): Result => ({ data, error: null })
-const MARKED = [{ id: 's1', created_by: 'u1' }]
+const MARKED = [{ id: 's1', created_by: 'u1', closed_at: null }]
 
 /** Every call on a table resolves to that table's static result. */
 function mockTables(results: Record<string, Result>) {
@@ -64,7 +64,7 @@ describe('cleanupE2eExamSittings', () => {
   it('finds marked live sittings by permitted_materials prefix', async () => {
     const calls = mockTables({
       exam_sittings: ok(MARKED),
-      exam_sitting_entries: ok([{ id: 'e1' }]),
+      exam_sitting_entries: ok([{ id: 'e1', sitting_id: 's1' }]),
     })
 
     await cleanupE2eExamSittings()
@@ -88,7 +88,7 @@ describe('cleanupE2eExamSittings', () => {
   it('voids codes, then soft-deletes entries, candidates and sittings in that order', async () => {
     const calls = mockTables({
       exam_sittings: ok(MARKED),
-      exam_sitting_entries: ok([{ id: 'e1' }]),
+      exam_sitting_entries: ok([{ id: 'e1', sitting_id: 's1' }]),
       exam_sitting_candidates: ok([{ id: 'c1' }]),
       internal_exam_codes: ok([{ id: 'k1' }]),
     })
@@ -108,7 +108,7 @@ describe('cleanupE2eExamSittings', () => {
   it('never hard-deletes and stamps deleted_by with the sitting created_by', async () => {
     const calls = mockTables({
       exam_sittings: ok(MARKED),
-      exam_sitting_entries: ok([{ id: 'e1' }]),
+      exam_sitting_entries: ok([{ id: 'e1', sitting_id: 's1' }]),
     })
 
     await cleanupE2eExamSittings()
@@ -148,5 +148,26 @@ describe('cleanupE2eExamSittings', () => {
 
     await expect(cleanupE2eExamSittings()).rejects.toThrow(/cleanupE2eExamSittings.*entry boom/)
     expect(calls.some((c) => c.table === 'exam_sittings' && c.method === 'update')).toBe(false)
+  })
+
+  it('voids codes per sitting with its own created_by and skips soft-deleting closed sittings', async () => {
+    const calls = mockTables({
+      exam_sittings: ok([
+        { id: 's1', created_by: 'u1', closed_at: null },
+        { id: 's2', created_by: 'u2', closed_at: '2026-11-17T10:00:00Z' },
+      ]),
+      exam_sitting_entries: ok([
+        { id: 'e1', sitting_id: 's1' },
+        { id: 'e2', sitting_id: 's2' },
+      ]),
+    })
+
+    await cleanupE2eExamSittings()
+
+    const voids = calls.filter((c) => c.table === 'internal_exam_codes' && c.method === 'update')
+    expect(voids.map((c) => (c.args[0] as { voided_by: string }).voided_by)).toEqual(['u1', 'u2'])
+    const sittingUpdates = calls.filter((c) => c.table === 'exam_sittings' && c.method === 'update')
+    expect(sittingUpdates).toHaveLength(1)
+    expect(sittingUpdates[0]?.args[0]).toMatchObject({ deleted_by: 'u1' })
   })
 })

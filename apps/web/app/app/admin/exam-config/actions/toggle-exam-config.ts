@@ -5,53 +5,13 @@ import { revalidatePath } from 'next/cache'
 import type { ActionResult } from '@/lib/action-result'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { examConfigWriteError } from './exam-config-in-use'
+import { type AdminClient, checkEnableReadiness } from './exam-config-readiness'
 
-// biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
-export async function toggleExamConfig(input: unknown): Promise<ActionResult> {
-  const parsed = ToggleExamConfigSchema.safeParse(input)
-  if (!parsed.success) return { success: false, error: 'Invalid input' }
-
-  const { supabase, organizationId } = await requireAdmin()
-  const { subjectId, enabled } = parsed.data
-
-  // If enabling, verify config + distributions exist
-  if (enabled) {
-    const { data: config, error: configErr } = await supabase
-      .from('exam_configs')
-      .select('id, total_questions')
-      .eq('organization_id', organizationId)
-      .eq('subject_id', subjectId)
-      .is('deleted_at', null)
-      .maybeSingle()
-
-    if (configErr) {
-      console.error('[toggleExamConfig] Config read error:', configErr.message)
-      return { success: false, error: 'Failed to check exam configuration' }
-    }
-    if (!config) {
-      return { success: false, error: 'Configure exam parameters before enabling' }
-    }
-
-    const { data: distributions, error: distErr } = await supabase
-      .from('exam_config_distributions')
-      .select('question_count')
-      .eq('exam_config_id', config.id)
-
-    if (distErr) {
-      console.error('[toggleExamConfig] Distribution read error:', distErr.message)
-      return { success: false, error: 'Failed to check question distribution' }
-    }
-
-    const totalDistributed = (distributions ?? []).reduce((sum, d) => sum + d.question_count, 0)
-
-    if (totalDistributed !== config.total_questions) {
-      return {
-        success: false,
-        error: `Distribution total (${totalDistributed}) does not match total questions (${config.total_questions})`,
-      }
-    }
-  }
-
+async function applyEnabled(
+  supabase: AdminClient,
+  target: { organizationId: string; subjectId: string; enabled: boolean },
+): Promise<ActionResult> {
+  const { organizationId, subjectId, enabled } = target
   const { data, error } = await supabase
     .from('exam_configs')
     .update({
@@ -73,6 +33,24 @@ export async function toggleExamConfig(input: unknown): Promise<ActionResult> {
   if (!data?.length) {
     return { success: false, error: 'Config not found' }
   }
+  return { success: true }
+}
+
+export async function toggleExamConfig(input: unknown): Promise<ActionResult> {
+  const parsed = ToggleExamConfigSchema.safeParse(input)
+  if (!parsed.success) return { success: false, error: 'Invalid input' }
+
+  const { supabase, organizationId } = await requireAdmin()
+  const { subjectId, enabled } = parsed.data
+
+  // If enabling, verify config + distributions exist
+  if (enabled) {
+    const notReady = await checkEnableReadiness(supabase, organizationId, subjectId)
+    if (notReady) return notReady
+  }
+
+  const result = await applyEnabled(supabase, { organizationId, subjectId, enabled })
+  if (!result.success) return result
 
   revalidatePath('/app/admin/exam-config')
   return { success: true }

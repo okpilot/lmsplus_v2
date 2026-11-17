@@ -16,7 +16,7 @@ DECLARE
   v_q text := NULLIF(lower(btrim(COALESCE(p_q, ''))), '');
 BEGIN
   SELECT * INTO v_g FROM private.sitting_admin_guard();
-  IF p_limit < 1 OR p_limit > 200 OR p_offset < 0 OR length(COALESCE(p_q, '')) > 100 OR (p_status IS NOT NULL AND p_status NOT IN ('active', 'inactive')) THEN
+  IF p_limit IS NULL OR p_offset IS NULL OR p_limit < 1 OR p_limit > 200 OR p_offset < 0 OR length(COALESCE(p_q, '')) > 100 OR (p_status IS NOT NULL AND p_status NOT IN ('active', 'inactive')) THEN
     RAISE EXCEPTION 'invalid_input';
   END IF;
   SELECT * INTO v_s FROM public.exam_sittings s
@@ -25,6 +25,7 @@ BEGIN
   IF v_s.status = 'closed' THEN RAISE EXCEPTION 'sitting_closed'; END IF;
   IF private.sitting_day_ended(v_s.scheduled_at) THEN RAISE EXCEPTION 'sitting_day_ended'; END IF;
   RETURN QUERY
+  -- security.md §15 exception (f): deactivated students are listed (u.deleted_at is returned, filterable)
   SELECT u.id, u.full_name, u.email, (u.deleted_at IS NOT NULL),
          COALESCE((SELECT string_agg(g.name, ', ' ORDER BY g.name) FROM public.student_group_members m
                      JOIN public.student_groups g ON g.id = m.group_id AND g.deleted_at IS NULL

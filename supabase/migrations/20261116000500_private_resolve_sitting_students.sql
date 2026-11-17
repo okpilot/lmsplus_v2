@@ -26,6 +26,7 @@ BEGIN
   WITH members AS (
     SELECT DISTINCT m.user_id AS uid, (u.deleted_at IS NULL) AS active
       FROM public.student_group_members m
+      -- security.md §15 exception (f)
       JOIN public.users u ON u.id = m.user_id
      WHERE m.group_id = ANY(p_group_ids) AND m.organization_id = p_org AND m.deleted_at IS NULL
        AND u.organization_id = p_org AND u.role = 'student'
