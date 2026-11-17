@@ -236,7 +236,7 @@
 ## 241 — 2026-11-17 — Sitting model: `exam_sittings` + candidates + entries; codes link by `sitting_entry_id`; one invigilator; one UTC day. #1777
 ## 242 — 2026-11-17 — Sitting status is a generated column; transitions are one-way; Closed is final; `sitting_closed` is checked first. #1777
 ## 243 — 2026-11-17 — Sitting code validity ends at 23:59:59.999999 UTC of the sitting day; re-stamped on reschedule and Start. #1777
-## 244 — 2026-11-17 — Auto-close of open and auto-cancel of never-started sittings happen lazily inside admin and student reads; no scheduler; at most 3 per call. #1777
+## 244 — 2026-11-17 — Auto-close of open and auto-cancel of never-started sittings happen lazily inside admin and student reads; no scheduler; at most 3 per call, plus the summary's own sitting. #1777
 ## 245 — 2026-11-17 — Pass is permanent; a passed pair's entries are auto-removed on read paths with an audited notice record; entered-elsewhere blocks only until a finished attempt. #1777
 ## 246 — 2026-11-17 — Absent is derived (no stored state); attempt number excludes voided attempts. #1777
 ## 247 — 2026-11-17 — Disabling, deleting or moving an exam config is blocked while a scheduled or open sitting uses it; soft-deleting a subject stays blocked through its live exam config. #1777
