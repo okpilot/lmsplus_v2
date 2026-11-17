@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { StatusText } from '@/components/kit/status-text'
+import { PassFailStatus } from '@/components/kit/status-text'
 import { Empty, EmptyDescription } from '@/components/ui/empty'
 import {
   Table,
@@ -102,10 +102,8 @@ function ReportRow({ row: r }: Readonly<{ row: InternalExamHistoryEntry }>) {
       <TableCell>
         {r.passed === null ? (
           <span className="text-muted-foreground">—</span>
-        ) : r.passed ? (
-          <StatusText label="Passed" tone="success" />
         ) : (
-          <StatusText label="Failed" tone="danger" />
+          <PassFailStatus passed={r.passed} />
         )}
       </TableCell>
       <TableCell className="text-caption tabular-nums">

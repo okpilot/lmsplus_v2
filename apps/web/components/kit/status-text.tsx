@@ -18,3 +18,12 @@ export function StatusText({ label, tone = 'neutral', className }: Readonly<Prop
     </span>
   )
 }
+
+/** Exam outcome: Passed (success) or Failed (danger). */
+export function PassFailStatus({ passed }: Readonly<{ passed: boolean }>) {
+  return passed ? (
+    <StatusText label="Passed" tone="success" />
+  ) : (
+    <StatusText label="Failed" tone="danger" />
+  )
+}

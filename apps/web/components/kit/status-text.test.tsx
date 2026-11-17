@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { StatusText } from './status-text'
+import { PassFailStatus, StatusText } from './status-text'
 
 describe('StatusText', () => {
   it('renders the label as plain text with no symbol by default', () => {
@@ -36,5 +36,19 @@ describe('StatusText', () => {
   it('uses the small icon', () => {
     const { container } = render(<StatusText label="Passed" tone="success" />)
     expect(container.querySelector('svg')).toHaveClass('size-icon-sm')
+  })
+})
+
+describe('PassFailStatus', () => {
+  it('renders Passed with the success symbol', () => {
+    const { container } = render(<PassFailStatus passed />)
+    expect(screen.getByText('Passed')).toBeInTheDocument()
+    expect(container.querySelector('svg')).toHaveClass('text-success')
+  })
+
+  it('renders Failed with the danger symbol', () => {
+    const { container } = render(<PassFailStatus passed={false} />)
+    expect(screen.getByText('Failed')).toBeInTheDocument()
+    expect(container.querySelector('svg')).toHaveClass('text-danger')
   })
 })

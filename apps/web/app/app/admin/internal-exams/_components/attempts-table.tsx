@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { StatusText } from '@/components/kit/status-text'
+import { PassFailStatus } from '@/components/kit/status-text'
 import { EmptyDescription } from '@/components/ui/empty'
 import {
   Table,
@@ -119,10 +119,8 @@ function AttemptRow({ row: r }: Readonly<{ row: InternalExamAttemptRow }>) {
       <TableCell>
         {passed === null ? (
           <span className="text-muted-foreground">—</span>
-        ) : passed ? (
-          <StatusText label="Passed" tone="success" />
         ) : (
-          <StatusText label="Failed" tone="danger" />
+          <PassFailStatus passed={passed} />
         )}
       </TableCell>
       <TableCell className="text-caption tabular-nums">
