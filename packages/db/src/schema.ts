@@ -214,6 +214,37 @@ export const SittingPeopleQuerySchema = z.object({
   page: z.number().int().min(1).optional(),
 })
 
+const SittingPairsRefine = (v: { userIds: string[]; subjectIds: string[] }) =>
+  new Set(v.userIds.map((u, i) => `${u.toLowerCase()}:${v.subjectIds[i]?.toLowerCase()}`)).size ===
+  v.userIds.length
+
+export const AddSittingEntriesSchema = z
+  .object({
+    sittingId: z.uuid(),
+    userIds: z.array(z.uuid()).min(1).max(1000),
+    subjectIds: z.array(z.uuid()).min(1).max(1000),
+  })
+  .refine((v) => v.userIds.length === v.subjectIds.length, 'Arrays must have equal length')
+  .refine(SittingPairsRefine, 'Duplicate pairs')
+
+export const IssueSittingCodesSchema = z.object({
+  sittingId: z.uuid(),
+  userIds: uuidList(500).min(1).optional(),
+  entryIds: uuidList(500).min(1).optional(),
+})
+
+export const SubjectEligibilityQuerySchema = z.object({
+  sittingId: z.uuid(),
+  userIds: uuidList(100).min(1).optional(),
+})
+
+export const RosterQuerySchema = z.object({
+  sittingId: z.uuid(),
+  q: z.string().trim().max(100).optional(),
+  page: z.number().int().min(1).optional(),
+  show: z.enum(['all', 'needs_code', 'not_emailed', 'has_attempts']).optional(),
+})
+
 // --- Admin: Exam Config schemas ---
 
 const ExamConfigDistributionSchema = z.object({
