@@ -19,7 +19,6 @@ function walk(dir: string): string[] {
 describe('PR18 focus ring and width tokens', () => {
   it.each([
     'components/ui/button-variants.ts',
-    'components/ui/badge.tsx',
     'components/ui/checkbox.tsx',
     'components/ui/radio-group.tsx',
     'components/ui/switch.tsx',
@@ -109,18 +108,6 @@ describe('PR18 focus ring and width tokens', () => {
     expect(l).not.toContain('ring-offset-background')
   })
 
-  it('subject-config-card pill toggle focuses with an outline and a gap', () => {
-    const l = rowLine(
-      'app/app/admin/exam-config/_components/subject-config-card.tsx',
-      'rounded-pill',
-    )
-    expect(l).toContain('focus-visible:outline-solid')
-    expect(l).toContain('focus-visible:outline-focus')
-    expect(l).toContain('focus-visible:outline-offset-focus')
-    expect(l).not.toContain('focus-visible:ring-focus')
-    expect(l).not.toContain('focus-visible:ring-offset-background')
-  })
-
   it('no non-test file under app/ or components/ uses focus-visible:ring-offset-', () => {
     const hits: string[] = []
     for (const dir of ['app', 'components']) {
@@ -189,10 +176,7 @@ describe('PR18 focus ring and width tokens', () => {
     expect(d).toMatch(/^## 178 .*Amended by 179, 194\.\s*$/m)
   })
 
-  it('badge focus outline is focus-visible:outline-ring, not invalid-ring, and tabs reset the outline style', () => {
-    expect(read('components/ui/badge.tsx')).toContain('focus-visible:outline-ring')
-    expect(read('components/ui/badge.tsx')).not.toContain('focus-visible:outline-destructive')
-    expect(read('components/ui/badge.tsx')).not.toContain('focus-visible:outline-invalid-ring')
+  it('tabs reset the outline style', () => {
     expect(read('components/ui/tabs.tsx')).toContain('focus-visible:outline-solid')
   })
 })

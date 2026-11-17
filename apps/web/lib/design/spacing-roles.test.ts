@@ -90,12 +90,6 @@ describe('spacing roles (#1673)', () => {
     expect(t).not.toContain('data-[size=sm]:after:-inset-y-2')
   })
 
-  it('subject-config-card keeps its after:-inset-y-3 hit area', () => {
-    expect(src('app/app/admin/exam-config/_components/subject-config-card.tsx')).toContain(
-      'after:-inset-y-3',
-    )
-  })
-
   it('sidebar-nav uses gap-nav-gap, no gap-7', () => {
     const t = src('app/app/_components/sidebar-nav.tsx')
     expect(count(t, 'gap-nav-gap')).toBe(2)

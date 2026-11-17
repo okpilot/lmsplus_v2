@@ -101,13 +101,8 @@ describe('card (AC 11)', () => {
   })
 })
 
-describe('chip-sized chips (AC 12)', () => {
-  it.each([
-    `${U}badge.tsx`,
-    'components/kit/code-chip.tsx',
-    `${U}avatar.tsx`,
-    'components/kit/kbd.tsx',
-  ])('%s', (f) => {
+describe('chip-sized text (AC 12)', () => {
+  it.each([`${U}avatar.tsx`, 'components/kit/kbd.tsx'])('%s', (f) => {
     const s = src(f)
     expect(s).toMatch(/(^|[\s"'`:])text-chip(?![\w-])/)
     expect(s).not.toMatch(/text-xs|text-\[/)

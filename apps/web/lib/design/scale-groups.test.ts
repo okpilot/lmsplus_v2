@@ -29,7 +29,6 @@ const SIZES = {
   control: 'var(--control-h)',
   'control-sm': '1.75rem',
   'control-lg': '3rem',
-  chip: '1.25rem',
   avatar: '1.75rem',
   'avatar-md': '2rem',
   'icon-box': '2.5rem',

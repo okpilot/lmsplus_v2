@@ -70,16 +70,14 @@ describe('heading.tsx no longer sets uppercase itself', () => {
 })
 
 describe('chip sites use text-chip', () => {
-  it.each([
-    'components/ui/badge.tsx',
-    'components/kit/code-chip.tsx',
-    'components/ui/avatar.tsx',
-    'components/kit/kbd.tsx',
-  ])('%s has text-chip and no base text-overline', (f) => {
-    const s = src(f)
-    expect(s).toMatch(CLASS('text-chip'))
-    expect(s).not.toMatch(CLASS('text-overline'))
-  })
+  it.each(['components/ui/avatar.tsx', 'components/kit/kbd.tsx'])(
+    '%s has text-chip and no base text-overline',
+    (f) => {
+      const s = src(f)
+      expect(s).toMatch(CLASS('text-chip'))
+      expect(s).not.toMatch(CLASS('text-overline'))
+    },
+  )
 
   it.each(['components/ui/avatar.tsx'])('%s keeps font-semibold', (f) => {
     expect(src(f)).toMatch(CLASS('font-semibold'))
@@ -98,7 +96,6 @@ describe('chip sites use text-chip', () => {
 
 describe('icon strokes use classes, not strokeWidth', () => {
   it.each([
-    ['app/app/quiz/report/_components/report-question-row.tsx', 'stroke-icon-bold'],
     ['app/app/_components/nav-icon.tsx', 'stroke-icon'],
     ['app/app/_components/sidebar-item.tsx', 'stroke-icon'],
     ['app/app/_components/theme-toggle.tsx', 'stroke-icon'],

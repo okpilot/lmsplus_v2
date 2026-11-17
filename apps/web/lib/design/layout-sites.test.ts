@@ -57,12 +57,6 @@ describe('primitives (AC 5, 6)', () => {
     expect(s).toMatch(/segment:\s*['"`][^'"`]*rounded-inner/)
     expect(s).toContain('size-icon')
   })
-  it('badge is rounded-pill with a size-icon-sm icon and no important', () => {
-    const s = src(`${U}badge.tsx`)
-    expect(s).toContain('rounded-pill')
-    expect(s).toContain('size-icon-sm')
-    expect(s).not.toMatch(/size-[\w.-]+!/)
-  })
   it('checkbox is rounded-inner', () => {
     expect(src(`${U}checkbox.tsx`)).toContain('rounded-inner')
   })

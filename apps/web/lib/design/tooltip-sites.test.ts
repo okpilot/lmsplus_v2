@@ -11,7 +11,6 @@ const SITES = [
   'app/app/admin/questions/_components/question-table.tsx',
   'app/app/admin/questions/_components/delete-question-button.tsx',
   'app/app/admin/syllabus/_components/delete-button.tsx',
-  'app/app/admin/dashboard/_components/student-table-helpers.tsx',
 ]
 
 describe('hints are Base UI tooltips, never native title', () => {

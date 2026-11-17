@@ -1,7 +1,6 @@
 'use client'
 
 import { Tabs as TabsPrimitive } from '@base-ui/react/tabs'
-import type * as React from 'react'
 import { cn } from '@/lib/utils'
 
 function Tabs({ className, ...props }: Readonly<TabsPrimitive.Root.Props>) {
@@ -36,17 +35,4 @@ function TabsPanel({ className, ...props }: Readonly<TabsPrimitive.Panel.Props>)
   return <TabsPrimitive.Panel data-slot="tabs-panel" className={className} {...props} />
 }
 
-function TabCount({ className, ...props }: Readonly<React.ComponentProps<'span'>>) {
-  return (
-    <span
-      data-slot="tab-count"
-      className={cn(
-        'inline-flex h-chip min-w-5 items-center justify-center rounded-pill bg-card px-1 text-caption-strong text-muted-foreground tabular-nums group-data-active:bg-primary-soft group-data-active:text-primary-text',
-        className,
-      )}
-      {...props}
-    />
-  )
-}
-
-export { TabCount, Tabs, TabsList, TabsPanel, TabsTab }
+export { Tabs, TabsList, TabsPanel, TabsTab }
