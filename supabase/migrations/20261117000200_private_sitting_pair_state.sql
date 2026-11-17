@@ -52,7 +52,7 @@ AS $$
   elsewhere AS (
     SELECT DISTINCT ON (e.user_id, e.subject_id) e.user_id, e.subject_id, e.id AS eid, s2.id AS sid2, s2.scheduled_at AS at2
       FROM public.exam_sitting_entries e
-      JOIN public.exam_sittings s2 ON s2.id = e.sitting_id AND s2.organization_id = p_org
+      JOIN public.exam_sittings s2 ON s2.id = e.sitting_id AND s2.organization_id = p_org AND s2.deleted_at IS NULL
      WHERE e.organization_id = p_org AND e.deleted_at IS NULL AND e.sitting_id <> p_sitting_id
        AND e.user_id = ANY(p_user_ids) AND e.subject_id = ANY(p_subject_ids)
        AND s2.status IN ('scheduled', 'open') AND NOT private.sitting_day_ended(s2.scheduled_at)
