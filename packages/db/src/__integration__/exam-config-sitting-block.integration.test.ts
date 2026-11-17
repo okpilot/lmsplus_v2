@@ -37,6 +37,11 @@ const must = <T = Record<string, unknown>[]>(
   expect(r.error, label).toBeNull()
   return r.data as T
 }
+/** Expected UPDATE: no error and exactly one affected row (rejects a silent no-op). */
+const mustOne = (r: { data: unknown; error: DbErr }, label: string) => {
+  const rows = must<unknown[]>(r, label)
+  expect(Array.isArray(rows) ? rows : [], label).toHaveLength(1)
+}
 const rowOf = (data: unknown): Record<string, unknown> =>
   (Array.isArray(data) ? data[0] : data) as Record<string, unknown>
 const errOf = (r: Res) => r.error?.message
@@ -58,7 +63,9 @@ function psql(sql: string): { out: string; err: string } {
       encoding: 'utf8',
     })
   }
-  return { out: (r.stdout ?? '').trim(), err: (r.stderr ?? '').trim() }
+  if (r.error) throw new Error(`psql unavailable: ${r.error.message}`)
+  const err = (r.stderr ?? '').trim()
+  return { out: (r.stdout ?? '').trim(), err: err || (r.status ? `psql exit ${r.status}` : '') }
 }
 
 type SittingState = 'scheduled' | 'open' | 'closed' | 'cancelled'
@@ -158,9 +165,27 @@ async function buildWorld(tag: string) {
     userIds,
     bUserIds,
     async teardown() {
-      await cleanupTestData({ admin, orgId: orgA, userIds })
-      await cleanupTestData({ admin, orgId: orgB, userIds: bUserIds })
-      await cleanupReferenceData({ admin, refs: [refs, refsB] })
+      const errors: unknown[] = []
+      let orgsClean = true
+      for (const [orgId, ids] of [
+        [orgA, userIds],
+        [orgB, bUserIds],
+      ] as const) {
+        try {
+          await cleanupTestData({ admin, orgId, userIds: ids })
+        } catch (e) {
+          orgsClean = false
+          errors.push(e)
+        }
+      }
+      if (orgsClean) {
+        try {
+          await cleanupReferenceData({ admin, refs: [refs, refsB] })
+        } catch (e) {
+          errors.push(e)
+        }
+      }
+      if (errors.length > 0) throw new AggregateError(errors, 'teardown failed')
     },
     /** Service-role seeded sitting. day = UTC day offset from today (negative = past). */
     async sitting(
@@ -232,6 +257,7 @@ async function buildWorld(tag: string) {
         .eq('sitting_id', sittingId)
         .eq('user_id', userId)
         .is('deleted_at', null)
+      expect(c.error, 'candidate lookup').toBeNull()
       if (!c.data?.length) await world.candidate(sittingId, userId)
       return world.entry(sittingId, userId, subjectId)
     },
@@ -419,24 +445,24 @@ describe('exam config sitting block and syllabus guards', () => {
     for (const state of ['closed', 'cancelled'] as const) {
       const sit = await w.sitting({ day: 0, state })
       await w.enter(sit, w.s1, w.subA)
-      must(await disable(w.subA).select('id'), `disable with ${state} sitting`)
-      must(await enable(w.subA).select('id'), 're-enable')
+      mustOne(await disable(w.subA).select('id'), `disable with ${state} sitting`)
+      mustOne(await enable(w.subA).select('id'), 're-enable')
     }
     const stale = await w.sitting({ day: -2 })
     await w.enter(stale, w.s2, w.subA)
-    must(await disable(w.subA).select('id'), 'disable with day-ended sitting')
-    must(await enable(w.subA).select('id'), 're-enable')
+    mustOne(await disable(w.subA).select('id'), 'disable with day-ended sitting')
+    mustOne(await enable(w.subA).select('id'), 're-enable')
   })
 
   it('AC-38: disable is allowed after the entry is soft-deleted, for another subject, and for an org B entry', async () => {
     const { sit, entry } = await liveEntry('scheduled')
-    must(await disable(w.subB).select('id'), 'other subject')
-    must(await enable(w.subB).select('id'), 're-enable B')
+    mustOne(await disable(w.subB).select('id'), 'other subject')
+    mustOne(await enable(w.subB).select('id'), 're-enable B')
     const bSit = await w.sitting({ org: w.orgB, day: 0 })
     await w.candidate(bSit, w.bs1, w.orgB)
     await w.entry(bSit, w.bs1, w.subB, w.orgB)
-    must(await disable(w.subB).select('id'), 'org B entry only')
-    must(await enable(w.subB).select('id'), 're-enable B')
+    mustOne(await disable(w.subB).select('id'), 'org B entry only')
+    mustOne(await enable(w.subB).select('id'), 're-enable B')
     must(
       await admin
         .from('exam_sitting_entries')
@@ -444,14 +470,14 @@ describe('exam config sitting block and syllabus guards', () => {
         .eq('id', entry),
       'soft delete entry',
     )
-    must(await disable(w.subA).select('id'), 'entry removed')
-    must(await enable(w.subA).select('id'), 're-enable A')
+    mustOne(await disable(w.subA).select('id'), 'entry removed')
+    mustOne(await enable(w.subA).select('id'), 're-enable A')
     await w.clients.a1.rpc('cancel_exam_sitting', { p_sitting_id: sit })
   })
 
   it('AC-38: re-enable and editing params while enabled are not blocked', async () => {
     const { sit } = await liveEntry('scheduled')
-    must(await enable(w.subA).select('id'), 're-enable while enabled')
+    mustOne(await enable(w.subA).select('id'), 're-enable while enabled')
     must(
       await w.clients.a1.rpc('upsert_exam_config', {
         p_subject_id: w.subA,

@@ -58,7 +58,9 @@ function psql(sql: string): { out: string; err: string } {
       encoding: 'utf8',
     })
   }
-  return { out: (r.stdout ?? '').trim(), err: (r.stderr ?? '').trim() }
+  if (r.error) throw new Error(`psql unavailable: ${r.error.message}`)
+  const err = (r.stderr ?? '').trim()
+  return { out: (r.stdout ?? '').trim(), err: err || (r.status ? `psql exit ${r.status}` : '') }
 }
 
 type SittingState = 'scheduled' | 'open' | 'closed' | 'cancelled'
@@ -158,9 +160,27 @@ async function buildWorld(tag: string) {
     userIds,
     bUserIds,
     async teardown() {
-      await cleanupTestData({ admin, orgId: orgA, userIds })
-      await cleanupTestData({ admin, orgId: orgB, userIds: bUserIds })
-      await cleanupReferenceData({ admin, refs: [refs, refsB] })
+      const errors: unknown[] = []
+      let orgsClean = true
+      for (const [orgId, ids] of [
+        [orgA, userIds],
+        [orgB, bUserIds],
+      ] as const) {
+        try {
+          await cleanupTestData({ admin, orgId, userIds: ids })
+        } catch (e) {
+          orgsClean = false
+          errors.push(e)
+        }
+      }
+      if (orgsClean) {
+        try {
+          await cleanupReferenceData({ admin, refs: [refs, refsB] })
+        } catch (e) {
+          errors.push(e)
+        }
+      }
+      if (errors.length > 0) throw new AggregateError(errors, 'teardown failed')
     },
     /** Service-role seeded sitting. day = UTC day offset from today (negative = past). */
     async sitting(
@@ -232,6 +252,7 @@ async function buildWorld(tag: string) {
         .eq('sitting_id', sittingId)
         .eq('user_id', userId)
         .is('deleted_at', null)
+      expect(c.error, 'candidate lookup').toBeNull()
       if (!c.data?.length) await world.candidate(sittingId, userId)
       return world.entry(sittingId, userId, subjectId)
     },
@@ -427,7 +448,7 @@ describe('RPC: record_exam_sitting_notice', () => {
     expect(a[0]?.metadata).toMatchObject({ kind: 'entry_auto_removed', entry_id: e })
   })
 
-  it('AC-46: a foreign code, a code of another sitting, a mismatched kind and an unremoved entry are invalid_input', async () => {
+  it('AC-46: a code of another organization, a code of another sitting, an unknown code, a mismatched kind and an unremoved entry are invalid_input', async () => {
     const sit = await w.sitting({ day: 1 })
     const other = await w.sitting({ day: 1 })
     const eOther = await w.enter(other, w.s1, w.subA)
@@ -436,6 +457,14 @@ describe('RPC: record_exam_sitting_notice', () => {
     const cMine = await w.code(eMine)
     expectToken(await notice(sit, 'changed', { p_code_ids: [cOther] }), 'invalid_input')
     expectToken(await notice(sit, 'changed', { p_code_ids: [BAD] }), 'invalid_input')
+    const bSit = await w.sitting({ day: 1, org: w.orgB })
+    await w.candidate(bSit, w.bs1, w.orgB)
+    const bEntry = await w.entry(bSit, w.bs1, w.subB, w.orgB)
+    const bCode = await w.code(bEntry, { emailed: true })
+    expect(
+      must(await notice(bSit, 'changed', { p_code_ids: [bCode] }, w.clients.b1), 'b own'),
+    ).toBe(1)
+    expectToken(await notice(sit, 'changed', { p_code_ids: [bCode] }), 'invalid_input')
     expectToken(await notice(sit, 'changed', { p_entry_ids: [eMine] }), 'invalid_input')
     expectToken(await notice(sit, 'entry_auto_removed', { p_code_ids: [cMine] }), 'invalid_input')
     expectToken(await notice(sit, 'entry_auto_removed', { p_entry_ids: [eMine] }), 'invalid_input')

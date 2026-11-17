@@ -58,7 +58,9 @@ function psql(sql: string): { out: string; err: string } {
       encoding: 'utf8',
     })
   }
-  return { out: (r.stdout ?? '').trim(), err: (r.stderr ?? '').trim() }
+  if (r.error) throw new Error(`psql unavailable: ${r.error.message}`)
+  const err = (r.stderr ?? '').trim()
+  return { out: (r.stdout ?? '').trim(), err: err || (r.status ? `psql exit ${r.status}` : '') }
 }
 
 type SittingState = 'scheduled' | 'open' | 'closed' | 'cancelled'
@@ -158,9 +160,27 @@ async function buildWorld(tag: string) {
     userIds,
     bUserIds,
     async teardown() {
-      await cleanupTestData({ admin, orgId: orgA, userIds })
-      await cleanupTestData({ admin, orgId: orgB, userIds: bUserIds })
-      await cleanupReferenceData({ admin, refs: [refs, refsB] })
+      const errors: unknown[] = []
+      let orgsClean = true
+      for (const [orgId, ids] of [
+        [orgA, userIds],
+        [orgB, bUserIds],
+      ] as const) {
+        try {
+          await cleanupTestData({ admin, orgId, userIds: ids })
+        } catch (e) {
+          orgsClean = false
+          errors.push(e)
+        }
+      }
+      if (orgsClean) {
+        try {
+          await cleanupReferenceData({ admin, refs: [refs, refsB] })
+        } catch (e) {
+          errors.push(e)
+        }
+      }
+      if (errors.length > 0) throw new AggregateError(errors, 'teardown failed')
     },
     /** Service-role seeded sitting. day = UTC day offset from today (negative = past). */
     async sitting(
@@ -232,6 +252,7 @@ async function buildWorld(tag: string) {
         .eq('sitting_id', sittingId)
         .eq('user_id', userId)
         .is('deleted_at', null)
+      expect(c.error, 'candidate lookup').toBeNull()
       if (!c.data?.length) await world.candidate(sittingId, userId)
       return world.entry(sittingId, userId, subjectId)
     },
@@ -479,12 +500,16 @@ describe('lazy close of day-ended sittings', () => {
   })
 
   it('AC-34: five day-ended sittings close three per call, lowest ids first, then the rest', async () => {
-    psql(
-      `UPDATE exam_sittings SET deleted_at = now(), deleted_by = created_by WHERE organization_id = '${w.orgA}' AND deleted_at IS NULL AND closed_at IS NULL AND started_at IS NULL AND scheduled_at < date_trunc('day', now());`,
-    )
-    psql(
-      `UPDATE exam_sittings SET closed_at = now(), closed_by = started_by WHERE organization_id = '${w.orgA}' AND status = 'open' AND scheduled_at < date_trunc('day', now());`,
-    )
+    expect(
+      psql(
+        `UPDATE exam_sittings SET deleted_at = now(), deleted_by = created_by WHERE organization_id = '${w.orgA}' AND deleted_at IS NULL AND closed_at IS NULL AND started_at IS NULL AND scheduled_at < date_trunc('day', now());`,
+      ).err,
+    ).toBe('')
+    expect(
+      psql(
+        `UPDATE exam_sittings SET closed_at = now(), closed_by = started_by WHERE organization_id = '${w.orgA}' AND status = 'open' AND scheduled_at < date_trunc('day', now());`,
+      ).err,
+    ).toBe('')
     const ids: string[] = []
     for (let i = 0; i < 5; i++) ids.push(await w.sitting({ day: -3, state: 'open' }))
     const sorted = [...ids].sort()
@@ -511,9 +536,11 @@ describe('lazy close of day-ended sittings', () => {
   it('AC-34: boundaries: today 00:00 is untouched, yesterday 23:59:59.999999 is closed', async () => {
     const today = await w.sitting({ day: 0, hour: 0, state: 'open' })
     const yesterday = await w.sitting({ day: -1, hour: 23, state: 'open' })
-    psql(
-      `UPDATE exam_sittings SET scheduled_at = date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC' - interval '1 microsecond' WHERE id = '${yesterday}';`,
-    )
+    expect(
+      psql(
+        `UPDATE exam_sittings SET scheduled_at = date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC' - interval '1 microsecond' WHERE id = '${yesterday}';`,
+      ).err,
+    ).toBe('')
     must(await a1().rpc('list_exam_sittings', { p_scope: 'past' }), 'list')
     expect((await w.sittingRow(today)).status).toBe('open')
     expect((await w.sittingRow(yesterday)).status).toBe('closed')

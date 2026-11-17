@@ -15,7 +15,9 @@ function psql(sql: string): { out: string; err: string } {
       encoding: 'utf8',
     })
   }
-  return { out: (r.stdout ?? '').trim(), err: (r.stderr ?? '').trim() }
+  if (r.error) throw new Error(`psql unavailable: ${r.error.message}`)
+  const err = (r.stderr ?? '').trim()
+  return { out: (r.stdout ?? '').trim(), err: err || (r.status ? `psql exit ${r.status}` : '') }
 }
 
 /** AC-7: private time helpers (psql). */

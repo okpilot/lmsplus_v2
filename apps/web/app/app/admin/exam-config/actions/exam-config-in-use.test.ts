@@ -5,7 +5,7 @@ const REFUSAL =
   'This exam is used by a scheduled or open sitting. Close or cancel that sitting, or remove its candidates for this subject, before disabling the exam.'
 
 describe('examConfigWriteError', () => {
-  it('maps exam_config_in_use to the refusal copy', () => {
+  it('explains how to release an exam configuration used by a sitting', () => {
     expect(examConfigWriteError('exam_config_in_use', 'fallback')).toBe(REFUSAL)
   })
   it('returns the fallback for any other message', () => {

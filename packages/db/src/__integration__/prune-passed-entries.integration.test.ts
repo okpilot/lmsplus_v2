@@ -58,7 +58,9 @@ function psql(sql: string): { out: string; err: string } {
       encoding: 'utf8',
     })
   }
-  return { out: (r.stdout ?? '').trim(), err: (r.stderr ?? '').trim() }
+  if (r.error) throw new Error(`psql unavailable: ${r.error.message}`)
+  const err = (r.stderr ?? '').trim()
+  return { out: (r.stdout ?? '').trim(), err: err || (r.status ? `psql exit ${r.status}` : '') }
 }
 
 type SittingState = 'scheduled' | 'open' | 'closed' | 'cancelled'
@@ -158,9 +160,27 @@ async function buildWorld(tag: string) {
     userIds,
     bUserIds,
     async teardown() {
-      await cleanupTestData({ admin, orgId: orgA, userIds })
-      await cleanupTestData({ admin, orgId: orgB, userIds: bUserIds })
-      await cleanupReferenceData({ admin, refs: [refs, refsB] })
+      const errors: unknown[] = []
+      let orgsClean = true
+      for (const [orgId, ids] of [
+        [orgA, userIds],
+        [orgB, bUserIds],
+      ] as const) {
+        try {
+          await cleanupTestData({ admin, orgId, userIds: ids })
+        } catch (e) {
+          orgsClean = false
+          errors.push(e)
+        }
+      }
+      if (orgsClean) {
+        try {
+          await cleanupReferenceData({ admin, refs: [refs, refsB] })
+        } catch (e) {
+          errors.push(e)
+        }
+      }
+      if (errors.length > 0) throw new AggregateError(errors, 'teardown failed')
     },
     /** Service-role seeded sitting. day = UTC day offset from today (negative = past). */
     async sitting(
@@ -232,6 +252,7 @@ async function buildWorld(tag: string) {
         .eq('sitting_id', sittingId)
         .eq('user_id', userId)
         .is('deleted_at', null)
+      expect(c.error, 'candidate lookup').toBeNull()
       if (!c.data?.length) await world.candidate(sittingId, userId)
       return world.entry(sittingId, userId, subjectId)
     },
@@ -376,7 +397,6 @@ describe('prune of entries whose student has passed', () => {
     const cA = await w.code(eA)
     const cB = await w.code(eB)
     const passing = await w.session(w.s1, w.subA, { ended: true, passed: true })
-    // untouched: other subject, other student, consumed code, closed sitting, cancelled sitting, voided-consuming pass
     const eOtherSubject = await w.entry(A, w.s1, w.subB)
     await w.candidate(A, w.s2)
     const eOtherStudent = await w.entry(A, w.s2, w.subA)

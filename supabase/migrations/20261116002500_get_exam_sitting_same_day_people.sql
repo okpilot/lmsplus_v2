@@ -32,6 +32,7 @@ BEGIN
     JOIN public.users u ON u.id = c.user_id AND u.organization_id = v_g.org_id
     JOIN public.exam_sitting_entries e2 ON e2.user_id = c.user_id AND e2.deleted_at IS NULL AND e2.sitting_id <> p_sitting_id
     JOIN public.exam_sittings s2 ON s2.id = e2.sitting_id AND s2.organization_id = v_g.org_id
+                         AND s2.deleted_at IS NULL
    WHERE c.sitting_id = p_sitting_id AND c.deleted_at IS NULL AND c.user_id = ANY(v_users)
      AND s2.status IN ('scheduled', 'open') AND NOT private.sitting_day_ended(s2.scheduled_at)
      AND (s2.scheduled_at AT TIME ZONE 'UTC')::date = (v_s.scheduled_at AT TIME ZONE 'UTC')::date

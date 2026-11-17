@@ -58,7 +58,9 @@ function psql(sql: string): { out: string; err: string } {
       encoding: 'utf8',
     })
   }
-  return { out: (r.stdout ?? '').trim(), err: (r.stderr ?? '').trim() }
+  if (r.error) throw new Error(`psql unavailable: ${r.error.message}`)
+  const err = (r.stderr ?? '').trim()
+  return { out: (r.stdout ?? '').trim(), err: err || (r.status ? `psql exit ${r.status}` : '') }
 }
 
 type SittingState = 'scheduled' | 'open' | 'closed' | 'cancelled'
@@ -158,9 +160,27 @@ async function buildWorld(tag: string) {
     userIds,
     bUserIds,
     async teardown() {
-      await cleanupTestData({ admin, orgId: orgA, userIds })
-      await cleanupTestData({ admin, orgId: orgB, userIds: bUserIds })
-      await cleanupReferenceData({ admin, refs: [refs, refsB] })
+      const errors: unknown[] = []
+      let orgsClean = true
+      for (const [orgId, ids] of [
+        [orgA, userIds],
+        [orgB, bUserIds],
+      ] as const) {
+        try {
+          await cleanupTestData({ admin, orgId, userIds: ids })
+        } catch (e) {
+          orgsClean = false
+          errors.push(e)
+        }
+      }
+      if (orgsClean) {
+        try {
+          await cleanupReferenceData({ admin, refs: [refs, refsB] })
+        } catch (e) {
+          errors.push(e)
+        }
+      }
+      if (errors.length > 0) throw new AggregateError(errors, 'teardown failed')
     },
     /** Service-role seeded sitting. day = UTC day offset from today (negative = past). */
     async sitting(
@@ -232,6 +252,7 @@ async function buildWorld(tag: string) {
         .eq('sitting_id', sittingId)
         .eq('user_id', userId)
         .is('deleted_at', null)
+      expect(c.error, 'candidate lookup').toBeNull()
       if (!c.data?.length) await world.candidate(sittingId, userId)
       return world.entry(sittingId, userId, subjectId)
     },
@@ -476,10 +497,13 @@ describe('RPC: start, close, cancel exam sitting', () => {
 
     must(await start(id), 'start')
 
-    expect(
-      (await admin.from('exam_sitting_entries').select('deleted_at').eq('id', entry).single()).data
-        ?.deleted_at,
-    ).not.toBeNull()
+    const entryRow = await admin
+      .from('exam_sitting_entries')
+      .select('deleted_at')
+      .eq('id', entry)
+      .single()
+    expect(entryRow.error).toBeNull()
+    expect(entryRow.data?.deleted_at).toEqual(expect.any(String))
     expect((await w.codeRow(code)).void_reason).toBe('passed_elsewhere')
     expect((await w.audits('exam_sitting.entry_auto_removed', id)).length).toBe(1)
     expect((await w.sittingRow(stale)).status).toBe('closed')
@@ -521,10 +545,13 @@ describe('RPC: start, close, cancel exam sitting', () => {
       p_device_id: null,
     })
     expect(fin.error).toBeNull()
-    expect(
-      (await admin.from('quiz_sessions').select('ended_at').eq('id', running).single()).data
-        ?.ended_at,
-    ).not.toBeNull()
+    const sessionRow = await admin
+      .from('quiz_sessions')
+      .select('ended_at')
+      .eq('id', running)
+      .single()
+    expect(sessionRow.error).toBeNull()
+    expect(sessionRow.data?.ended_at).toEqual(expect.any(String))
   })
 
   it('AC-29: Close of a scheduled sitting is sitting_not_open and a second Close is sitting_closed', async () => {

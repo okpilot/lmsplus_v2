@@ -33,14 +33,23 @@ function buildChain(result: Result, calls: Call[], table: string) {
 const ok = (data: unknown): Result => ({ data, error: null })
 const MARKED = [{ id: 's1', created_by: 'u1', closed_at: null }]
 
-/** Every call on a table resolves to that table's static result. */
-function mockTables(results: Record<string, Result>) {
+/** Each `from(table)` call takes the next queued result for that table; the last one repeats. */
+function mockTables(results: Record<string, Result | Result[]>) {
   const calls: Call[] = []
+  const used: Record<string, number> = {}
   mockGetAdminClient.mockReturnValue({
-    from: (table: string) => buildChain(results[table] ?? ok([]), calls, table),
+    from: (table: string) => {
+      const r = results[table] ?? ok([])
+      const queue = Array.isArray(r) ? r : [r]
+      const i = Math.min(used[table] ?? 0, queue.length - 1)
+      used[table] = (used[table] ?? 0) + 1
+      return buildChain(queue[i] as Result, calls, table)
+    },
   })
   return calls
 }
+
+const boom = (message: string): Result => ({ data: null, error: { message } })
 
 const firstUpdate = (calls: Call[], table: string) =>
   calls.findIndex((c) => c.table === table && c.method === 'update')
@@ -140,14 +149,111 @@ describe('cleanupE2eExamSittings', () => {
     await expect(cleanupE2eExamSittings()).rejects.toThrow('cleanupE2eExamSittings: find boom')
   })
 
-  it('throws with context and leaves sittings alone when the entry update fails', async () => {
+  it('throws when the entry lookup fails and writes nothing', async () => {
     const calls = mockTables({
       exam_sittings: ok(MARKED),
-      exam_sitting_entries: { data: null, error: { message: 'entry boom' } },
+      exam_sitting_entries: boom('lookup boom'),
     })
 
-    await expect(cleanupE2eExamSittings()).rejects.toThrow(/cleanupE2eExamSittings.*entry boom/)
-    expect(calls.some((c) => c.table === 'exam_sittings' && c.method === 'update')).toBe(false)
+    await expect(cleanupE2eExamSittings()).rejects.toThrow(/entries: lookup boom/)
+    expect(calls.some((c) => c.method === 'update')).toBe(false)
+  })
+
+  it('reports an entry-update failure after reaching the update, and still soft-deletes the sitting', async () => {
+    const calls = mockTables({
+      exam_sittings: ok(MARKED),
+      exam_sitting_entries: [ok([{ id: 'e1', sitting_id: 's1' }]), boom('entry boom')],
+    })
+
+    await expect(cleanupE2eExamSittings()).rejects.toThrow(
+      /cleanupE2eExamSittings.*entries: entry boom/,
+    )
+    expect(calls.some((c) => c.table === 'exam_sitting_entries' && c.method === 'update')).toBe(
+      true,
+    )
+    expect(calls.some((c) => c.table === 'exam_sittings' && c.method === 'update')).toBe(true)
+  })
+
+  it('reports a code-void failure and continues to later steps', async () => {
+    const calls = mockTables({
+      exam_sittings: ok(MARKED),
+      exam_sitting_entries: ok([{ id: 'e1', sitting_id: 's1' }]),
+      internal_exam_codes: boom('code boom'),
+    })
+
+    await expect(cleanupE2eExamSittings()).rejects.toThrow(/codes: code boom/)
+    expect(calls.some((c) => c.table === 'exam_sitting_candidates' && c.method === 'update')).toBe(
+      true,
+    )
+    expect(calls.some((c) => c.table === 'exam_sittings' && c.method === 'update')).toBe(true)
+  })
+
+  it('reports a candidate-update failure and continues to the sitting', async () => {
+    const calls = mockTables({
+      exam_sittings: ok(MARKED),
+      exam_sitting_entries: ok([{ id: 'e1', sitting_id: 's1' }]),
+      exam_sitting_candidates: boom('cand boom'),
+    })
+
+    await expect(cleanupE2eExamSittings()).rejects.toThrow(/candidates: cand boom/)
+    expect(calls.some((c) => c.table === 'exam_sittings' && c.method === 'update')).toBe(true)
+  })
+
+  it('reports a sitting-update failure', async () => {
+    mockTables({
+      exam_sittings: [ok(MARKED), boom('sit boom')],
+      exam_sitting_entries: ok([{ id: 'e1', sitting_id: 's1' }]),
+    })
+
+    await expect(cleanupE2eExamSittings()).rejects.toThrow(/sittings: sit boom/)
+  })
+
+  it('accumulates every failure into one error', async () => {
+    mockTables({
+      exam_sittings: [ok(MARKED), boom('sit boom')],
+      exam_sitting_entries: [ok([{ id: 'e1', sitting_id: 's1' }]), boom('entry boom')],
+      exam_sitting_candidates: boom('cand boom'),
+      internal_exam_codes: boom('code boom'),
+    })
+
+    await expect(cleanupE2eExamSittings()).rejects.toThrow(
+      /code boom.*entry boom.*cand boom.*sit boom/,
+    )
+  })
+
+  it('logs the affected row counts per table', async () => {
+    mockTables({
+      exam_sittings: [ok(MARKED), ok([{ id: 's1' }])],
+      exam_sitting_entries: [
+        ok([{ id: 'e1', sitting_id: 's1' }]),
+        ok([{ id: 'e1' }, { id: 'e2' }]),
+      ],
+      exam_sitting_candidates: ok([{ id: 'c1' }]),
+      internal_exam_codes: ok([{ id: 'k1' }]),
+    })
+
+    await cleanupE2eExamSittings()
+
+    const log = vi.mocked(console.log)
+    expect(log).toHaveBeenCalledWith(expect.stringContaining('soft-deleted 2 exam_sitting_entries'))
+    expect(log).toHaveBeenCalledWith(
+      expect.stringContaining('soft-deleted 1 exam_sitting_candidates'),
+    )
+    expect(log).toHaveBeenCalledWith(expect.stringContaining('soft-deleted 1 exam_sittings'))
+    expect(log).toHaveBeenCalledWith(expect.stringContaining('1 internal_exam_codes (voided)'))
+  })
+
+  it('stays silent when every mutation affects zero rows', async () => {
+    mockTables({
+      exam_sittings: [ok(MARKED), ok([])],
+      exam_sitting_entries: [ok([{ id: 'e1', sitting_id: 's1' }]), ok([])],
+      exam_sitting_candidates: ok([]),
+      internal_exam_codes: ok([]),
+    })
+
+    await cleanupE2eExamSittings()
+
+    expect(console.log).not.toHaveBeenCalled()
   })
 
   it('voids codes per sitting with its own created_by and skips soft-deleting closed sittings', async () => {

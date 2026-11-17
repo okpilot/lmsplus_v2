@@ -79,7 +79,10 @@ export async function insertMarkedSubject(admin: Admin): Promise<string> {
 
 export type SittingTrack = { sittingIds: string[]; subjectIds: string[]; adminId: string }
 
-type Step = [label: string, run: () => PromiseLike<{ error: { message: string } | null }>]
+type Step = [
+  label: string,
+  run: () => PromiseLike<{ data: { id: string }[] | null; error: { message: string } | null }>,
+]
 
 /** Soft-deletes the tracked sittings' entries, candidates and unclosed sittings, then configs and
  *  subjects; per-step accumulator; resets the tracked ids. */
@@ -101,7 +104,8 @@ export async function cleanupSittingFixtures(admin: Admin, track: SittingTrack):
             .from('exam_sitting_entries')
             .update({ deleted_at: now, deleted_by: by })
             .in('sitting_id', sids)
-            .is('deleted_at', null),
+            .is('deleted_at', null)
+            .select('id'),
       ],
       [
         'candidates',
@@ -110,7 +114,8 @@ export async function cleanupSittingFixtures(admin: Admin, track: SittingTrack):
             .from('exam_sitting_candidates')
             .update({ deleted_at: now, deleted_by: by })
             .in('sitting_id', sids)
-            .is('deleted_at', null),
+            .is('deleted_at', null)
+            .select('id'),
       ],
       [
         'sittings',
@@ -120,7 +125,8 @@ export async function cleanupSittingFixtures(admin: Admin, track: SittingTrack):
             .update({ deleted_at: now, deleted_by: by })
             .in('id', sids)
             .is('deleted_at', null)
-            .is('closed_at', null),
+            .is('closed_at', null)
+            .select('id'),
       ],
     )
   }
@@ -133,7 +139,8 @@ export async function cleanupSittingFixtures(admin: Admin, track: SittingTrack):
             .from('exam_configs')
             .update({ deleted_at: now })
             .in('subject_id', subs)
-            .is('deleted_at', null),
+            .is('deleted_at', null)
+            .select('id'),
       ],
       [
         'easa_subjects',
@@ -142,14 +149,17 @@ export async function cleanupSittingFixtures(admin: Admin, track: SittingTrack):
             .from('easa_subjects')
             .update({ deleted_at: now })
             .in('id', subs)
-            .is('deleted_at', null),
+            .is('deleted_at', null)
+            .select('id'),
       ],
     )
   }
   for (const [label, run] of steps) {
     try {
-      const { error } = await run()
+      const { data, error } = await run()
       if (error) throw new Error(`${label}: ${error.message}`)
+      if (data && data.length > 0)
+        console.log(`cleanupSittingFixtures: soft-deleted ${data.length} ${label} row(s)`)
     } catch (e) {
       errors.push(e instanceof Error ? e.message : String(e))
     }

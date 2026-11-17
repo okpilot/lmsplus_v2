@@ -775,7 +775,7 @@ CREATE POLICY audit_read_admins ON audit_events
 
 ### Write-on-read RPCs (sittings, #1777)
 
-`list_exam_sittings`, `get_exam_sitting_summary` and `list_my_active_internal_exam_codes` (lazy close), `get_exam_sitting_summary` / `start_exam_sitting` (prune), and a lazy or manual close of an open sitting (prune, via `close_exam_sitting_core`), are the only sanctioned write-on-read RPCs. Idempotency basis: the core is a no-op on closed or cancelled sittings, takes `SKIP LOCKED`, and handles at most 3 sittings per call; a lost write is redone by the next call.
+`list_exam_sittings`, `get_exam_sitting_summary` and `list_my_active_internal_exam_codes` (lazy close), `get_exam_sitting_summary` / `start_exam_sitting` (prune), and a lazy or manual close of an open sitting (prune, via `close_exam_sitting_core`), are the only sanctioned write-on-read RPCs. Idempotency basis: `private.close_exam_sitting_core` is a no-op on closed or cancelled sittings and takes a plain `FOR UPDATE`; `private.close_expired_sittings` selects at most 3 sittings per call with `LIMIT 3 … FOR UPDATE SKIP LOCKED`; `get_exam_sitting_summary` also closes its own requested sitting through the core, so it can close up to 4 per call; a lost write is redone by the next call.
 
 ---
 

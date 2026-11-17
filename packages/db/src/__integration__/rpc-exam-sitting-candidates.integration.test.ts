@@ -58,7 +58,9 @@ function psql(sql: string): { out: string; err: string } {
       encoding: 'utf8',
     })
   }
-  return { out: (r.stdout ?? '').trim(), err: (r.stderr ?? '').trim() }
+  if (r.error) throw new Error(`psql unavailable: ${r.error.message}`)
+  const err = (r.stderr ?? '').trim()
+  return { out: (r.stdout ?? '').trim(), err: err || (r.status ? `psql exit ${r.status}` : '') }
 }
 
 type SittingState = 'scheduled' | 'open' | 'closed' | 'cancelled'
@@ -158,9 +160,27 @@ async function buildWorld(tag: string) {
     userIds,
     bUserIds,
     async teardown() {
-      await cleanupTestData({ admin, orgId: orgA, userIds })
-      await cleanupTestData({ admin, orgId: orgB, userIds: bUserIds })
-      await cleanupReferenceData({ admin, refs: [refs, refsB] })
+      const errors: unknown[] = []
+      let orgsClean = true
+      for (const [orgId, ids] of [
+        [orgA, userIds],
+        [orgB, bUserIds],
+      ] as const) {
+        try {
+          await cleanupTestData({ admin, orgId, userIds: ids })
+        } catch (e) {
+          orgsClean = false
+          errors.push(e)
+        }
+      }
+      if (orgsClean) {
+        try {
+          await cleanupReferenceData({ admin, refs: [refs, refsB] })
+        } catch (e) {
+          errors.push(e)
+        }
+      }
+      if (errors.length > 0) throw new AggregateError(errors, 'teardown failed')
     },
     /** Service-role seeded sitting. day = UTC day offset from today (negative = past). */
     async sitting(
@@ -232,6 +252,7 @@ async function buildWorld(tag: string) {
         .eq('sitting_id', sittingId)
         .eq('user_id', userId)
         .is('deleted_at', null)
+      expect(c.error, 'candidate lookup').toBeNull()
       if (!c.data?.length) await world.candidate(sittingId, userId)
       return world.entry(sittingId, userId, subjectId)
     },
@@ -486,8 +507,9 @@ describe('RPC: exam sitting candidates and entry removal', () => {
 
   it('AC-19: 500 live candidates plus one more is too_many_candidates and adds nothing', async () => {
     const id = await w.sitting()
-    const seeded = await bulkStudents(w.orgA, 500)
+    const seeded = Array.from({ length: 500 }, () => crypto.randomUUID())
     try {
+      await bulkStudents(w.orgA, seeded)
       must(
         await admin
           .from('exam_sitting_candidates')
@@ -497,10 +519,14 @@ describe('RPC: exam sitting candidates and entry removal', () => {
       expectToken(await add(id, [w.s1]), 'too_many_candidates')
       expect(await liveCands(id)).toHaveLength(500)
     } finally {
-      await admin.from('exam_sitting_candidates').delete().eq('sitting_id', id)
-      psql(
+      const errors: string[] = []
+      const del = await admin.from('exam_sitting_candidates').delete().eq('sitting_id', id)
+      if (del.error) errors.push(`candidates: ${del.error.message}`)
+      const cleanup = psql(
         `DELETE FROM public.users WHERE id = ANY('{${seeded.join(',')}}'::uuid[]); DELETE FROM auth.users WHERE id = ANY('{${seeded.join(',')}}'::uuid[]);`,
       )
+      if (cleanup.err) errors.push(`users: ${cleanup.err}`)
+      expect(errors, 'bulk cleanup').toEqual([])
     }
   })
 
@@ -526,8 +552,10 @@ describe('RPC: exam sitting candidates and entry removal', () => {
     expect((await liveCands(id)).map((c) => c.user_id)).not.toContain(w.s1)
     const entries = await admin
       .from('exam_sitting_entries')
-      .select('deleted_at')
+      .select('id, deleted_at')
       .eq('sitting_id', id)
+    expect(entries.error).toBeNull()
+    expect((entries.data ?? []).map((r) => r.id).sort()).toEqual([e1, e2].sort())
     expect(entries.data?.every((r) => r.deleted_at !== null)).toBe(true)
     for (const c of [c1, c2]) expect((await w.codeRow(c)).void_reason).toBe('entry_removed')
     const voids = (await w.audits('internal_exam.code_voided')).filter(
@@ -625,8 +653,7 @@ describe('RPC: exam sitting candidates and entry removal', () => {
     )
   })
 
-  async function bulkStudents(org: string, n: number): Promise<string[]> {
-    const ids = Array.from({ length: n }, () => crypto.randomUUID())
+  async function bulkStudents(org: string, ids: string[]): Promise<void> {
     // public.users.id references auth.users, so create auth rows through SQL then public rows.
     const values = ids.map((id, i) => `('${id}', 'bulk${i}-${suffix}@test.local')`).join(',')
     const r = psql(
@@ -634,6 +661,5 @@ describe('RPC: exam sitting candidates and entry removal', () => {
        INSERT INTO public.users (id, organization_id, email, full_name, role) SELECT v.id::uuid, '${org}', v.email, 'bulk', 'student' FROM (VALUES ${values}) AS v(id, email);`,
     )
     expect(r.err).toBe('')
-    return ids
   }
 })

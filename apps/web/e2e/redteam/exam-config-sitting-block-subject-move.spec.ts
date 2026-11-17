@@ -1,10 +1,9 @@
 /**
  * Red Team Spec: exam config in-use block vs a subject_id move (Vector MH, #1777)
  *
- * MH: an admin holds table-level UPDATE on exam_configs. trg_exam_config_sitting_block fires only on
- * `UPDATE OF enabled, deleted_at` and tests NEW.subject_id, so a direct
- * `UPDATE exam_configs SET subject_id = <other>` (alone, or with enabled = false) detaches the config
- * from a subject a scheduled sitting uses. Expected: `exam_config_in_use`, config unchanged.
+ * MH: an admin holds table-level UPDATE on exam_configs, so a direct
+ * `UPDATE exam_configs SET subject_id = <other>` (alone, or with enabled = false) could detach the
+ * config from a subject a scheduled sitting uses. Expected: `exam_config_in_use`, config unchanged.
  * CONTROL: `enabled = false` is refused while the entry is live; the same move succeeds once the
  * entry is soft-deleted.
  *

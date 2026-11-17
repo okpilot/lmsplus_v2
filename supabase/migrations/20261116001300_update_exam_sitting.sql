@@ -68,7 +68,8 @@ BEGIN
     UPDATE public.internal_exam_codes c
        SET expires_at = private.sitting_code_expiry(p_scheduled_at)
       FROM public.exam_sitting_entries e
-     WHERE c.sitting_entry_id = e.id AND e.sitting_id = p_sitting_id AND c.organization_id = v_g.org_id
+     WHERE c.sitting_entry_id = e.id AND e.sitting_id = p_sitting_id AND e.deleted_at IS NULL
+       AND c.organization_id = v_g.org_id
        AND c.consumed_at IS NULL AND c.voided_at IS NULL AND c.deleted_at IS NULL;
     GET DIAGNOSTICS v_restamped = ROW_COUNT;
   END IF;
@@ -77,7 +78,8 @@ BEGIN
     SELECT COALESCE(array_agg(c.id), '{}') INTO v_notify
       FROM public.internal_exam_codes c
       JOIN public.exam_sitting_entries e ON e.id = c.sitting_entry_id
-     WHERE e.sitting_id = p_sitting_id AND c.organization_id = v_g.org_id AND c.consumed_at IS NULL
+     WHERE e.sitting_id = p_sitting_id AND e.deleted_at IS NULL AND c.organization_id = v_g.org_id
+       AND c.consumed_at IS NULL
        AND c.voided_at IS NULL AND c.deleted_at IS NULL AND c.emailed_at IS NOT NULL;
   END IF;
 

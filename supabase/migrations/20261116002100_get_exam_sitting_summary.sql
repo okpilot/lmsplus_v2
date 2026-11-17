@@ -32,6 +32,7 @@ BEGIN
   END IF;
   IF v_s.status IN ('scheduled', 'open') THEN
     PERFORM private.prune_passed_entries(v_g.org_id, p_sitting_id, v_g.admin_id, v_g.admin_role);
+    SELECT * INTO v_s FROM public.exam_sittings s WHERE s.id = p_sitting_id AND s.organization_id = v_g.org_id;
   END IF;
 
   -- security.md §15 exception (f)

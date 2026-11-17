@@ -58,7 +58,9 @@ function psql(sql: string): { out: string; err: string } {
       encoding: 'utf8',
     })
   }
-  return { out: (r.stdout ?? '').trim(), err: (r.stderr ?? '').trim() }
+  if (r.error) throw new Error(`psql unavailable: ${r.error.message}`)
+  const err = (r.stderr ?? '').trim()
+  return { out: (r.stdout ?? '').trim(), err: err || (r.status ? `psql exit ${r.status}` : '') }
 }
 
 type SittingState = 'scheduled' | 'open' | 'closed' | 'cancelled'
@@ -158,9 +160,27 @@ async function buildWorld(tag: string) {
     userIds,
     bUserIds,
     async teardown() {
-      await cleanupTestData({ admin, orgId: orgA, userIds })
-      await cleanupTestData({ admin, orgId: orgB, userIds: bUserIds })
-      await cleanupReferenceData({ admin, refs: [refs, refsB] })
+      const errors: unknown[] = []
+      let orgsClean = true
+      for (const [orgId, ids] of [
+        [orgA, userIds],
+        [orgB, bUserIds],
+      ] as const) {
+        try {
+          await cleanupTestData({ admin, orgId, userIds: ids })
+        } catch (e) {
+          orgsClean = false
+          errors.push(e)
+        }
+      }
+      if (orgsClean) {
+        try {
+          await cleanupReferenceData({ admin, refs: [refs, refsB] })
+        } catch (e) {
+          errors.push(e)
+        }
+      }
+      if (errors.length > 0) throw new AggregateError(errors, 'teardown failed')
     },
     /** Service-role seeded sitting. day = UTC day offset from today (negative = past). */
     async sitting(
@@ -232,6 +252,7 @@ async function buildWorld(tag: string) {
         .eq('sitting_id', sittingId)
         .eq('user_id', userId)
         .is('deleted_at', null)
+      expect(c.error, 'candidate lookup').toBeNull()
       if (!c.data?.length) await world.candidate(sittingId, userId)
       return world.entry(sittingId, userId, subjectId)
     },
@@ -442,29 +463,42 @@ describe('exam sitting concurrency', () => {
   it('AC-50: adding and removing the same candidate never leaves a duplicate live row', async () => {
     const id = await w.sitting({ day: 1 })
     await w.candidate(id, w.s1)
-    await Promise.all([
+    const [addRes, removeRes] = await Promise.all([
       a1().rpc('add_exam_sitting_candidates', { p_sitting_id: id, p_user_ids: [w.s1] }),
       a1().rpc('remove_exam_sitting_candidates', { p_sitting_id: id, p_user_ids: [w.s1] }),
     ])
+    must(addRes, 'add')
+    expect(rowOf(must(removeRes, 'remove')).removed).toBe(1)
     const live = await admin
       .from('exam_sitting_candidates')
       .select('id')
       .eq('sitting_id', id)
       .eq('user_id', w.s1)
       .is('deleted_at', null)
-    expect((live.data ?? []).length).toBeLessThanOrEqual(1)
+    expect(live.error).toBeNull()
+    expect(Array.isArray(live.data)).toBe(true)
+    expect(live.data?.length).toBeLessThanOrEqual(1)
   })
 
   it('AC-50: removing a candidate and one of its entries leaves no live entry without a live candidate', async () => {
     const id = await w.sitting({ day: 1 })
     const entry = await w.enter(id, w.s2, w.subA)
-    await Promise.all([
+    const [candRes, entryRes] = await Promise.all([
       a1().rpc('remove_exam_sitting_candidates', { p_sitting_id: id, p_user_ids: [w.s2] }),
       a1().rpc('remove_exam_sitting_entries', { p_sitting_id: id, p_entry_ids: [entry] }),
     ])
-    const { out } = psql(
+    expect(rowOf(must(candRes, 'remove candidate')).removed).toBe(1)
+    if (entryRes.error) expect(entryRes.error.message).toBe('entry_not_found')
+    else expect(rowOf(entryRes.data).removed).toBe(1)
+    const gone = psql(
+      `SELECT count(*) FROM exam_sitting_entries WHERE id = '${entry}' AND deleted_at IS NOT NULL;`,
+    )
+    expect(gone.err).toBe('')
+    expect(gone.out).toBe('1')
+    const { out, err } = psql(
       `SELECT count(*) FROM exam_sitting_entries e WHERE e.sitting_id = '${id}' AND e.deleted_at IS NULL AND NOT EXISTS (SELECT 1 FROM exam_sitting_candidates c WHERE c.sitting_id = e.sitting_id AND c.user_id = e.user_id AND c.deleted_at IS NULL);`,
     )
+    expect(err).toBe('')
     expect(out).toBe('0')
   })
 })

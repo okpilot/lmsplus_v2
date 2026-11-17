@@ -58,7 +58,9 @@ function psql(sql: string): { out: string; err: string } {
       encoding: 'utf8',
     })
   }
-  return { out: (r.stdout ?? '').trim(), err: (r.stderr ?? '').trim() }
+  if (r.error) throw new Error(`psql unavailable: ${r.error.message}`)
+  const err = (r.stderr ?? '').trim()
+  return { out: (r.stdout ?? '').trim(), err: err || (r.status ? `psql exit ${r.status}` : '') }
 }
 
 type SittingState = 'scheduled' | 'open' | 'closed' | 'cancelled'
@@ -158,9 +160,27 @@ async function buildWorld(tag: string) {
     userIds,
     bUserIds,
     async teardown() {
-      await cleanupTestData({ admin, orgId: orgA, userIds })
-      await cleanupTestData({ admin, orgId: orgB, userIds: bUserIds })
-      await cleanupReferenceData({ admin, refs: [refs, refsB] })
+      const errors: unknown[] = []
+      let orgsClean = true
+      for (const [orgId, ids] of [
+        [orgA, userIds],
+        [orgB, bUserIds],
+      ] as const) {
+        try {
+          await cleanupTestData({ admin, orgId, userIds: ids })
+        } catch (e) {
+          orgsClean = false
+          errors.push(e)
+        }
+      }
+      if (orgsClean) {
+        try {
+          await cleanupReferenceData({ admin, refs: [refs, refsB] })
+        } catch (e) {
+          errors.push(e)
+        }
+      }
+      if (errors.length > 0) throw new AggregateError(errors, 'teardown failed')
     },
     /** Service-role seeded sitting. day = UTC day offset from today (negative = past). */
     async sitting(
@@ -232,6 +252,7 @@ async function buildWorld(tag: string) {
         .eq('sitting_id', sittingId)
         .eq('user_id', userId)
         .is('deleted_at', null)
+      expect(c.error, 'candidate lookup').toBeNull()
       if (!c.data?.length) await world.candidate(sittingId, userId)
       return world.entry(sittingId, userId, subjectId)
     },
@@ -393,6 +414,13 @@ describe('RLS: exam sittings, candidates, entries', () => {
     )
   }
 
+  /** Service-role proof that the protected sitting row exists, so a negative read is not vacuous. */
+  async function expectSittingExists(id: string) {
+    const r = await admin.from('exam_sittings').select('id').eq('id', id).is('deleted_at', null)
+    expect(r.error).toBeNull()
+    expect(r.data).toHaveLength(1)
+  }
+
   it('AC-1: an admin reads own-org sittings including a cancelled one, and nothing of org B', async () => {
     await seed()
     const rows = must<{ id: string }[]>(
@@ -418,6 +446,7 @@ describe('RLS: exam sittings, candidates, entries', () => {
 
   it('AC-1: an instructor and the assigned invigilator see 0 rows', async () => {
     await seed()
+    await expectSittingExists(sched)
     const rows = must<unknown[]>(
       await w.clients.i1.from('exam_sittings').select('id').eq('id', sched),
       'i1 select',
@@ -433,6 +462,7 @@ describe('RLS: exam sittings, candidates, entries', () => {
 
   it('AC-2: a student reads 0 sittings', async () => {
     await seed()
+    await expectSittingExists(sched)
     const rows = must<unknown[]>(
       await w.clients.s1.from('exam_sittings').select('id'),
       's1 sittings',
@@ -499,6 +529,7 @@ describe('RLS: exam sittings, candidates, entries', () => {
 
   it('AC-1: a deactivated admin sees 0 rows', async () => {
     await seed()
+    await expectSittingExists(sched)
     await w.setUser(w.a1, { deleted_at: new Date().toISOString() })
     const rows = must<unknown[]>(
       await w.clients.a1.from('exam_sittings').select('id'),
