@@ -249,3 +249,4 @@
 ## 254 — 2026-11-17 — Codes are issued from `private.sitting_issue_plan`: one live code per entry; an expired unused code is voided `reissued_after_expiry` and replaced in the same transaction; issue prunes passed entries first; issue and preview results and audit rows carry no plaintext code. #1777
 ## 255 — 2026-11-17 — `list_exam_sitting_roster` returns the plaintext code to admins only, and only while it is unvoided and consumed or unexpired; students never. #1777
 ## 256 — 2026-11-17 — security.md §15 exception (g): sitting reads of cancelled (soft-deleted) `exam_sittings` omit `deleted_at IS NULL`; admin-gated, org-scoped, named inline. #1777
+## 257 — 2026-11-17 — `start_internal_exam_session` locks the sitting `FOR SHARE` before the code `FOR UPDATE`; every sitting writer locks sitting then codes; `FOR SHARE` is stricter than `FOR UPDATE`'s need so a future plain non-key `UPDATE` writer also serializes. #1777
