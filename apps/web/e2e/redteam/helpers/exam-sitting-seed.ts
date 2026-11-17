@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { makeSittingE2eMaterials } from '../../helpers/exam-sitting-cleanup'
+import { makeSittingE2eMaterials } from '../../helpers/exam-sitting-markers'
 import type { getAdminClient } from '../../helpers/supabase'
 import { E2E_REDTEAM_SIT_SUBJECT_PREFIX } from './seed-markers'
 

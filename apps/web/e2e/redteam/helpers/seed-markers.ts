@@ -170,5 +170,5 @@ export const E2E_REDTEAM_ED_MARKER = '[E2E_REDTEAM_ED]'
 // student groups scope + audit specs (Vectors LZ, MA, MB, #1776): student_groups.name prefix.
 export const E2E_REDTEAM_SG_MARKER = '[E2E_REDTEAM_SG]'
 // exam sitting specs (Vectors MH–ML, #1777): easa_subjects.code prefix of the throwaway subjects.
-// Sittings carry EXAM_SITTING_E2E_PREFIX in permitted_materials (e2e/helpers/exam-sitting-cleanup.ts).
+// Sittings carry EXAM_SITTING_E2E_PREFIX in permitted_materials (e2e/helpers/exam-sitting-markers.ts).
 export const E2E_REDTEAM_SIT_SUBJECT_PREFIX = 'RTSIT-'
