@@ -62,6 +62,7 @@ describe('exam sitting function privileges', () => {
     'insert_internal_exam_code',
     'sitting_pair_state',
     'add_sitting_entries_core',
+    'sitting_redeem_gate',
   ]
   const list = (names: string[]) => names.map((n) => `'${n}'`).join(',')
 
