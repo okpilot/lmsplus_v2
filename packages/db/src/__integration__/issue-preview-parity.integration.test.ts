@@ -700,8 +700,9 @@ describe('RPC: get_exam_sitting_issue_preview', () => {
     const users = bulkUsers(w, 5, 'pv250')
     const subs = bulkSubjects(w, 50, 'AV')
     try {
-      psql(
-        `UPDATE public.users SET deleted_at = now() WHERE id = ANY('{${users.join(',')}}'::uuid[]);`,
+      must(
+        await admin.from('users').update({ deleted_at: now() }).in('id', users).select('id'),
+        'deactivate bulk users',
       )
       const sit = await w.sitting({ day: 1 })
       bulkCandidates(w, sit, users)

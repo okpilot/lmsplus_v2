@@ -386,7 +386,19 @@ const unenrol = async (id: string) => {
 }
 const deactivate = async (w: World, id: string) => w.setUser(id, { deleted_at: now() })
 /** Back to the baseline: students active and enrolled, no live sessions. */
+/** Soft-delete every live sitting, candidate, entry and void every live code of both orgs. */
+function clearSittings(w: World) {
+  const orgs = `'${w.orgA}','${w.orgB}'`
+  const { err } = psql(
+    `UPDATE public.internal_exam_codes SET voided_at = now(), voided_by = issued_by, void_reason = 'manual' WHERE organization_id IN (${orgs}) AND sitting_entry_id IS NOT NULL AND voided_at IS NULL AND consumed_at IS NULL;
+UPDATE public.exam_sitting_entries SET deleted_at = now() WHERE organization_id IN (${orgs}) AND deleted_at IS NULL;
+UPDATE public.exam_sitting_candidates SET deleted_at = now() WHERE organization_id IN (${orgs}) AND deleted_at IS NULL;
+UPDATE public.exam_sittings SET deleted_at = now(), deleted_by = created_by WHERE organization_id IN (${orgs}) AND deleted_at IS NULL AND closed_at IS NULL;`,
+  )
+  expect(err, 'clear sittings').toBe('')
+}
 async function restore(w: World) {
+  clearSittings(w)
   await w.resetSessions()
   for (const id of [w.s1, w.s2, w.s3, w.s4]) {
     await w.setUser(id, { deleted_at: null })

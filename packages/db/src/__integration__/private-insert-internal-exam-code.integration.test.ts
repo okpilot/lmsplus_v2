@@ -511,7 +511,7 @@ describe('private.insert_internal_exam_code', () => {
     ]
     const seeded = () =>
       psql(
-        `BEGIN; SELECT setseed(0.5); SELECT code FROM public.internal_exam_codes WHERE id = private.insert_internal_exam_code('${w.orgA}'::uuid, '${target}'::uuid, '${w.subA}'::uuid, '${w.s3}'::uuid, '${w.a1}'::uuid, now() + interval '1 hour'); ROLLBACK;`,
+        `BEGIN; SELECT setseed(0.5); CREATE TEMP TABLE ins AS SELECT private.insert_internal_exam_code('${w.orgA}'::uuid, '${target}'::uuid, '${w.subA}'::uuid, '${w.s3}'::uuid, '${w.a1}'::uuid, now() + interval '1 hour') AS id; SELECT code FROM public.internal_exam_codes WHERE id = (SELECT id FROM ins); ROLLBACK;`,
       )
     const first = seeded()
     expect(first.err).toBe('')
