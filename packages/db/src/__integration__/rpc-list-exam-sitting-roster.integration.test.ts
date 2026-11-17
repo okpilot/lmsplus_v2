@@ -660,6 +660,19 @@ describe('RPC: list_exam_sitting_roster', () => {
     expect(rs1.flatMap((r) => r.entries).every((e) => e.status !== 'absent')).toBe(true)
   })
 
+  it('a consumed code whose session was soft-deleted is discarded with no attempt number', async () => {
+    const open = await w.sitting({ day: 0, state: 'open' })
+    const sess = await w.session(w.s1, w.subA, { ended: false })
+    await w.code(await w.enter(open, w.s1, w.subA), { consumedBy: sess })
+    must(
+      await admin.from('quiz_sessions').update({ deleted_at: now() }).eq('id', sess).select('id'),
+      'discard session',
+    )
+    const e = entryOf(rrows(await roster(open)), w.s1, w.subA)
+    expect(e.status).toBe('discarded')
+    expect(e.attempt_number).toBeNull()
+  })
+
   it('AC-43: attempt_number excludes voided attempts, a second attempt is N+1 and has_attempt follows consumed codes', async () => {
     const prior = await w.sitting({ day: 0, state: 'closed' })
     await w.code(await w.enter(prior, w.s4, w.subA), {

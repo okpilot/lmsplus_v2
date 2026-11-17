@@ -577,7 +577,41 @@ describe('pending notices for an auto-cancelled sitting', () => {
     expect(await pending(sit)).not.toContain(w.s1)
   })
 
-  it('a changed notice for the code of a removed entry is invalid_input; only sitting_cancelled skips the filter', async () => {
+  it('the summary pending count includes sitting_cancelled rows', async () => {
+    const sit = await w.sitting({ day: 1 })
+    const c1 = await w.code(await w.enter(sit, w.s1, w.subA), { emailed: true })
+    must(await w.clients.a1.rpc('cancel_exam_sitting', { p_sitting_id: sit }), 'cancel')
+    const count = async () =>
+      must<Array<{ pending_removal_notices: number }>>(
+        await w.clients.a1.rpc('get_exam_sitting_summary', { p_sitting_id: sit }),
+        'summary',
+      )[0]?.pending_removal_notices
+    expect(await count()).toBe(1)
+    must(
+      await w.clients.a1.rpc('record_exam_sitting_notice', {
+        p_sitting_id: sit,
+        p_kind: 'sitting_cancelled',
+        p_code_ids: [c1],
+      }),
+      'record',
+    )
+    expect(await count()).toBe(0)
+  })
+
+  it('a sitting_cancelled notice for a code not voided by the cancel is invalid_input', async () => {
+    const sit = await w.sitting({ day: 1 })
+    const c1 = await w.code(await w.enter(sit, w.s1, w.subA), { emailed: true })
+    expectToken(
+      await w.clients.a1.rpc('record_exam_sitting_notice', {
+        p_sitting_id: sit,
+        p_kind: 'sitting_cancelled',
+        p_code_ids: [c1],
+      }),
+      'invalid_input',
+    )
+  })
+
+  it('a changed notice for the code of a removed entry is invalid_input', async () => {
     const sit = await w.sitting({ day: 1 })
     const entry = await w.enter(sit, w.s1, w.subA)
     const c1 = await w.code(entry, { emailed: true })
