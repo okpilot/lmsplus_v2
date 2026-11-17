@@ -17,7 +17,6 @@ const SITES = [
   'components/ui/label.tsx',
   'components/ui/slider.tsx',
   'app/app/_components/answer-options.tsx',
-  'app/app/admin/exam-config/_components/subject-config-card.tsx',
   'app/app/quiz/_components/resume-exam-banner.tsx',
 ]
 

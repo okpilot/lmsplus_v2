@@ -2,7 +2,7 @@
 
 import { useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { TabCount, Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
+import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
 import type { AvailableInternalExam, InternalExamHistoryEntry } from '../queries'
 import { AvailableTab } from './available-tab'
 import { MyReportsTab } from './my-reports-tab'
@@ -37,7 +37,13 @@ export function InternalExamTabs({ available, history }: Readonly<Props>) {
         <TabsTab value="available" id="tab-available" data-testid="tab-available">
           Available
           {available.length > 0 && (
-            <TabCount data-testid="tab-available-badge">{available.length}</TabCount>
+            <span
+              data-testid="tab-available-badge"
+              className="ml-1.5 text-muted-foreground tabular-nums"
+            >
+              {available.length}
+              <span className="sr-only"> available</span>
+            </span>
           )}
         </TabsTab>
         <TabsTab value="reports" id="tab-reports" data-testid="tab-reports">

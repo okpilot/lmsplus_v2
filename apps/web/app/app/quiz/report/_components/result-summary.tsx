@@ -1,4 +1,4 @@
-import { Badge } from '@/components/ui/badge'
+import { StatusText } from '@/components/kit/status-text'
 import { Card, CardContent } from '@/components/ui/card'
 import { isExamMode, MODE_LABELS, type QuizMode } from '@/lib/constants/exam-modes'
 import type { QuizReportSummary } from '@/lib/queries/quiz-report-types'
@@ -7,7 +7,11 @@ import { getReportContext } from '../_utils/report-context'
 import { DesktopStats, MobileStats } from './result-summary-stats'
 
 function PassFailBadge({ passed }: Readonly<{ passed: boolean }>) {
-  return passed ? <Badge tone="success">PASSED</Badge> : <Badge tone="danger">FAILED</Badge>
+  return passed ? (
+    <StatusText label="Passed" tone="success" />
+  ) : (
+    <StatusText label="Failed" tone="danger" />
+  )
 }
 
 type Props = Readonly<{ summary: QuizReportSummary }>

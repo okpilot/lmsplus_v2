@@ -85,7 +85,7 @@ describe('ReportQuestionRow', () => {
   describe('status icon', () => {
     it('shows the Correct icon when the answer is correct', () => {
       render(<ReportQuestionRow question={makeQuestion({ isCorrect: true })} index={0} />)
-      expect(screen.getByRole('img', { name: 'Correct' })).toHaveClass('bg-success-soft')
+      expect(screen.getByRole('img', { name: 'Correct' })).toHaveClass('text-success')
     })
 
     it('shows the Incorrect icon when the answer is wrong', () => {
@@ -95,7 +95,7 @@ describe('ReportQuestionRow', () => {
           index={0}
         />,
       )
-      expect(screen.getByRole('img', { name: 'Incorrect' })).toHaveClass('bg-danger-soft')
+      expect(screen.getByRole('img', { name: 'Incorrect' })).toHaveClass('text-danger')
     })
   })
 
@@ -187,7 +187,7 @@ describe('ReportQuestionRow', () => {
   })
 
   describe('background tint', () => {
-    it('applies no background on incorrect rows and keeps the Incorrect badge', () => {
+    it('applies no background on incorrect rows and keeps the Incorrect icon', () => {
       const { container } = render(
         <ReportQuestionRow question={makeQuestion({ isCorrect: false })} index={0} />,
       )

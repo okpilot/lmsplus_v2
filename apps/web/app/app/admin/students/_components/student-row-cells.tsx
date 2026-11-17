@@ -1,6 +1,5 @@
 'use client'
 
-import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { TableCell } from '@/components/ui/table'
 import { formatUtc } from '@/lib/utils/format-utc'
@@ -19,17 +18,9 @@ function formatDate(iso: string) {
   )
 }
 
-function TagBadges({ tags }: Readonly<{ tags: { id: string; label: string }[] }>) {
+function TagList({ tags }: Readonly<{ tags: { id: string; label: string }[] }>) {
   if (tags.length === 0) return <span className="text-muted-foreground">—</span>
-  return (
-    <div className="flex flex-wrap gap-1">
-      {tags.map((tag) => (
-        <Badge key={tag.id} tone="neutral">
-          {tag.label}
-        </Badge>
-      ))}
-    </div>
-  )
+  return <span className="text-muted-foreground">{tags.map((tag) => tag.label).join(', ')}</span>
 }
 
 type SelectProps = {
@@ -68,10 +59,10 @@ export function MembershipCells({ student: s, courses, groups }: Readonly<Member
   return (
     <>
       <TableCell>
-        <TagBadges tags={courseTags} />
+        <TagList tags={courseTags} />
       </TableCell>
       <TableCell>
-        <TagBadges tags={groupTags} />
+        <TagList tags={groupTags} />
       </TableCell>
     </>
   )
@@ -81,11 +72,7 @@ export function ActivityCells({ student: s }: Readonly<{ student: StudentRow }>)
   return (
     <>
       <TableCell>
-        {s.deleted_at === null ? (
-          <Badge tone="success">Active</Badge>
-        ) : (
-          <Badge tone="neutral">Inactive</Badge>
-        )}
+        {s.deleted_at === null ? 'Active' : <span className="text-muted-foreground">Inactive</span>}
       </TableCell>
       <TableCell className="text-caption tabular-nums text-muted-foreground">
         {s.last_active_at ? formatDate(s.last_active_at) : 'Never'}

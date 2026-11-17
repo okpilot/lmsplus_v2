@@ -57,7 +57,7 @@ export function QuestionFilters({
   }
 
   return (
-    // biome-ignore lint/a11y/useSemanticElements: a <fieldset> brings default border/legend layout (choice-pills precedent)
+    // biome-ignore lint/a11y/useSemanticElements: a <fieldset> brings default border/legend layout
     <div role="group" aria-labelledby={labelId} className="space-y-stack">
       <Label id={labelId}>Question Preferences</Label>
       <div className="space-y-stack-sm">

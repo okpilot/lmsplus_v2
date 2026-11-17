@@ -16,6 +16,8 @@ vi.mock('next/navigation', () => ({
 vi.mock('lucide-react', () => ({
   ChevronLeft: () => <span data-testid="icon-chevron-left" />,
   ChevronRight: () => <span data-testid="icon-chevron-right" />,
+  CircleAlert: () => <span data-testid="icon-circle-alert" />,
+  CircleCheck: () => <span data-testid="icon-circle-check" />,
 }))
 
 vi.mock('next/link', () => ({
@@ -89,24 +91,22 @@ describe('AttemptsTable', () => {
     expect(screen.getByText('88%')).toBeInTheDocument()
   })
 
-  it('renders Pass badge when passed is true', () => {
+  it('renders Passed as success status text with a check symbol', () => {
     render(<AttemptsTable rows={[baseRow]} totalCount={0} pageSize={25} />)
-    expect(screen.getByLabelText('Passed')).toBeInTheDocument()
-    expect(screen.getByText('Pass')).toBeInTheDocument()
-    expect(screen.getByLabelText('Passed').className).toContain('bg-success-soft')
+    expect(screen.getByText('Passed')).toBeInTheDocument()
+    expect(screen.getByTestId('icon-circle-check')).toBeInTheDocument()
   })
 
-  it('renders Fail badge when passed is false', () => {
+  it('renders Failed as danger status text with an alert symbol', () => {
     render(<AttemptsTable rows={[{ ...baseRow, passed: false }]} totalCount={0} pageSize={25} />)
-    expect(screen.getByLabelText('Failed')).toBeInTheDocument()
-    expect(screen.getByText('Fail')).toBeInTheDocument()
-    expect(screen.getByLabelText('Failed').className).toContain('bg-danger-soft')
+    expect(screen.getByText('Failed')).toBeInTheDocument()
+    expect(screen.getByTestId('icon-circle-alert')).toBeInTheDocument()
   })
 
   it('renders dash for passed when null', () => {
     render(<AttemptsTable rows={[{ ...baseRow, passed: null }]} totalCount={0} pageSize={25} />)
-    expect(screen.queryByLabelText('Passed')).toBeNull()
-    expect(screen.queryByLabelText('Failed')).toBeNull()
+    expect(screen.queryByText('Passed')).toBeNull()
+    expect(screen.queryByText('Failed')).toBeNull()
   })
 
   it('renders the correct-count over answered-items fraction', () => {

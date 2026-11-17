@@ -3,7 +3,6 @@
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { InsetPanel } from '@/components/kit/inset-panel'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { upsertSubtopic } from '../actions/upsert-subtopic'
 import type { SyllabusSubtopic } from '../types'
@@ -62,7 +61,9 @@ export function SubtopicRow({ subtopic, topicId }: Readonly<Props>) {
     <div className="flex items-center gap-2 rounded-small px-2 py-2.5 lg:py-1 hover:bg-muted">
       <span className="w-col-xs shrink-0 tabular-nums text-caption">{subtopic.code}</span>
       <span className="flex-1 text-body">{subtopic.name}</span>
-      <Badge tone="neutral">{subtopic.questionCount} Q</Badge>
+      <span className="text-caption text-muted-foreground tabular-nums">
+        {subtopic.questionCount} {subtopic.questionCount === 1 ? 'question' : 'questions'}
+      </span>
       <Button
         variant="ghost"
         size="icon-sm"

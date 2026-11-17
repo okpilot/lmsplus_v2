@@ -14,8 +14,8 @@ type Props = {
   value: string
   items: FilterSelectItem[]
   ariaLabel: string
-  placeholder: string
-  triggerClassName: string
+  placeholder?: string
+  triggerClassName?: string
   disabled?: boolean
   onValueChange: (value: string | null) => void
 }

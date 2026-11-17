@@ -78,21 +78,20 @@ test.describe('Dashboard course chips', () => {
     page,
   }) => {
     await login(page, BOTH_EMAIL)
-    const chips = page.getByRole('group', { name: 'Course' })
-    await expect(chips.getByRole('button', { name: 'PPL' })).toHaveAttribute('aria-pressed', 'true')
+    const course = page.getByRole('combobox', { name: 'Course' })
+    await expect(course).toHaveText('PPL')
     await expect(page.getByRole('heading', { name: 'Subject Progress' })).toBeVisible()
     await expect(page.getByText(PPL_SUBJECT, { exact: true })).toBeVisible()
     await expect(page.getByText(NO_SUBJECTS)).toHaveCount(0)
 
-    await chips.getByRole('button', { name: 'RT' }).click()
-    await expect(chips.getByRole('button', { name: 'RT' })).toHaveAttribute('aria-pressed', 'true')
+    await course.click()
+    await page.getByRole('option', { name: 'RT' }).click()
+    await expect(course).toHaveText('RT')
     await expect(page.getByText(NO_SUBJECTS)).toBeVisible()
     await expect(page.getByText(PPL_SUBJECT, { exact: true })).toHaveCount(0)
 
     await page.reload()
-    await expect(
-      page.getByRole('group', { name: 'Course' }).getByRole('button', { name: 'RT' }),
-    ).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.getByRole('combobox', { name: 'Course' })).toHaveText('RT')
     await expect(page.getByText(NO_SUBJECTS)).toBeVisible()
   })
 

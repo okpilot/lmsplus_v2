@@ -4,7 +4,6 @@ import { ChevronRight } from 'lucide-react'
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { InsetPanel } from '@/components/kit/inset-panel'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { upsertSubject } from '../actions/upsert-subject'
@@ -101,7 +100,9 @@ export function SubjectRow({ subject }: Readonly<Props>) {
         <span className="w-inset-lg shrink-0 tabular-nums text-label-strong">{subject.code}</span>
         <span className="flex-1 text-body">{subject.name}</span>
         <span className="text-caption text-muted-foreground">{subject.short}</span>
-        <Badge tone="neutral">{subject.questionCount} Q</Badge>
+        <span className="text-caption text-muted-foreground tabular-nums">
+          {subject.questionCount} {subject.questionCount === 1 ? 'question' : 'questions'}
+        </span>
         <Button
           variant="ghost"
           size="icon-sm"

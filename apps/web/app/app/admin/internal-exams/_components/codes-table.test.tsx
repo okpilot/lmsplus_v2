@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { InternalExamCodeRow } from '../types'
@@ -17,6 +17,8 @@ vi.mock('next/navigation', () => ({
 vi.mock('lucide-react', () => ({
   ChevronLeft: () => <span data-testid="icon-chevron-left" />,
   ChevronRight: () => <span data-testid="icon-chevron-right" />,
+  CircleAlert: () => <span data-testid="icon-circle-alert" />,
+  CircleCheck: () => <span data-testid="icon-circle-check" />,
 }))
 
 vi.mock('@/components/ui/select', () => ({
@@ -108,9 +110,11 @@ describe('CodesTable', () => {
     expect(screen.getByText('Air Law')).toBeInTheDocument()
   })
 
-  it('shows active status badge for active codes', () => {
+  it('shows active status text for active codes', () => {
     render(<CodesTable rows={[baseRow]} totalCount={0} pageSize={25} />)
-    expect(screen.getByText('active')).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('row', { name: /ABCD-1234-X/ })).getByText('Active'),
+    ).toBeInTheDocument()
   })
 
   it('shows finished status when consumed and session ended', () => {
@@ -122,7 +126,9 @@ describe('CodesTable', () => {
       sessionEndedAt: '2026-04-28T11:30:00.000Z',
     }
     render(<CodesTable rows={[finished]} totalCount={0} pageSize={25} />)
-    expect(screen.getByText('finished')).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('row', { name: /ABCD-1234-X/ })).getByText('Finished'),
+    ).toBeInTheDocument()
   })
 
   it('shows consumed status when consumed but session still in progress', () => {
@@ -134,7 +140,9 @@ describe('CodesTable', () => {
       sessionEndedAt: null,
     }
     render(<CodesTable rows={[inProg]} totalCount={0} pageSize={25} />)
-    expect(screen.getByText('consumed')).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('row', { name: /ABCD-1234-X/ })).getByText('Consumed'),
+    ).toBeInTheDocument()
   })
 
   it('disables Void button for finished (session ended) codes', () => {

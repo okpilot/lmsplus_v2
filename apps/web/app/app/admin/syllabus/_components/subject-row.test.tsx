@@ -159,9 +159,9 @@ describe('SubjectRow', () => {
     expect(screen.getByText('MET')).toBeInTheDocument()
   })
 
-  it('renders the question count badge', () => {
+  it('renders the question count as text', () => {
     render(<SubjectRow subject={SUBJECT} />)
-    expect(screen.getByText('10 Q')).toBeInTheDocument()
+    expect(screen.getByText('10 questions')).toBeInTheDocument()
   })
 
   it('renders the collapsible trigger with aria-label containing code and name', () => {

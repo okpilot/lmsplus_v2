@@ -1,7 +1,6 @@
 'use client'
 
 import { Download, Pencil, UserCheck, UserX } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -24,10 +23,6 @@ type Props = RowActions & {
   selectedIds: string[]
   onToggle: (id: string) => void
   onToggleAll: () => void
-}
-
-function roleTone(role: StudentRow['role']) {
-  return role === 'admin' ? ('info' as const) : ('neutral' as const)
 }
 
 type IconActionProps = {
@@ -97,9 +92,7 @@ function StudentRowView({
       <TableCell className="font-medium">{s.full_name ?? '—'}</TableCell>
       <TableCell className="text-caption text-muted-foreground">{s.email}</TableCell>
       <TableCell>
-        <Badge tone={roleTone(s.role)} className="capitalize">
-          {s.role}
-        </Badge>
+        <span className="capitalize">{s.role}</span>
       </TableCell>
       <MembershipCells student={s} courses={courses} groups={groups} />
       <ActivityCells student={s} />

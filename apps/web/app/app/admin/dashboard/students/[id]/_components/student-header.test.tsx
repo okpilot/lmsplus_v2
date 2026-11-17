@@ -64,49 +64,35 @@ describe('StudentHeader', () => {
 
   it('renders the breadcrumb "Student" label when fullName is null', () => {
     render(<StudentHeader student={makeStudent({ fullName: null })} />)
-    expect(screen.getByText('Student')).toBeInTheDocument()
+    expect(screen.getAllByText('Student').length).toBeGreaterThanOrEqual(1)
   })
 
-  it('renders the role badge', () => {
-    render(<StudentHeader student={makeStudent({ role: 'student' })} />)
-    expect(screen.getByText('student')).toBeInTheDocument()
-  })
-
-  it('shows a student role as a filled neutral chip, as in the students list', () => {
-    render(<StudentHeader student={makeStudent({ role: 'student' })} />)
-    const cls = screen.getByText('student').className.split(/\s+/)
-    expect(cls).toContain('bg-muted')
-    expect(cls).not.toContain('border-border')
-    expect(cls).not.toContain('bg-info-soft')
-  })
-
-  it('shows the admin role in the info tone', () => {
-    render(<StudentHeader student={makeStudent({ role: 'admin' })} />)
-    const cls = screen.getByText('admin').className.split(/\s+/)
-    expect(cls).toContain('bg-info-soft')
-    expect(cls).not.toContain('border-border')
-  })
-
-  it('does not render the Inactive badge when deletedAt is null', () => {
-    render(<StudentHeader student={makeStudent({ deletedAt: null })} />)
-    expect(screen.queryByText('Inactive')).not.toBeInTheDocument()
-  })
-
-  it('renders the Inactive badge when deletedAt is set', () => {
-    render(<StudentHeader student={makeStudent({ deletedAt: '2026-03-15T12:00:00Z' })} />)
-    expect(screen.getByText('Inactive')).toBeInTheDocument()
-    expect(screen.getByText('Inactive').className).toContain('bg-muted')
-    expect(screen.getByText('Inactive').className).not.toContain('bg-danger-soft')
-  })
-
-  it('shows both Inactive and role badges together for a deleted student', () => {
+  it('renders courses, role and status as one plain attribute line', () => {
     render(
       <StudentHeader
-        student={makeStudent({ deletedAt: '2026-03-15T12:00:00Z', role: 'student' })}
+        student={makeStudent({ courses: ['PPL', 'RT'], role: 'student', deletedAt: null })}
       />,
     )
-    expect(screen.getByText('Inactive')).toBeInTheDocument()
-    expect(screen.getByText('student')).toBeInTheDocument()
+    expect(screen.getByText('PPL, RT · Student')).toBeInTheDocument()
+  })
+
+  it('shows the admin role in the attribute line', () => {
+    render(<StudentHeader student={makeStudent({ role: 'admin' })} />)
+    expect(screen.getByText('Admin')).toBeInTheDocument()
+  })
+
+  it('appends Inactive to the attribute line when deletedAt is set', () => {
+    render(
+      <StudentHeader
+        student={makeStudent({ deletedAt: '2026-03-15T12:00:00Z', courses: ['PPL'] })}
+      />,
+    )
+    expect(screen.getByText('PPL · Student · Inactive')).toBeInTheDocument()
+  })
+
+  it('omits Inactive when deletedAt is null', () => {
+    render(<StudentHeader student={makeStudent({ deletedAt: null })} />)
+    expect(screen.queryByText(/Inactive/)).not.toBeInTheDocument()
   })
 
   it('renders a Dashboard breadcrumb link', () => {
@@ -118,16 +104,5 @@ describe('StudentHeader', () => {
   it('renders the last-active label', () => {
     render(<StudentHeader student={makeStudent()} />)
     expect(screen.getByText(/Last active:/)).toBeInTheDocument()
-  })
-
-  it('renders one badge per course short name', () => {
-    render(<StudentHeader student={makeStudent({ courses: ['PPL', 'RT'] })} />)
-    expect(screen.getByText('PPL')).toBeInTheDocument()
-    expect(screen.getByText('RT')).toBeInTheDocument()
-  })
-
-  it('renders no course badges when the student has no courses', () => {
-    render(<StudentHeader student={makeStudent({ courses: [] })} />)
-    expect(screen.queryByText('PPL')).not.toBeInTheDocument()
   })
 })

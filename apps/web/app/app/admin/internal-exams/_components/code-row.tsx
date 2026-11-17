@@ -1,6 +1,6 @@
 'use client'
 
-import { Badge, type BadgeTone } from '@/components/ui/badge'
+import { StatusText } from '@/components/kit/status-text'
 import { Button } from '@/components/ui/button'
 import { TableCell, TableRow } from '@/components/ui/table'
 import { formatUtc } from '@/lib/utils/format-utc'
@@ -14,13 +14,15 @@ function displayStatus(row: InternalExamCodeRow): DisplayStatus {
   return row.status
 }
 
-const STATUS_TONE: Record<DisplayStatus, BadgeTone> = {
-  active: 'success',
+const STATUS_TONE: Record<DisplayStatus, 'neutral' | 'success' | 'danger'> = {
+  active: 'neutral',
   consumed: 'neutral',
-  finished: 'success',
-  voided: 'danger',
+  finished: 'neutral',
+  voided: 'neutral',
   expired: 'neutral',
 }
+
+const STATUS_MUTED: ReadonlySet<DisplayStatus> = new Set(['expired', 'voided'])
 
 function formatAbsolute(iso: string | null): string {
   if (!iso) return '—'
@@ -40,9 +42,11 @@ export function CodeRow({
   return (
     <TableRow>
       <TableCell>
-        <Badge tone={STATUS_TONE[ds]} className="capitalize">
-          {ds}
-        </Badge>
+        <StatusText
+          label={ds.charAt(0).toUpperCase() + ds.slice(1)}
+          tone={STATUS_TONE[ds]}
+          className={STATUS_MUTED.has(ds) ? 'text-muted-foreground' : undefined}
+        />
       </TableCell>
       <TableCell className="font-medium tracking-code tabular-nums">{r.code}</TableCell>
       <TableCell>{r.studentName || r.studentEmail || '—'}</TableCell>

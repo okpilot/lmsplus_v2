@@ -46,7 +46,7 @@ export function TopicTree({
   }
 
   return (
-    // biome-ignore lint/a11y/useSemanticElements: a <fieldset> brings default border/legend layout (choice-pills precedent)
+    // biome-ignore lint/a11y/useSemanticElements: a <fieldset> brings default border/legend layout
     <div role="group" aria-labelledby={labelId} className="space-y-2">
       <div className="flex items-center justify-between">
         <span id={labelId} className="text-label text-muted-foreground">

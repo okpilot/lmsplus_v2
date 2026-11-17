@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardListRow } from '@/components/ui/card'
 import { EmptyNote } from '@/components/ui/empty'
 import { Heading } from '@/components/ui/heading'
@@ -45,9 +44,7 @@ function ActivityRow({ session }: Readonly<{ session: RecentSession }>) {
         </p>
       </div>
       <div className="shrink-0 flex items-center gap-2">
-        <Badge tone="neutral" outline className="capitalize">
-          {session.mode}
-        </Badge>
+        <span className="text-caption text-muted-foreground capitalize">{session.mode}</span>
         <ActivityScore score={session.scorePercentage} />
         <span className="text-caption text-muted-foreground whitespace-nowrap">
           {formatRelativeTime(session.endedAt)}

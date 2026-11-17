@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { SortableTableHead } from '@/components/sortable-table-head'
-import { Badge } from '@/components/ui/badge'
 import {
   Table,
   TableBody,
@@ -118,9 +117,5 @@ function SessionRow({ session: s }: Readonly<{ session: SessionReport }>) {
 }
 
 function ExamBadge({ mode }: Readonly<{ mode: ExamMode }>) {
-  return (
-    <Badge tone="caution" className="uppercase">
-      {MODE_LABELS[mode]}
-    </Badge>
-  )
+  return <span>{MODE_LABELS[mode]}</span>
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { TabCount, Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
+import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
 
 type QuizTabsProps = {
   draftCount?: number | null
@@ -33,7 +33,13 @@ export function QuizTabs({
         <TabsTab value="saved" id="tab-saved" data-testid="tab-saved">
           {savedLabel}
           {draftCount != null && draftCount > 0 && (
-            <TabCount data-testid="draft-count-badge">{draftCount}</TabCount>
+            <span
+              data-testid="draft-count-badge"
+              className="ml-1.5 text-muted-foreground tabular-nums"
+            >
+              {draftCount}
+              <span className="sr-only"> drafts</span>
+            </span>
           )}
         </TabsTab>
       </TabsList>

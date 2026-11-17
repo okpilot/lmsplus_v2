@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Badge } from '@/components/ui/badge'
+import { StatusText } from '@/components/kit/status-text'
 import { EmptyDescription } from '@/components/ui/empty'
 import {
   Table,
@@ -120,13 +120,9 @@ function AttemptRow({ row: r }: Readonly<{ row: InternalExamAttemptRow }>) {
         {passed === null ? (
           <span className="text-muted-foreground">—</span>
         ) : passed ? (
-          <Badge tone="success" aria-label="Passed">
-            Pass
-          </Badge>
+          <StatusText label="Passed" tone="success" />
         ) : (
-          <Badge tone="danger" aria-label="Failed">
-            Fail
-          </Badge>
+          <StatusText label="Failed" tone="danger" />
         )}
       </TableCell>
       <TableCell className="text-caption tabular-nums">

@@ -181,7 +181,7 @@ test.describe('Admin Student Management — Deactivate / Reactivate', () => {
     await cleanupE2eStudents()
   })
 
-  test('deactivates a student and verifies Inactive badge', async ({ page }) => {
+  test('deactivates a student and verifies Inactive status', async ({ page }) => {
     await page.goto('/app/admin/students')
     await expect(page.getByRole('heading', { name: 'Student Management' })).toBeVisible()
 
@@ -214,7 +214,7 @@ test.describe('Admin Student Management — Deactivate / Reactivate', () => {
     // Success toast
     await expect(page.getByText('Student deactivated')).toBeVisible({ timeout: 10_000 })
 
-    // Status badge in the row should change to Inactive after reload
+    // Status text in the row should change to Inactive after reload
     await page.reload()
     const updatedRow = page
       .getByTestId('tabpanel-students')
@@ -225,7 +225,7 @@ test.describe('Admin Student Management — Deactivate / Reactivate', () => {
 
   // ── Section 6: Reactivate student ──────────────────────────────────────────
 
-  test('reactivates an inactive student and verifies Active badge', async ({ page }) => {
+  test('reactivates an inactive student and verifies Active status', async ({ page }) => {
     await page.goto('/app/admin/students')
     await expect(page.getByRole('heading', { name: 'Student Management' })).toBeVisible()
 
@@ -296,7 +296,7 @@ test.describe('Admin Student Management — Deactivate / Reactivate', () => {
       timeout: 10_000,
     })
 
-    // Confirm Active badge in the all-students view
+    // Confirm Active status in the all-students view
     await page.goto('/app/admin/students')
     const restoredRow = page
       .getByTestId('tabpanel-students')
@@ -402,7 +402,7 @@ test.describe('Admin Student Management — Filters', () => {
     await page.goto('/app/admin/students?status=active')
     await expect(page.getByRole('heading', { name: 'Student Management' })).toBeVisible()
     await expect(page.getByText(/^\d+ users?$/)).toBeVisible()
-    // All visible status badges should be "Active"
+    // All visible statuses should be "Active"
     const rows = page.getByTestId('tabpanel-students').locator('tbody tr')
     const count = await rows.count()
     if (count > 0) {
@@ -436,7 +436,7 @@ test.describe('Admin Student Management — Filters', () => {
     const count = await rows.count()
     if (count > 0) {
       for (let i = 0; i < count; i++) {
-        // Check the role badge specifically (fourth column)
+        // Check the role specifically (fourth column)
         const roleCell = rows.nth(i).locator('td').nth(3)
         await expect(roleCell.getByText('student')).toBeVisible()
       }
@@ -572,9 +572,9 @@ test.describe('Admin Student Management — Courses', () => {
       .locator('tbody tr')
       .filter({ hasText: fullName })
     await expect(row).toBeVisible({ timeout: 10_000 })
-    await expect(row.getByText('RT', { exact: true })).toBeVisible()
-    await expect(row.getByText('PPL', { exact: true })).toHaveCount(0)
-    await expect(row.getByText('ATPL', { exact: true })).toHaveCount(0)
+    await expect(row.getByText(/\bRT\b/)).toBeVisible()
+    await expect(row.getByText(/\bPPL\b/)).toHaveCount(0)
+    await expect(row.getByText(/\bATPL\b/)).toHaveCount(0)
 
     await row.getByRole('button', { name: 'Edit student' }).click()
     await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5_000 })
@@ -588,7 +588,7 @@ test.describe('Admin Student Management — Courses', () => {
       .getByTestId('tabpanel-students')
       .locator('tbody tr')
       .filter({ hasText: fullName })
-    await expect(updated.getByText('RT', { exact: true })).toBeVisible({ timeout: 10_000 })
-    await expect(updated.getByText('ATPL', { exact: true })).toBeVisible()
+    await expect(updated.getByText(/\bRT\b/)).toBeVisible({ timeout: 10_000 })
+    await expect(updated.getByText(/\bATPL\b/)).toBeVisible()
   })
 })

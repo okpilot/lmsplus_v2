@@ -2,7 +2,6 @@
 
 import { useRef, useState } from 'react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
 import { BusyLabel } from '@/components/ui/busy-label'
 import { Button } from '@/components/ui/button'
 import { EmptyNote } from '@/components/ui/empty'
@@ -82,7 +81,9 @@ export function CommentsTab({ questionId, currentUserId }: Readonly<CommentsTabP
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="text-label">{name}</span>
-                  {isAdmin && <Badge tone="info">LMS Plus</Badge>}
+                  {isAdmin && (
+                    <span className="text-caption text-muted-foreground">· LMS Plus</span>
+                  )}
                   <span className="text-caption text-muted-foreground">
                     {formatUtc(c.created_at, {
                       day: 'numeric',

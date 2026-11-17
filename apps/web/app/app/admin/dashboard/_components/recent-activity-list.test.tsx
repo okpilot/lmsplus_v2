@@ -100,7 +100,7 @@ describe('RecentActivityList', () => {
     expect(screen.getByText('Unknown subject')).toBeInTheDocument()
   })
 
-  it('displays the session mode as a badge', () => {
+  it('displays the session mode as muted text', () => {
     render(<RecentActivityList sessions={[makeSession({ mode: 'quick_quiz' })]} />)
     expect(screen.getByText('quick_quiz')).toBeInTheDocument()
   })

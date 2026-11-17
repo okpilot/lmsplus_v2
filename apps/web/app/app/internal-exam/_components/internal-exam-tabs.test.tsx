@@ -35,11 +35,12 @@ describe('InternalExamTabs', () => {
     expect(screen.getByTestId('tab-available')).toHaveAttribute('aria-controls', panel.id)
   })
 
-  it('renders the available count as a TabCount with testid tab-available-badge', () => {
+  it('renders the available count as muted text with testid tab-available-badge', () => {
     render(<InternalExamTabs available={AVAILABLE} history={[]} />)
     const badge = screen.getByTestId('tab-available-badge')
     expect(badge).toHaveTextContent('2')
-    expect(badge).toHaveClass('bg-card')
+    expect(badge).toHaveClass('text-muted-foreground', 'tabular-nums')
+    expect(badge.className).not.toContain('bg-')
   })
 
   it('styles the active tab with the shared segmented look', () => {

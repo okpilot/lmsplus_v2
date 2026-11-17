@@ -31,7 +31,7 @@ export function ModeToggle({
 }: Readonly<ModeToggleProps>) {
   const labelId = useId()
   return (
-    // biome-ignore lint/a11y/useSemanticElements: a <fieldset> brings default border/legend layout (choice-pills precedent)
+    // biome-ignore lint/a11y/useSemanticElements: a <fieldset> brings default border/legend layout
     <div role="group" aria-labelledby={labelId} className="space-y-stack-sm">
       <span id={labelId} className="text-label text-muted-foreground">
         Mode
