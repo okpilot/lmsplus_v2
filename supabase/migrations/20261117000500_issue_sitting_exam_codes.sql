@@ -46,25 +46,24 @@ BEGIN
   v_s := private.sitting_lock(v_g.org_id, p_sitting_id, true);
   v_users := private.sitting_resolve_user_ids(v_g.org_id, p_sitting_id, p_user_ids, 500);
 
-  -- Entry ids are checked before the prune: an entry the prune removes still counts as passed.
+  -- Entries in scope are captured before the prune: an entry the prune removes counts as passed.
   IF v_entries IS NOT NULL THEN
     IF (SELECT count(*) FROM public.exam_sitting_entries e
          WHERE e.id = ANY(v_entries) AND e.sitting_id = p_sitting_id
            AND e.organization_id = v_g.org_id AND e.deleted_at IS NULL) <> cardinality(v_entries) THEN
       RAISE EXCEPTION 'entry_not_found';
     END IF;
-    v_pruneable := ARRAY(SELECT e.id FROM public.exam_sitting_entries e
-                          WHERE e.id = ANY(v_entries) AND e.organization_id = v_g.org_id
-                            AND e.deleted_at IS NULL AND e.user_id = ANY(v_users));
   END IF;
+  v_pruneable := ARRAY(SELECT e.id FROM public.exam_sitting_entries e
+                        WHERE e.sitting_id = p_sitting_id AND e.organization_id = v_g.org_id
+                          AND e.deleted_at IS NULL AND e.user_id = ANY(v_users)
+                          AND (v_entries IS NULL OR e.id = ANY(v_entries)));
 
   PERFORM private.prune_passed_entries(v_g.org_id, p_sitting_id, v_g.admin_id, v_g.admin_role);
 
-  IF v_pruneable IS NOT NULL THEN
-    SELECT count(*)::int INTO v_passed FROM unnest(v_pruneable) x(id)
-     WHERE NOT EXISTS (SELECT 1 FROM public.exam_sitting_entries e
-                        WHERE e.id = x.id AND e.organization_id = v_g.org_id AND e.deleted_at IS NULL);
-  END IF;
+  SELECT count(*)::int INTO v_passed FROM unnest(v_pruneable) x(id)
+   WHERE NOT EXISTS (SELECT 1 FROM public.exam_sitting_entries e
+                      WHERE e.id = x.id AND e.organization_id = v_g.org_id AND e.deleted_at IS NULL);
 
   v_expiry := private.sitting_code_expiry(v_s.scheduled_at);
 

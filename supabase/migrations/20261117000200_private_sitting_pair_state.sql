@@ -1,4 +1,4 @@
--- Pair state, one rule source for eligibility and add (D12). Not guarded; callers guard. First match wins:
+-- Pair state, one rule source for eligibility and add. Not guarded; callers guard. First match wins:
 -- entered_here > passed > attempt_running > entered_elsewhere > not_enrolled > deactivated > eligible.
 CREATE OR REPLACE FUNCTION private.sitting_pair_state(
   p_org uuid, p_sitting_id uuid, p_user_ids uuid[], p_subject_ids uuid[]

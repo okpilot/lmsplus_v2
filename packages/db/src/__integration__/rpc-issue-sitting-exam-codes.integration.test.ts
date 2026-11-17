@@ -742,7 +742,7 @@ describe('RPC: issue_sitting_exam_codes', () => {
     )
   })
 
-  it('AC-25: issue prunes a passed entry first; with a consumed code it is attempt_taken', async () => {
+  it('AC-25: issue prunes a passed entry first and counts it skipped_passed; with a consumed code it is attempt_taken', async () => {
     const sit = await w.sitting({ day: 0, state: 'open' })
     const e1 = await w.enter(sit, w.s1, w.subA)
     const c1 = await w.code(e1)
@@ -751,7 +751,7 @@ describe('RPC: issue_sitting_exam_codes', () => {
     await w.code(e2, { consumedBy: await scored(w, w.s2, w.subA, true) })
     const r = out(await issue(sit))
     expect(r.skipped_attempt_taken).toBe(1)
-    expect(r.skipped_passed).toBe(0)
+    expect(r.skipped_passed).toBe(1)
     expect(r.issued).toBe(0)
     expect(
       must<{ deleted_at: string | null }>(
@@ -805,6 +805,19 @@ describe('RPC: issue_sitting_exam_codes', () => {
     const none = out(await issue(sit, { users: [w.s1], entries: [e2] }))
     expect(none.issued).toBe(0)
     expect(await liveCodes(e2)).toHaveLength(0)
+  })
+
+  it('issue to all counts the entries the prune removes as skipped_passed; other users are not counted', async () => {
+    const sit = await w.sitting({ day: 1 })
+    await w.enter(sit, w.s1, w.subA)
+    await scored(w, w.s1, w.subA, true)
+    await w.enter(sit, w.s2, w.subA)
+    await scored(w, w.s2, w.subA, true)
+    expect(out(await issue(sit, { users: [w.s1] })).skipped_passed).toBe(1)
+    const sit2 = await w.sitting({ day: 1 })
+    await w.enter(sit2, w.s1, w.subA)
+    await w.enter(sit2, w.s2, w.subA)
+    expect(out(await issue(sit2)).skipped_passed).toBe(2)
   })
 
   it('AC-29: lifecycle tokens, ordering and caller checks', async () => {
