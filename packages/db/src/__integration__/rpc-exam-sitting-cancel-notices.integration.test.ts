@@ -598,13 +598,28 @@ describe('pending notices for an auto-cancelled sitting', () => {
     expect(await count()).toBe(0)
   })
 
-  it('a sitting_cancelled notice for a code not voided by the cancel is invalid_input', async () => {
+  it('on a live sitting, cancelled and sitting_cancelled notices are invalid_input', async () => {
     const sit = await w.sitting({ day: 1 })
     const c1 = await w.code(await w.enter(sit, w.s1, w.subA), { emailed: true })
+    for (const kind of ['cancelled', 'sitting_cancelled']) {
+      expectToken(
+        await w.clients.a1.rpc('record_exam_sitting_notice', {
+          p_sitting_id: sit,
+          p_kind: kind,
+          p_code_ids: [c1],
+        }),
+        'invalid_input',
+      )
+    }
+  })
+
+  it('a changed notice for a voided code is invalid_input', async () => {
+    const sit = await w.sitting({ day: 1 })
+    const c1 = await w.code(await w.enter(sit, w.s1, w.subA), { emailed: true, voided: true })
     expectToken(
       await w.clients.a1.rpc('record_exam_sitting_notice', {
         p_sitting_id: sit,
-        p_kind: 'sitting_cancelled',
+        p_kind: 'changed',
         p_code_ids: [c1],
       }),
       'invalid_input',

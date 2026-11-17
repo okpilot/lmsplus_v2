@@ -47,7 +47,10 @@ BEGIN
     JOIN public.exam_sitting_entries e ON e.id = c.sitting_entry_id
    WHERE c.id = ANY(v_codes) AND e.sitting_id = p_sitting_id AND c.organization_id = v_g.org_id
      AND c.deleted_at IS NULL AND e.deleted_at IS NULL
-     AND (p_kind <> 'sitting_cancelled' OR c.void_reason = 'sitting_cancelled');
+     AND CASE p_kind WHEN 'changed' THEN c.voided_at IS NULL
+                     WHEN 'sitting_cancelled' THEN c.void_reason = 'sitting_cancelled'
+                     ELSE EXISTS (SELECT 1 FROM public.exam_sittings s
+                                   WHERE s.id = p_sitting_id AND s.deleted_at IS NOT NULL) END;
   IF v_n <> cardinality(v_codes) THEN RAISE EXCEPTION 'invalid_input'; END IF;
   INSERT INTO public.audit_events
     (organization_id, actor_id, actor_role, event_type, resource_type, resource_id, metadata)
