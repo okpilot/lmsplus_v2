@@ -26,6 +26,10 @@ BEGIN
   PERFORM private.close_expired_sittings(v_g.org_id);
   SELECT * INTO v_s FROM public.exam_sittings s WHERE s.id = p_sitting_id AND s.organization_id = v_g.org_id;
   IF NOT FOUND THEN RAISE EXCEPTION 'sitting_not_found'; END IF;
+  IF v_s.status IN ('scheduled', 'open') AND private.sitting_day_ended(v_s.scheduled_at) THEN
+    PERFORM 1 FROM private.close_exam_sitting_core(p_sitting_id, NULL, NULL, true);
+    SELECT * INTO v_s FROM public.exam_sittings s WHERE s.id = p_sitting_id AND s.organization_id = v_g.org_id;
+  END IF;
   IF v_s.status IN ('scheduled', 'open') THEN
     PERFORM private.prune_passed_entries(v_g.org_id, p_sitting_id, v_g.admin_id, v_g.admin_role);
   END IF;

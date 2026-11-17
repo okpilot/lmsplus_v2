@@ -1650,7 +1650,7 @@ Fifteen public admin RPCs: `create_exam_sitting(p_scheduled_at, p_mode, p_invigi
 
 - Guard order for the 7 sitting writes (`update_exam_sitting`, `start_exam_sitting`, `close_exam_sitting`, `cancel_exam_sitting`, `add_exam_sitting_candidates`, `remove_exam_sitting_candidates`, `remove_exam_sitting_entries`) through `private.sitting_admin_guard()` and `private.sitting_lock(p_org, p_sitting_id, p_check_day)`: `not_authenticated`, `not_admin`, `admin_not_found`, `invalid_input`, `sitting_not_found` (row `FOR UPDATE`), `sitting_closed`, `sitting_day_ended`, then the specific token.
 - Private helpers (EXECUTE revoked): `private.sitting_day_end`, `sitting_day_ended`, `sitting_code_expiry` (23:59:59.999999 UTC of the sitting day), `resolve_sitting_students`, `sitting_resolve_user_ids`, `sitting_issue_plan`, `void_unused_sitting_codes`, `prune_passed_entries`, `close_exam_sitting_core`, `close_expired_sittings`.
-- Lazy close: `list_exam_sittings`, `get_exam_sitting_summary`, `start_exam_sitting` and `list_my_active_internal_exam_codes` call `close_expired_sittings(org)`: day-ended open sittings close automatically, day-ended never-started scheduled sittings auto-cancel; at most 3 per call, `SKIP LOCKED`, no scheduler.
+- Lazy close: `list_exam_sittings`, `get_exam_sitting_summary`, `start_exam_sitting` and `list_my_active_internal_exam_codes` call `close_expired_sittings(org)`: day-ended open sittings close automatically, day-ended never-started scheduled sittings auto-cancel; at most 3 per call, `SKIP LOCKED`, no scheduler. `get_exam_sitting_summary` also closes its own sitting when that sitting's day has ended.
 - Prune: `get_exam_sitting_summary` (scheduled or open sittings only) and `start_exam_sitting` call `prune_passed_entries` for the sitting; entries whose student passed the subject elsewhere are soft-deleted, unused codes voided (`passed_elsewhere`), audit `exam_sitting.entry_auto_removed`.
 - Audit: ids, counts and reason counts only; no names, emails or code values.
 
@@ -1658,7 +1658,7 @@ Fifteen public admin RPCs: `create_exam_sitting(p_scheduled_at, p_mode, p_invigi
 
 Student-facing read. Returns the caller's currently usable internal-exam codes without the plaintext `code` column — the value is single-use and meaningful only at issuance time, so it is omitted from every subsequent read. Replaces the direct `SELECT FROM internal_exam_codes` path previously gated by the `student_read_active_codes` RLS policy (dropped in migration `20260521000004` so plaintext never leaves the issuance RPC). Closes issue #577.
 
-Extended by migration `20261116002900` (#1777): appends `sitting_id, sitting_scheduled_at, sitting_mode, sitting_status, permitted_materials` (NULL for legacy codes), lazy-closes expired sittings (VOLATILE), and also returns unexpired codes of a scheduled sitting whose day has not ended. Still no `code` column.
+Extended by migration `20261116002900` (#1777): appends `sitting_id, sitting_scheduled_at, sitting_mode, sitting_status, permitted_materials` (NULL for legacy codes), lazy-closes expired sittings (VOLATILE), and also returns codes of a scheduled sitting whose day has not ended, expired or not. Still no `code` column.
 
 **Security:** SECURITY DEFINER with `SET search_path = public, pg_temp`. Manual `auth.uid()` null check raises `not_authenticated`, followed by the active-user gate (`PERFORM 1 FROM users u WHERE u.id = v_user_id AND u.deleted_at IS NULL` → `user not found or inactive`) added in migration `20260824000200` — a student soft-deleted while holding a live JWT previously kept listing their outstanding codes, since deactivation does not cascade to `internal_exam_codes`. The `users u` alias is required, not stylistic: the `RETURNS TABLE` declares an `id` OUT param, so an unqualified `id` raises 42702 at execution (code-style.md §5). The function runs as owner `postgres` (BYPASSRLS), so soft-delete and ownership filters are enforced explicitly inside the function.
 
@@ -1666,12 +1666,13 @@ Extended by migration `20261116002900` (#1777): appends `sitting_id, sitting_sch
 - `iec.student_id = auth.uid()` — ownership
 - `iec.consumed_at IS NULL` — unused
 - `iec.voided_at IS NULL` — not voided by admin
-- `iec.expires_at > now()` — within 24h validity window
+- `iec.expires_at > now()` OR sitting status `scheduled` — within validity window, or waiting for its sitting
+- no sitting, or sitting day not ended
 - `iec.deleted_at IS NULL` — not soft-deleted
 
 `easa_subjects` is joined without a `deleted_at` predicate: `soft_delete_syllabus_item` refuses a subject while an unconsumed, unvoided, unexpired code references it.
 
-Ordered by `expires_at ASC`, limited to 100 rows (the issuance ceiling is well below this — the cap is defensive).
+Ordered by `COALESCE(sitting_scheduled_at, expires_at) ASC`, limited to 100 rows (the issuance ceiling is well below this — the cap is defensive).
 
 ```sql
 CREATE OR REPLACE FUNCTION public.list_my_active_internal_exam_codes()
@@ -3036,6 +3037,9 @@ CREATE INDEX idx_quiz_sessions_subject ON quiz_sessions(subject_id) WHERE subjec
 -- Audit log queries (compliance exports)
 CREATE INDEX idx_audit_events_org    ON audit_events(organization_id, created_at DESC);
 CREATE INDEX idx_audit_events_actor  ON audit_events(actor_id, created_at DESC);
+-- Sitting pending-removal notices (mig 20261116003000 #1777)
+CREATE INDEX idx_audit_events_sitting_notices ON audit_events(resource_id, event_type)
+  WHERE event_type IN ('exam_sitting.entry_auto_removed', 'exam_sitting.notice_emailed');
 ```
 
 ---
