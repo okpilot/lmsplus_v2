@@ -440,9 +440,14 @@ describe('RPC: get_exam_sitting_summary', () => {
     const closed = await w.sitting({ day: 0, state: 'closed' })
     await w.enter(closed, w.s1, w.subA)
     await w.enter(closed, w.s2, w.subA)
-    expect(rowOf(must(await summary(closed), 'closed')).entries_not_started).toBe(2)
+    const closedRow = rowOf(must(await summary(closed), 'closed'))
+    expect(closedRow.entries_not_started).toBe(2)
+    expect(closedRow.entries_issuable).toBe(0)
     const gone = await w.sitting({ state: 'cancelled' })
-    expect(rowOf(must(await summary(gone), 'cancelled')).status).toBe('cancelled')
+    await w.enter(gone, w.s1, w.subA)
+    const goneRow = rowOf(must(await summary(gone), 'cancelled'))
+    expect(goneRow.status).toBe('cancelled')
+    expect(goneRow.entries_issuable).toBe(0)
   })
 
   it('AC-40: day_ended is true for a backdated sitting', async () => {

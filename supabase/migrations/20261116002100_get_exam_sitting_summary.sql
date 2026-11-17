@@ -62,7 +62,10 @@ BEGIN
    WHERE e.sitting_id = p_sitting_id AND e.deleted_at IS NULL
      AND NOT EXISTS (SELECT 1 FROM public.internal_exam_codes c WHERE c.sitting_entry_id = e.id AND c.consumed_at IS NOT NULL
                   AND c.deleted_at IS NULL);
-  SELECT count(*) INTO v_issuable FROM private.sitting_issue_plan(v_g.org_id, p_sitting_id, NULL, NULL) p WHERE p.action <> 'skip';
+  v_issuable := 0;
+  IF v_s.status IN ('scheduled', 'open') THEN
+    SELECT count(*) INTO v_issuable FROM private.sitting_issue_plan(v_g.org_id, p_sitting_id, NULL, NULL) p WHERE p.action <> 'skip';
+  END IF;
   SELECT count(*) INTO v_pending FROM public.audit_events a
    WHERE a.organization_id = v_g.org_id AND a.resource_id = p_sitting_id
      AND a.event_type = 'exam_sitting.entry_auto_removed'
