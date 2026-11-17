@@ -1,8 +1,9 @@
 'use client'
 
-import { useTransition } from 'react'
+import { useId, useTransition } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { toggleExamConfig } from '../actions/toggle-exam-config'
 import type { SubjectWithConfig } from '../types'
@@ -14,6 +15,7 @@ type Props = {
 
 export function SubjectConfigCard({ subject, onEdit }: Readonly<Props>) {
   const [isPending, startTransition] = useTransition()
+  const switchId = useId()
   const config = subject.config
 
   function handleToggle() {
@@ -63,10 +65,11 @@ export function SubjectConfigCard({ subject, onEdit }: Readonly<Props>) {
 
       {config && (
         <div className="mr-4 flex shrink-0 items-center gap-2">
-          <span className="text-body text-muted-foreground">
+          <Label htmlFor={switchId} className="text-body text-muted-foreground">
             {config.enabled ? 'Enabled' : 'Disabled'}
-          </span>
+          </Label>
           <Switch
+            id={switchId}
             aria-label={`Exam mode for ${subject.name}`}
             checked={config.enabled}
             onCheckedChange={handleToggle}

@@ -67,6 +67,11 @@ describe('StudentHeader', () => {
     expect(screen.getAllByText('Student').length).toBeGreaterThanOrEqual(1)
   })
 
+  it('falls back to the raw role for an unknown role', () => {
+    render(<StudentHeader student={makeStudent({ role: 'auditor' as StudentDetail['role'] })} />)
+    expect(screen.getByText('auditor')).toBeInTheDocument()
+  })
+
   it('renders courses, role and status as one plain attribute line', () => {
     render(
       <StudentHeader

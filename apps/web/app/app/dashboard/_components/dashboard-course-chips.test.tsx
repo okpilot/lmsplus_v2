@@ -10,14 +10,17 @@ vi.mock('@/app/app/_components/filter-select', () => ({
     value,
     items,
     ariaLabel,
+    placeholder,
     onValueChange,
   }: {
     value: string
     items: { value: string; label: string }[]
     ariaLabel: string
+    placeholder: string
     onValueChange: (v: string | null) => void
   }) => (
     <select aria-label={ariaLabel} value={value} onChange={(e) => onValueChange(e.target.value)}>
+      <option value="">{placeholder}</option>
       {items.map((i) => (
         <option key={i.value} value={i.value}>
           {i.label}
@@ -43,6 +46,11 @@ describe('DashboardCourseChips', () => {
     expect(screen.getByRole('combobox', { name: 'Course' })).toHaveValue('PPL_A')
     expect(screen.getByRole('option', { name: 'PPL' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'RT' })).toBeInTheDocument()
+  })
+
+  it('shows the Course placeholder when no course is selected', () => {
+    render(<DashboardCourseChips courses={[PPL, RT]} selectedCode={null} />)
+    expect(screen.getByRole('combobox', { name: 'Course' })).toHaveDisplayValue('Course')
   })
 
   it('renders nothing with one course', () => {

@@ -140,6 +140,15 @@ describe('SubjectConfigCard', () => {
   })
 
   describe('toggle button — with config', () => {
+    it('toggles exam mode when clicking the Enabled text', async () => {
+      vi.mocked(toggleExamConfig).mockResolvedValue({ success: true })
+      render(<SubjectConfigCard subject={subjectWithConfig} onEdit={vi.fn()} />)
+      await userEvent.click(screen.getByText('Enabled'))
+      await waitFor(() => {
+        expect(toggleExamConfig).toHaveBeenCalledWith({ subjectId: 'subj-1', enabled: false })
+      })
+    })
+
     it('toggles exam mode when clicking the status button', async () => {
       const onEdit = vi.fn()
       vi.mocked(toggleExamConfig).mockResolvedValue({ success: true })

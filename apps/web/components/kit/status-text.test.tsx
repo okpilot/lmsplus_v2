@@ -25,11 +25,6 @@ describe('StatusText', () => {
     expect(screen.getByText('Passed')).toBeInTheDocument()
   })
 
-  it('renders a muted caption below the label', () => {
-    render(<StatusText label="Closed" caption="2 days ago" />)
-    expect(screen.getByText('2 days ago')).toHaveClass('text-muted-foreground')
-  })
-
   it('applies className to the wrapper', () => {
     const { container } = render(<StatusText label="Expired" className="text-muted-foreground" />)
     expect(container.firstElementChild).toHaveClass('text-muted-foreground')

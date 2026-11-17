@@ -14,7 +14,7 @@ type Props = Readonly<{ student: StudentDetail }>
 export function StudentHeader({ student }: Readonly<Props>) {
   const attributes = [
     student.courses.join(', '),
-    ROLE_LABELS[student.role] ?? 'Student',
+    ROLE_LABELS[student.role] ?? student.role,
     student.deletedAt ? 'Inactive' : null,
   ]
     .filter(Boolean)

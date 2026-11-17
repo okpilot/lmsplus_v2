@@ -35,6 +35,8 @@ export function DashboardCourseChips({ courses, selectedCode }: Readonly<Props>)
   return (
     <FilterSelect
       ariaLabel="Course"
+      placeholder="Course"
+      triggerClassName="w-col-sm"
       items={courses.map((c) => ({ value: c.code, label: c.short }))}
       value={value}
       onValueChange={(code) => {
