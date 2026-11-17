@@ -23,7 +23,6 @@ DECLARE
   v_issuable int;
 BEGIN
   SELECT * INTO v_g FROM private.sitting_admin_guard();
-  PERFORM private.close_expired_sittings(v_g.org_id);
   -- security.md §15 exception (b): cancelled sittings are soft-deleted and stay readable
   SELECT * INTO v_s FROM public.exam_sittings s WHERE s.id = p_sitting_id AND s.organization_id = v_g.org_id;
   IF NOT FOUND THEN RAISE EXCEPTION 'sitting_not_found'; END IF;
@@ -32,6 +31,8 @@ BEGIN
     -- security.md §15 exception (b): cancelled sittings are soft-deleted and stay readable
     SELECT * INTO v_s FROM public.exam_sittings s WHERE s.id = p_sitting_id AND s.organization_id = v_g.org_id;
   END IF;
+  -- target first, then the others with SKIP LOCKED: the only blocking lock is the target's.
+  PERFORM private.close_expired_sittings(v_g.org_id);
   IF v_s.status IN ('scheduled', 'open') THEN
     PERFORM private.prune_passed_entries(v_g.org_id, p_sitting_id, v_g.admin_id, v_g.admin_role);
     -- security.md §15 exception (b): cancelled sittings are soft-deleted and stay readable
