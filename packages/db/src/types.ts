@@ -419,6 +419,237 @@ export type Database = {
           },
         ]
       }
+      exam_sitting_candidates: {
+        Row: {
+          added_at: string
+          deleted_at: string | null
+          deleted_by: string | null
+          id: string
+          organization_id: string
+          sitting_id: string
+          user_id: string
+        }
+        Insert: {
+          added_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          id?: string
+          organization_id: string
+          sitting_id: string
+          user_id: string
+        }
+        Update: {
+          added_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          id?: string
+          organization_id?: string
+          sitting_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'exam_sitting_candidates_deleted_by_fkey'
+            columns: ['deleted_by']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'exam_sitting_candidates_organization_id_fkey'
+            columns: ['organization_id']
+            isOneToOne: false
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'exam_sitting_candidates_sitting_id_organization_id_fkey'
+            columns: ['sitting_id', 'organization_id']
+            isOneToOne: false
+            referencedRelation: 'exam_sittings'
+            referencedColumns: ['id', 'organization_id']
+          },
+          {
+            foreignKeyName: 'exam_sitting_candidates_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      exam_sitting_entries: {
+        Row: {
+          added_at: string
+          deleted_at: string | null
+          deleted_by: string | null
+          id: string
+          organization_id: string
+          sitting_id: string
+          subject_id: string
+          user_id: string
+        }
+        Insert: {
+          added_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          id?: string
+          organization_id: string
+          sitting_id: string
+          subject_id: string
+          user_id: string
+        }
+        Update: {
+          added_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          id?: string
+          organization_id?: string
+          sitting_id?: string
+          subject_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'exam_sitting_entries_deleted_by_fkey'
+            columns: ['deleted_by']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'exam_sitting_entries_organization_id_fkey'
+            columns: ['organization_id']
+            isOneToOne: false
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'exam_sitting_entries_sitting_id_organization_id_fkey'
+            columns: ['sitting_id', 'organization_id']
+            isOneToOne: false
+            referencedRelation: 'exam_sittings'
+            referencedColumns: ['id', 'organization_id']
+          },
+          {
+            foreignKeyName: 'exam_sitting_entries_subject_id_fkey'
+            columns: ['subject_id']
+            isOneToOne: false
+            referencedRelation: 'easa_subjects'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'exam_sitting_entries_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      exam_sittings: {
+        Row: {
+          closed_at: string | null
+          closed_by: string | null
+          created_at: string
+          created_by: string
+          deleted_at: string | null
+          deleted_by: string | null
+          ended_automatically: boolean
+          id: string
+          invigilator_id: string
+          mode: string
+          organization_id: string
+          permitted_materials: string | null
+          scheduled_at: string
+          started_at: string | null
+          started_by: string | null
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          created_by: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          ended_automatically?: boolean
+          id?: string
+          invigilator_id: string
+          mode: string
+          organization_id: string
+          permitted_materials?: string | null
+          scheduled_at: string
+          started_at?: string | null
+          started_by?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          created_by?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          ended_automatically?: boolean
+          id?: string
+          invigilator_id?: string
+          mode?: string
+          organization_id?: string
+          permitted_materials?: string | null
+          scheduled_at?: string
+          started_at?: string | null
+          started_by?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'exam_sittings_closed_by_fkey'
+            columns: ['closed_by']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'exam_sittings_created_by_fkey'
+            columns: ['created_by']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'exam_sittings_deleted_by_fkey'
+            columns: ['deleted_by']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'exam_sittings_invigilator_id_fkey'
+            columns: ['invigilator_id']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'exam_sittings_organization_id_fkey'
+            columns: ['organization_id']
+            isOneToOne: false
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'exam_sittings_started_by_fkey'
+            columns: ['started_by']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       flagged_questions: {
         Row: {
           deleted_at: string | null
@@ -536,6 +767,7 @@ export type Database = {
           issued_at: string
           issued_by: string
           organization_id: string
+          sitting_entry_id: string | null
           student_id: string
           subject_id: string
           void_reason: string | null
@@ -553,6 +785,7 @@ export type Database = {
           issued_at?: string
           issued_by: string
           organization_id: string
+          sitting_entry_id?: string | null
           student_id: string
           subject_id: string
           void_reason?: string | null
@@ -570,6 +803,7 @@ export type Database = {
           issued_at?: string
           issued_by?: string
           organization_id?: string
+          sitting_entry_id?: string | null
           student_id?: string
           subject_id?: string
           void_reason?: string | null
@@ -597,6 +831,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: 'organizations'
             referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'internal_exam_codes_sitting_entry_fkey'
+            columns: ['sitting_entry_id', 'organization_id', 'subject_id', 'student_id']
+            isOneToOne: false
+            referencedRelation: 'exam_sitting_entries'
+            referencedColumns: ['id', 'organization_id', 'subject_id', 'user_id']
           },
           {
             foreignKeyName: 'internal_exam_codes_student_id_fkey'
@@ -1679,6 +1920,18 @@ export type Database = {
           p3: number
         }[]
       }
+      add_exam_sitting_candidates: {
+        Args: {
+          p_group_ids?: string[]
+          p_sitting_id: string
+          p_user_ids?: string[]
+        }
+        Returns: {
+          added: number
+          skipped_deactivated: number
+          skipped_existing: number
+        }[]
+      }
       add_student_group_members: {
         Args: { p_group_id: string; p_user_ids: string[] }
         Returns: number
@@ -1686,6 +1939,13 @@ export type Database = {
       answer_matches: {
         Args: { p_candidate: string; p_norm_response: string }
         Returns: boolean
+      }
+      cancel_exam_sitting: {
+        Args: { p_sitting_id: string }
+        Returns: {
+          codes_voided: number
+          notify_code_ids: string[]
+        }[]
       }
       check_consent_status: {
         Args: { p_privacy_version: string; p_tos_version: string }
@@ -1721,9 +1981,29 @@ export type Database = {
         Args: { p_device_id: string; p_session_id: string }
         Returns: undefined
       }
+      close_exam_sitting: {
+        Args: { p_sitting_id: string }
+        Returns: {
+          absent_count: number
+          attempts_running: number
+          closed_at: string
+          codes_voided: number
+        }[]
+      }
       complete_overdue_exam_session: {
         Args: { p_session_id: string }
         Returns: Json
+      }
+      create_exam_sitting: {
+        Args: {
+          p_invigilator_id: string
+          p_mode: string
+          p_permitted_materials?: string
+          p_scheduled_at: string
+        }
+        Returns: {
+          sitting_id: string
+        }[]
       }
       create_student_group: {
         Args: { p_description?: string; p_name: string }
@@ -1819,6 +2099,41 @@ export type Database = {
           topic_id: string
         }[]
       }
+      get_exam_sitting_group_add_counts: {
+        Args: { p_group_id: string; p_sitting_id: string }
+        Returns: {
+          active_new: number
+          deactivated_new: number
+        }[]
+      }
+      get_exam_sitting_same_day_people: {
+        Args: { p_sitting_id: string; p_user_ids?: string[] }
+        Returns: {
+          full_name: string
+          scheduled_at: string
+          sitting_id: string
+          user_id: string
+        }[]
+      }
+      get_exam_sitting_summary: {
+        Args: { p_sitting_id: string }
+        Returns: {
+          attempts_running: number
+          candidates: number
+          codes_issued: number
+          day_ended: boolean
+          deactivated_candidates: number
+          entries: number
+          entries_issuable: number
+          entries_not_started: number
+          entries_with_attempt: number
+          entries_without_code: number
+          pending_removal_notices: number
+          scheduled_at: string
+          status: string
+          students_not_started: number
+        }[]
+      }
       get_filtered_question_counts: {
         Args: {
           p_calc_mode?: string
@@ -1833,6 +2148,16 @@ export type Database = {
           n: number
           subtopic_id: string
           topic_id: string
+        }[]
+      }
+      get_pending_removal_notices: {
+        Args: { p_sitting_id: string }
+        Returns: {
+          entry_id: string
+          passed_at: string
+          removed_at: string
+          subject_id: string
+          user_id: string
         }[]
       }
       get_question_authoring_fields: {
@@ -2005,12 +2330,59 @@ export type Database = {
           expires_at: string
         }[]
       }
+      list_exam_sitting_people: {
+        Args: {
+          p_course_id?: string
+          p_group_id?: string
+          p_limit?: number
+          p_offset?: number
+          p_q?: string
+          p_sitting_id: string
+          p_status?: string
+        }
+        Returns: {
+          courses: string
+          deactivated: boolean
+          email: string
+          full_name: string
+          groups: string
+          total_count: number
+          user_id: string
+        }[]
+      }
+      list_exam_sittings: {
+        Args: { p_limit?: number; p_offset?: number; p_scope: string }
+        Returns: {
+          candidates: number
+          closed_at: string
+          ended_automatically: boolean
+          entries: number
+          entries_absent: number
+          entries_finished: number
+          entries_without_code: number
+          id: string
+          invigilator_active: boolean
+          invigilator_id: string
+          invigilator_name: string
+          mode: string
+          permitted_materials: string
+          scheduled_at: string
+          started_at: string
+          status: string
+          total_count: number
+        }[]
+      }
       list_my_active_internal_exam_codes: {
         Args: never
         Returns: {
           expires_at: string
           id: string
           issued_at: string
+          permitted_materials: string
+          sitting_id: string
+          sitting_mode: string
+          sitting_scheduled_at: string
+          sitting_status: string
           subject_id: string
           subject_name: string
           subject_short: string
@@ -2048,6 +2420,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      record_exam_sitting_notice: {
+        Args: {
+          p_code_ids?: string[]
+          p_entry_ids?: string[]
+          p_kind: string
+          p_sitting_id: string
+        }
+        Returns: number
+      }
       record_internal_exam_code_emailed: {
         Args: { p_code_id: string }
         Returns: undefined
@@ -2056,6 +2437,21 @@ export type Database = {
       record_login_instructions_sent: {
         Args: { p_user_id: string }
         Returns: undefined
+      }
+      remove_exam_sitting_candidates: {
+        Args: { p_sitting_id: string; p_user_ids: string[] }
+        Returns: {
+          codes_voided: number
+          entries_removed: number
+          removed: number
+        }[]
+      }
+      remove_exam_sitting_entries: {
+        Args: { p_entry_ids: string[]; p_sitting_id: string }
+        Returns: {
+          codes_voided: number
+          removed: number
+        }[]
       }
       remove_student_group_members: {
         Args: { p_group_id: string; p_user_ids: string[] }
@@ -2111,6 +2507,15 @@ export type Database = {
         Returns: Json
       }
       start_exam_session: { Args: { p_subject_id: string }; Returns: Json }
+      start_exam_sitting: {
+        Args: { p_sitting_id: string }
+        Returns: {
+          codes_restamped: number
+          entries_without_code: number
+          invigilator_active: boolean
+          started_at: string
+        }[]
+      }
       start_internal_exam_session: {
         Args: { p_code: string }
         Returns: {
@@ -2146,6 +2551,20 @@ export type Database = {
       start_vfr_rt_exam_session: {
         Args: { p_subject_id: string }
         Returns: Json
+      }
+      update_exam_sitting: {
+        Args: {
+          p_invigilator_id?: string
+          p_mode?: string
+          p_permitted_materials?: string
+          p_scheduled_at?: string
+          p_sitting_id: string
+        }
+        Returns: {
+          changed: boolean
+          codes_restamped: number
+          notify_code_ids: string[]
+        }[]
       }
       update_student_group: {
         Args: { p_description?: string; p_group_id: string; p_name: string }

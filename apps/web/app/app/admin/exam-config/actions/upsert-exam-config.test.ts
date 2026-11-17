@@ -150,3 +150,30 @@ describe('upsertExamConfig', () => {
     })
   })
 })
+
+describe('upsertExamConfig exam_config_in_use refusal (AC-56)', () => {
+  it('returns the exact refusal copy when the RPC raises exam_config_in_use', async () => {
+    mockAdmin()
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'exam_config_in_use' } })
+
+    const result = await upsertExamConfig(VALID_INPUT)
+
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe(
+      'This exam is used by a scheduled or open sitting. Close or cancel that sitting, or remove its candidates for this subject, before disabling the exam.',
+    )
+    expect(mockRevalidatePath).not.toHaveBeenCalled()
+  })
+
+  it('keeps the generic string for any other RPC error', async () => {
+    mockAdmin()
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'boom' } })
+
+    const result = await upsertExamConfig(VALID_INPUT)
+
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe('Failed to save exam configuration')
+  })
+})

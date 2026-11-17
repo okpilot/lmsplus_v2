@@ -1,0 +1,20 @@
+import { describe, expect, it } from 'vitest'
+import { examConfigWriteError } from './exam-config-in-use'
+
+const REFUSAL =
+  'This exam is used by a scheduled or open sitting. Close or cancel that sitting, or remove its candidates for this subject, before disabling the exam.'
+
+describe('examConfigWriteError', () => {
+  it('maps exam_config_in_use to the refusal copy', () => {
+    expect(examConfigWriteError('exam_config_in_use', 'fallback')).toBe(REFUSAL)
+  })
+  it('returns the fallback for any other message', () => {
+    expect(examConfigWriteError('some db error', 'fallback')).toBe('fallback')
+  })
+  it('returns the fallback for a message that only contains the token', () => {
+    expect(examConfigWriteError('x exam_config_in_use y', 'fallback')).toBe('fallback')
+  })
+  it('returns the fallback for an undefined message', () => {
+    expect(examConfigWriteError(undefined, 'fallback')).toBe('fallback')
+  })
+})

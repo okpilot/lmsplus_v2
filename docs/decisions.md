@@ -233,3 +233,13 @@
 ## 238 — 2026-11-16 — Biome noRestrictedElements also bans raw `<select>` and `<textarea>` (use Select, Textarea). #1797
 ## 239 — 2026-11-17 — No chips anywhere: attributes are plain text, status is text (`StatusText`), colour only on a symbol (CircleCheck goal, CircleAlert attention); `Badge`, `CodeChip`, `ChoicePills`, `TabCount` and the `h-chip` size are deleted; interactive pills are existing controls (Switch, FilterSelect). #1433
 ## 240 — 2026-11-17 — A list's status filter is a dropdown in the list toolbar, not tabs or pills. #1777
+## 241 — 2026-11-17 — Sitting model: `exam_sittings` + candidates + entries; codes link by `sitting_entry_id`; one invigilator; one UTC day. #1777
+## 242 — 2026-11-17 — Sitting status is a generated column; transitions are one-way; Closed is final; `sitting_closed` is checked first. #1777
+## 243 — 2026-11-17 — Sitting code validity ends at 23:59:59.999999 UTC of the sitting day; re-stamped on reschedule and Start. #1777
+## 244 — 2026-11-17 — Auto-close of open and auto-cancel of never-started sittings happen lazily inside admin and student reads; no scheduler; at most 3 per call. #1777
+## 245 — 2026-11-17 — Pass is permanent; a passed pair's entries are auto-removed on read paths with an audited notice record; entered-elsewhere blocks only until a finished attempt. #1777
+## 246 — 2026-11-17 — Absent is derived (no stored state); attempt number excludes voided attempts. #1777
+## 247 — 2026-11-17 — Disabling or deleting an exam config, or soft-deleting a subject, is blocked while a scheduled or open sitting uses it. #1777
+## 248 — 2026-11-17 — Start is refused before the sitting's UTC day (`sitting_not_due`); a past UTC day is refused at create/reschedule (`scheduled_in_past`). #1777
+## 249 — 2026-11-17 — Candidates are an explicit snapshot; group expansion is server-side at add time; a candidate with an attempt cannot be removed. #1777
+## 250 — 2026-11-17 — Group and sitting reads that must show deactivated users read `users` without `deleted_at` (security.md §15 (f)). #1777

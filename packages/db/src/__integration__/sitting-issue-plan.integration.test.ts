@@ -1,0 +1,449 @@
+import { spawnSync } from 'node:child_process'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { fixtureSuffix } from './fixture-suffix'
+import { seedReferenceData } from './seed'
+import {
+  createTestOrg,
+  createTestUser,
+  getAdminClient,
+  getAnonClient,
+  getAuthenticatedClient,
+} from './setup'
+
+const admin = getAdminClient()
+const suffix = fixtureSuffix()
+const PW = 'test-pass-123'
+const DAY = 86_400_000
+const BAD = '00000000-0000-4000-a000-0000000000ff'
+
+/** UTC midnight of today + offset days. */
+const dayStart = (offset = 0) => {
+  const d = new Date()
+  d.setUTCHours(0, 0, 0, 0)
+  return new Date(d.getTime() + offset * DAY)
+}
+const at = (offset: number, hour = 9) =>
+  new Date(dayStart(offset).getTime() + hour * 3_600_000).toISOString()
+/** Last microsecond of the UTC day `offset` days from today (ms precision floor of day_end - 1us). */
+const dayEndMinus1us = (offset: number) => dayStart(offset + 1).getTime() - 1
+
+type DbErr = { message: string; code?: string } | null
+type Res = { data: unknown; error: DbErr }
+const must = <T = Record<string, unknown>[]>(
+  r: { data: unknown; error: DbErr },
+  label: string,
+): T => {
+  expect(r.error, label).toBeNull()
+  return r.data as T
+}
+const rowOf = (data: unknown): Record<string, unknown> =>
+  (Array.isArray(data) ? data[0] : data) as Record<string, unknown>
+const errOf = (r: Res) => r.error?.message
+const expectToken = (r: Res, token: string) => {
+  expect(r.error?.message).toBe(token)
+}
+
+/** psql as postgres: host psql, else the supabase db container. */
+function psql(sql: string): { out: string; err: string } {
+  const args = ['-U', 'postgres', '-d', 'postgres', '-tAq', '-v', 'ON_ERROR_STOP=1']
+  let r = spawnSync('psql', ['-h', 'localhost', '-p', '54322', ...args], {
+    input: sql,
+    encoding: 'utf8',
+    env: { ...process.env, PGPASSWORD: 'postgres' },
+  })
+  if (r.error) {
+    r = spawnSync('docker', ['exec', '-i', 'supabase_db_lmsplusv2', 'psql', ...args], {
+      input: sql,
+      encoding: 'utf8',
+    })
+  }
+  return { out: (r.stdout ?? '').trim(), err: (r.stderr ?? '').trim() }
+}
+
+type SittingState = 'scheduled' | 'open' | 'closed' | 'cancelled'
+
+async function buildWorld(tag: string) {
+  const orgA = await createTestOrg({
+    admin,
+    name: `${tag} A ${suffix}`,
+    slug: `${tag}-a-${suffix}`,
+  })
+  const orgB = await createTestOrg({
+    admin,
+    name: `${tag} B ${suffix}`,
+    slug: `${tag}-b-${suffix}`,
+  })
+  const userIds: string[] = []
+  const bUserIds: string[] = []
+  const emails: Record<string, string> = {}
+  const mk = async (
+    org: string,
+    t: string,
+    role: 'admin' | 'instructor' | 'student',
+    ids: string[],
+  ) => {
+    const email = `${tag}-${t}-${suffix}@test.local`
+    emails[t] = email
+    const id = await createTestUser({
+      admin,
+      orgId: org,
+      email,
+      password: PW,
+      role,
+      fullName: `${t} ${suffix}`,
+    })
+    ids.push(id)
+    return id
+  }
+  const a1 = await mk(orgA, 'a1', 'admin', userIds)
+  const i1 = await mk(orgA, 'i1', 'instructor', userIds)
+  const s1 = await mk(orgA, 's1', 'student', userIds)
+  const s2 = await mk(orgA, 's2', 'student', userIds)
+  const s3 = await mk(orgA, 's3', 'student', userIds)
+  const s4 = await mk(orgA, 's4', 'student', userIds)
+  const b1 = await mk(orgB, 'b1', 'admin', bUserIds)
+  const bs1 = await mk(orgB, 'bs1', 'student', bUserIds)
+  const login = (t: string) => getAuthenticatedClient({ email: emails[t] as string, password: PW })
+  const clients = {
+    a1: await login('a1'),
+    i1: await login('i1'),
+    s1: await login('s1'),
+    s2: await login('s2'),
+    b1: await login('b1'),
+    anon: getAnonClient(),
+  }
+  const refs = await seedReferenceData({
+    admin,
+    subjectCode: `SA${suffix}`,
+    subjectName: `Sit A ${suffix}`,
+    topicCode: `SA${suffix}-01`,
+    topicName: `Sit A Topic ${suffix}`,
+  })
+  const refsB = await seedReferenceData({
+    admin,
+    subjectCode: `SB${suffix}`,
+    subjectName: `Sit B ${suffix}`,
+    topicCode: `SB${suffix}-01`,
+    topicName: `Sit B Topic ${suffix}`,
+  })
+  const subA = refs.subjectId
+  const subB = refsB.subjectId
+  for (const subject_id of [subA, subB]) {
+    const r = await admin.from('exam_configs').insert({
+      organization_id: orgA,
+      subject_id,
+      enabled: true,
+      total_questions: 10,
+      time_limit_seconds: 1800,
+      pass_mark: 75,
+    })
+    if (r.error) throw new Error(`exam_configs: ${r.error.message}`)
+  }
+  let n = 0
+  const world = {
+    orgA,
+    orgB,
+    a1,
+    i1,
+    s1,
+    s2,
+    s3,
+    s4,
+    b1,
+    bs1,
+    subA,
+    subB,
+    clients,
+    userIds,
+    bUserIds,
+    async teardown() {
+      await cleanupTestData({ admin, orgId: orgA, userIds })
+      await cleanupTestData({ admin, orgId: orgB, userIds: bUserIds })
+      await cleanupReferenceData({ admin, refs: [refs, refsB] })
+    },
+    /** Service-role seeded sitting. day = UTC day offset from today (negative = past). */
+    async sitting(
+      o: {
+        day?: number
+        hour?: number
+        state?: SittingState
+        mode?: 'remote' | 'in_person'
+        invigilator?: string
+        org?: string
+        creator?: string
+        materials?: string | null
+      } = {},
+    ): Promise<string> {
+      const state = o.state ?? 'scheduled'
+      const org = o.org ?? orgA
+      const scheduled = at(o.day ?? 1, o.hour ?? 9)
+      const startedMs = Math.min(Date.now() - 2000, new Date(scheduled).getTime())
+      const creator = o.creator ?? (org === orgA ? a1 : b1)
+      const row: Record<string, unknown> = {
+        organization_id: org,
+        scheduled_at: scheduled,
+        mode: o.mode ?? 'remote',
+        invigilator_id: o.invigilator ?? creator,
+        permitted_materials: o.materials ?? null,
+        created_by: creator,
+      }
+      if (state === 'open' || state === 'closed') {
+        row.started_at = new Date(startedMs).toISOString()
+        row.started_by = creator
+      }
+      if (state === 'closed') {
+        row.closed_at = new Date(startedMs + 1000).toISOString()
+        row.closed_by = creator
+      }
+      if (state === 'cancelled') {
+        row.deleted_at = new Date().toISOString()
+        row.deleted_by = creator
+      }
+      const r = await admin.from('exam_sittings').insert(row).select('id').single()
+      return must<{ id: string }>(r, 'seed sitting').id
+    },
+    async candidate(sittingId: string, userId: string, org = orgA): Promise<string> {
+      const r = await admin
+        .from('exam_sitting_candidates')
+        .insert({ organization_id: org, sitting_id: sittingId, user_id: userId })
+        .select('id')
+        .single()
+      return must<{ id: string }>(r, 'seed candidate').id
+    },
+    async entry(sittingId: string, userId: string, subjectId: string, org = orgA): Promise<string> {
+      const r = await admin
+        .from('exam_sitting_entries')
+        .insert({
+          organization_id: org,
+          sitting_id: sittingId,
+          user_id: userId,
+          subject_id: subjectId,
+        })
+        .select('id')
+        .single()
+      return must<{ id: string }>(r, 'seed entry').id
+    },
+    /** Candidate + entry in one go. */
+    async enter(sittingId: string, userId: string, subjectId: string): Promise<string> {
+      const c = await admin
+        .from('exam_sitting_candidates')
+        .select('id')
+        .eq('sitting_id', sittingId)
+        .eq('user_id', userId)
+        .is('deleted_at', null)
+      if (!c.data?.length) await world.candidate(sittingId, userId)
+      return world.entry(sittingId, userId, subjectId)
+    },
+    async code(
+      entryId: string,
+      o: {
+        emailed?: boolean
+        expired?: boolean
+        voided?: boolean
+        consumedBy?: string
+        expiresAt?: string
+      } = {},
+    ): Promise<string> {
+      const e = must<{ organization_id: string; user_id: string; subject_id: string }>(
+        await admin
+          .from('exam_sitting_entries')
+          .select('organization_id, user_id, subject_id')
+          .eq('id', entryId)
+          .single(),
+        'entry lookup',
+      )
+      const row: Record<string, unknown> = {
+        code: `SC${suffix}${++n}`,
+        subject_id: e.subject_id,
+        student_id: e.user_id,
+        issued_by: a1,
+        organization_id: e.organization_id,
+        sitting_entry_id: entryId,
+        expires_at:
+          o.expiresAt ?? new Date(Date.now() + (o.expired ? -3_600_000 : 7_200_000)).toISOString(),
+      }
+      if (o.emailed) row.emailed_at = new Date().toISOString()
+      if (o.voided) {
+        row.voided_at = new Date().toISOString()
+        row.voided_by = a1
+        row.void_reason = 'manual'
+      }
+      if (o.consumedBy) {
+        row.consumed_at = new Date().toISOString()
+        row.consumed_session_id = o.consumedBy
+      }
+      const r = await admin.from('internal_exam_codes').insert(row).select('id').single()
+      return must<{ id: string }>(r, 'seed code').id
+    },
+    async session(
+      studentId: string,
+      subjectId: string,
+      o: { ended?: boolean; passed?: boolean | null } = {},
+    ): Promise<string> {
+      const r = await admin
+        .from('quiz_sessions')
+        .insert({
+          organization_id: orgA,
+          student_id: studentId,
+          mode: 'internal_exam',
+          subject_id: subjectId,
+          config: { pass_mark: 75, question_ids: [] },
+          total_questions: 0,
+          started_at: new Date(Date.now() - 3_600_000).toISOString(),
+          ended_at: o.ended === false ? null : new Date(Date.now() - 1_800_000).toISOString(),
+          passed: o.passed ?? null,
+        })
+        .select('id')
+        .single()
+      return must<{ id: string }>(r, 'seed session').id
+    },
+    async audits(type: string, resourceId?: string) {
+      let q = admin
+        .from('audit_events')
+        .select('actor_id, actor_role, resource_id, metadata')
+        .eq('event_type', type)
+        .eq('organization_id', orgA)
+      if (resourceId) q = q.eq('resource_id', resourceId)
+      return must<
+        Array<{
+          actor_id: string
+          actor_role: string
+          resource_id: string
+          metadata: Record<string, unknown>
+        }>
+      >(await q, `audits ${type}`)
+    },
+    async sittingRow(id: string) {
+      return must<Record<string, unknown>>(
+        await admin.from('exam_sittings').select('*').eq('id', id).single(),
+        'sitting row',
+      )
+    },
+    async codeRow(id: string) {
+      return must<Record<string, unknown>>(
+        await admin.from('internal_exam_codes').select('*').eq('id', id).single(),
+        'code row',
+      )
+    },
+    async group(name: string, members: string[], org = orgA): Promise<string> {
+      const g = await admin
+        .from('student_groups')
+        .insert({
+          organization_id: org,
+          name: `${name}-${suffix}`,
+          created_by: org === orgA ? a1 : b1,
+        })
+        .select('id')
+        .single()
+      const id = must<{ id: string }>(g, 'seed group').id
+      if (members.length) {
+        must(
+          await admin
+            .from('student_group_members')
+            .insert(members.map((user_id) => ({ organization_id: org, group_id: id, user_id }))),
+          'seed members',
+        )
+      }
+      return id
+    },
+    async setUser(id: string, patch: Record<string, unknown>) {
+      must(await admin.from('users').update(patch).eq('id', id).select('id'), 'user patch')
+    },
+  }
+  return world
+}
+// Referenced so unused-helper lint does not fire in files that use a subset.
+void [errOf, expectToken, rowOf, dayEndMinus1us, psql, BAD, it, describe, afterAll, beforeAll]
+
+/** AC-41: private.sitting_issue_plan skip reasons (psql). */
+describe('private.sitting_issue_plan', () => {
+  let w: Awaited<ReturnType<typeof buildWorld>>
+  beforeAll(async () => {
+    w = await buildWorld('plan-sit')
+  })
+  afterAll(async () => {
+    await w?.teardown()
+  })
+  const plan = (sit: string, users = 'NULL', entries = 'NULL') =>
+    psql(
+      `SELECT user_id || '|' || subject_id || '|' || action || '|' || coalesce(reason, '') FROM private.sitting_issue_plan('${w.orgA}'::uuid, '${sit}'::uuid, ${users}, ${entries}) ORDER BY 1;`,
+    )
+  const line = (out: string, user: string, subject: string) =>
+    out.split('\n').find((l) => l.startsWith(`${user}|${subject}|`))
+
+  it('AC-41: each skip reason and reissue_after_expiry is reported', async () => {
+    const id = await w.sitting({ day: 0, state: 'open' })
+    const eAttempt = await w.enter(id, w.s1, w.subA)
+    await w.code(eAttempt, {
+      consumedBy: await w.session(w.s1, w.subA, { ended: true, passed: false }),
+    })
+    await w.enter(id, w.s2, w.subA)
+    await w.session(w.s2, w.subA, { ended: true, passed: true })
+    await w.enter(id, w.s3, w.subA)
+    await w.setUser(w.s3, { deleted_at: new Date().toISOString() })
+    const eIssued = await w.enter(id, w.s4, w.subA)
+    await w.code(eIssued)
+    const eExpired = await w.enter(id, w.s4, w.subB)
+    await w.code(eExpired, { expired: true })
+    const out = plan(id).out
+    expect(line(out, w.s1, w.subA)).toBe(`${w.s1}|${w.subA}|skip|attempt_taken`)
+    expect(line(out, w.s2, w.subA)).toBe(`${w.s2}|${w.subA}|skip|passed`)
+    expect(line(out, w.s3, w.subA)).toBe(`${w.s3}|${w.subA}|skip|deactivated`)
+    expect(line(out, w.s4, w.subA)).toBe(`${w.s4}|${w.subA}|skip|already_issued`)
+    expect(line(out, w.s4, w.subB)).toBe(`${w.s4}|${w.subB}|reissue_after_expiry|`)
+  })
+
+  it('AC-41: a disabled exam config is skip exam_disabled', async () => {
+    const w2 = await buildWorld('plan2-sit')
+    try {
+      must(
+        await admin
+          .from('exam_configs')
+          .update({ enabled: false })
+          .eq('organization_id', w2.orgA)
+          .eq('subject_id', w2.subA),
+        'disable cfg',
+      )
+      const id = await w2.sitting({ day: 1 })
+      await w2.enter(id, w2.s1, w2.subA)
+      const out = psql(
+        `SELECT user_id || '|' || action || '|' || coalesce(reason, '') FROM private.sitting_issue_plan('${w2.orgA}'::uuid, '${id}'::uuid, NULL, NULL);`,
+      ).out
+      expect(out).toBe(`${w2.s1}|skip|exam_disabled`)
+    } finally {
+      await w2.teardown()
+    }
+  })
+
+  it('AC-41: a student whose enrolment ended is no_longer_enrolled', async () => {
+    const id = await w.sitting({ day: 1 })
+    await w.enter(id, w.s2, w.subA)
+    must(
+      await admin
+        .from('course_enrolments')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('user_id', w.s2),
+      'unenrol',
+    )
+    expect(line(plan(id).out, w.s2, w.subA)).toBe(`${w.s2}|${w.subA}|skip|no_longer_enrolled`)
+  })
+
+  it('AC-41: precedence follows the listed order (attempt_taken beats passed)', async () => {
+    const id = await w.sitting({ day: 0, state: 'open' })
+    const e = await w.enter(id, w.s4, w.subA)
+    await w.code(e, { consumedBy: await w.session(w.s4, w.subA, { ended: true, passed: true }) })
+    expect(line(plan(id).out, w.s4, w.subA)).toBe(`${w.s4}|${w.subA}|skip|attempt_taken`)
+  })
+
+  it('AC-41: user and entry filters intersect', async () => {
+    const id = await w.sitting({ day: 1 })
+    const e1 = await w.enter(id, w.s1, w.subA)
+    await w.enter(id, w.s2, w.subA)
+    expect(plan(id, `ARRAY['${w.s1}']::uuid[]`).out.split('\n')).toHaveLength(1)
+    expect(
+      plan(id, `ARRAY['${w.s1}','${w.s2}']::uuid[]`, `ARRAY['${e1}']::uuid[]`).out.split('\n'),
+    ).toHaveLength(1)
+    expect(plan(id, `ARRAY['${w.s2}']::uuid[]`, `ARRAY['${e1}']::uuid[]`).out).toBe('')
+  })
+})

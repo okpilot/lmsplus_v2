@@ -282,3 +282,30 @@ describe('toggleExamConfig', () => {
     })
   })
 })
+
+describe('toggleExamConfig exam_config_in_use refusal (AC-56)', () => {
+  it('returns the exact refusal copy when the DB raises exam_config_in_use', async () => {
+    mockAdmin()
+    buildDisableChain({ updateError: { message: 'exam_config_in_use' } })
+
+    const result = await toggleExamConfig(VALID_DISABLE)
+
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe(
+      'This exam is used by a scheduled or open sitting. Close or cancel that sitting, or remove its candidates for this subject, before disabling the exam.',
+    )
+    expect(mockRevalidatePath).not.toHaveBeenCalled()
+  })
+
+  it('keeps the generic string for any other update error', async () => {
+    mockAdmin()
+    buildDisableChain({ updateError: { message: 'something else' } })
+
+    const result = await toggleExamConfig(VALID_DISABLE)
+
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe('Failed to update exam status')
+  })
+})

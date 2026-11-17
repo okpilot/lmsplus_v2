@@ -4,6 +4,7 @@ import { ToggleExamConfigSchema } from '@repo/db/schema'
 import { revalidatePath } from 'next/cache'
 import type { ActionResult } from '@/lib/action-result'
 import { requireAdmin } from '@/lib/auth/require-admin'
+import { examConfigWriteError } from './exam-config-in-use'
 
 // biome-ignore lint/complexity/noExcessiveLinesPerFunction: pre-existing; split when next edited (#1606)
 export async function toggleExamConfig(input: unknown): Promise<ActionResult> {
@@ -64,7 +65,10 @@ export async function toggleExamConfig(input: unknown): Promise<ActionResult> {
 
   if (error) {
     console.error('[toggleExamConfig] Update error:', error.message)
-    return { success: false, error: 'Failed to update exam status' }
+    return {
+      success: false,
+      error: examConfigWriteError(error.message, 'Failed to update exam status'),
+    }
   }
   if (!data?.length) {
     return { success: false, error: 'Config not found' }
