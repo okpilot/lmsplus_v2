@@ -566,6 +566,7 @@ describe('RPC: create_exam_sitting and update_exam_sitting', () => {
     const a = await w.audits('exam_sitting.invigilator_reassigned', id)
     expect(a).toHaveLength(1)
     expect(a[0]?.metadata).toMatchObject({ from: w.a1, to: w.i1 })
+    expect(await w.audits('exam_sitting.updated', id)).toHaveLength(0)
   })
 
   it('AC-14: a scheduled sitting with an invalid new invigilator is invigilator_not_found', async () => {

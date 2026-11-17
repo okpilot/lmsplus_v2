@@ -476,8 +476,13 @@ describe('exam config sitting block and syllabus guards', () => {
   })
 
   it('AC-38: re-enable and editing params while enabled are not blocked', async () => {
+    mustOne(await disable(w.subA).select('id'), 'disable before entry')
     const { sit } = await liveEntry('scheduled')
-    mustOne(await enable(w.subA).select('id'), 're-enable while enabled')
+    const on = must<Array<{ enabled: boolean }>>(
+      await enable(w.subA).select('enabled'),
+      'disabled to enabled with a live entry',
+    )
+    expect(on.map((r) => r.enabled)).toEqual([true])
     must(
       await w.clients.a1.rpc('upsert_exam_config', {
         p_subject_id: w.subA,
@@ -503,7 +508,7 @@ describe('exam config sitting block and syllabus guards', () => {
     await w.clients.a1.rpc('cancel_exam_sitting', { p_sitting_id: sit })
   })
 
-  it('AC-39: an entry for a soft-deleted subject cannot be inserted or moved to one', async () => {
+  it('AC-39: an entry for a soft-deleted subject cannot be inserted, moved to one or restored', async () => {
     const dead = await seedReferenceData({
       admin,
       subjectCode: `SD${suffix}`,
@@ -512,6 +517,16 @@ describe('exam config sitting block and syllabus guards', () => {
       topicName: `Sit Dead Topic ${suffix}`,
     })
     try {
+      const sit = await w.sitting({ day: 1 })
+      await w.candidate(sit, w.s1)
+      const gone = await w.entry(sit, w.s1, dead.subjectId)
+      must(
+        await admin
+          .from('exam_sitting_entries')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('id', gone),
+        'soft delete entry',
+      )
       must(
         await admin
           .from('easa_subjects')
@@ -519,8 +534,6 @@ describe('exam config sitting block and syllabus guards', () => {
           .eq('id', dead.subjectId),
         'soft delete subject',
       )
-      const sit = await w.sitting({ day: 1 })
-      await w.candidate(sit, w.s1)
       const ins = await admin.from('exam_sitting_entries').insert({
         organization_id: w.orgA,
         sitting_id: sit,
@@ -534,7 +547,14 @@ describe('exam config sitting block and syllabus guards', () => {
         .update({ subject_id: dead.subjectId })
         .eq('id', live)
       expect(mv.error).not.toBeNull()
+      const restore = await admin
+        .from('exam_sitting_entries')
+        .update({ deleted_at: null })
+        .eq('id', gone)
+      expect(restore.error?.message).toMatch(/parent_not_found/)
     } finally {
+      // teardown: entries reference the subject that cleanupReferenceData removes
+      await admin.from('exam_sitting_entries').delete().eq('subject_id', dead.subjectId)
       await cleanupReferenceData({ admin, refs: [dead] })
     }
   })

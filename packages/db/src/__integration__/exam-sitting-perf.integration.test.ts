@@ -406,11 +406,23 @@ describe('exam sitting performance at scale', () => {
     expect(r.err).toBe('')
   }, 120_000)
   afterAll(async () => {
-    psql(
-      `DELETE FROM internal_exam_codes WHERE organization_id = '${w?.orgA}'; DELETE FROM exam_sitting_entries WHERE organization_id = '${w?.orgA}'; DELETE FROM exam_sitting_candidates WHERE organization_id = '${w?.orgA}'; DELETE FROM public.users WHERE id = ANY('{${users.join(',')}}'::uuid[]); DELETE FROM auth.users WHERE id = ANY('{${users.join(',')}}'::uuid[]);`,
-    )
-    await w?.teardown()
-    await cleanupReferenceData({ admin, refs: extraRefs })
+    const errors: unknown[] = []
+    const step = async (f: () => unknown) => {
+      try {
+        await f()
+      } catch (e) {
+        errors.push(e)
+      }
+    }
+    await step(() => {
+      const r = psql(
+        `DELETE FROM internal_exam_codes WHERE organization_id = '${w?.orgA}'; DELETE FROM exam_sitting_entries WHERE organization_id = '${w?.orgA}'; DELETE FROM exam_sitting_candidates WHERE organization_id = '${w?.orgA}'; DELETE FROM public.users WHERE id = ANY('{${users.join(',')}}'::uuid[]); DELETE FROM auth.users WHERE id = ANY('{${users.join(',')}}'::uuid[]);`,
+      )
+      if (r.err) throw new Error(`perf cleanup: ${r.err}`)
+    })
+    await step(() => w?.teardown())
+    await step(() => cleanupReferenceData({ admin, refs: extraRefs }))
+    if (errors.length) throw new AggregateError(errors, 'perf cleanup failed')
   }, 120_000)
 
   async function big(opts: Parameters<typeof w.sitting>[0]): Promise<string> {

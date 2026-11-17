@@ -83,14 +83,16 @@ BEGIN
        AND c.voided_at IS NULL AND c.deleted_at IS NULL AND c.emailed_at IS NOT NULL;
   END IF;
 
-  INSERT INTO public.audit_events
-    (organization_id, actor_id, actor_role, event_type, resource_type, resource_id, metadata)
-  VALUES (v_g.org_id, v_g.admin_id, v_g.admin_role, 'exam_sitting.updated', 'exam_sitting', p_sitting_id,
-    jsonb_build_object(
-      'scheduled_at', jsonb_build_object('old', v_s.scheduled_at, 'new', CASE WHEN v_time_chg THEN p_scheduled_at ELSE v_s.scheduled_at END),
-      'mode', jsonb_build_object('old', v_s.mode, 'new', CASE WHEN v_mode_chg THEN p_mode ELSE v_s.mode END),
-      'permitted_materials_changed', v_mat_chg,
-      'codes_restamped', v_restamped));
+  IF v_time_chg OR v_mode_chg OR v_mat_chg THEN
+    INSERT INTO public.audit_events
+      (organization_id, actor_id, actor_role, event_type, resource_type, resource_id, metadata)
+    VALUES (v_g.org_id, v_g.admin_id, v_g.admin_role, 'exam_sitting.updated', 'exam_sitting', p_sitting_id,
+      jsonb_build_object(
+        'scheduled_at', jsonb_build_object('old', v_s.scheduled_at, 'new', CASE WHEN v_time_chg THEN p_scheduled_at ELSE v_s.scheduled_at END),
+        'mode', jsonb_build_object('old', v_s.mode, 'new', CASE WHEN v_mode_chg THEN p_mode ELSE v_s.mode END),
+        'permitted_materials_changed', v_mat_chg,
+        'codes_restamped', v_restamped));
+  END IF;
   IF v_inv_chg THEN
     INSERT INTO public.audit_events
       (organization_id, actor_id, actor_role, event_type, resource_type, resource_id, metadata)
