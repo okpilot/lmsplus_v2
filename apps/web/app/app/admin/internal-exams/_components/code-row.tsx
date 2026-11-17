@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { TableCell, TableRow } from '@/components/ui/table'
 import { formatUtc } from '@/lib/utils/format-utc'
 import type { InternalExamCodeRow } from '../types'
+import { statusLabel } from './code-status-items'
 import { SendCodeEmailButton } from './send-code-email-button'
 
 type DisplayStatus = InternalExamCodeRow['status'] | 'finished'
@@ -35,7 +36,7 @@ export function CodeRow({
     <TableRow>
       <TableCell>
         <StatusText
-          label={ds.charAt(0).toUpperCase() + ds.slice(1)}
+          label={statusLabel(ds)}
           className={STATUS_MUTED.has(ds) ? 'text-muted-foreground' : undefined}
         />
       </TableCell>

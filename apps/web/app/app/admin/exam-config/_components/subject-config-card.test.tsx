@@ -140,13 +140,10 @@ describe('SubjectConfigCard', () => {
   })
 
   describe('toggle button — with config', () => {
-    it('toggles exam mode when clicking the Enabled text', async () => {
-      vi.mocked(toggleExamConfig).mockResolvedValue({ success: true })
+    it('hides the Enabled/Disabled text from assistive tech', () => {
       render(<SubjectConfigCard subject={subjectWithConfig} onEdit={vi.fn()} />)
-      await userEvent.click(screen.getByText('Enabled'))
-      await waitFor(() => {
-        expect(toggleExamConfig).toHaveBeenCalledWith({ subjectId: 'subj-1', enabled: false })
-      })
+      expect(screen.getByText('Enabled')).toHaveAttribute('aria-hidden', 'true')
+      expect(screen.getByRole('switch', { name: 'Exam mode for General Knowledge' })).toBeTruthy()
     })
 
     it('toggles exam mode when clicking the status button', async () => {

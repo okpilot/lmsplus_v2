@@ -63,6 +63,12 @@ describe('StudentTable — courses column', () => {
     expect(within(r).queryByText(/\bPPL\b/)).not.toBeInTheDocument()
   })
 
+  it('lets the tag cell wrap', () => {
+    renderTable([row({ course_ids: [RT, ATPL] })])
+    const cell = screen.getByText(/\bRT\b/).closest('td') as HTMLElement
+    expect(cell).toHaveClass('whitespace-normal')
+  })
+
   it('shows an em dash for a student with no courses', () => {
     renderTable([row({ course_ids: [] })])
     const r = screen.getByText('Alice').closest('tr') as HTMLElement

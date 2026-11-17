@@ -58,10 +58,10 @@ export function MembershipCells({ student: s, courses, groups }: Readonly<Member
     .map((g) => ({ id: g.id, label: g.name }))
   return (
     <>
-      <TableCell>
+      <TableCell className="whitespace-normal">
         <TagList tags={courseTags} />
       </TableCell>
-      <TableCell>
+      <TableCell className="whitespace-normal">
         <TagList tags={groupTags} />
       </TableCell>
     </>

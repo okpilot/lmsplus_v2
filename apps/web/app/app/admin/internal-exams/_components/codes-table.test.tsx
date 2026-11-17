@@ -131,7 +131,7 @@ describe('CodesTable', () => {
     ).toBeInTheDocument()
   })
 
-  it('shows consumed status when consumed but session still in progress', () => {
+  it('shows in-progress status when consumed but session still in progress', () => {
     const inProg: InternalExamCodeRow = {
       ...baseRow,
       status: 'consumed',
@@ -141,7 +141,7 @@ describe('CodesTable', () => {
     }
     render(<CodesTable rows={[inProg]} totalCount={0} pageSize={25} />)
     expect(
-      within(screen.getByRole('row', { name: /ABCD-1234-X/ })).getByText('Consumed'),
+      within(screen.getByRole('row', { name: /ABCD-1234-X/ })).getByText('In progress'),
     ).toBeInTheDocument()
   })
 

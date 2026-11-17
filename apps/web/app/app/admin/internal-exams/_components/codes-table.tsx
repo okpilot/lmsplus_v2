@@ -22,6 +22,7 @@ import { parsePageParam } from '@/lib/utils/parse-page-param'
 import { PaginationBar } from '../../../_components/pagination-bar'
 import type { InternalExamCodeRow, InternalExamCodeStatus } from '../types'
 import { CodeRow } from './code-row'
+import { STATUS_ITEMS } from './code-status-items'
 import { VoidCodeDialog } from './void-code-dialog'
 
 type Props = {
@@ -30,15 +31,6 @@ type Props = {
   totalCount: number
   pageSize: number
 }
-
-const STATUS_ITEMS = [
-  { value: '__all__', label: 'All' },
-  { value: 'active', label: 'Active' },
-  { value: 'consumed', label: 'In progress' },
-  { value: 'finished', label: 'Finished' },
-  { value: 'voided', label: 'Voided' },
-  { value: 'expired', label: 'Expired' },
-]
 
 export function CodesTable({ rows, status, totalCount, pageSize }: Readonly<Props>) {
   const router = useRouter()

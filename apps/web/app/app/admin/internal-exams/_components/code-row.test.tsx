@@ -59,7 +59,7 @@ describe('CodeRow status text', () => {
     ['Voided', { status: 'voided' }, true],
     ['Active', { status: 'active' }, false],
     ['Finished', { status: 'consumed', sessionEndedAt: '2026-10-31T10:00:00Z' }, false],
-    ['Consumed', { status: 'consumed' }, false],
+    ['In progress', { status: 'consumed' }, false],
     ['Expired', { status: 'expired' }, true],
   ] as const)('shows status %s as plain text, muted only when %s', (label, patch, muted) => {
     const { container } = renderRow({ ...baseRow, ...patch })
