@@ -32,7 +32,6 @@ const CLASSIFIED: Record<string, string[]> = {
     'save_quiz_answer',
   ],
   admin: [
-    'add_exam_sitting_entries',
     'get_admin_dashboard_kpis',
     'get_admin_dashboard_students',
     'get_admin_report_answer_keys',
@@ -42,7 +41,6 @@ const CLASSIFIED: Record<string, string[]> = {
     'get_exam_sitting_subject_eligibility',
     'get_question_authoring_fields',
     'issue_internal_exam_code',
-    'issue_sitting_exam_codes',
     'list_exam_sitting_removed_entries',
     'list_exam_sitting_roster',
     'set_user_enrolments',
