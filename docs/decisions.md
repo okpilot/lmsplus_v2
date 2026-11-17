@@ -248,3 +248,4 @@
 ## 253 — 2026-11-17 — Entries are added only by `add_exam_sitting_entries`: at most 1000 pairs per call, at most 2000 live per sitting, an org advisory lock after the sitting lock so one pair cannot enter two sittings. #1777
 ## 254 — 2026-11-17 — Codes are issued from `private.sitting_issue_plan`: one live code per entry; an expired unused code is voided `reissued_after_expiry` and replaced in the same transaction; issue prunes passed entries first; issue and preview results and audit rows carry no plaintext code. #1777
 ## 255 — 2026-11-17 — `list_exam_sitting_roster` returns the plaintext code to admins only, and only while it is unvoided and consumed or unexpired; students never. #1777
+## 256 — 2026-11-17 — security.md §15 exception (g): sitting reads of cancelled (soft-deleted) `exam_sittings` omit `deleted_at IS NULL`; admin-gated, org-scoped, named inline. #1777
