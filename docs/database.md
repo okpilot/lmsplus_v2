@@ -494,7 +494,7 @@ CREATE INDEX idx_exam_sitting_candidates_user ON exam_sitting_candidates(user_id
 
 ### exam_sitting_entries
 
-One row per (candidate, subject) in a sitting (same migration, #1777). Rows are inserted by the add-entries RPC of the follow-up issuance PR (no migration in this set inserts them); the sitting RPCs here only soft-delete them (`remove_exam_sitting_candidates`, `remove_exam_sitting_entries`, the prune helper). Soft delete; never hard-deleted; retention as `exam_sittings`.
+One row per (candidate, subject) in a sitting (same migration, #1777). No migration in this set inserts rows; the sitting RPCs here only soft-delete them (`remove_exam_sitting_candidates`, `remove_exam_sitting_entries`, the prune helper). Soft delete; never hard-deleted; retention as `exam_sittings`.
 
 ```sql
 CREATE TABLE exam_sitting_entries (

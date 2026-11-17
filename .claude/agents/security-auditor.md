@@ -218,7 +218,7 @@ Report your findings and stop. You run fresh each time, with no memory of past r
 
    If ANY condition is missing, flag it. A missing waiver comment is MEDIUM; missing Zod validation or missing RPC auth is HIGH.
 
-8. **Do NOT flag check 16 on functions documented in `docs/security.md` §15** as reading a table by an immutable write-once column, on syllabus-parent reads matching §15 (d), or on the §15 (e) member-count read. Read §15 for the authoritative, current set of exempt functions — do NOT rely on a memorised or hardcoded list (§15 enumerates them and is kept current).
+8. **Do NOT flag check 16 on functions documented in `docs/security.md` §15** as reading a table by an immutable write-once column, on syllabus-parent reads matching §15 (d), on the §15 (e) member-count read, or on a §15 (f) sitting read of `users`. Read §15 for the authoritative, current set of exempt functions — do NOT rely on a memorised or hardcoded list (§15 enumerates them and is kept current).
 
 9. **Do NOT flag check 18** on admin/org-wide RPCs behind `is_admin()`, nor when caller ownership was already established by an earlier check that both identifies the owner row AND scopes the later reads.
 

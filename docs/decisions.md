@@ -239,7 +239,7 @@
 ## 244 — 2026-11-17 — Auto-close of open and auto-cancel of never-started sittings happen lazily inside admin and student reads; no scheduler; at most 3 per call. #1777
 ## 245 — 2026-11-17 — Pass is permanent; a passed pair's entries are auto-removed on read paths with an audited notice record; entered-elsewhere blocks only until a finished attempt. #1777
 ## 246 — 2026-11-17 — Absent is derived (no stored state); attempt number excludes voided attempts. #1777
-## 247 — 2026-11-17 — Disabling or deleting an exam config, or soft-deleting a subject, is blocked while a scheduled or open sitting uses it. #1777
+## 247 — 2026-11-17 — Disabling, deleting or moving an exam config is blocked while a scheduled or open sitting uses it; soft-deleting a subject stays blocked through its live exam config. #1777
 ## 248 — 2026-11-17 — Start is refused before the sitting's UTC day (`sitting_not_due`); a past UTC day is refused at create/reschedule (`scheduled_in_past`). #1777
 ## 249 — 2026-11-17 — Candidates are an explicit snapshot; group expansion is server-side at add time; a candidate with an attempt cannot be removed. #1777
 ## 250 — 2026-11-17 — Group and sitting reads that must show deactivated users read `users` without `deleted_at` (security.md §15 (f)). #1777
