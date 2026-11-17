@@ -46,7 +46,7 @@ BEGIN
              WHEN 'not_emailed' THEN EXISTS (
                SELECT 1 FROM public.exam_sitting_entries e
                  JOIN public.internal_exam_codes k ON k.sitting_entry_id = e.id AND k.deleted_at IS NULL
-                      AND (k.voided_at IS NULL OR k.consumed_at IS NOT NULL) AND k.emailed_at IS NULL
+                      AND k.voided_at IS NULL AND k.consumed_at IS NULL AND k.expires_at > now() AND k.emailed_at IS NULL
                 WHERE e.sitting_id = p_sitting_id AND e.user_id = u.id AND e.organization_id = v_g.org_id
                   AND e.deleted_at IS NULL)
              WHEN 'has_attempts' THEN EXISTS (
@@ -92,13 +92,15 @@ BEGIN
                                WHERE q2.student_id = e.user_id AND q2.subject_id = e.subject_id AND q2.organization_id = v_g.org_id
                                  AND q2.mode = 'internal_exam' AND q2.deleted_at IS NULL AND q2.started_at <= q.started_at
                                  AND NOT EXISTS (SELECT 1 FROM public.internal_exam_codes c3
-                                                  WHERE c3.consumed_session_id = q2.id AND c3.voided_at IS NOT NULL))
+                                                  WHERE c3.consumed_session_id = q2.id AND c3.voided_at IS NOT NULL
+                                                    AND c3.deleted_at IS NULL))
                            ELSE
                              (SELECT count(*)::int FROM public.quiz_sessions q2
                                WHERE q2.student_id = e.user_id AND q2.subject_id = e.subject_id AND q2.organization_id = v_g.org_id
                                  AND q2.mode = 'internal_exam' AND q2.deleted_at IS NULL AND q2.ended_at IS NOT NULL
                                  AND NOT EXISTS (SELECT 1 FROM public.internal_exam_codes c3
-                                                  WHERE c3.consumed_session_id = q2.id AND c3.voided_at IS NOT NULL)) + 1
+                                                  WHERE c3.consumed_session_id = q2.id AND c3.voided_at IS NOT NULL
+                                                    AND c3.deleted_at IS NULL)) + 1
                            END AS attempt_number,
                       q.passed AS passed, q.score_percentage AS score,
                       lc.id AS code_id, lc.code AS code, lc.expires_at AS code_expires_at,

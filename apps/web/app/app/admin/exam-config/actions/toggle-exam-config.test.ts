@@ -293,7 +293,7 @@ describe('toggleExamConfig exam_config_in_use refusal (AC-56)', () => {
     expect(result.success).toBe(false)
     if (result.success) return
     expect(result.error).toBe(
-      'This exam is used by a scheduled or open sitting. Close or cancel that sitting, or remove its candidates for this subject, before disabling the exam.',
+      'This exam is used by a scheduled or open sitting. Close or cancel that sitting, or remove this subject from its candidates, before disabling the exam.',
     )
     expect(mockRevalidatePath).not.toHaveBeenCalled()
   })
