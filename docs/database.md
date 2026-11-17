@@ -494,7 +494,7 @@ CREATE INDEX idx_exam_sitting_candidates_user ON exam_sitting_candidates(user_id
 
 ### exam_sitting_entries
 
-One row per (candidate, subject) in a sitting (same migration, #1777). Written by the sitting RPCs only (`remove_exam_sitting_candidates`, `remove_exam_sitting_entries`, the prune helper; add-entries arrives in 2a-1b). Soft delete; never hard-deleted; retention as `exam_sittings`.
+One row per (candidate, subject) in a sitting (same migration, #1777). Written by the sitting RPCs only (`remove_exam_sitting_candidates`, `remove_exam_sitting_entries`, the prune helper). Soft delete; never hard-deleted; retention as `exam_sittings`.
 
 ```sql
 CREATE TABLE exam_sitting_entries (
@@ -1651,10 +1651,8 @@ Fifteen public admin RPCs: `create_exam_sitting(p_scheduled_at, p_mode, p_invigi
 - Shared guard order through `private.sitting_admin_guard()` and `private.sitting_lock(p_org, p_sitting_id, p_check_day)`: `not_authenticated`, `not_admin`, `admin_not_found`, `invalid_input`, `sitting_not_found` (row `FOR UPDATE`), `sitting_closed`, `sitting_day_ended`, then the specific token.
 - Private helpers (EXECUTE revoked): `private.sitting_day_end`, `sitting_day_ended`, `sitting_code_expiry` (23:59:59.999999 UTC of the sitting day), `resolve_sitting_students`, `sitting_resolve_user_ids`, `sitting_issue_plan`, `void_unused_sitting_codes`, `prune_passed_entries`, `close_exam_sitting_core`, `close_expired_sittings`.
 - Lazy close: `list_exam_sittings`, `get_exam_sitting_summary`, `start_exam_sitting` and `list_my_active_internal_exam_codes` call `close_expired_sittings(org)`: day-ended open sittings close automatically, day-ended never-started scheduled sittings auto-cancel; at most 3 per call, `SKIP LOCKED`, no scheduler.
-- Prune: `get_exam_sitting_summary` and `start_exam_sitting` call `prune_passed_entries` for the sitting; entries whose student passed the subject elsewhere are soft-deleted, unused codes voided (`passed_elsewhere`), audit `exam_sitting.entry_auto_removed`.
+- Prune: `get_exam_sitting_summary` (scheduled or open sittings only) and `start_exam_sitting` call `prune_passed_entries` for the sitting; entries whose student passed the subject elsewhere are soft-deleted, unused codes voided (`passed_elsewhere`), audit `exam_sitting.entry_auto_removed`.
 - Audit: ids, counts and reason counts only; no names, emails or code values.
-
-**Slice-3 handoffs:** reassigning the invigilator also updates open attempts; Start and Close widen to the invigilator; the admit step goes into `sitting_redeem_gate`; `attempt_count` excludes voided attempts.
 
 ##### `list_my_active_internal_exam_codes()` (migrations `20260521000002`, `20260824000200`)
 
