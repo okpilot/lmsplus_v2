@@ -1,0 +1,43 @@
+import { adminClient } from '@repo/db/admin'
+
+export type InvigilatorInfo = { name: string; active: boolean }
+
+type UserRow = {
+  full_name: string | null
+  email: string | null
+  role: string | null
+  deleted_at: string | null
+}
+
+export function staffName(u: { full_name: string | null; email: string | null }): string {
+  return u.full_name ?? u.email ?? 'Unknown'
+}
+
+export function toInfo(u: UserRow): InvigilatorInfo {
+  return {
+    name: staffName(u),
+    active: u.deleted_at === null && (u.role === 'admin' || u.role === 'instructor'),
+  }
+}
+
+/**
+ * Name and active flag of a sitting's invigilator. Service role (`users_select` is self-only),
+ * scoped by `organization_id` and `id`.
+ * security.md §15 exception (f): service-role read of users, org-scoped, includes deactivated.
+ */
+export async function readInvigilator(
+  organizationId: string,
+  id: string,
+): Promise<InvigilatorInfo | null> {
+  const { data, error } = await adminClient
+    .from('users')
+    .select('full_name, email, role, deleted_at')
+    .eq('organization_id', organizationId)
+    .eq('id', id)
+    .maybeSingle()
+  if (error) {
+    console.error('[readInvigilator] DB error:', error.message)
+    throw new Error('Failed to load sitting')
+  }
+  return data ? toInfo(data) : null
+}

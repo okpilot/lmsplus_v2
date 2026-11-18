@@ -1,9 +1,16 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+const mockReplace = vi.hoisted(() => vi.fn())
+const mockSearch = vi.hoisted(() => ({ value: '' }))
 vi.mock('next/navigation', () => ({
-  useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ replace: mockReplace, push: vi.fn() }),
+  usePathname: () => '/app/admin/internal-exams',
+  useSearchParams: () => new URLSearchParams(mockSearch.value),
+}))
+vi.mock('../sittings/_components/sittings-tab', () => ({
+  SittingsTab: () => <div>sittings content</div>,
 }))
 vi.mock('./attempts-table', () => ({ AttemptsTable: () => <div>attempts content</div> }))
 vi.mock('./codes-tab', () => ({ CodesTab: () => <div>codes content</div> }))
@@ -24,6 +31,11 @@ function renderTabs() {
   )
 }
 
+beforeEach(() => {
+  mockReplace.mockReset()
+  mockSearch.value = ''
+})
+
 describe('InternalExamsTabs', () => {
   it('exposes the tab testids and marks the active tab with aria-selected', () => {
     renderTabs()
@@ -32,12 +44,74 @@ describe('InternalExamsTabs', () => {
     expect(screen.getByTestId('tab-attempts')).toHaveAttribute('aria-selected', 'false')
   })
 
-  it('shows the attempts panel under tabpanel-attempts after clicking the attempts tab', async () => {
+  it('writes the clicked tab to the URL instead of local state', async () => {
     const user = userEvent.setup()
     renderTabs()
     await user.click(screen.getByTestId('tab-attempts'))
+    expect(mockReplace).toHaveBeenCalledTimes(1)
+    expect(mockReplace.mock.calls[0]?.[0]).toContain('tab=attempts')
+  })
+
+  it('navigates again after the URL tab changes (Back, then another tab)', async () => {
+    const user = userEvent.setup()
+    mockSearch.value = ''
+    const view = renderTabs()
+    await user.click(screen.getByTestId('tab-attempts'))
+    expect(mockReplace).toHaveBeenCalledTimes(1)
+    // Back: the URL still says codes, then the user picks attempts again after a different pick.
+    await user.click(screen.getByTestId('tab-sittings'))
+    expect(mockReplace).toHaveBeenCalledTimes(2)
+    mockSearch.value = 'tab=sittings'
+    view.rerender(
+      <InternalExamsTabs
+        students={[]}
+        subjects={[]}
+        codes={[]}
+        codesTotalCount={0}
+        attempts={[]}
+        attemptsTotalCount={0}
+        pageSize={20}
+      />,
+    )
+    await user.click(screen.getByTestId('tab-codes'))
+    expect(mockReplace).toHaveBeenCalledTimes(3)
+    expect(mockReplace.mock.calls[2]?.[0]).toContain('tab=codes')
+  })
+
+  it('re-arms the tab guard when a non-tab navigation supersedes the tab request', async () => {
+    const user = userEvent.setup()
+    const view = renderTabs()
+    await user.click(screen.getByTestId('tab-attempts'))
+    expect(mockReplace).toHaveBeenCalledTimes(1)
+    mockSearch.value = 'page=2'
+    view.rerender(
+      <InternalExamsTabs
+        students={[]}
+        subjects={[]}
+        codes={[]}
+        codesTotalCount={0}
+        attempts={[]}
+        attemptsTotalCount={0}
+        pageSize={20}
+      />,
+    )
+    await user.click(screen.getByTestId('tab-attempts'))
+    expect(mockReplace).toHaveBeenCalledTimes(2)
+  })
+
+  it('selects the attempts tab from ?tab=attempts', () => {
+    mockSearch.value = 'tab=attempts'
+    renderTabs()
     expect(screen.getByTestId('tab-attempts')).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByTestId('tabpanel-attempts')).toBeInTheDocument()
+  })
+
+  it('selects the sittings tab from ?tab=sittings and lists it last', () => {
+    mockSearch.value = 'tab=sittings'
+    renderTabs()
+    expect(screen.getByTestId('tab-sittings')).toHaveAttribute('aria-selected', 'true')
+    const tabs = screen.getAllByRole('tab').map((t) => t.getAttribute('data-testid'))
+    expect(tabs).toEqual(['tab-codes', 'tab-attempts', 'tab-sittings'])
   })
 
   it('styles the active tab with the shared segmented look', () => {

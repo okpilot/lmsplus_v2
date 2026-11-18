@@ -510,3 +510,43 @@ describe('RPC: list_exam_sittings', () => {
     )
   })
 })
+
+/** Day-ended sittings the lazy close (cap 3) has not reached are listed with their effective status. */
+describe('RPC: list_exam_sittings day-ended effective status', () => {
+  let w: Awaited<ReturnType<typeof buildWorld>>
+  const sched: string[] = []
+  const open: string[] = []
+  beforeAll(async () => {
+    w = await buildWorld('lst-dayend')
+    for (let i = 0; i < 4; i++) {
+      sched.push(await w.sitting({ day: -2, hour: 8 + i }))
+      open.push(await w.sitting({ day: -2, hour: 12 + i, state: 'open' }))
+    }
+  })
+  afterAll(async () => {
+    await w?.teardown()
+  })
+  const rows = async (scope: string) =>
+    must<Record<string, unknown>[]>(
+      await w.clients.a1.rpc('list_exam_sittings', { p_scope: scope }),
+      `list ${scope}`,
+    )
+
+  it('lists every day-ended row as cancelled/closed after one lazy-close call, none as upcoming/open', async () => {
+    const cancelled = await rows('cancelled')
+    const past = await rows('past')
+    const up = await rows('upcoming')
+    const opn = await rows('open')
+    expect(up).toHaveLength(0)
+    expect(opn).toHaveLength(0)
+    expect(cancelled.map((r) => r.id).sort()).toEqual([...sched].sort())
+    expect(past.map((r) => r.id).sort()).toEqual([...open].sort())
+    for (const r of [...cancelled, ...past]) expect(r.ended_automatically).toBe(true)
+    for (const r of cancelled) expect(r.closed_at).toBeNull()
+    for (const r of past) expect(new Date(r.closed_at as string).getTime()).toBe(dayEndMinus1us(-2))
+    expect(cancelled.every((r) => r.status === 'cancelled')).toBe(true)
+    expect(past.every((r) => r.status === 'closed')).toBe(true)
+    expect(cancelled[0]?.total_count).toBe(4)
+    expect(past[0]?.total_count).toBe(4)
+  })
+})

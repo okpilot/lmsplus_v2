@@ -33,3 +33,39 @@ describe('parseInternalExamsSearchParams', () => {
     expect(parseInternalExamsSearchParams({ attemptsPage: '-2' }).attemptsPage).toBe(1)
   })
 })
+
+describe('parseInternalExamsSearchParams: tab, scope, dlg', () => {
+  it('defaults tab to codes and scope to upcoming', () => {
+    const r = parseInternalExamsSearchParams({})
+    expect(r.tab).toBe('codes')
+    expect(r.scope).toBe('upcoming')
+    expect(r.dlg).toBeUndefined()
+  })
+
+  it('keeps each recognised tab', () => {
+    for (const tab of ['sittings', 'codes', 'attempts'])
+      expect(parseInternalExamsSearchParams({ tab }).tab).toBe(tab)
+  })
+
+  it('falls back to codes for an unknown or array tab', () => {
+    expect(parseInternalExamsSearchParams({ tab: 'x' }).tab).toBe('codes')
+    expect(parseInternalExamsSearchParams({ tab: ['sittings', 'codes'] }).tab).toBe('codes')
+  })
+
+  it('keeps each recognised scope', () => {
+    for (const scope of ['upcoming', 'open', 'past', 'cancelled'])
+      expect(parseInternalExamsSearchParams({ scope }).scope).toBe(scope)
+  })
+
+  it('falls back to upcoming for an unknown or array scope', () => {
+    expect(parseInternalExamsSearchParams({ scope: 'all' }).scope).toBe('upcoming')
+    expect(parseInternalExamsSearchParams({ scope: ['open', 'past'] }).scope).toBe('upcoming')
+  })
+
+  it('keeps dlg new and edit, drops anything else', () => {
+    expect(parseInternalExamsSearchParams({ dlg: 'new' }).dlg).toBe('new')
+    expect(parseInternalExamsSearchParams({ dlg: 'edit' }).dlg).toBe('edit')
+    expect(parseInternalExamsSearchParams({ dlg: 'people' }).dlg).toBeUndefined()
+    expect(parseInternalExamsSearchParams({ dlg: ['new', 'edit'] }).dlg).toBeUndefined()
+  })
+})
