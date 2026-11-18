@@ -62,7 +62,7 @@ describe('IssueCodesPanel', () => {
 
   it('shows already-issued as a plain line', () => {
     panel({ counts: { issue: 1, already_issued: 5 } })
-    expect(screen.getByText('5 already have a code.')).toBeInTheDocument()
+    expect(screen.getByText('5 exams already have a code.')).toBeInTheDocument()
   })
 
   it('groups skipped exams by reason with counts and lists the details (AC 42)', () => {
