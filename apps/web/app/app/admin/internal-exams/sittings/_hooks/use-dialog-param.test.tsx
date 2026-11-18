@@ -11,7 +11,7 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(mockSearch.value),
 }))
 
-import { type DialogRefs, useDialogParam } from './use-dialog-param'
+import { type DialogRefs, dialogHref, useDialogParam } from './use-dialog-param'
 
 beforeEach(() => {
   vi.resetAllMocks()
@@ -106,5 +106,25 @@ describe('useDialogParam', () => {
     act(() => result.current.open('new'))
     expect(result.current.consumeOpenedHere()).toBe(true)
     expect(result.current.consumeOpenedHere()).toBe(false)
+  })
+})
+
+describe('dialogHref', () => {
+  it('adds the dialog while keeping the other params', () => {
+    expect(dialogHref('/p', 'tab=sittings&scope=open', 'new')).toBe(
+      '/p?tab=sittings&scope=open&dlg=new',
+    )
+  })
+
+  it('replaces an existing dialog', () => {
+    expect(dialogHref('/p', 'dlg=new&tab=sittings', 'edit')).toBe('/p?dlg=edit&tab=sittings')
+  })
+
+  it('removes the dialog and keeps the rest', () => {
+    expect(dialogHref('/p', 'tab=sittings&dlg=new', null)).toBe('/p?tab=sittings')
+  })
+
+  it('returns the bare pathname when nothing is left', () => {
+    expect(dialogHref('/p', 'dlg=edit', null)).toBe('/p')
   })
 })
