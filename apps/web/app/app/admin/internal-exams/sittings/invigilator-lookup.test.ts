@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mockFrom = vi.hoisted(() => vi.fn())
 vi.mock('@repo/db/admin', () => ({ adminClient: { from: mockFrom } }))
 
-import { readInvigilator } from './invigilator-lookup'
+import { readInvigilator, staffName } from './invigilator-lookup'
 
 type Result = { data: unknown; error: { message: string } | null }
 
@@ -59,5 +59,13 @@ describe('readInvigilator', () => {
   it('throws when the read fails', async () => {
     mockFrom.mockReturnValue(chain({ data: null, error: { message: 'boom' } }))
     await expect(readInvigilator('org-1', 'u')).rejects.toThrow('Failed to load sitting')
+  })
+})
+
+describe('staffName', () => {
+  it('prefers the full name, then the email, then Unknown', () => {
+    expect(staffName({ full_name: 'Ann', email: 'a@x.test' })).toBe('Ann')
+    expect(staffName({ full_name: null, email: 'a@x.test' })).toBe('a@x.test')
+    expect(staffName({ full_name: null, email: null })).toBe('Unknown')
   })
 })

@@ -1,10 +1,12 @@
 'use client'
 
+import { useSearchParams } from 'next/navigation'
 import {
   createContext,
   type ReactNode,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -52,6 +54,11 @@ export function useSittingUi() {
 export function SittingUiProvider({ children }: Readonly<{ children: ReactNode }>) {
   const openedHere = useRef(false)
   const openerRef = useRef<HTMLElement | null>(null)
+  const closing = useRef(false)
+  const dlg = useSearchParams().get('dlg')
+  useEffect(() => {
+    if (dlg === null) closing.current = false
+  }, [dlg])
   const [locked, setLocked] = useState(false)
   const [banner, setBannerState] = useState<ResultBannerData | null>(null)
   const setBanner = useCallback(
@@ -59,7 +66,7 @@ export function SittingUiProvider({ children }: Readonly<{ children: ReactNode }
     [],
   )
   const value = useMemo<Shared>(
-    () => ({ refs: { openedHere, openerRef }, locked, setLocked, banner, setBanner }),
+    () => ({ refs: { openedHere, openerRef, closing }, locked, setLocked, banner, setBanner }),
     [locked, banner, setBanner],
   )
   return <SittingUiContext.Provider value={value}>{children}</SittingUiContext.Provider>

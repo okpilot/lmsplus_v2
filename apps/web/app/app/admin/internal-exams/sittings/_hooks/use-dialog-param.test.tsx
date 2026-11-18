@@ -11,7 +11,7 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(mockSearch.value),
 }))
 
-import { useDialogParam } from './use-dialog-param'
+import { type DialogRefs, useDialogParam } from './use-dialog-param'
 
 beforeEach(() => {
   vi.resetAllMocks()
@@ -57,5 +57,46 @@ describe('useDialogParam', () => {
     const url = mockReplace.mock.calls[0]?.[0] as string
     expect(url).not.toContain('dlg=')
     expect(url).toContain('scope=open')
+  })
+
+  it('collapses two close() calls into one router.back()', () => {
+    const refs: DialogRefs = {
+      openedHere: { current: true },
+      openerRef: { current: null },
+      closing: { current: false },
+    }
+    mockSearch.value = 'tab=sittings&dlg=new'
+    const a = renderHook(() => useDialogParam(refs))
+    const b = renderHook(() => useDialogParam(refs))
+    act(() => {
+      a.result.current.close()
+      b.result.current.close()
+    })
+    expect(mockBack).toHaveBeenCalledTimes(1)
+    expect(mockReplace).not.toHaveBeenCalled()
+  })
+
+  it('collapses two close() calls on a deep link into one replace', () => {
+    mockSearch.value = 'tab=sittings&dlg=edit'
+    const { result } = renderHook(() => useDialogParam())
+    act(() => {
+      result.current.close()
+      result.current.close()
+    })
+    expect(mockReplace).toHaveBeenCalledTimes(1)
+  })
+
+  it('closes again after the dialog was closed and reopened', () => {
+    mockSearch.value = 'tab=sittings&dlg=edit'
+    const { result, rerender } = renderHook(() => useDialogParam())
+    act(() => result.current.close())
+    mockSearch.value = 'tab=sittings'
+    rerender()
+    act(() => result.current.open('new'))
+    mockSearch.value = 'tab=sittings&dlg=new'
+    rerender()
+    act(() => result.current.close())
+    expect(mockReplace).toHaveBeenCalledTimes(1)
+    expect(mockBack).toHaveBeenCalledTimes(1)
   })
 })

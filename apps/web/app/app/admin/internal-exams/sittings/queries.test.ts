@@ -4,10 +4,6 @@ const mockRequireAdmin = vi.hoisted(() => vi.fn())
 const mockRpc = vi.hoisted(() => vi.fn())
 const mockFrom = vi.hoisted(() => vi.fn())
 
-vi.mock('react', async (orig) => ({
-  ...(await orig<typeof import('react')>()),
-  cache: <T>(f: T) => f,
-}))
 vi.mock('@/lib/auth/require-admin', () => ({ requireAdmin: mockRequireAdmin }))
 const mockAdminFrom = vi.hoisted(() => vi.fn())
 vi.mock('@repo/db/admin', () => ({ adminClient: { from: mockAdminFrom } }))
