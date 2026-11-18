@@ -52,12 +52,16 @@ async function fetchSittingsPage(supabase: Supabase, scope: SittingScope, page: 
   return data ?? []
 }
 
+/** Postgres `int` ceiling for `p_offset`; a larger page snaps to the last page instead of overflowing. */
+const MAX_SITTINGS_PAGE = Math.floor(2_147_483_647 / SITTINGS_PAGE_SIZE)
+
 /** An out-of-range page snaps to the last page, like the codes list (#1041). */
 export async function listSittings(
   scope: SittingScope,
-  page = 1,
+  requestedPage = 1,
 ): Promise<{ rows: SittingRow[]; totalCount: number }> {
   const { supabase } = await requireAdmin()
+  const page = Math.min(requestedPage, MAX_SITTINGS_PAGE)
   let data = await fetchSittingsPage(supabase, scope, page)
   if (data.length === 0 && page > 1) {
     const first = await fetchSittingsPage(supabase, scope, 1)

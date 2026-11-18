@@ -100,6 +100,31 @@ describe('listSittings out-of-range page', () => {
     expect(r.totalCount).toBe(61)
   })
 
+  it('clamps a huge page so p_offset stays within int range, then snaps to the last page', async () => {
+    const last = { ...RPC_ROW, id: 'last-row', total_count: 61 }
+    mockRpc
+      .mockResolvedValueOnce({ data: [], error: null })
+      .mockResolvedValueOnce({ data: [RPC_ROW], error: null })
+      .mockResolvedValueOnce({ data: [last], error: null })
+    const r = await listSittings('past', 50_000_000)
+    expect(mockRpc).toHaveBeenNthCalledWith(
+      1,
+      'list_exam_sittings',
+      expect.objectContaining({ p_offset: 2_147_483_550 }),
+    )
+    expect(mockRpc).toHaveBeenNthCalledWith(
+      2,
+      'list_exam_sittings',
+      expect.objectContaining({ p_offset: 0 }),
+    )
+    expect(mockRpc).toHaveBeenNthCalledWith(
+      3,
+      'list_exam_sittings',
+      expect.objectContaining({ p_offset: 50 }),
+    )
+    expect(r.rows.map((x) => x.id)).toEqual(['last-row'])
+  })
+
   it('returns empty when the scope has no sittings at all', async () => {
     mockRpc.mockResolvedValue({ data: [], error: null })
     expect(await listSittings('past', 5)).toEqual({ rows: [], totalCount: 0 })
