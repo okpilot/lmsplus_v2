@@ -1,12 +1,6 @@
 'use client'
 
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { FilterSelect } from '@/app/app/_components/filter-select'
 
 export type SelectOption = { value: string; label: string }
 
@@ -23,23 +17,15 @@ export function OptionSelect({ label, value, options, onChange, disabled }: Read
   return (
     <div className="min-w-0 space-y-1">
       <span className="block text-label text-muted-foreground">{label}</span>
-      <Select
+      <FilterSelect
         value={value}
-        onValueChange={(v) => onChange(v ?? '')}
         items={options}
+        ariaLabel={label}
+        placeholder=""
+        triggerClassName="w-full min-w-0"
         disabled={disabled}
-      >
-        <SelectTrigger className="w-full min-w-0" aria-label={label}>
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {options.map((o) => (
-            <SelectItem key={o.value} value={o.value} label={o.label}>
-              {o.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+        onValueChange={(v) => onChange(v ?? '')}
+      />
     </div>
   )
 }

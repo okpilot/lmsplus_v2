@@ -41,13 +41,15 @@ export function InternalExamsTabs({
   sittings,
 }: Readonly<Props>) {
   const update = useUpdateSearchParams()
-  const tab = parseTab(useSearchParams().get('tab'))
-  // Tabs activate on focus and on click: one request per target until the URL tab changes.
+  const sp = useSearchParams()
+  const tab = parseTab(sp.get('tab'))
+  const search = sp.toString()
+  // Tabs activate on focus and on click: one request per target until the URL changes.
   const pending = useRef<TabKey | null>(null)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `tab` is the trigger that re-arms the guard
+  // biome-ignore lint/correctness/useExhaustiveDependencies: any URL change ends the in-flight tab request
   useEffect(() => {
     pending.current = null
-  }, [tab])
+  }, [search])
   const select = (value: string | null) => {
     const to = parseTab(value)
     if (to === tab || pending.current === to) return
