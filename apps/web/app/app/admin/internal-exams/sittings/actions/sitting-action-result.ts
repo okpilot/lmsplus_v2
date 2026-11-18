@@ -1,5 +1,6 @@
 import { revalidatePath } from 'next/cache'
 import { matchRpcError } from '@/lib/rpc-error-match'
+import { SITTING_ROOT } from '../types'
 
 export type SittingActionResult<T extends object = Record<string, never>> =
   | ({ success: true } & T)
@@ -54,8 +55,6 @@ export function num(row: Record<string, unknown>, key: string): number {
   const v = row[key]
   return typeof v === 'number' ? v : 0
 }
-
-export const SITTING_ROOT = '/app/admin/internal-exams'
 
 export function revalidateSitting(sittingId: string) {
   revalidatePath(SITTING_ROOT)

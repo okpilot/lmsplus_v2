@@ -3,7 +3,8 @@
 import { CreateExamSittingSchema } from '@repo/db/schema'
 import { revalidatePath } from 'next/cache'
 import { requireAdmin } from '@/lib/auth/require-admin'
-import { SITTING_ROOT, type SittingActionResult, sittingFailure } from './sitting-action-result'
+import { SITTING_ROOT } from '../types'
+import { type SittingActionResult, sittingFailure } from './sitting-action-result'
 
 export async function createSitting(
   input: unknown,

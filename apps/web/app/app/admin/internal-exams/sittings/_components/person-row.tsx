@@ -69,7 +69,7 @@ export function PersonRow({
             <Checkbox
               aria-label={`Select ${name}`}
               checked={ticked}
-              disabled={row.hasAttempt}
+              disabled={row.hasAttempt && !ticked}
               onCheckedChange={() => toggleRoster(row.userId)}
             />
           </TableCell>

@@ -1,5 +1,6 @@
 import { requireAdmin } from '@/lib/auth/require-admin'
 import {
+  ENTRY_STATUSES,
   type EntryStatus,
   type RemovedEntryRow,
   ROSTER_PAGE_SIZE,
@@ -10,18 +11,7 @@ import {
 
 type Supabase = Awaited<ReturnType<typeof requireAdmin>>['supabase']
 
-const STATUSES: ReadonlySet<string> = new Set<EntryStatus>([
-  'no_code',
-  'waiting',
-  'ready',
-  'expired',
-  'voided',
-  'voided_attempt',
-  'running',
-  'finished',
-  'absent',
-  'discarded',
-])
+const STATUSES: ReadonlySet<string> = new Set<string>(ENTRY_STATUSES)
 
 const str = (v: unknown): string | null => (typeof v === 'string' ? v : null)
 const numOrNull = (v: unknown): number | null => (typeof v === 'number' ? v : null)

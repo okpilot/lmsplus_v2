@@ -54,17 +54,21 @@ export type NeedsCodeStatus = (typeof NEEDS_CODE_STATUSES_LIST)[number]
 /** Entries that need a (new) code. */
 export const NEEDS_CODE_STATUSES: ReadonlySet<string> = new Set(NEEDS_CODE_STATUSES_LIST)
 
-export type EntryStatus =
-  | 'no_code'
-  | 'waiting'
-  | 'ready'
-  | 'expired'
-  | 'voided'
-  | 'voided_attempt'
-  | 'running'
-  | 'finished'
-  | 'absent'
-  | 'discarded'
+export const ENTRY_STATUSES = [
+  'no_code',
+  'waiting',
+  'ready',
+  'expired',
+  'voided',
+  'voided_attempt',
+  'running',
+  'finished',
+  'absent',
+  'discarded',
+] as const
+export type EntryStatus = (typeof ENTRY_STATUSES)[number]
+
+export const SITTING_ROOT = '/app/admin/internal-exams'
 
 export type RosterEntry = {
   entryId: string

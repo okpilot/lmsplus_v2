@@ -116,6 +116,39 @@ describe('PersonRow', () => {
     expect(screen.queryByRole('button', { name: 'Actions for Ann Pilot' })).toBeNull()
   })
 
+  it('keeps a ticked person with an attempt untickable', async () => {
+    const toggle = { onToggle: vi.fn(), onRemove: vi.fn() }
+    const tree = (hasAttempt: boolean) => (
+      <SittingUiProvider>
+        <table>
+          <tbody>
+            <PersonRow
+              sittingId="sit-1"
+              sittingStatus="scheduled"
+              row={row({ hasAttempt })}
+              editable
+              open={false}
+              {...toggle}
+            />
+          </tbody>
+        </table>
+      </SittingUiProvider>
+    )
+    const user = userEvent.setup()
+    const { rerender } = render(tree(false))
+    await user.click(screen.getByRole('checkbox', { name: 'Select Ann Pilot' }))
+    rerender(tree(true))
+    const box = screen.getByRole('checkbox', { name: 'Select Ann Pilot' })
+    expect(box).not.toHaveAttribute('aria-disabled', 'true')
+    expect(box).toBeChecked()
+    await user.click(box)
+    expect(screen.getByRole('checkbox', { name: 'Select Ann Pilot' })).not.toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Select Ann Pilot' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    )
+  })
+
   it('calls onRemove from the row menu', async () => {
     const { onRemove } = ui()
     const user = userEvent.setup()

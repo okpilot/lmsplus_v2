@@ -3,6 +3,7 @@ import {
   NEEDS_CODE_STATUSES,
   type NeedsCodeStatus,
   type RosterEntry,
+  SITTING_ROOT,
 } from '../types'
 
 type IssueLabel = 'Issue code' | 'Re-issue' | 'Issue new code'
@@ -28,7 +29,7 @@ export function nextStep(e: RosterEntry, { editable, deactivated }: Ctx): NextSt
       ? {
           kind: 'view',
           label: 'View attempt',
-          href: `/app/admin/internal-exams/report?session=${e.sessionId}`,
+          href: `${SITTING_ROOT}/report?session=${e.sessionId}`,
         }
       : null
   }

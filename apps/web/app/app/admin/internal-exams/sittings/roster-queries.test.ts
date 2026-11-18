@@ -6,6 +6,7 @@ const mockRpc = vi.hoisted(() => vi.fn())
 vi.mock('@/lib/auth/require-admin', () => ({ requireAdmin: mockRequireAdmin }))
 
 import { getRemoved, getRoster, getRosterAll } from './roster-queries'
+import { ENTRY_STATUSES } from './types'
 
 const SID = '00000000-0000-4000-a000-0000000000a1'
 
@@ -107,6 +108,29 @@ describe('getRoster', () => {
     })
     const r = await getRoster({ sittingId: SID, page: 1 })
     expect(r?.rows[0]?.entries).toHaveLength(1)
+  })
+
+  it('keeps an entry for every ENTRY_STATUSES value and drops an unknown status', async () => {
+    const all = [
+      'no_code',
+      'waiting',
+      'ready',
+      'expired',
+      'voided',
+      'voided_attempt',
+      'running',
+      'finished',
+      'absent',
+      'discarded',
+    ]
+    expect([...ENTRY_STATUSES]).toEqual(all)
+    const entries = [
+      ...all.map((status, i) => ({ ...ENTRY, entry_id: `e${i}`, status })),
+      { ...ENTRY, entry_id: 'bad', status: 'bogus' },
+    ]
+    mockRpc.mockResolvedValue({ data: [rosterRow({ entries })], error: null })
+    const r = await getRoster({ sittingId: SID, page: 1 })
+    expect(r?.rows[0]?.entries.map((e) => e.status)).toEqual(all)
   })
 
   it('returns an empty roster with total 0 when no row matches', async () => {
