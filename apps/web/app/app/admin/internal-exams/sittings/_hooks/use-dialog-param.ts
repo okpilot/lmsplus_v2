@@ -133,12 +133,14 @@ export function useDialogParam(shared?: DialogRefs) {
     if (closing.current) return
     closing.current = true
     pending.current = {}
-    if (openedHere.current) {
-      openedHere.current = false
+    // Back while a replace is unsettled lets that replace land on the entry before the popup.
+    const back = openedHere.current && !isRefreshing
+    openedHere.current = false
+    if (back) {
       router.back()
       return
     }
     startTransition(() => router.replace(dialogHref(pathname, search, null), { scroll: false }))
-  }, [pathname, search, router, startTransition, openedHere, closing])
+  }, [pathname, search, router, startTransition, openedHere, closing, isRefreshing])
   return { dlg, isRefreshing, openerRef, open, replaceParams, close, consumeOpenedHere }
 }
