@@ -193,6 +193,41 @@ describe('cleanupE2eExamSittings (seeded sittings)', () => {
   })
 })
 
+describe('cleanupE2eExamSittings (per-step isolation)', () => {
+  it('still runs the seeded cleanup when the empty-sitting lookup fails', async () => {
+    const deleteUser = vi.fn().mockResolvedValue({ error: null })
+    const calls = mockTables({
+      exam_sittings: [
+        { data: null, error: { message: 'empty lookup boom' } },
+        { data: [{ id: 's1' }], error: null },
+      ],
+      users: [{ data: [{ id: 'u1' }], error: null }],
+    })
+    const base = mockGetAdminClient.getMockImplementation?.()
+    const client = (base ? base() : mockGetAdminClient()) as Record<string, unknown>
+    mockGetAdminClient.mockReturnValue({ ...client, auth: { admin: { deleteUser } } })
+    await expect(cleanupE2eExamSittings()).rejects.toThrow(/afterEach: .*lookup/)
+    expect(calls.some((c) => c.table === 'exam_sittings' && c.method === 'delete')).toBe(true)
+    expect(deleteUser).toHaveBeenCalledWith('u1')
+  })
+
+  it('deletes later users when one user delete fails and reports the error', async () => {
+    const deleteUser = vi.fn().mockResolvedValue({ error: null })
+    mockTables({
+      exam_sittings: [{ data: [], error: null }],
+      users: [
+        { data: [{ id: 'u1' }, { id: 'u2' }], error: null },
+        { data: null, error: { message: 'u1 blocked' } },
+      ],
+    })
+    const client = mockGetAdminClient() as Record<string, unknown>
+    mockGetAdminClient.mockReturnValue({ ...client, auth: { admin: { deleteUser } } })
+    await expect(cleanupE2eExamSittings()).rejects.toThrow(/afterEach: .*u1 blocked/)
+    expect(deleteUser).toHaveBeenCalledWith('u2')
+    expect(deleteUser).not.toHaveBeenCalledWith('u1')
+  })
+})
+
 describe('markE2eSitting', () => {
   it('writes the E2E-SIT- marker to the sitting id', async () => {
     const calls = mockTables({ exam_sittings: [{ data: [{ id: 's1' }], error: null }] })

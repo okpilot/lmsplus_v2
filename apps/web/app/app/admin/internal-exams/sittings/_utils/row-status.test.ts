@@ -41,18 +41,18 @@ describe('rowStatus', () => {
   })
 
   describe('open', () => {
-    it('shows Absent (danger) when all exams are absent', () => {
-      expect(rs('open', [ex('absent'), ex('absent')])).toMatchObject({
-        label: 'Absent',
-        tone: 'danger',
+    it('shows Done (success) with a breakdown that omits zero parts', () => {
+      expect(rs('open', [ex('finished'), ex('finished'), ex('voided_attempt')])).toMatchObject({
+        label: 'Done',
+        tone: 'success',
+        caption: '2 finished · 1 attempt voided',
       })
     })
 
-    it('shows Done (success) with a breakdown that omits zero parts', () => {
-      expect(rs('open', [ex('finished'), ex('finished'), ex('absent')])).toMatchObject({
-        label: 'Done',
-        tone: 'success',
-        caption: '2 finished · 1 absent',
+    it('does not treat absent as done on an open sitting', () => {
+      expect(rs('open', [ex('finished'), ex('absent')])).toMatchObject({
+        label: 'In progress',
+        caption: '1 of 2 done',
       })
     })
 

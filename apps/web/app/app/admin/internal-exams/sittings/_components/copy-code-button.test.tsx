@@ -3,6 +3,9 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CopyCodeButton } from './copy-code-button'
 
+const { toastError } = vi.hoisted(() => ({ toastError: vi.fn() }))
+vi.mock('sonner', () => ({ toast: { error: toastError, success: vi.fn() } }))
+
 const writeText = vi.fn()
 
 beforeEach(() => {
@@ -30,13 +33,15 @@ describe('CopyCodeButton', () => {
     await user.click(screen.getByRole('button', { name: 'Copy code for Ann' }))
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Code copied'))
     expect(writeText).toHaveBeenCalledWith('ABC123')
+    expect(toastError).not.toHaveBeenCalled()
   })
 
-  it('announces nothing when the clipboard write fails', async () => {
+  it('toasts an error and announces nothing when the clipboard write fails', async () => {
     writeText.mockRejectedValue(new Error('denied'))
     const user = setup()
     await user.click(screen.getByRole('button', { name: 'Copy code for Ann' }))
     await waitFor(() => expect(writeText).toHaveBeenCalled())
+    expect(toastError).toHaveBeenCalledWith('Could not copy the code.')
     expect(screen.getByRole('status')).toBeEmptyDOMElement()
   })
 

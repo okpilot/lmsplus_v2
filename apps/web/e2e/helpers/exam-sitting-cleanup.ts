@@ -58,15 +58,21 @@ async function deleteSeededUsers(admin: Admin) {
     .select('id')
     .like('email', `${EXAM_SITTING_SEED_EMAIL_PREFIX}%`)
   check('seed users lookup', users.error)
+  const errors: string[] = []
   for (const u of users.data ?? []) {
-    check(
-      'seed enrolments delete',
-      (await admin.from('course_enrolments').delete().eq('user_id', u.id)).error,
-    )
-    check('seed user delete', (await admin.from('users').delete().eq('id', u.id)).error)
-    const authDelete = await admin.auth.admin.deleteUser(u.id)
-    check('seed auth user delete', authDelete.error)
+    try {
+      check(
+        'seed enrolments delete',
+        (await admin.from('course_enrolments').delete().eq('user_id', u.id)).error,
+      )
+      check('seed user delete', (await admin.from('users').delete().eq('id', u.id)).error)
+      const authDelete = await admin.auth.admin.deleteUser(u.id)
+      check('seed auth user delete', authDelete.error)
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e))
+    }
   }
+  if (errors.length > 0) throw new Error(errors.join('; '))
 }
 
 /** Hard-deletes the sittings `seedSitting` built, with their people, codes and users (service role, test data only). */
@@ -84,8 +90,15 @@ async function cleanupSeededExamSittings(): Promise<void> {
 
 /** Hard-deletes the marked exam_sittings that have no entries or candidates (service role, test data only); red-team seeds with people are left alone. Seeded sittings go with their people. */
 export async function cleanupE2eExamSittings(): Promise<void> {
-  await cleanupEmptySittings()
-  await cleanupSeededExamSittings()
+  const errors: string[] = []
+  for (const step of [cleanupEmptySittings, cleanupSeededExamSittings]) {
+    try {
+      await step()
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e))
+    }
+  }
+  if (errors.length > 0) throw new Error(`afterEach: ${errors.join('; ')}`)
 }
 
 async function cleanupEmptySittings(): Promise<void> {

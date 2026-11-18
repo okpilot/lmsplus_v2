@@ -15,12 +15,12 @@ type Input = Readonly<{
 
 type Entries = Input['entries']
 
-const DONE: ReadonlySet<string> = new Set(['finished', 'absent', 'voided_attempt', 'discarded'])
+const DONE: ReadonlySet<string> = new Set(['finished', 'voided_attempt', 'discarded'])
 
 const count = (entries: Entries, pred: (s: string) => boolean) =>
   entries.filter((e) => pred(e.status)).length
 
-/** "2 finished · 1 absent": zero parts are omitted. */
+/** "2 finished · 1 attempt voided": zero parts are omitted. */
 function breakdown(parts: readonly (readonly [number, string])[]): string {
   return parts
     .filter(([n]) => n > 0)
@@ -41,13 +41,10 @@ function scheduled(entries: Entries): RowStatus {
 }
 
 function open(entries: Entries): RowStatus {
-  const absent = count(entries, (s) => s === 'absent')
-  if (absent === entries.length) return { label: 'Absent', tone: 'danger' }
   const done = count(entries, (s) => DONE.has(s))
   if (done === entries.length) {
     const caption = breakdown([
       [count(entries, (s) => s === 'finished'), 'finished'],
-      [absent, 'absent'],
       [count(entries, (s) => s === 'voided_attempt'), 'attempt voided'],
       [count(entries, (s) => s === 'discarded'), 'discarded'],
     ])

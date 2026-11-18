@@ -2,6 +2,7 @@
 
 import { Check, Copy } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 
 type Props = { code: string; label: string }
@@ -26,6 +27,7 @@ export function CopyCodeButton({ code, label }: Readonly<Props>) {
     } catch {
       clearTimer()
       setCopied(false)
+      toast.error('Could not copy the code.')
     }
   }
 
