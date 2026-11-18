@@ -81,14 +81,17 @@ describe('SittingLifecycleButtons', () => {
     expect(container.querySelector('button')).toBeNull()
   })
 
-  it('offers Edit details and Cancel sitting in the menu, without Print codes', async () => {
-    const user = userEvent.setup()
-    ui('scheduled')
-    await user.click(screen.getByRole('button', { name: 'More actions' }))
-    expect(await screen.findByRole('menuitem', { name: 'Edit details' })).toBeInTheDocument()
-    expect(screen.getByRole('menuitem', { name: 'Cancel sitting' })).toBeInTheDocument()
-    expect(screen.queryByRole('menuitem', { name: 'Print codes' })).not.toBeInTheDocument()
-  })
+  it.each(['scheduled', 'open'])(
+    'offers Edit details and Cancel sitting in the menu of a %s sitting, without Print codes',
+    async (status) => {
+      const user = userEvent.setup()
+      ui(status)
+      await user.click(screen.getByRole('button', { name: 'More actions' }))
+      expect(await screen.findByRole('menuitem', { name: 'Edit details' })).toBeInTheDocument()
+      expect(screen.getByRole('menuitem', { name: 'Cancel sitting' })).toBeInTheDocument()
+      expect(screen.queryByRole('menuitem', { name: 'Print codes' })).not.toBeInTheDocument()
+    },
+  )
 
   it('opens the Start confirm with the spec copy', async () => {
     const user = userEvent.setup()
@@ -159,20 +162,23 @@ describe('SittingLifecycleButtons', () => {
     expect(document.body.textContent).not.toContain('stored in the lab')
   })
 
-  it('shows the mapped sitting_has_attempts message when Cancel fails', async () => {
-    const user = userEvent.setup()
-    m.cancel.mockResolvedValue({
-      success: false,
-      error: 'A candidate has already taken an exam in this sitting.',
-    })
-    ui('scheduled')
-    await user.click(screen.getByRole('button', { name: 'More actions' }))
-    await user.click(await screen.findByRole('menuitem', { name: 'Cancel sitting' }))
-    await user.click(await screen.findByRole('button', { name: 'Cancel sitting' }))
-    await waitFor(() =>
-      expect(
-        screen.getByText('A candidate has already taken an exam in this sitting.'),
-      ).toBeInTheDocument(),
-    )
-  })
+  it.each(['scheduled', 'open'])(
+    'shows why a %s sitting cannot be cancelled once a candidate has taken an exam',
+    async (status) => {
+      const user = userEvent.setup()
+      m.cancel.mockResolvedValue({
+        success: false,
+        error: 'A candidate has already taken an exam in this sitting.',
+      })
+      ui(status)
+      await user.click(screen.getByRole('button', { name: 'More actions' }))
+      await user.click(await screen.findByRole('menuitem', { name: 'Cancel sitting' }))
+      await user.click(await screen.findByRole('button', { name: 'Cancel sitting' }))
+      await waitFor(() =>
+        expect(
+          screen.getByText('A candidate has already taken an exam in this sitting.'),
+        ).toBeInTheDocument(),
+      )
+    },
+  )
 })

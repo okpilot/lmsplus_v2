@@ -21,14 +21,10 @@ export function SittingLifecycleButtons({ sitting, summary, notDue, dayEnded }: 
         <MenuItem disabled={isRefreshing} onClick={() => open('edit', triggerRef.current)}>
           Edit details
         </MenuItem>
-        {sitting.status === 'scheduled' && (
-          <>
-            <MenuSeparator />
-            <MenuItem tone="danger" onClick={() => setConfirm('cancel')}>
-              Cancel sitting
-            </MenuItem>
-          </>
-        )}
+        <MenuSeparator />
+        <MenuItem tone="danger" onClick={() => setConfirm('cancel')}>
+          Cancel sitting
+        </MenuItem>
       </RowMenu>
       {sitting.status === 'scheduled' && (
         <Button disabled={notDue} onClick={() => setConfirm('start')}>
