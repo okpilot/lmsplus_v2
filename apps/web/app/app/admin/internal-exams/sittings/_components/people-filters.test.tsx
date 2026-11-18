@@ -33,7 +33,7 @@ const filters = (over: Record<string, unknown> = {}) =>
     <SittingUiProvider>
       <PeopleFilters
         groups={[{ id: 'g1', name: 'Group A' }]}
-        courses={[{ id: 'c1', name: 'PPL' }]}
+        courses={[{ id: 'c1', short: 'PPL', name: 'PPL' }]}
         q=""
         group=""
         course=""

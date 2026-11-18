@@ -1,9 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import type { CourseOption, GroupOption } from '@/app/app/admin/students/types'
 import { Input } from '@/components/ui/input'
 import { useSittingUi } from '../_hooks/sitting-ui-context'
-import type { CourseOption, GroupOption } from '../types'
 import { OptionSelect } from './option-select'
 
 type Props = {

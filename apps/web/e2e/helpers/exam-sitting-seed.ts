@@ -258,7 +258,12 @@ export async function seedSitting(input: SeedInput): Promise<SeedResult> {
     .order('short')
     .limit(12)
   if (subjectRes.error || !subjectRes.data?.length) fail('subjects', subjectRes.error)
-  const configs = await admin.from('exam_configs').select('subject_id').is('deleted_at', null)
+  const configs = await admin
+    .from('exam_configs')
+    .select('subject_id')
+    .eq('organization_id', orgId)
+    .eq('enabled', true)
+    .is('deleted_at', null)
   if (configs.error) fail('exam configs', configs.error)
   const configured = new Set((configs.data ?? []).map((c) => c.subject_id))
   // Subjects with an exam config first: only those can be issued a code.

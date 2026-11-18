@@ -122,11 +122,12 @@ export function useDialogParam(shared?: DialogRefs) {
   )
   const replaceParams = useCallback(
     (patch: Patch) => {
+      if (closing.current) return
       pending.current = { ...pending.current, ...patch }
       const href = paramsHref(pathname, search, pending.current)
       startTransition(() => router.replace(href, { scroll: false }))
     },
-    [pathname, search, router, startTransition],
+    [pathname, search, router, startTransition, closing],
   )
   const close = useCallback(() => {
     if (closing.current) return
