@@ -24,11 +24,9 @@ export const NO_ROSTER: RosterSelection = {
   clearRoster: () => undefined,
 }
 
-export type InitialSelection = { ids: readonly string[]; all: boolean }
-
-export function useRosterSelection(initial?: InitialSelection): RosterSelection {
-  const ticks = useTickSet(initial?.all ? [] : initial?.ids)
-  const [selectAll, setAll] = useState(initial?.all ?? false)
+export function useRosterSelection(): RosterSelection {
+  const ticks = useTickSet()
+  const [selectAll, setAll] = useState(false)
   const { toggle, setMany, clear } = ticks
   const leaveAll = useCallback(() => {
     setAll(false)

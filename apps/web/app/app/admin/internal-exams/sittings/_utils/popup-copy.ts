@@ -76,16 +76,18 @@ export function addExamsBanner(
   }
 }
 
-/** "Ann, Bob and 2 more are also in another sitting that day (09:30 UTC)." */
+/** "Ann, Bob and 2 more are also in another sitting that day (09:30 UTC)."; the time only when all share it. */
 export function sameDayText(people: readonly { name: string; scheduledAt: string }[]): string {
   if (people.length === 0) return ''
   const names = people.slice(0, 3).map((p) => p.name)
   const rest = people.length - names.length
-  const earliest = people.map((p) => p.scheduledAt).sort((a, b) => a.localeCompare(b))[0] ?? ''
-  const time = new Date(earliest).toISOString().slice(11, 16)
+  const first = people[0]?.scheduledAt ?? ''
+  const time = people.every((p) => p.scheduledAt === first)
+    ? ` (${new Date(first).toISOString().slice(11, 16)} UTC)`
+    : ''
   const tail = rest > 0 ? `${rest} more` : names.pop()
   const who = names.length > 0 ? `${names.join(', ')} and ${tail}` : tail
-  return `${who} ${people.length === 1 ? 'is' : 'are'} also in another sitting that day (${time} UTC).`
+  return `${who} ${people.length === 1 ? 'is' : 'are'} also in another sitting that day${time}.`
 }
 
 export function tooManyPairsText(people: number, exams: number): string {

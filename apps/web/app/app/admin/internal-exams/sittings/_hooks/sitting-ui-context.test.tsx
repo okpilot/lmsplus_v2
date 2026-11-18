@@ -155,26 +155,6 @@ describe('all-mode through the provider (AC 29)', () => {
   })
 })
 
-describe('initialSelection (AC 35)', () => {
-  const seeded = (initial: { ids: string[]; all: boolean }) =>
-    function Seeded({ children }: Readonly<{ children: ReactNode }>) {
-      return <SittingUiProvider initialSelection={initial}>{children}</SittingUiProvider>
-    }
-
-  it('seeds the roster ticks', () => {
-    const { result } = renderHook(() => useSittingUi(), {
-      wrapper: seeded({ ids: ['a', 'b'], all: false }),
-    })
-    expect(result.current.rosterIds).toEqual(['a', 'b'])
-    expect(result.current.selectAll).toBe(false)
-  })
-
-  it('seeds all-mode', () => {
-    const { result } = renderHook(() => useSittingUi(), { wrapper: seeded({ ids: [], all: true }) })
-    expect(result.current.selectAll).toBe(true)
-  })
-})
-
 describe('people ticks (D-b4)', () => {
   it('toggles, ticks a page and clears, apart from the roster ticks', () => {
     const { result } = renderHook(() => useSittingUi(), { wrapper })

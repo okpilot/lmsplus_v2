@@ -1,12 +1,8 @@
+import { getCourses, getGroupOptions } from '@/app/app/admin/students/queries'
 import { DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { isEnded, isGone } from '../_utils/is-ended'
 import type { PeopleFilters as Filters } from '../parse-sitting-params'
-import {
-  getGroupAddCounts,
-  listCourseOptions,
-  listGroupOptions,
-  listPeople,
-} from '../people-queries'
+import { getGroupAddCounts, listPeople } from '../people-queries'
 import { PeopleFilters } from './people-filters'
 import { PeopleList } from './people-list'
 import { PopupEnded } from './popup-message'
@@ -18,8 +14,8 @@ type Props = { sittingId: string; filters: Filters }
 export async function AddPeopleContent({ sittingId, filters }: Readonly<Props>) {
   const [people, groups, courses, counts] = await Promise.all([
     listPeople({ sittingId, ...filters }),
-    listGroupOptions(),
-    listCourseOptions(),
+    getGroupOptions(),
+    getCourses(),
     filters.group ? getGroupAddCounts(sittingId, filters.group) : Promise.resolve(null),
   ])
   if (isGone(people) || isEnded(counts)) return <PopupEnded title="Add people" />

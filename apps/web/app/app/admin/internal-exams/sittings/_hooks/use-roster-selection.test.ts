@@ -53,14 +53,4 @@ describe('useRosterSelection', () => {
     act(() => result.current.clearRoster())
     expect(result.current.selectAll).toBe(false)
   })
-
-  it('seeds ticks from the initial argument (AC 35)', () => {
-    const { result } = renderHook(() => useRosterSelection({ ids: ['x', 'y'], all: false }))
-    expect(result.current.rosterIds).toEqual(['x', 'y'])
-  })
-
-  it('seeds all-mode from the initial argument (AC 35)', () => {
-    const { result } = renderHook(() => useRosterSelection({ ids: [], all: true }))
-    expect(result.current.selectAll).toBe(true)
-  })
 })

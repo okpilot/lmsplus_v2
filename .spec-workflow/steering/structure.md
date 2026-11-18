@@ -17,7 +17,7 @@ lmsplusv2/                          # Monorepo root (Turborepo + pnpm)
 │       │   │   ├── admin/          # Admin features
 │       │   │   │   ├── dashboard/  # Admin dashboard (student overview)
 │       │   │   │   ├── exam-config/ # Per-subject mock exam configuration
-│       │   │   │   ├── internal-exams/ # Internal exam codes & attempts
+│       │   │   │   ├── internal-exams/ # Internal exam codes, attempts & sittings
 │       │   │   │   ├── questions/  # Question editor (CRUD)
 │       │   │   │   ├── students/   # Student manager (CRUD)
 │       │   │   │   └── syllabus/   # Syllabus manager (CRUD)

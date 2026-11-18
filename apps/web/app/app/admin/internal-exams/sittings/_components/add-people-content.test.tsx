@@ -1,13 +1,16 @@
 import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+const q = vi.hoisted(() => ({ getGroupOptions: vi.fn(), getCourses: vi.fn() }))
 const m = vi.hoisted(() => ({
   listPeople: vi.fn(),
-  listGroupOptions: vi.fn(),
-  listCourseOptions: vi.fn(),
   getGroupAddCounts: vi.fn(),
 }))
 vi.mock('../people-queries', () => m)
+vi.mock('@/app/app/admin/students/queries', () => ({
+  getGroupOptions: q.getGroupOptions,
+  getCourses: q.getCourses,
+}))
 vi.mock('../actions/add-candidates', () => ({ addCandidates: vi.fn() }))
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
@@ -41,8 +44,8 @@ async function body(filters: Record<string, unknown> = { page: 1 }) {
 beforeEach(() => {
   vi.resetAllMocks()
   m.listPeople.mockResolvedValue({ rows: [person], total: 1, page: 1 })
-  m.listGroupOptions.mockResolvedValue([{ id: 'g1', name: 'Group A' }])
-  m.listCourseOptions.mockResolvedValue([{ id: 'c1', name: 'PPL' }])
+  q.getGroupOptions.mockResolvedValue([{ id: 'g1', name: 'Group A' }])
+  q.getCourses.mockResolvedValue([{ id: 'c1', name: 'PPL' }])
 })
 
 describe('AddPeopleContent', () => {

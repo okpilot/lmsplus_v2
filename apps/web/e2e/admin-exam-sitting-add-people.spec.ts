@@ -256,7 +256,7 @@ test('Add exams: one person, blocked rows, two people with a skipped pair, deep 
     await page.getByRole('button', { name: 'Clear' }).click()
   })
 
-  await test.step('a deep link keeps the popup across reload and ticks the same person', async () => {
+  await test.step('a deep link keeps the popup across reload', async () => {
     await page.goto(`${BASE}/${sittingId}?dlg=exams&ids=${annId}`)
     await expect(dialog.getByRole('heading', { name: 'Add exams for E2E Exam Ann' })).toBeVisible()
     await page.reload()
