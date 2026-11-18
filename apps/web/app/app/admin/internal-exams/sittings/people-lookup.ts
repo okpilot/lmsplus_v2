@@ -1,4 +1,5 @@
 import { adminClient } from '@repo/db/admin'
+import { unstable_rethrow } from 'next/navigation'
 import { requireAdmin } from '@/lib/auth/require-admin'
 
 /**
@@ -32,7 +33,8 @@ export async function readUserName(userId: string): Promise<string> {
   try {
     const { organizationId } = await requireAdmin()
     return (await readUserNames(organizationId, [userId])).get(userId) ?? 'Unknown'
-  } catch {
+  } catch (error) {
+    unstable_rethrow(error)
     return 'this person'
   }
 }

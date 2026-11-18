@@ -1,15 +1,12 @@
 import { SittingPeopleQuerySchema, SubjectEligibilityQuerySchema } from '@repo/db/schema'
-import { getGroupsWithCounts } from '@/app/app/admin/students/groups/queries'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { isEnded } from './_utils/is-ended'
 import type { SelectionParams } from './parse-sitting-params'
 import {
   type AddablePerson,
-  type CourseOption,
   ENDED,
   type Ended,
   type GroupAddCounts,
-  type GroupOption,
   type IssuePreview,
   PEOPLE_PAGE_SIZE,
   type SameDayPerson,
@@ -214,22 +211,6 @@ export async function getSameDayPeople(
     sittingId: r.sitting_id,
     scheduledAt: r.scheduled_at,
   }))
-}
-
-/** Courses for the Add people filter. `courses` is global reference data: no `deleted_at`. */
-export async function listCourseOptions(): Promise<CourseOption[]> {
-  const { supabase } = await requireAdmin()
-  const { data, error } = await supabase.from('courses').select('id, name').order('sort_order')
-  if (error) {
-    console.error('[listCourseOptions] DB error:', error.message)
-    throw new Error('Failed to load courses')
-  }
-  return (data ?? []).map((c) => ({ id: c.id, name: c.name }))
-}
-
-export async function listGroupOptions(): Promise<GroupOption[]> {
-  const groups = await getGroupsWithCounts()
-  return groups.map((g) => ({ id: g.id, name: g.name }))
 }
 
 /** Live candidates of the sitting (all, or only `ids`); the organization predicate is explicit. */

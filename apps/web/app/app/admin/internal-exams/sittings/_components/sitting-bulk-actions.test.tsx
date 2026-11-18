@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useEffect, useRef } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const m = vi.hoisted(() => ({ push: vi.fn() }))
@@ -10,11 +11,23 @@ vi.mock('next/navigation', () => ({
 }))
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
-import { SittingUiProvider } from '../_hooks/sitting-ui-context'
+import { SittingUiProvider, useSittingUi } from '../_hooks/sitting-ui-context'
 import { MAX_TICKS } from '../types'
 import { SittingBulkActions } from './sitting-bulk-actions'
 
 type Over = Partial<Parameters<typeof SittingBulkActions>[0]>
+
+function Seed({ ids, all }: Readonly<{ ids: string[]; all: boolean }>) {
+  const { setRosterPage, setSelectAll } = useSittingUi()
+  const done = useRef(false)
+  useEffect(() => {
+    if (done.current) return
+    done.current = true
+    if (all) setSelectAll(true)
+    else setRosterPage(ids, true)
+  }, [ids, all, setRosterPage, setSelectAll])
+  return null
+}
 
 function ui(selection: { ids: string[]; all: boolean }, over: Over = {}) {
   const props = {
@@ -27,7 +40,8 @@ function ui(selection: { ids: string[]; all: boolean }, over: Over = {}) {
     ...over,
   }
   render(
-    <SittingUiProvider initialSelection={selection}>
+    <SittingUiProvider>
+      <Seed {...selection} />
       <SittingBulkActions {...props} />
     </SittingUiProvider>,
   )

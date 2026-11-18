@@ -136,10 +136,10 @@ describe('sameDayText (AC 40)', () => {
       'A, B, C and 2 more are also in another sitting that day (09:30 UTC).',
     )
   })
-  it('uses the earliest time', () => {
-    expect(
-      sameDayText([p('Ann', '2026-11-18T14:00:00Z'), p('Bob', '2026-11-18T09:30:00Z')]),
-    ).toContain('(09:30 UTC)')
+  it('gives no time when the people sit at different times', () => {
+    expect(sameDayText([p('Ann', '2026-11-18T14:00:00Z'), p('Bob', '2026-11-18T09:30:00Z')])).toBe(
+      'Ann and Bob are also in another sitting that day.',
+    )
   })
   it('is empty for nobody', () => {
     expect(sameDayText([])).toBe('')

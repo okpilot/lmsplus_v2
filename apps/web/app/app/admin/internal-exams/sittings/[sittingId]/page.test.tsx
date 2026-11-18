@@ -65,18 +65,6 @@ describe('SittingPage', () => {
     )
   })
 
-  it('seeds the provider from the selection the loader resolved (AC 35, 59)', async () => {
-    const loaded = await m.load()
-    m.load.mockResolvedValue({
-      ...loaded,
-      selection: { kind: 'ids', ids: ['u1'], truncated: false },
-    })
-    const el = (await SittingPage(params(SID, { dlg: 'exams', ids: 'u1' }) as never)) as {
-      props: { initialSelection: unknown }
-    }
-    expect(el.props.initialSelection).toEqual({ ids: ['u1'], all: false })
-  })
-
   it('renders the popups with the parsed params, editability and selection (AC 51, 59)', async () => {
     const el = (await SittingPage(params(SID, { dlg: 'people', pq: 'ann' }) as never)) as {
       props: {

@@ -21,8 +21,6 @@ import {
   getIssuePreview,
   getSameDayPeople,
   getSubjectEligibility,
-  listCourseOptions,
-  listGroupOptions,
   listPeople,
   resolveSelection,
 } from './people-queries'
@@ -653,33 +651,6 @@ describe('sitting popup reads (app-layer integration)', () => {
       expect(await getSameDayPeople(closedId)).toEqual(ENDED)
       await signInAs(otherAdminEmail, password)
       expect(await getSameDayPeople(sid)).toBeNull()
-    })
-  })
-
-  describe('listCourseOptions and listGroupOptions', () => {
-    it('lists the courses in sort order for an admin of any organization', async () => {
-      await signInAs(adminEmail, password)
-      const a = await listCourseOptions()
-      expect(a.map((c) => c.id).filter((id) => [PPL_A, VFR_RT, ATPL_A].includes(id))).toEqual([
-        PPL_A,
-        VFR_RT,
-        ATPL_A,
-      ])
-      await signInAs(otherAdminEmail, password)
-      expect(await listCourseOptions()).toEqual(a)
-    })
-
-    it('refuses a non-admin', async () => {
-      await signInAs(instructorEmail, password)
-      await expect(listCourseOptions()).rejects.toThrow(/NEXT_REDIRECT/)
-    })
-
-    it('lists only the organization own live groups', async () => {
-      await signInAs(adminEmail, password)
-      const ids = (await listGroupOptions()).map((g) => g.id)
-      expect(ids).toContain(groupId)
-      expect(ids).not.toContain(deletedGroupId)
-      expect(ids).not.toContain(otherOrgGroupId)
     })
   })
 

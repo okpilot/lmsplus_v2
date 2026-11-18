@@ -10,8 +10,8 @@ export type TickSet = {
 }
 
 /** An ordered set of ticked ids; shared by the roster ticks and the Add people popup ticks. */
-export function useTickSet(initial: readonly string[] = []): TickSet {
-  const [ids, setIds] = useState<string[]>(() => [...initial])
+export function useTickSet(): TickSet {
+  const [ids, setIds] = useState<string[]>([])
   const toggle = useCallback(
     (id: string) =>
       setIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])),

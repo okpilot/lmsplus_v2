@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockFrom = vi.hoisted(() => vi.fn())
@@ -76,5 +77,12 @@ describe('readUserName', () => {
   it('falls back to "this person" when the admin check throws', async () => {
     mockRequireAdmin.mockRejectedValue(new Error('no'))
     expect(await readUserName('u1')).toBe('this person')
+  })
+
+  it('rethrows a redirect raised by the admin check', async () => {
+    mockRequireAdmin.mockImplementation(() => redirect('/login'))
+    await expect(readUserName('u1')).rejects.toMatchObject({
+      digest: expect.stringContaining('NEXT_REDIRECT'),
+    })
   })
 })

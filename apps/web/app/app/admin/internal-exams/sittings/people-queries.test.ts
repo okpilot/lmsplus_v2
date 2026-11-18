@@ -3,10 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mockRequireAdmin = vi.hoisted(() => vi.fn())
 const mockRpc = vi.hoisted(() => vi.fn())
 const mockFrom = vi.hoisted(() => vi.fn())
-const mockGroups = vi.hoisted(() => vi.fn())
 
 vi.mock('@/lib/auth/require-admin', () => ({ requireAdmin: mockRequireAdmin }))
-vi.mock('@/app/app/admin/students/groups/queries', () => ({ getGroupsWithCounts: mockGroups }))
 
 import {
   candidateIds,
@@ -14,8 +12,6 @@ import {
   getIssuePreview,
   getSameDayPeople,
   getSubjectEligibility,
-  listCourseOptions,
-  listGroupOptions,
   listPeople,
   resolveSelection,
 } from './people-queries'
@@ -358,35 +354,6 @@ describe('getSameDayPeople', () => {
     expect(mockRpc).toHaveBeenCalledWith('get_exam_sitting_same_day_people', { p_sitting_id: SID })
     mockRpc.mockResolvedValueOnce({ data: null, error: { message: 'sitting_closed' } })
     expect(await getSameDayPeople(SID)).toEqual({ ended: true })
-  })
-})
-
-describe('listCourseOptions and listGroupOptions', () => {
-  it('reads courses in sort order through the user client', async () => {
-    const b = chain({ data: [{ id: 'c1', name: 'PPL', short: 'PPL' }], error: null })
-    mockFrom.mockReturnValue(b)
-    expect(await listCourseOptions()).toEqual([{ id: 'c1', name: 'PPL' }])
-    expect(mockFrom).toHaveBeenCalledWith('courses')
-    expect(b.order).toHaveBeenCalledWith('sort_order')
-  })
-
-  it('throws when the courses read fails', async () => {
-    mockFrom.mockReturnValue(chain({ data: null, error: { message: 'x' } }))
-    await expect(listCourseOptions()).rejects.toThrow('Failed to load courses')
-  })
-
-  it('maps the groups with their counts', async () => {
-    mockGroups.mockResolvedValue([
-      {
-        id: 'g1',
-        name: 'Class A',
-        description: null,
-        active_count: 3,
-        deactivated_count: 1,
-        created_at: 'x',
-      },
-    ])
-    expect(await listGroupOptions()).toEqual([{ id: 'g1', name: 'Class A' }])
   })
 })
 

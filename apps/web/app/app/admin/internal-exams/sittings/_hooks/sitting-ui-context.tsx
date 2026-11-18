@@ -17,12 +17,7 @@ import { toast } from 'sonner'
 import { readDlgParam } from '../../_search-params'
 import type { ResultBannerData } from '../_utils/copy'
 import { type DialogRefs, useDialogParam } from './use-dialog-param'
-import {
-  type InitialSelection,
-  NO_ROSTER,
-  type RosterSelection,
-  useRosterSelection,
-} from './use-roster-selection'
+import { NO_ROSTER, type RosterSelection, useRosterSelection } from './use-roster-selection'
 import { type TickSet, useTickSet } from './use-tick-set'
 
 type Shared = {
@@ -76,9 +71,9 @@ export function useSittingUi() {
   }
 }
 
-type ProviderProps = { children: ReactNode; initialSelection?: InitialSelection }
+type ProviderProps = { children: ReactNode }
 
-export function SittingUiProvider({ children, initialSelection }: Readonly<ProviderProps>) {
+export function SittingUiProvider({ children }: Readonly<ProviderProps>) {
   const openedHere = useRef(false)
   const openerRef = useRef<HTMLElement | null>(null)
   const closing = useRef(false)
@@ -95,7 +90,7 @@ export function SittingUiProvider({ children, initialSelection }: Readonly<Provi
     (b: ResultBannerData | null) => toastOrBanner(b, setBannerState),
     [],
   )
-  const roster = useRosterSelection(initialSelection)
+  const roster = useRosterSelection()
   const people = useTickSet()
   const [pending, start] = useTransition()
   const searchDraft = useRef<string | null>(null)
