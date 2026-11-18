@@ -1,6 +1,6 @@
 # Red Team — Attack Surface Map
 
-> Last updated: 2026-11-23 (#1777: MH–MV exam sitting rows)
+> Last updated: 2026-11-23 (#1777: MH–MW exam sitting rows)
 
 > `answer_matches`: EXECUTE revoked from PUBLIC, anon, authenticated; granted to service_role.
 
@@ -364,6 +364,7 @@
 | MT | remove_exam_sitting_entries-vs-start_internal_exam_session-consumed-code-entry-removed-race | MEDIUM | exam-sitting-redeem-remove-race.spec.ts | BLOCKED |  | race |
 | MU | close_exam_sitting-vs-start_internal_exam_session-consumed-and-voided-code-race | MEDIUM | exam-sitting-redeem-close-race.spec.ts | BLOCKED |  | race |
 | MV | start_internal_exam_session-foreign-sitting-code-sitting_not_open-status-oracle | LOW | exam-sitting-foreign-code-status-oracle.spec.ts | BLOCKED |  | enumeration |
+| MW | list_exam_sittings-day-ended-effective-status-unswept-cross-org-admin | MEDIUM | exam-sitting-list-day-ended.spec.ts | BLOCKED |  | cross-tenant |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
