@@ -20,7 +20,12 @@ export async function cleanupE2eExamSittings(): Promise<void> {
   const ids = marked.filter((id) => !withPeople.has(id))
   if (ids.length === 0) return
 
-  const { error: deleteError } = await admin.from('exam_sittings').delete().in('id', ids)
+  const { data: deleted, error: deleteError } = await admin
+    .from('exam_sittings')
+    .delete()
+    .in('id', ids)
+    .select('id')
   if (deleteError) throw new Error(`cleanupE2eExamSittings delete: ${deleteError.message}`)
-  console.log(`cleanupE2eExamSittings: deleted ${ids.length} sitting(s)`)
+  const n = deleted?.length ?? 0
+  if (n > 0) console.log(`cleanupE2eExamSittings: deleted ${n} sitting(s)`)
 }

@@ -82,6 +82,66 @@ describe('cleanupE2eExamSittings', () => {
     expect(calls.find((c) => c.method === 'in')?.args[1]).toEqual(['s1', 's2'])
   })
 
+  it('asks the delete to return the removed ids', async () => {
+    const calls = mockTables({
+      exam_sittings: [
+        { data: [{ id: 's1' }], error: null },
+        { data: [{ id: 's1' }], error: null },
+      ],
+    })
+    await cleanupE2eExamSittings()
+    const delAt = calls.findIndex((c) => c.method === 'delete')
+    const after = calls.slice(delAt + 1)
+    expect(after.some((c) => c.table === 'exam_sittings' && c.method === 'select')).toBe(true)
+    expect(after.find((c) => c.method === 'select')?.args).toEqual(['id'])
+  })
+
+  it('logs the number of sittings the delete actually removed', async () => {
+    mockTables({
+      exam_sittings: [
+        { data: [{ id: 's1' }, { id: 's2' }], error: null },
+        { data: [{ id: 's1' }], error: null },
+      ],
+    })
+    await cleanupE2eExamSittings()
+    expect(vi.mocked(console.log)).toHaveBeenCalledWith(
+      'cleanupE2eExamSittings: deleted 1 sitting(s)',
+    )
+  })
+
+  it('stays silent when the delete removes nothing', async () => {
+    mockTables({
+      exam_sittings: [
+        { data: [{ id: 's1' }, { id: 's2' }], error: null },
+        { data: [], error: null },
+      ],
+    })
+    await cleanupE2eExamSittings()
+    expect(vi.mocked(console.log)).not.toHaveBeenCalled()
+  })
+
+  it('throws when the delete fails', async () => {
+    mockTables({
+      exam_sittings: [
+        { data: [{ id: 's1' }], error: null },
+        { data: null, error: { message: 'fk block' } },
+      ],
+    })
+    await expect(cleanupE2eExamSittings()).rejects.toThrow(/delete: fk block/)
+  })
+
+  it.each(['exam_sitting_entries', 'exam_sitting_candidates'])(
+    'throws when the %s lookup fails and deletes nothing',
+    async (table) => {
+      const calls = mockTables({
+        exam_sittings: [{ data: [{ id: 's1' }], error: null }],
+        [table]: [{ data: null, error: { message: 'people boom' } }],
+      })
+      await expect(cleanupE2eExamSittings()).rejects.toThrow(new RegExp(`${table}: people boom`))
+      expect(calls.some((c) => c.method === 'delete')).toBe(false)
+    },
+  )
+
   it('throws when the lookup fails', async () => {
     mockTables({ exam_sittings: [{ data: null, error: { message: 'boom' } }] })
     await expect(cleanupE2eExamSittings()).rejects.toThrow(/boom/)
