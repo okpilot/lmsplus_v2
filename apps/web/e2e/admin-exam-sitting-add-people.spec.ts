@@ -247,7 +247,7 @@ test('Add exams: one person, blocked rows, two people with a skipped pair, deep 
     await page.getByRole('button', { name: 'Add exams' }).click()
     await expect(dialog.getByRole('heading', { name: 'Add exams for 2 people' })).toBeVisible()
     await expect(dialog.getByText('1 of 2 can sit')).toBeVisible()
-    await dialog.getByRole('checkbox', { name: /^Select all \d+ shown$/ }).click()
+    await dialog.getByRole('checkbox', { name: 'Select all exams' }).click()
     await dialog.getByRole('button', { name: 'Add exams' }).click()
     await noPopup(page)
     await expect(page.getByText('Added 3 exams.').first()).toBeVisible()

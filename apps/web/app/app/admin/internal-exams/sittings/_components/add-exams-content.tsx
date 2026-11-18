@@ -32,7 +32,6 @@ export async function AddExamsContent({ sittingId, selection }: Readonly<Props>)
   if (isGone(rows) || isGone(sameDay)) return <PopupEnded title={TITLE} />
   const count = userIds?.length ?? rows[0]?.people ?? 0
   if (rows.length === 0) return <PopupMessage title={TITLE} message="No exams to add." />
-  if (count === 0) return <PopupMessage title={TITLE} message="No valid people to add exams for." />
   const deactivated = count === 1 && rows.some((r) => r.deactivated > 0)
   return (
     <>

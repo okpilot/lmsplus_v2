@@ -155,9 +155,9 @@ describe('SubjectPicker', () => {
   it('the header checkbox ticks every tickable exam and unticks them again', async () => {
     const user = userEvent.setup()
     picker()
-    await user.click(screen.getByRole('checkbox', { name: 'Select all 2 shown' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Select all exams' }))
     expect(screen.getByRole('status')).toHaveTextContent('2 exams for 2 people')
-    await user.click(screen.getByRole('checkbox', { name: 'Select all 2 shown' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Select all exams' }))
     expect(screen.getByRole('status')).not.toHaveTextContent('2 exams')
   })
 

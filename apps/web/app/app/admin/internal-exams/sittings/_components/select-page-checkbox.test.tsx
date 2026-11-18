@@ -25,7 +25,7 @@ describe('SelectPageCheckbox', () => {
 
   it('reports the new state on click and names the page count', async () => {
     const { onChange } = box({ total: 2, ticked: 0 })
-    expect(screen.getByRole('checkbox', { name: 'Select all 2 shown' })).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'Select this page' })).toBeInTheDocument()
     await userEvent.setup().click(screen.getByRole('checkbox'))
     expect(onChange).toHaveBeenCalledWith(true)
   })

@@ -143,12 +143,6 @@ describe('AddExamsContent', () => {
     expect(screen.getByText('This sitting has ended.')).toBeInTheDocument()
   })
 
-  it('all-mode with nobody in the sitting shows the empty message', async () => {
-    m.getSubjectEligibility.mockResolvedValue([row(0)])
-    await body({ kind: 'all' })
-    expect(screen.getByText('No valid people to add exams for.')).toBeInTheDocument()
-  })
-
   it('no exams set up: says so instead of an empty list', async () => {
     m.getSubjectEligibility.mockResolvedValue([])
     await body({ kind: 'all' })
