@@ -184,7 +184,7 @@ describe('RPC: start_internal_exam_session sitting gate, removed entry and overd
     if (errors.length > 0) throw new AggregateError(errors, 'teardown failed')
   })
 
-  it('refuses a sitting code while an overdue same-subject attempt is unfinished, leaving that attempt intact', async () => {
+  it('counts an overdue passed attempt: already_passed, and the rolled-back completion leaves it open', async () => {
     const s = await student('ro-overdue')
     const w = await openWorld(s)
     const old = must<{ id: string }>(
@@ -214,7 +214,7 @@ describe('RPC: start_internal_exam_session sitting gate, removed entry and overd
       })) as Res,
       'graded answer',
     )
-    expect(msg(await redeem(s, w.code))).toBe('overdue_attempt_pending')
+    expect(msg(await redeem(s, w.code))).toBe('already_passed')
     expect(await consumedAt(w.codeId)).toBeNull()
     const sessions = await sessionsOf(s.id)
     expect(sessions).toHaveLength(1)

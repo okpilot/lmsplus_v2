@@ -49,12 +49,12 @@ BEGIN
   END IF;
 
   -- Owner's live unused sitting code: lock its sitting before the code row.
-  -- No s.deleted_at filter: security.md section 15 (g); a cancelled sitting must still return.
   SELECT s.id, s.status, s.scheduled_at
   INTO v_sitting_id, v_sitting_status, v_sitting_at
   FROM public.internal_exam_codes iec
   JOIN public.exam_sitting_entries e ON e.id = iec.sitting_entry_id AND e.deleted_at IS NULL
   JOIN public.exam_sittings s ON s.id = e.sitting_id AND s.organization_id = v_org_id
+    AND s.deleted_at IS NULL
   WHERE iec.code = p_code
     AND iec.student_id = v_student_id
     AND iec.organization_id = v_org_id
@@ -105,8 +105,6 @@ BEGIN
     RAISE EXCEPTION 'not_enrolled';
   END IF;
 
-  PERFORM private.sitting_redeem_gate(v_org_id, v_code_entry, v_student_id, v_code_subject, v_sitting_status, v_sitting_at);
-
   -- Auto-complete any same-subject internal_exam past +30s grace.
   -- All quiz_sessions columns aliased as qs.* — the function's RETURNS TABLE
   -- exposes time_limit_seconds and started_at as bare names too, so any
@@ -124,12 +122,11 @@ BEGIN
     AND now() > qs.started_at + ((qs.time_limit_seconds + 30) || ' seconds')::interval
   LIMIT 1;
   IF v_old_session_id IS NOT NULL THEN
-    -- Sitting code: the overdue attempt must finish first so its pass counts.
-    IF v_code_entry IS NOT NULL THEN
-      RAISE EXCEPTION 'overdue_attempt_pending';
-    END IF;
     PERFORM public.complete_overdue_exam_session(v_old_session_id);
   END IF;
+
+  -- After the overdue auto-complete so its pass counts; a raise rolls the completion back.
+  PERFORM private.sitting_redeem_gate(v_org_id, v_code_entry, v_student_id, v_code_subject, v_sitting_status, v_sitting_at);
 
   -- Single-active-session invariant (#1011, mig 136): at most one active session
   -- per student across all modes.
