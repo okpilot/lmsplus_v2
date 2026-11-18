@@ -67,6 +67,13 @@ describe('LifecycleConfirms', () => {
     })
   })
 
+  it('toasts Start with no code count when the sitting has no codes', async () => {
+    m.start.mockResolvedValue({ success: true, codesRestamped: 0, entriesWithoutCode: 0 })
+    ui('start')
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Start sitting' }))
+    await waitFor(() => expect(m.toastSuccess).toHaveBeenCalledWith('Sitting started.', undefined))
+  })
+
   it('warns in the Start confirm when exams have no code yet', async () => {
     ui('start', { ...summary, entriesWithoutCode: 2 })
     expect(

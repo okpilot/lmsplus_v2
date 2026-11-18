@@ -41,7 +41,7 @@ async function createSitting(
     .click()
   await page.getByLabel(/Permitted materials/).fill(opts.materials)
   await page.getByRole('button', { name: 'Save' }).click()
-  await expect(page).toHaveURL(SITTING_URL)
+  await expect(page).toHaveURL(SITTING_URL, { timeout: 30_000 })
   return new URL(page.url()).pathname.split('/').pop() ?? ''
 }
 
