@@ -1,6 +1,7 @@
 import { cache } from 'react'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { readInvigilator } from './invigilator-lookup'
+import { readInvigilatorOptions } from './invigilator-reads'
 import {
   type InvigilatorOption,
   SITTINGS_PAGE_SIZE,
@@ -74,6 +75,7 @@ export const getSummary = cache(async (sittingId: string): Promise<SittingSummar
     attemptsRunning: r.attempts_running,
     entriesNotStarted: r.entries_not_started,
     studentsNotStarted: r.students_not_started,
+    entriesIssuable: r.entries_issuable,
   }
 })
 
@@ -93,7 +95,7 @@ export const getSitting = cache(async (id: string): Promise<SittingRow | null> =
     throw new Error('Failed to load sitting')
   }
   if (!data) return null
-  const inv = await readInvigilator(supabase, organizationId, data.invigilator_id)
+  const inv = await readInvigilator(organizationId, data.invigilator_id)
   return {
     id: data.id,
     scheduledAt: data.scheduled_at,
@@ -117,6 +119,5 @@ export const getSitting = cache(async (id: string): Promise<SittingRow | null> =
 /** Active admins and instructors of the caller's organization. Names need the service role (users RLS is self-only). */
 export async function listInvigilatorOptions(): Promise<InvigilatorOption[]> {
   const { organizationId } = await requireAdmin()
-  const { readInvigilatorOptions } = await import('./invigilator-reads')
   return readInvigilatorOptions(organizationId)
 }

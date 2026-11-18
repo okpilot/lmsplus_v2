@@ -21,7 +21,7 @@ async function loadCodes({ status, codesPage }: Readonly<InternalExamsSearchPara
 
 async function loadSittings({ scope, sittingsPage, dlg }: Readonly<InternalExamsSearchParams>) {
   const [list, invigilators] = await Promise.all([
-    sittingsPage > 1 ? listSittings(scope, sittingsPage) : listSittings(scope),
+    listSittings(scope, sittingsPage),
     dlg === 'new' ? listInvigilatorOptions() : [],
   ])
   return { list, invigilators }

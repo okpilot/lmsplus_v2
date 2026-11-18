@@ -5,9 +5,6 @@ export type ResultBannerData = {
   tone: 'success' | 'caution' | 'danger'
   title: string
   detail?: string
-  skippedTitle?: string
-  skipped?: string[]
-  more?: number
 }
 
 export function closeConfirmText(s: {

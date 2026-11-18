@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -22,6 +22,7 @@ import { SittingFormDialog } from './sitting-form-dialog'
 
 const SID = '00000000-0000-4000-a000-0000000000a1'
 const INV = '00000000-0000-4000-a000-0000000000b1'
+const INV2 = '00000000-0000-4000-a000-0000000000b2'
 const invigilators = [{ id: INV, name: 'Ann Instructor' }]
 const sitting = (status: string) => ({
   id: SID,
@@ -30,6 +31,7 @@ const sitting = (status: string) => ({
   mode: 'remote',
   invigilatorId: INV,
   permittedMaterials: 'Calculator',
+  invigilatorName: 'Ann Instructor',
 })
 
 const edit = (status: string) =>
@@ -55,14 +57,59 @@ describe('SittingFormDialog', () => {
     expect(screen.getByLabelText('Date and time (UTC)')).toHaveValue('2026-11-20T09:30')
   })
 
-  it('submits UTC ISO values through updateSitting', async () => {
+  it('submits a changed time as a UTC ISO value and nothing else', async () => {
     m.update.mockResolvedValue({ success: true })
     const user = userEvent.setup()
     edit('scheduled')
+    fireEvent.change(screen.getByLabelText('Date and time (UTC)'), {
+      target: { value: '2026-11-21T10:00' },
+    })
     await user.click(screen.getByRole('button', { name: 'Save' }))
-    expect(m.update).toHaveBeenCalledWith(
-      expect.objectContaining({ sittingId: SID, scheduledAt: '2026-11-20T09:30:00.000Z' }),
+    expect(m.update).toHaveBeenCalledWith({
+      sittingId: SID,
+      scheduledAt: '2026-11-21T10:00:00.000Z',
+    })
+  })
+
+  it('sends only the invigilator when only the invigilator changed', async () => {
+    m.update.mockResolvedValue({ success: true })
+    const user = userEvent.setup()
+    render(
+      <SittingFormDialog
+        mode="edit"
+        sitting={sitting('scheduled') as never}
+        invigilators={[...invigilators, { id: INV2, name: 'Bob Admin' }] as never}
+      />,
     )
+    await user.click(screen.getByRole('combobox', { name: 'Invigilator' }))
+    await user.click(await screen.findByRole('option', { name: 'Bob Admin' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(m.update).toHaveBeenCalledWith({ sittingId: SID, invigilatorId: INV2 })
+  })
+
+  it('closes without calling the action when nothing changed', async () => {
+    const user = userEvent.setup()
+    edit('scheduled')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(m.update).not.toHaveBeenCalled()
+    await waitFor(() =>
+      expect(m.back.mock.calls.length + m.replace.mock.calls.length).toBeGreaterThan(0),
+    )
+  })
+
+  it('offers the inactive assigned invigilator as an option', async () => {
+    const user = userEvent.setup()
+    render(
+      <SittingFormDialog
+        mode="edit"
+        sitting={
+          { ...sitting('scheduled'), invigilatorId: INV2, invigilatorName: 'Old Ann' } as never
+        }
+        invigilators={invigilators as never}
+      />,
+    )
+    await user.click(screen.getByRole('combobox', { name: 'Invigilator' }))
+    expect(await screen.findByRole('option', { name: 'Old Ann (inactive)' })).toBeInTheDocument()
   })
 
   it('locks time and materials once the sitting is open', () => {
@@ -79,13 +126,17 @@ describe('SittingFormDialog', () => {
   it('sends only the invigilator for an open sitting', async () => {
     m.update.mockResolvedValue({ success: true })
     const user = userEvent.setup()
-    edit('open')
+    render(
+      <SittingFormDialog
+        mode="edit"
+        sitting={sitting('open') as never}
+        invigilators={[...invigilators, { id: INV2, name: 'Bob Admin' }] as never}
+      />,
+    )
+    await user.click(screen.getByRole('combobox', { name: 'Invigilator' }))
+    await user.click(await screen.findByRole('option', { name: 'Bob Admin' }))
     await user.click(screen.getByRole('button', { name: 'Save' }))
-    const arg = m.update.mock.calls[0]?.[0] as Record<string, unknown>
-    expect(arg.invigilatorId).toBe(INV)
-    expect(arg.scheduledAt).toBeUndefined()
-    expect(arg.mode).toBeUndefined()
-    expect(arg.permittedMaterials).toBeUndefined()
+    expect(m.update).toHaveBeenCalledWith({ sittingId: SID, invigilatorId: INV2 })
   })
 
   it('shows the action error and stays open when saving fails', async () => {
@@ -95,6 +146,9 @@ describe('SittingFormDialog', () => {
     })
     const user = userEvent.setup()
     edit('scheduled')
+    fireEvent.change(screen.getByLabelText('Date and time (UTC)'), {
+      target: { value: '2026-11-21T10:00' },
+    })
     await user.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() =>
       expect(

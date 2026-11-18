@@ -36,6 +36,7 @@ export type SittingSummary = {
   attemptsRunning: number
   entriesNotStarted: number
   studentsNotStarted: number
+  entriesIssuable: number
 }
 
 export type InvigilatorOption = { id: string; name: string }

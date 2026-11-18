@@ -52,6 +52,32 @@ describe('InternalExamsTabs', () => {
     expect(mockReplace.mock.calls[0]?.[0]).toContain('tab=attempts')
   })
 
+  it('navigates again after the URL tab changes (Back, then another tab)', async () => {
+    const user = userEvent.setup()
+    mockSearch.value = ''
+    const view = renderTabs()
+    await user.click(screen.getByTestId('tab-attempts'))
+    expect(mockReplace).toHaveBeenCalledTimes(1)
+    // Back: the URL still says codes, then the user picks attempts again after a different pick.
+    await user.click(screen.getByTestId('tab-sittings'))
+    expect(mockReplace).toHaveBeenCalledTimes(2)
+    mockSearch.value = 'tab=sittings'
+    view.rerender(
+      <InternalExamsTabs
+        students={[]}
+        subjects={[]}
+        codes={[]}
+        codesTotalCount={0}
+        attempts={[]}
+        attemptsTotalCount={0}
+        pageSize={20}
+      />,
+    )
+    await user.click(screen.getByTestId('tab-codes'))
+    expect(mockReplace).toHaveBeenCalledTimes(3)
+    expect(mockReplace.mock.calls[2]?.[0]).toContain('tab=codes')
+  })
+
   it('selects the attempts tab from ?tab=attempts', () => {
     mockSearch.value = 'tab=attempts'
     renderTabs()

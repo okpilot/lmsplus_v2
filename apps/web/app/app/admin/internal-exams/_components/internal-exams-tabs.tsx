@@ -1,7 +1,7 @@
 'use client'
 
 import { useSearchParams } from 'next/navigation'
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { useUpdateSearchParams } from '@/app/app/_hooks/use-update-search-params'
 import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
 import type { TabKey } from '../_search-params'
@@ -46,12 +46,16 @@ export function InternalExamsTabs({
 }: Readonly<Props>) {
   const update = useUpdateSearchParams()
   const tab = readTabParam(useSearchParams().get('tab'))
-  // Tabs activate on focus and on click: one request per (current, next) pair.
-  const requested = useRef<{ from: TabKey; to: TabKey } | null>(null)
+  // Tabs activate on focus and on click: one request per target until the URL tab changes.
+  const pending = useRef<TabKey | null>(null)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `tab` is the trigger that re-arms the guard
+  useEffect(() => {
+    pending.current = null
+  }, [tab])
   const select = (value: string | null) => {
     const to = readTabParam(value)
-    if (requested.current?.from === tab && requested.current.to === to) return
-    requested.current = { from: tab, to }
+    if (to === tab || pending.current === to) return
+    pending.current = to
     update({ tab: to, page: null, dlg: null })
   }
 

@@ -1,25 +1,15 @@
-import { notFound } from 'next/navigation'
-import { z } from 'zod'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { ResultBanner } from '../_components/result-banner'
 import { SittingHeader } from '../_components/sitting-header'
 import { SittingUiProvider } from '../_hooks/sitting-ui-context'
+import { loadSittingPage } from '../_utils/load-sitting-page'
 import { plural } from '../_utils/plural'
-import { getSitting, getSummary, listInvigilatorOptions } from '../queries'
 
 type PageProps = { params: Promise<{ sittingId: string }> }
 
-const isoDay = (iso: string) => new Date(iso).toISOString().slice(0, 10)
-
 export default async function SittingPage({ params }: Readonly<PageProps>) {
   await requireAdmin()
-  const id = z.uuid().safeParse((await params).sittingId)
-  if (!id.success) notFound()
-  const summary = await getSummary(id.data)
-  if (!summary) notFound()
-  const [sitting, invigilators] = await Promise.all([getSitting(id.data), listInvigilatorOptions()])
-  if (!sitting) notFound()
-  const notDue = new Date().toISOString().slice(0, 10) < isoDay(sitting.scheduledAt)
+  const { sitting, summary, invigilators, notDue } = await loadSittingPage((await params).sittingId)
   return (
     <SittingUiProvider key={sitting.id}>
       <div className="space-y-section">

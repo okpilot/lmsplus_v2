@@ -39,17 +39,38 @@ export function SittingFormDialog({ sitting, invigilators }: Readonly<Props>) {
   )
 }
 
-type Values = { mode: 'remote' | 'in_person'; invigilatorId: string; materials: string }
+type Values = {
+  when: string
+  mode: 'remote' | 'in_person'
+  invigilatorId: string
+  materials: string
+}
 
-/** Create, or update (a started sitting sends the invigilator only). Returns an error message or null. */
+/** Fields that differ from the loaded sitting; a started sitting only ever sends the invigilator. Null when nothing changed. */
+function editChanges(sitting: SittingRow, iso: string, v: Values) {
+  const locked = sitting.status !== 'scheduled'
+  const changes: {
+    scheduledAt?: string
+    mode?: 'remote' | 'in_person'
+    invigilatorId?: string
+    permittedMaterials?: string
+  } = {}
+  if (!locked) {
+    if (v.when !== isoToUtcInput(sitting.scheduledAt)) changes.scheduledAt = iso
+    if (v.mode !== sitting.mode) changes.mode = v.mode
+    if ((v.materials.trim() || null) !== (sitting.permittedMaterials ?? null))
+      changes.permittedMaterials = v.materials
+  }
+  if (v.invigilatorId !== sitting.invigilatorId) changes.invigilatorId = v.invigilatorId
+  return Object.keys(changes).length > 0 ? changes : null
+}
+
+/** Create, or update only what changed. Returns the sitting id, `{ id: null }` when nothing changed, or an error message. */
 async function persist(sitting: SittingRow | undefined, iso: string, v: Values) {
   if (sitting) {
-    const locked = sitting.status !== 'scheduled'
-    const r = await updateSitting({
-      sittingId: sitting.id,
-      ...(locked ? {} : { scheduledAt: iso, mode: v.mode, permittedMaterials: v.materials }),
-      invigilatorId: v.invigilatorId,
-    })
+    const changes = editChanges(sitting, iso, v)
+    if (!changes) return { id: null }
+    const r = await updateSitting({ sittingId: sitting.id, ...changes })
     return r.success ? { id: sitting.id } : { error: r.error }
   }
   const r = await createSitting({
@@ -83,8 +104,9 @@ function useSittingForm(sitting: SittingRow | undefined) {
   const locked = sitting !== undefined && sitting.status !== 'scheduled'
 
   async function saveSitting(isoValue: string) {
-    const r = await persist(sitting, isoValue, { mode, invigilatorId, materials })
+    const r = await persist(sitting, isoValue, { when, mode, invigilatorId, materials })
     if (r.error !== undefined) return setError(r.error)
+    if (r.id === null) return close()
     if (sitting) {
       setBanner({ tone: 'success', title: 'Details saved.' })
       return close()
@@ -134,6 +156,13 @@ function SittingForm({
   invigilators,
 }: Readonly<{ sitting?: SittingRow; invigilators: InvigilatorOption[] }>) {
   const { pending, locked, valid, error, submit, close, fields: f } = useSittingForm(sitting)
+  const options =
+    sitting && !invigilators.some((i) => i.id === sitting.invigilatorId)
+      ? [
+          { id: sitting.invigilatorId, name: `${sitting.invigilatorName} (inactive)` },
+          ...invigilators,
+        ]
+      : invigilators
   return (
     <>
       <PopupHeader>
@@ -170,7 +199,7 @@ function SittingForm({
           disabled={pending}
           options={[
             { value: NO_INVIGILATOR, label: 'Select an invigilator' },
-            ...invigilators.map((i) => ({ value: i.id, label: i.name })),
+            ...options.map((i) => ({ value: i.id, label: i.name })),
           ]}
           onChange={(v) => f.setInvigilatorId(v === NO_INVIGILATOR ? '' : v)}
         />

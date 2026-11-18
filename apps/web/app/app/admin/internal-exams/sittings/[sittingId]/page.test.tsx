@@ -1,20 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const m = vi.hoisted(() => ({
-  requireAdmin: vi.fn(),
-  getSummary: vi.fn(),
-  getSitting: vi.fn(),
-  listInvigilatorOptions: vi.fn(),
-  notFound: vi.fn(() => {
-    throw new Error('NEXT_NOT_FOUND')
-  }),
-}))
-vi.mock('next/navigation', () => ({ notFound: m.notFound }))
+const m = vi.hoisted(() => ({ requireAdmin: vi.fn(), load: vi.fn() }))
 vi.mock('@/lib/auth/require-admin', () => ({ requireAdmin: m.requireAdmin }))
-vi.mock('../queries', () => ({
-  getSummary: m.getSummary,
-  getSitting: m.getSitting,
-  listInvigilatorOptions: m.listInvigilatorOptions,
+vi.mock('../_utils/load-sitting-page', () => ({ loadSittingPage: m.load }))
+vi.mock('../_components/sitting-header', () => ({ SittingHeader: () => null }))
+vi.mock('../_components/result-banner', () => ({ ResultBanner: () => null }))
+vi.mock('../_hooks/sitting-ui-context', () => ({
+  SittingUiProvider: ({ children }: { children: unknown }) => children,
 }))
 
 import SittingPage from './page'
@@ -26,38 +18,28 @@ const params = (id: string) => ({
 })
 
 beforeEach(() => {
-  vi.clearAllMocks()
+  vi.resetAllMocks()
   m.requireAdmin.mockResolvedValue({ supabase: {}, organizationId: 'o', userId: 'a' })
-  m.getSummary.mockResolvedValue({ status: 'scheduled', scheduledAt: '2026-11-20T09:30:00Z' })
-  m.getSitting.mockResolvedValue({
-    id: SID,
-    status: 'scheduled',
-    scheduledAt: '2026-11-20T09:30:00Z',
+  m.load.mockResolvedValue({
+    sitting: { id: SID },
+    summary: { candidates: 1, entries: 2, codesIssued: 3, dayEnded: false },
+    invigilators: [],
+    notDue: false,
   })
-  m.listInvigilatorOptions.mockResolvedValue([])
 })
 
 describe('SittingPage', () => {
-  it('returns 404 for a non-uuid id without querying', async () => {
-    await expect(SittingPage(params('not-a-uuid') as never)).rejects.toThrow('NEXT_NOT_FOUND')
-    expect(m.getSummary).not.toHaveBeenCalled()
-  })
-
-  it('returns 404 when there is no summary', async () => {
-    m.getSummary.mockResolvedValue(null)
-    await expect(SittingPage(params(SID) as never)).rejects.toThrow('NEXT_NOT_FOUND')
-  })
-
-  it('returns 404 when the sitting row is missing', async () => {
-    m.getSitting.mockResolvedValue(null)
-    await expect(SittingPage(params(SID) as never)).rejects.toThrow('NEXT_NOT_FOUND')
-  })
-
-  it('guards with requireAdmin and reads the summary before the sitting', async () => {
+  it('guards with requireAdmin, then loads by the route id', async () => {
     await SittingPage(params(SID) as never)
     expect(m.requireAdmin).toHaveBeenCalled()
-    const s = m.getSummary.mock.invocationCallOrder[0] as number
-    const g = m.getSitting.mock.invocationCallOrder[0] as number
-    expect(s).toBeLessThan(g)
+    expect(m.load).toHaveBeenCalledWith(SID)
+    const a = m.requireAdmin.mock.invocationCallOrder[0] as number
+    const l = m.load.mock.invocationCallOrder[0] as number
+    expect(a).toBeLessThan(l)
+  })
+
+  it('propagates the loader 404', async () => {
+    m.load.mockRejectedValue(new Error('NEXT_NOT_FOUND'))
+    await expect(SittingPage(params('x') as never)).rejects.toThrow('NEXT_NOT_FOUND')
   })
 })
