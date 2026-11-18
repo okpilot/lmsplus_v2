@@ -116,7 +116,6 @@ export async function listPeople(a: {
   }
 }
 
-/** Exams of the picked people (`userIds` omitted = every candidate), one row per exam with its live config. */
 const toEligibility = (r: EligibilityRow): SubjectEligibility => ({
   subjectId: r.subject_id,
   subjectName: r.subject_name,
@@ -139,6 +138,7 @@ const toEligibility = (r: EligibilityRow): SubjectEligibility => ({
   elsewhereAt: r.elsewhere_at,
 })
 
+/** Exams of the picked people (`userIds` omitted = every candidate), one row per exam with its live config. */
 export async function getSubjectEligibility(
   sittingId: string,
   userIds?: readonly string[],

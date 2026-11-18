@@ -254,6 +254,25 @@ describe('useDialogParam popups (AC 46)', () => {
     expect(mockBack).toHaveBeenCalledTimes(1)
   })
 
+  it('a close captured before a navigation started still replaces instead of going back', () => {
+    const refs: DialogRefs = {
+      openedHere: { current: true },
+      openerRef: { current: null },
+      closing: { current: false },
+      nav: { pending: false, start: (fn: () => void) => fn() },
+    }
+    mockSearch.value = 'tab=sittings&dlg=people'
+    const { result, rerender } = renderHook(() => useDialogParam(refs))
+    const stale = result.current.close
+    act(() => {
+      refs.nav = { pending: true, start: (fn: () => void) => fn() }
+      rerender()
+    })
+    act(() => stale())
+    expect(mockBack).not.toHaveBeenCalled()
+    expect(mockReplace.mock.calls[0]?.[0]).toBe('/app/admin/internal-exams?tab=sittings')
+  })
+
   it('runs navigation in the shared transition and reports its pending state', () => {
     const start = vi.fn((fn: () => void) => fn())
     const refs: DialogRefs = {
