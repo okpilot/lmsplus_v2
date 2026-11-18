@@ -73,11 +73,24 @@ function SelectBar({
   )
 }
 
-/** Body and footer of the Add people popup. Ticks live in the provider so they survive filter changes. */
-export function PeopleList({ sittingId, filters, rows, total, page, group }: Readonly<Props>) {
-  const { people, isRefreshing, close } = useSittingUi()
+const pageCount = (total: number) => Math.max(1, Math.ceil(total / PEOPLE_PAGE_SIZE))
+
+function PeopleRows({ rows, busy }: Readonly<{ rows: readonly AddablePerson[]; busy: boolean }>) {
+  if (rows.length === 0) {
+    return <p className="py-6 text-center text-muted-foreground">No students to add.</p>
+  }
+  return (
+    <ul className="divide-y">
+      {rows.map((r) => (
+        <PersonItem key={r.userId} person={r} busy={busy} />
+      ))}
+    </ul>
+  )
+}
+
+function useAddPeople(sittingId: string) {
+  const { people, close } = useSittingUi()
   const { pending, error, run } = useSittingAction()
-  const busy = isRefreshing || pending
   const add = (input: { userIds?: string[]; groupIds?: string[] }) =>
     run(
       () => addCandidates({ sittingId, ...input }),
@@ -88,6 +101,14 @@ export function PeopleList({ sittingId, filters, rows, total, page, group }: Rea
       },
       { lock: true },
     )
+  return { add, pending, error }
+}
+
+/** Body and footer of the Add people popup. Ticks live in the provider so they survive filter changes. */
+export function PeopleList({ sittingId, filters, rows, total, page, group }: Readonly<Props>) {
+  const { people, isRefreshing } = useSittingUi()
+  const { add, pending, error } = useAddPeople(sittingId)
+  const busy = isRefreshing || pending
   return (
     <>
       <div className="space-y-stack px-dialog-pad pb-stack">
@@ -95,20 +116,8 @@ export function PeopleList({ sittingId, filters, rows, total, page, group }: Rea
         <SelectBar rows={rows} total={total} busy={busy} />
       </div>
       <PopupBody>
-        {rows.length === 0 ? (
-          <p className="py-6 text-center text-muted-foreground">No students to add.</p>
-        ) : (
-          <ul className="divide-y">
-            {rows.map((r) => (
-              <PersonItem key={r.userId} person={r} busy={busy} />
-            ))}
-          </ul>
-        )}
-        <PeoplePager
-          page={page}
-          pages={Math.max(1, Math.ceil(total / PEOPLE_PAGE_SIZE))}
-          disabled={busy}
-        />
+        <PeopleRows rows={rows} busy={busy} />
+        <PeoplePager page={page} pages={pageCount(total)} disabled={busy} />
         <FieldError role="alert">{error}</FieldError>
       </PopupBody>
       <PeopleFooter
