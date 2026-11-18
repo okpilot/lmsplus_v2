@@ -42,7 +42,7 @@ const StatusSchema = z.enum(['active', 'inactive'])
 function parseSelection(raw: Raw): SelectionParams {
   const all = raw.all === '1'
   const idsRaw = raw.ids
-  const present = all || idsRaw !== undefined
+  const present = raw.all !== undefined || idsRaw !== undefined
   if (all || typeof idsRaw !== 'string' || idsRaw.length > IDS_MAX_LENGTH) {
     return { present, all, ids: [], truncated: false }
   }

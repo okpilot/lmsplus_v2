@@ -80,6 +80,23 @@ describe('parseSittingParams: popup params (AC 52)', () => {
     expect(r.selection).toMatchObject({ present: true, all: true })
   })
 
+  it('treats any sent all other than 1 as a selection of the ids given', () => {
+    expect(parseSittingParams({ all: '0' }).selection).toMatchObject({
+      present: true,
+      all: false,
+      ids: [],
+    })
+    expect(parseSittingParams({ all: '0', ids: U(1) }).selection).toMatchObject({
+      present: true,
+      all: false,
+      ids: [U(1)],
+    })
+    expect(parseSittingParams({ all: ['1'] }).selection).toMatchObject({
+      present: true,
+      all: false,
+    })
+  })
+
   it('reports no selection when neither ids nor all is given', () => {
     expect(parseSittingParams({}).selection).toMatchObject({ present: false, all: false, ids: [] })
   })
