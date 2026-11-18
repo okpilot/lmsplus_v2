@@ -16,15 +16,14 @@ type Props = { sittingId: string; filters: Filters }
 
 /** Server body of the Add people popup. People already in the sitting are not listed. */
 export async function AddPeopleContent({ sittingId, filters }: Readonly<Props>) {
-  const [people, groups, courses] = await Promise.all([
+  const [people, groups, courses, counts] = await Promise.all([
     listPeople({ sittingId, ...filters }),
     listGroupOptions(),
     listCourseOptions(),
+    filters.group ? getGroupAddCounts(sittingId, filters.group) : Promise.resolve(null),
   ])
-  if (isGone(people)) return <PopupEnded title="Add people" />
+  if (isGone(people) || isEnded(counts)) return <PopupEnded title="Add people" />
   const group = groups.find((g) => g.id === filters.group)
-  const counts = group ? await getGroupAddCounts(sittingId, group.id) : null
-  if (isEnded(counts)) return <PopupEnded title="Add people" />
   return (
     <>
       <PopupHeader>
@@ -47,7 +46,7 @@ export async function AddPeopleContent({ sittingId, filters }: Readonly<Props>) 
         }
         rows={people.rows}
         total={people.total}
-        page={filters.page}
+        page={people.page}
         group={group && counts ? { ...counts, id: group.id, name: group.name } : null}
       />
     </>

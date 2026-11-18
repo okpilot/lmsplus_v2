@@ -59,6 +59,14 @@ function withQuery(pathname: string, params: URLSearchParams): string {
   return qs ? `${pathname}?${qs}` : pathname
 }
 
+type Patch = Readonly<Record<string, string | null>>
+
+/** `patch` without the keys the committed `search` already carries (null = absent). */
+function stillPending(search: string, patch: Patch): Patch {
+  const params = new URLSearchParams(search)
+  return Object.fromEntries(Object.entries(patch).filter(([k, v]) => (params.get(k) ?? null) !== v))
+}
+
 /** The provider's shared refs, else this hook's own (reset here when `dlg` leaves the URL). */
 function useDialogRefs(shared: DialogRefs | undefined, dlg: string | null) {
   const own = {
@@ -95,25 +103,35 @@ export function useDialogParam(shared?: DialogRefs) {
   const dlg = sp.get('dlg') ?? null
   const { openedHere, openerRef, closing, consumeOpenedHere } = useDialogRefs(shared, dlg)
   const search = sp.toString()
+  /** Patches issued but not yet in `search`; a second replaceParams before the first commits must carry both. */
+  const pending = useRef<Patch>({})
+  useEffect(() => {
+    pending.current = stillPending(search, pending.current)
+  }, [search])
   const open = useCallback(
     (name: DialogParam, opener?: HTMLElement | null, extra?: Readonly<Record<string, string>>) => {
       const active = document.activeElement
       openerRef.current = opener ?? (active instanceof HTMLElement ? active : null)
       openedHere.current = true
       closing.current = false
+      pending.current = {}
       const href = paramsHref(pathname, withoutPopupParams(search), { dlg: name, ...extra })
       startTransition(() => router.push(href, { scroll: false }))
     },
     [pathname, search, router, startTransition, openedHere, openerRef, closing],
   )
   const replaceParams = useCallback(
-    (patch: Readonly<Record<string, string | null>>) =>
-      startTransition(() => router.replace(paramsHref(pathname, search, patch), { scroll: false })),
+    (patch: Patch) => {
+      pending.current = { ...pending.current, ...patch }
+      const href = paramsHref(pathname, search, pending.current)
+      startTransition(() => router.replace(href, { scroll: false }))
+    },
     [pathname, search, router, startTransition],
   )
   const close = useCallback(() => {
     if (closing.current) return
     closing.current = true
+    pending.current = {}
     if (openedHere.current) {
       openedHere.current = false
       router.back()

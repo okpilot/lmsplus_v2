@@ -29,8 +29,8 @@ export type SittingParams = {
   show: ShowValue
   page: number
   dlg?: PopupDlg
-  selection?: SelectionParams
-  people?: PeopleFilters
+  selection: SelectionParams
+  people: PeopleFilters
 }
 
 type Raw = Record<string, string | string[] | undefined>

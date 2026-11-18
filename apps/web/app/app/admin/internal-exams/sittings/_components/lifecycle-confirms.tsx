@@ -66,7 +66,7 @@ function StartConfirm(props: Readonly<Props>) {
               variant="outline"
               size="sm"
               className="mt-2"
-              disabled={isRefreshing}
+              disabled={isRefreshing || pending}
               onClick={props.onIssueNow}
             >
               Issue now

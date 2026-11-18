@@ -76,7 +76,7 @@ export function addExamsBanner(
   }
 }
 
-/** "Ann, Bob and 2 more are also in a sitting today (09:30 UTC)." */
+/** "Ann, Bob and 2 more are also in another sitting that day (09:30 UTC)." */
 export function sameDayText(people: readonly { name: string; scheduledAt: string }[]): string {
   if (people.length === 0) return ''
   const names = people.slice(0, 3).map((p) => p.name)
@@ -85,7 +85,7 @@ export function sameDayText(people: readonly { name: string; scheduledAt: string
   const time = new Date(earliest).toISOString().slice(11, 16)
   const tail = rest > 0 ? `${rest} more` : names.pop()
   const who = names.length > 0 ? `${names.join(', ')} and ${tail}` : tail
-  return `${who} ${people.length === 1 ? 'is' : 'are'} also in a sitting today (${time} UTC).`
+  return `${who} ${people.length === 1 ? 'is' : 'are'} also in another sitting that day (${time} UTC).`
 }
 
 export function tooManyPairsText(people: number, exams: number): string {

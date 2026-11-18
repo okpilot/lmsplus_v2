@@ -44,6 +44,7 @@ export async function addSittingExams(input: unknown): Promise<SittingActionResu
   const { sittingId, subjectIds, userIds, all } = parsed.data
   const { supabase, organizationId } = await requireAdmin()
   const users = all ? await candidateIds(supabase, organizationId, { sittingId }) : (userIds ?? [])
+  if (all && users.length === 0) return { success: false, error: 'No people in this sitting.' }
   const pairs = AddSittingEntriesSchema.safeParse({
     sittingId,
     userIds: users.flatMap((u) => subjectIds.map(() => u)),

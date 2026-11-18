@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { FieldError } from '@/components/ui/field-error'
 import { Input } from '@/components/ui/input'
 import { useSittingUi } from '../_hooks/sitting-ui-context'
+import { useTickSet } from '../_hooks/use-tick-set'
 import { addExamsBanner, sameDayText } from '../_utils/popup-copy'
 import { subjectRowView } from '../_utils/subject-state'
 import { addSittingExams } from '../actions/add-exams'
@@ -30,7 +31,7 @@ const ALL = 'all'
 function useSubjectPicker(rows: readonly SubjectEligibility[], singleDeactivated: boolean) {
   const [search, setSearch] = useState('')
   const [course, setCourse] = useState(ALL)
-  const [picked, setPicked] = useState<string[]>([])
+  const { ids: picked, toggle, setMany } = useTickSet()
   const courses = useMemo(() => {
     const byId = new Map<string, string>()
     for (const r of rows) if (r.courseId) byId.set(r.courseId, r.courseName ?? r.courseId)
@@ -45,12 +46,6 @@ function useSubjectPicker(rows: readonly SubjectEligibility[], singleDeactivated
     )
     .map((row) => ({ row, view: subjectRowView(row, singleDeactivated) }))
   const tickable = shown.filter((s) => s.view.tickable).map((s) => s.row.subjectId)
-  const toggle = (id: string) =>
-    setPicked((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]))
-  const setMany = (ids: readonly string[], on: boolean) =>
-    setPicked((cur) =>
-      on ? [...new Set([...cur, ...ids])] : cur.filter((id) => !ids.includes(id)),
-    )
   return { search, setSearch, course, setCourse, courses, picked, shown, tickable, toggle, setMany }
 }
 

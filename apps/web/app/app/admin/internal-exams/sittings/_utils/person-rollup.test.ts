@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { RosterEntry } from '../types'
-import { personNeedsCode, SHOW_OPTIONS, sharedExpiry } from './person-rollup'
+import { nothingToIssue, personNeedsCode, SHOW_OPTIONS, sharedExpiry } from './person-rollup'
 
 const e = (status: string, codeExpiresAt: string | null): RosterEntry =>
   ({ entryId: status + codeExpiresAt, status, codeExpiresAt }) as never
@@ -53,5 +53,19 @@ describe('personNeedsCode (AC 44)', () => {
   )
   it('is false without exams', () => {
     expect(personNeedsCode([])).toBe(false)
+  })
+})
+
+describe('nothingToIssue', () => {
+  const page = ['a', 'b']
+  const needs = new Set(['b'])
+  it('is true when every tick is on the page and none needs a code', () => {
+    expect(nothingToIssue(['a'], page, needs)).toBe(true)
+  })
+  it('is false when a tick needs a code', () => {
+    expect(nothingToIssue(['a', 'b'], page, needs)).toBe(false)
+  })
+  it('is false when a tick is off the page', () => {
+    expect(nothingToIssue(['a', 'z'], page, needs)).toBe(false)
   })
 })

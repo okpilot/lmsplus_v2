@@ -6,16 +6,12 @@ import { getSitting, getSummary, listInvigilatorOptions } from '../queries'
 import { getRemoved, getRoster } from '../roster-queries'
 import type { Selection } from '../types'
 
-const NO_SELECTION = { present: false, all: false, ids: [], truncated: false }
 const EMPTY: Selection = { kind: 'empty' }
 
 const isoDay = (iso: string) => new Date(iso).toISOString().slice(0, 10)
 
 /** Everything the sitting page renders; calls `notFound()` for a bad id or a sitting outside the org. */
-export async function loadSittingPage(
-  rawId: string,
-  params: SittingParams = { show: 'all', page: 1 },
-) {
+export async function loadSittingPage(rawId: string, params: SittingParams) {
   const id = z.uuid().safeParse(rawId)
   if (!id.success) notFound()
   // The summary goes first: it lazy-closes and prunes before the roster reads.
@@ -30,9 +26,7 @@ export async function loadSittingPage(
     getRoster({ sittingId: id.data, q: params.q, show: params.show, page: params.page }),
     getRemoved(id.data),
     editable ? listInvigilatorOptions() : Promise.resolve([]),
-    editable && popup
-      ? resolveSelection(id.data, popup, params.selection ?? NO_SELECTION)
-      : Promise.resolve(EMPTY),
+    editable && popup ? resolveSelection(id.data, popup, params.selection) : Promise.resolve(EMPTY),
   ])
   if (!sitting || !roster || !removed) notFound()
   const notDue = new Date().toISOString().slice(0, 10) < isoDay(sitting.scheduledAt)

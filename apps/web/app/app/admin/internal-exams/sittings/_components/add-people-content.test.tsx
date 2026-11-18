@@ -40,7 +40,7 @@ async function body(filters: Record<string, unknown> = { page: 1 }) {
 
 beforeEach(() => {
   vi.resetAllMocks()
-  m.listPeople.mockResolvedValue({ rows: [person], total: 1 })
+  m.listPeople.mockResolvedValue({ rows: [person], total: 1, page: 1 })
   m.listGroupOptions.mockResolvedValue([{ id: 'g1', name: 'Group A' }])
   m.listCourseOptions.mockResolvedValue([{ id: 'c1', name: 'PPL' }])
 })
@@ -71,6 +71,33 @@ describe('AddPeopleContent', () => {
         name: 'Add whole group "Group A" (4 new, 1 deactivated skipped)',
       }),
     ).toBeInTheDocument()
+  })
+
+  it('shows the page the query snapped to, not the one requested', async () => {
+    m.listPeople.mockResolvedValue({ rows: [person], total: 120, page: 3 })
+    await body({ page: 9 })
+    expect(screen.getByText('Page 3 of 3')).toBeInTheDocument()
+  })
+
+  it('reads the group counts in parallel with the people', async () => {
+    let release: (v: unknown) => void = () => undefined
+    m.listPeople.mockReturnValue(new Promise((r) => (release = r)))
+    m.getGroupAddCounts.mockResolvedValue({ activeNew: 1, deactivatedNew: 0 })
+    const pending = AddPeopleContent({
+      sittingId: 's1',
+      filters: { group: 'g1', page: 1 } as never,
+    })
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(m.getGroupAddCounts).toHaveBeenCalledWith('s1', 'g1')
+    release({ rows: [], total: 0, page: 1 })
+    await pending
+  })
+
+  it('shows the ended notice when the group read says the sitting ended', async () => {
+    m.getGroupAddCounts.mockResolvedValue({ ended: true })
+    await body({ group: 'g1', page: 1 })
+    expect(screen.getByText('This sitting has ended.')).toBeInTheDocument()
   })
 
   it('omits the group button when the group is unknown', async () => {
