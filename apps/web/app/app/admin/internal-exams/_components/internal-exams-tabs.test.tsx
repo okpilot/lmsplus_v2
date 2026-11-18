@@ -78,6 +78,27 @@ describe('InternalExamsTabs', () => {
     expect(mockReplace.mock.calls[2]?.[0]).toContain('tab=codes')
   })
 
+  it('re-arms the tab guard when a non-tab navigation supersedes the tab request', async () => {
+    const user = userEvent.setup()
+    const view = renderTabs()
+    await user.click(screen.getByTestId('tab-attempts'))
+    expect(mockReplace).toHaveBeenCalledTimes(1)
+    mockSearch.value = 'page=2'
+    view.rerender(
+      <InternalExamsTabs
+        students={[]}
+        subjects={[]}
+        codes={[]}
+        codesTotalCount={0}
+        attempts={[]}
+        attemptsTotalCount={0}
+        pageSize={20}
+      />,
+    )
+    await user.click(screen.getByTestId('tab-attempts'))
+    expect(mockReplace).toHaveBeenCalledTimes(2)
+  })
+
   it('selects the attempts tab from ?tab=attempts', () => {
     mockSearch.value = 'tab=attempts'
     renderTabs()
