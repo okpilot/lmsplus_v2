@@ -42,6 +42,12 @@ async function createSitting(
   await page.getByLabel(/Permitted materials/).fill(opts.materials)
   await page.getByRole('button', { name: 'Save' }).click()
   await expect(page).toHaveURL(SITTING_URL)
+  return new URL(page.url()).pathname.split('/').pop() ?? ''
+}
+
+/** The list row of one sitting, keyed by the id in its date link. */
+function sittingRow(page: import('@playwright/test').Page, id: string) {
+  return page.getByRole('row').filter({ has: page.locator(`a[href$="/sittings/${id}"]`) })
 }
 
 test('admin creates a sitting, refuses a past date, and lands on its page', async ({ page }) => {
@@ -59,6 +65,8 @@ test('admin creates a sitting, refuses a past date, and lands on its page', asyn
   await page.getByRole('button', { name: 'Save' }).click()
   await expect(page.getByText('The sitting date must be today or later (UTC).')).toBeVisible()
   await page.keyboard.press('Escape')
+  await expect(page).not.toHaveURL(/dlg=/)
+  await expect(page).toHaveURL(/\/app\/admin\/internal-exams\?tab=sittings/)
 
   await createSitting(page, { daysAhead: 3, time: '09:30', materials: makeSittingE2eMaterials() })
   const title = await page.getByRole('heading', { level: 1 }).textContent()
@@ -85,23 +93,31 @@ test('admin edits mode and materials and the change persists', async ({ page }) 
 test('a scheduled sitting appears under Upcoming and opens by row click and Enter', async ({
   page,
 }) => {
-  await createSitting(page, { daysAhead: 3, time: '09:30', materials: makeSittingE2eMaterials() })
+  const id = await createSitting(page, {
+    daysAhead: 3,
+    time: '09:30',
+    materials: makeSittingE2eMaterials(),
+  })
   await page.goto(`${LIST}?tab=sittings`)
-  const row = page.getByRole('row').filter({ hasText: 'Scheduled' }).first()
-  await expect(row).toBeVisible()
+  const row = sittingRow(page, id)
+  await expect(row).toContainText('Scheduled')
   await page.reload()
   await expect(page.getByRole('combobox', { name: 'Status' })).toContainText('Upcoming')
   await row.click()
   await expect(page).toHaveURL(SITTING_URL)
 
   await page.goBack()
-  await page.getByRole('row').filter({ hasText: 'Scheduled' }).first().focus()
+  await row.focus()
   await page.keyboard.press('Enter')
   await expect(page).toHaveURL(SITTING_URL)
 })
 
 test('admin starts and closes a sitting dated today', async ({ page }) => {
-  await createSitting(page, { daysAhead: 0, time: '23:58', materials: makeSittingE2eMaterials() })
+  const id = await createSitting(page, {
+    daysAhead: 0,
+    time: '23:58',
+    materials: makeSittingE2eMaterials(),
+  })
   await page.getByRole('button', { name: 'Start sitting' }).click()
   await expect(page.getByText('Start sitting?')).toBeVisible()
   await page.getByRole('button', { name: 'Start sitting' }).last().click()
@@ -110,12 +126,17 @@ test('admin starts and closes a sitting dated today', async ({ page }) => {
   await expect(page.getByText(/^Open · /)).toBeVisible()
 
   await page.goto(`${LIST}?tab=sittings&scope=open`)
-  await expect(page.getByRole('row').filter({ hasText: 'Open' }).first()).toBeVisible()
-  await page.getByRole('row').filter({ hasText: 'Open' }).first().click()
+  await expect(sittingRow(page, id)).toContainText('Open')
+  await sittingRow(page, id).click()
   await page.getByRole('button', { name: 'More actions' }).click()
   await page.getByRole('menuitem', { name: 'Edit details' }).click()
+  await expect(page).toHaveURL(/dlg=edit/)
+  await expect(page.getByLabel('Date and time (UTC)')).toBeDisabled()
+  await page.reload()
   await expect(page.getByLabel('Date and time (UTC)')).toBeDisabled()
   await page.keyboard.press('Escape')
+  await expect(page).not.toHaveURL(/dlg=/)
+  await expect(page).toHaveURL(SITTING_URL)
 
   await page.getByRole('button', { name: 'Close sitting' }).click()
   await expect(page.getByText('A closed sitting cannot be reopened.')).toBeVisible()
@@ -127,11 +148,15 @@ test('admin starts and closes a sitting dated today', async ({ page }) => {
   await expect(page.getByText(/^Closed · /)).toBeVisible()
 
   await page.goto(`${LIST}?tab=sittings&scope=past`)
-  await expect(page.getByRole('row').filter({ hasText: 'Closed' }).first()).toBeVisible()
+  await expect(sittingRow(page, id)).toContainText('Closed')
 })
 
 test('admin cancels a sitting and finds it under Cancelled', async ({ page }) => {
-  await createSitting(page, { daysAhead: 4, time: '10:00', materials: makeSittingE2eMaterials() })
+  const id = await createSitting(page, {
+    daysAhead: 4,
+    time: '10:00',
+    materials: makeSittingE2eMaterials(),
+  })
   await page.getByRole('button', { name: 'More actions' }).click()
   await page.getByRole('menuitem', { name: 'Cancel sitting' }).click()
   await expect(page.getByRole('button', { name: 'Keep sitting' })).toBeVisible()
@@ -140,7 +165,7 @@ test('admin cancels a sitting and finds it under Cancelled', async ({ page }) =>
   await page.reload()
   await expect(page.getByText(/^Cancelled · /)).toBeVisible()
   await page.goto(`${LIST}?tab=sittings&scope=cancelled`)
-  await expect(page.getByRole('row').filter({ hasText: 'Cancelled' }).first()).toBeVisible()
+  await expect(sittingRow(page, id)).toContainText('Cancelled')
 })
 
 test('Start is disabled for a future sitting and says when it can start', async ({ page }) => {
