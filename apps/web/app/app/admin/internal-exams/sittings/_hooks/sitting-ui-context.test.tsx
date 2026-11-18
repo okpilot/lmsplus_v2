@@ -36,13 +36,6 @@ describe('useSittingUi roster selection', () => {
     expect(result.current.rosterIds).toEqual([])
   })
 
-  it('keeps a success banner that has lines as a banner, not a toast', () => {
-    const { result } = renderHook(() => useSittingUi(), { wrapper })
-    act(() => result.current.setBanner({ tone: 'success', title: 'Done', lines: ['x'] }))
-    expect(result.current.banner).toMatchObject({ title: 'Done' })
-    expect(m.toastSuccess).not.toHaveBeenCalled()
-  })
-
   it('has an empty selection without a provider', () => {
     const { result } = renderHook(() => useSittingUi())
     act(() => result.current.toggleRoster('u1'))

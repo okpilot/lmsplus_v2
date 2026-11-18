@@ -41,7 +41,7 @@ export function RemovePeopleDialog({ sittingId, userIds, onClose }: Readonly<Pro
             setRosterPage(userIds ?? [], false)
             return {
               tone: 'success',
-              title: `Removed ${d.removed}.`,
+              title: `Removed ${plural(d.removed, 'person', 'people')}.`,
               detail: `${plural(d.entriesRemoved, 'exam')} removed, ${plural(d.codesVoided, 'code')} voided.`,
             }
           },

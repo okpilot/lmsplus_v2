@@ -31,9 +31,9 @@ type Shared = {
 
 const SittingUiContext = createContext<Shared | null>(null)
 
-/** One banner at a time; plain success (no lines) is a toast. */
+/** One banner at a time; success is a toast. */
 function toastOrBanner(b: ResultBannerData | null, set: (b: ResultBannerData | null) => void) {
-  if (b?.tone === 'success' && !b.lines?.length) {
+  if (b?.tone === 'success') {
     set(null)
     toast.success(b.title, b.detail ? { description: b.detail } : undefined)
   } else set(b)

@@ -60,53 +60,6 @@ describe('ResultBanner', () => {
     expect(screen.queryByRole('alert')).toBeNull()
   })
 
-  it('renders each line of a caution banner', () => {
-    ui()
-    act(() =>
-      setBannerRef({
-        tone: 'caution',
-        title: 'Added 1.',
-        lines: ['Ann · FPM: passed', 'Bob · AGK: not enrolled'],
-      }),
-    )
-    expect(screen.getByText('Ann · FPM: passed')).toBeInTheDocument()
-    expect(screen.getByText('Bob · AGK: not enrolled')).toBeInTheDocument()
-  })
-
-  it('renders duplicate lines twice without a key warning', () => {
-    const err = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    ui()
-    act(() =>
-      setBannerRef({ tone: 'caution', title: 'Skipped', lines: ['Same line', 'Same line'] }),
-    )
-    expect(screen.getAllByText('Same line')).toHaveLength(2)
-    expect(err).not.toHaveBeenCalled()
-    err.mockRestore()
-  })
-
-  it('renders no stray 0 or description for an empty lines array', () => {
-    ui()
-    act(() => setBannerRef({ tone: 'caution', title: 'Skipped', lines: [] }))
-    const status = screen.getByRole('status')
-    expect(status.textContent).not.toContain('0')
-    expect(status.querySelector('ul')).toBeNull()
-  })
-
-  it('shows at most 50 lines, then "and N more"', () => {
-    ui()
-    const lines = Array.from({ length: 60 }, (_, i) => `line-${i}`)
-    act(() => setBannerRef({ tone: 'caution', title: 'Skipped', lines }))
-    expect(screen.getByText('line-49')).toBeInTheDocument()
-    expect(screen.queryByText('line-50')).toBeNull()
-    expect(screen.getByText('and 10 more')).toBeInTheDocument()
-  })
-
-  it('keeps a success banner with lines as a banner, not a toast', () => {
-    ui()
-    act(() => setBannerRef({ tone: 'success', title: 'Added 2.', lines: ['x'] }))
-    expect(screen.getByRole('status').textContent).toContain('Added 2.')
-  })
-
   it('turns a plain success into a toast without a banner', () => {
     ui()
     act(() => setBannerRef({ tone: 'success', title: 'Removed 1.' }))

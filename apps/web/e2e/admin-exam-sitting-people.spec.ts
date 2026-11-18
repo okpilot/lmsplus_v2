@@ -147,6 +147,10 @@ test('Print codes lists live codes only; a closed sitting print page shows not-f
   await expect(page).toHaveURL(new RegExp(`${sittingId}/print$`))
   await expect(page.getByText('E2E Dee Live')).toBeVisible()
   await expect(page.getByText('E2E Eve Expired')).toHaveCount(0)
+  await page.emulateMedia({ media: 'print' })
+  await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeHidden()
+  await expect(page.getByText('E2E Dee Live')).toBeVisible()
+  await page.emulateMedia({ media: 'screen' })
 
   const closed = await seedSitting({ status: 'closed', people: THREE })
   await page.goto(`${BASE}/${closed.sittingId}/print`)

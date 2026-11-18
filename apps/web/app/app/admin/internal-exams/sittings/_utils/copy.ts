@@ -6,8 +6,6 @@ export type ResultBannerData = {
   tone: 'success' | 'caution' | 'danger'
   title: string
   detail?: string
-  /** One line per skipped item; the banner shows at most 50. */
-  lines?: string[]
 }
 
 function notStartedLine(entries: number, students: number): string {

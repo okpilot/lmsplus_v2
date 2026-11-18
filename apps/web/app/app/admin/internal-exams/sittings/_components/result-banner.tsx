@@ -11,21 +11,6 @@ const ICON = {
   danger: CircleAlert,
 } as const
 
-const MAX_LINES = 50
-
-function Lines({ lines }: Readonly<{ lines: readonly string[] }>) {
-  const more = lines.length - MAX_LINES
-  return (
-    <ul className="text-foreground">
-      {lines.slice(0, MAX_LINES).map((line, i) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: lines may repeat; order is stable
-        <li key={`${i}:${line}`}>{line}</li>
-      ))}
-      {more > 0 && <li>and {more} more</li>}
-    </ul>
-  )
-}
-
 /** The single result notice of the last action. Tone icon and background carry the outcome; text stays normal. */
 export function ResultBanner() {
   const { banner, setBanner } = useSittingUi()
@@ -42,10 +27,9 @@ export function ResultBanner() {
         <Icon aria-hidden="true" className="size-icon shrink-0" />
         <span className="text-foreground">{banner.title}</span>
       </AlertTitle>
-      {(banner.detail || (banner.lines?.length ?? 0) > 0) && (
+      {banner.detail && (
         <AlertDescription>
-          {banner.detail && <p className="text-foreground">{banner.detail}</p>}
-          {banner.lines && <Lines lines={banner.lines} />}
+          <p className="text-foreground">{banner.detail}</p>
         </AlertDescription>
       )}
       <AlertAction>

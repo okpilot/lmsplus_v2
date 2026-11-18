@@ -71,7 +71,8 @@ describe('SittingFormDialog', () => {
     expect(replaceState.mock.calls[0]?.[2]).toContain('tab=sittings')
     expect(m.replace).not.toHaveBeenCalled()
     expect(m.create).toHaveBeenCalledTimes(1)
-    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+    // "Saving..." until the transition settles; then Save stays disabled because the sitting exists.
+    expect(await screen.findByRole('button', { name: 'Save' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled()
   })
 

@@ -39,16 +39,15 @@ export function showsCode(e: Pick<RosterEntry, 'status' | 'code'>): boolean {
 }
 
 function attemptText(e: RosterEntry): string {
-  if (e.status === 'voided_attempt') return 'Attempt voided'
   const n = e.attemptNumber ? `Attempt ${e.attemptNumber}` : ''
+  if (e.status === 'voided_attempt') return n
   if (e.status === 'running') {
     const started = e.sessionStartedAt ? `Started ${formatTitleDate(e.sessionStartedAt)}` : ''
     return [n, started].filter(Boolean).join(' · ')
   }
   if (e.status === 'finished') {
     const score = e.score === null ? '' : `${Math.round(e.score)}%`
-    const result = e.passed === null ? '' : e.passed ? 'Passed' : 'Failed'
-    return [n, score, result].filter(Boolean).join(' · ')
+    return [n, score].filter(Boolean).join(' · ')
   }
   return ''
 }

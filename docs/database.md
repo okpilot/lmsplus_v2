@@ -1671,7 +1671,7 @@ Every public sitting admin RPC is SECURITY DEFINER, `SET search_path = public, p
 - `get_exam_sitting_subject_eligibility`: `p_user_ids` NULL = all live candidates (<=500, none = empty result); explicit 1..100 distinct, non-candidates dropped, none left `invalid_input`; <=200 subjects ordered `course name NULLS LAST, sort_order, short, id`.
 - `list_exam_sitting_roster`: `limit` 1..100, `offset` >=0, `q` <=100, `p_show` allow-list else `invalid_input`; filter applied before paging. Entry status first match: `voided_attempt`, `discarded` (consumed; session soft-deleted), `running`, `finished`, `absent`, `no_code`, `voided`, `expired`, `waiting`, `ready`. `code` is returned only for an unvoided code that is consumed or unexpired. The sitting page's URL value `show=attempts` is sent as `has_attempts`; `not_emailed` is not offered in the UI until email sending exists.
 - `list_exam_sitting_removed_entries`: `student_name` is `''` for a user outside the caller's org; `subject_short` is NULL for a soft-deleted subject.
-- Audit: ids, counts and reason counts only; no names, emails or code values.
+- Audit: ids, counts and reason counts; no names, emails or code values, except `void_sitting_code`, whose `internal_exam.code_voided` rows (and `internal_exam_codes.void_reason`) carry the admin's free-text reason, as `void_internal_exam_code` does.
 
 ##### `list_my_active_internal_exam_codes()` (migrations `20260521000002`, `20260824000200`, `20261116002900`)
 

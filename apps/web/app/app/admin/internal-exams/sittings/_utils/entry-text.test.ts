@@ -80,12 +80,12 @@ describe('showsCode', () => {
 })
 
 describe('entryFacts', () => {
-  it('joins an attempt score and outcome with " · "', () => {
+  it('joins the attempt number and score with " · "', () => {
     expect(
       entryFacts(entry({ status: 'finished', attemptNumber: 2, score: 80, passed: true }), {
         sharedExpiry: false,
       }),
-    ).toContain('Attempt 2 · 80% · Passed')
+    ).toBe('Attempt 2 · 80%')
   })
 
   it('states the start of a running attempt', () => {
@@ -131,5 +131,19 @@ describe('entryFacts', () => {
       codeEmailedAt: '2026-11-18T08:00:00Z',
     })
     expect(entryFacts(emailed, { sharedExpiry: false })).not.toMatch(/mailed/i)
+  })
+})
+
+describe('entryFacts voided_attempt', () => {
+  it('shows the attempt number only', () => {
+    expect(
+      entryFacts(entry({ status: 'voided_attempt', attemptNumber: 3 }), { sharedExpiry: false }),
+    ).toBe('Attempt 3')
+  })
+
+  it('is empty without an attempt number', () => {
+    expect(
+      entryFacts(entry({ status: 'voided_attempt', attemptNumber: null }), { sharedExpiry: false }),
+    ).toBe('')
   })
 })

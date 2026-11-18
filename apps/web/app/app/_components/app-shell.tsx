@@ -17,11 +17,11 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <div className="flex min-h-screen flex-col sm:flex-row">
       <PhoneTopBar />
-      <aside className="sticky top-0 hidden h-dvh w-sidebar shrink-0 self-start sm:flex border-r border-border bg-card">
+      <aside className="sticky top-0 hidden h-dvh w-sidebar shrink-0 self-start sm:flex border-r border-border bg-card print:hidden">
         <SidebarNav />
       </aside>
-      <div className="min-w-0 flex-1 px-gutter py-section pb-tab-clear sm:pb-section">
-        <div className="mx-auto max-w-content">{children}</div>
+      <div className="min-w-0 flex-1 px-gutter py-section pb-tab-clear sm:pb-section print:p-0">
+        <div className="mx-auto max-w-content print:max-w-none">{children}</div>
       </div>
       <MobileNav />
     </div>

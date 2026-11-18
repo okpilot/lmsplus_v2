@@ -448,7 +448,7 @@ describe('PeopleSection remove people', () => {
       expect(m.removeCandidates).toHaveBeenCalledWith({ sittingId: 'sit-1', userIds: ['u1'] }),
     )
     await waitFor(() =>
-      expect(m.toastSuccess).toHaveBeenCalledWith('Removed 1.', expect.anything()),
+      expect(m.toastSuccess).toHaveBeenCalledWith('Removed 1 person.', expect.anything()),
     )
   })
 
@@ -489,7 +489,9 @@ describe('PeopleSection remove people', () => {
     await user.click(screen.getByRole('button', { name: 'Remove' }))
     const dialog = await screen.findByRole('alertdialog')
     await user.click(within(dialog).getByRole('button', { name: 'Remove' }))
-    await waitFor(() => expect(m.toastSuccess).toHaveBeenCalled())
+    await waitFor(() =>
+      expect(m.toastSuccess).toHaveBeenCalledWith('Removed 2 people.', expect.anything()),
+    )
     expect(screen.getByRole('checkbox', { name: 'Select Person 1' })).not.toBeChecked()
     expect(screen.getByRole('checkbox', { name: 'Select Person 2' })).not.toBeChecked()
   })

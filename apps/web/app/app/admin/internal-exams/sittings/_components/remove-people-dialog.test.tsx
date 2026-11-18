@@ -23,6 +23,11 @@ const tree = (userIds: readonly string[] | null) => (
 )
 
 describe('RemovePeopleDialog', () => {
+  it('titles a single person in the singular', () => {
+    render(tree(['a']))
+    expect(screen.getByText('Remove 1 person?')).toBeInTheDocument()
+  })
+
   it('titles the dialog with the number of people being removed', () => {
     render(tree(['a', 'b']))
     expect(screen.getByText('Remove 2 people?')).toBeInTheDocument()
