@@ -82,16 +82,28 @@ describe('SittingLifecycleButtons', () => {
   })
 
   it.each(['scheduled', 'open'])(
-    'offers Edit details and Cancel sitting in the menu of a %s sitting, without Print codes',
+    'offers Edit details, Print codes and Cancel sitting in the menu of a %s sitting',
     async (status) => {
       const user = userEvent.setup()
       ui(status)
       await user.click(screen.getByRole('button', { name: 'More actions' }))
       expect(await screen.findByRole('menuitem', { name: 'Edit details' })).toBeInTheDocument()
       expect(screen.getByRole('menuitem', { name: 'Cancel sitting' })).toBeInTheDocument()
-      expect(screen.queryByRole('menuitem', { name: 'Print codes' })).not.toBeInTheDocument()
+      const print = screen.getByRole('menuitem', { name: 'Print codes' })
+      expect(print.closest('a')).toHaveAttribute(
+        'href',
+        '/app/admin/internal-exams/sittings/sit-1/print',
+      )
     },
   )
+
+  it('orders the menu Edit details, Print codes, Cancel sitting', async () => {
+    const user = userEvent.setup()
+    ui('scheduled')
+    await user.click(screen.getByRole('button', { name: 'More actions' }))
+    const names = (await screen.findAllByRole('menuitem')).map((i) => i.textContent)
+    expect(names).toEqual(['Edit details', 'Print codes', 'Cancel sitting'])
+  })
 
   it('opens the Start confirm with the spec copy', async () => {
     const user = userEvent.setup()

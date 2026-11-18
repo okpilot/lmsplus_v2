@@ -4,6 +4,8 @@ const m = vi.hoisted(() => ({
   getSummary: vi.fn(),
   getSitting: vi.fn(),
   listInvigilatorOptions: vi.fn(),
+  getRoster: vi.fn(),
+  getRemoved: vi.fn(),
   notFound: vi.fn(() => {
     throw new Error('NEXT_NOT_FOUND')
   }),
@@ -14,6 +16,8 @@ vi.mock('../queries', () => ({
   getSitting: m.getSitting,
   listInvigilatorOptions: m.listInvigilatorOptions,
 }))
+
+vi.mock('../roster-queries', () => ({ getRoster: m.getRoster, getRemoved: m.getRemoved }))
 
 import { loadSittingPage } from './load-sitting-page'
 
@@ -31,6 +35,8 @@ beforeEach(() => {
     scheduledAt: '2026-11-20T09:30:00Z',
   })
   m.listInvigilatorOptions.mockResolvedValue([{ id: 'i1', name: 'Ann' }])
+  m.getRoster.mockResolvedValue({ rows: [], total: 0 })
+  m.getRemoved.mockResolvedValue({ rows: [], total: 0 })
 })
 
 describe('loadSittingPage', () => {
@@ -92,5 +98,39 @@ describe('loadSittingPage', () => {
     const r = await loadSittingPage(SID)
     expect(m.listInvigilatorOptions).not.toHaveBeenCalled()
     expect(r.invigilators).toEqual([])
+  })
+
+  it('reads the summary before the roster', async () => {
+    await loadSittingPage(SID, { q: 'ann', show: 'needs_code', page: 2 })
+    const s = m.getSummary.mock.invocationCallOrder[0] as number
+    const r = m.getRoster.mock.invocationCallOrder[0] as number
+    expect(s).toBeLessThan(r)
+  })
+
+  it('reads the roster with the parsed q, show and page', async () => {
+    await loadSittingPage(SID, { q: 'ann', show: 'needs_code', page: 2 })
+    expect(m.getRoster).toHaveBeenCalledWith(
+      expect.objectContaining({ sittingId: SID, q: 'ann', show: 'needs_code', page: 2 }),
+    )
+    expect(m.getRemoved).toHaveBeenCalledWith(SID)
+  })
+
+  it.each(['scheduled', 'open', 'closed', 'cancelled'])(
+    'reads roster and removed list for a %s sitting',
+    async (status) => {
+      m.getSummary.mockResolvedValue({ status, scheduledAt: '2026-11-20T09:30:00Z' })
+      const r = await loadSittingPage(SID, { show: 'all', page: 1 })
+      expect(m.getRoster).toHaveBeenCalledTimes(1)
+      expect(m.getRemoved).toHaveBeenCalledTimes(1)
+      expect(r.roster).toEqual({ rows: [], total: 0 })
+      expect(r.removed).toEqual({ rows: [], total: 0 })
+    },
+  )
+
+  it('returns 404 without reading the roster for a non-uuid id', async () => {
+    await expect(loadSittingPage('nope', { show: 'all', page: 1 })).rejects.toThrow(
+      'NEXT_NOT_FOUND',
+    )
+    expect(m.getRoster).not.toHaveBeenCalled()
   })
 })

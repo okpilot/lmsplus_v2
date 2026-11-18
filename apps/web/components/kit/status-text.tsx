@@ -5,16 +5,25 @@ type Props = {
   label: string
   /** success: goal reached; danger: needs attention; neutral: no symbol. */
   tone?: 'neutral' | 'success' | 'danger'
+  /** Muted facts under the label. */
+  caption?: string
   className?: string
 }
 
 /** Status as text; a symbol reinforces success and danger. */
-export function StatusText({ label, tone = 'neutral', className }: Readonly<Props>) {
-  return (
+export function StatusText({ label, tone = 'neutral', caption, className }: Readonly<Props>) {
+  const text = (
     <span className={cn('inline-flex items-center gap-1', className)}>
       {tone === 'success' && <CircleCheck className="size-icon-sm text-success" aria-hidden />}
       {tone === 'danger' && <CircleAlert className="size-icon-sm text-danger" aria-hidden />}
       {label}
+    </span>
+  )
+  if (!caption) return text
+  return (
+    <span className="flex flex-col">
+      {text}
+      <span className="text-caption text-muted-foreground tabular-nums">{caption}</span>
     </span>
   )
 }

@@ -22,6 +22,18 @@ export const SITTING_RPC_ERRORS: Record<string, string> = {
   scheduled_in_past: 'The sitting date must be today or later (UTC).',
   invigilator_not_found:
     'The invigilator must be an active admin or instructor of your organization',
+  too_many_candidates: 'A sitting can hold at most 500 people.',
+  too_many_entries: 'A sitting can hold at most 2000 exams.',
+  subject_not_found: 'An exam you picked no longer exists. Reload and try again.',
+  exam_config_required: 'An exam you picked is not set up as an internal exam.',
+  candidate_has_attempt:
+    'Someone you selected has taken an exam. History is permanent: they cannot be removed.',
+  candidate_not_found: 'Someone you selected is no longer in this sitting. Reload the page.',
+  entry_has_attempt: 'This exam has been taken. It cannot be removed.',
+  entry_not_found: 'This exam is no longer in the sitting. Reload the page.',
+  student_not_found: 'A person you selected no longer exists. Reload and try again.',
+  code_generation_failed: 'Could not generate a unique code. Try again.',
+  group_not_found: 'This group no longer exists.',
 }
 
 export function sittingFailure(message: string, fallback: string) {

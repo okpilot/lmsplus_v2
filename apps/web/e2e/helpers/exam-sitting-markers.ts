@@ -7,3 +7,9 @@ export const EXAM_SITTING_E2E_PREFIX = 'E2E-SIT-'
 export function makeSittingE2eMaterials(): string {
   return `${EXAM_SITTING_E2E_PREFIX}${randomUUID()}`
 }
+
+/** `permitted_materials` prefix of sittings built by `seedSitting`: the cleanup removes them with their people. */
+export const EXAM_SITTING_SEED_PREFIX = `${EXAM_SITTING_E2E_PREFIX}SEED-`
+
+/** Email domain of the users `seedSitting` creates; every address starts with `e2e-sit-`. */
+export const EXAM_SITTING_SEED_EMAIL_PREFIX = 'e2e-sit-'

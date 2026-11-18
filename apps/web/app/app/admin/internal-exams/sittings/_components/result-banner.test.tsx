@@ -59,4 +59,46 @@ describe('ResultBanner', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
     expect(screen.queryByRole('alert')).toBeNull()
   })
+
+  it('renders each line of a caution banner', () => {
+    ui()
+    act(() =>
+      setBannerRef({
+        tone: 'caution',
+        title: 'Added 1.',
+        lines: ['Ann · FPM: passed', 'Bob · AGK: not enrolled'],
+      }),
+    )
+    expect(screen.getByText('Ann · FPM: passed')).toBeInTheDocument()
+    expect(screen.getByText('Bob · AGK: not enrolled')).toBeInTheDocument()
+  })
+
+  it('shows at most 50 lines, then "and N more"', () => {
+    ui()
+    const lines = Array.from({ length: 60 }, (_, i) => `line-${i}`)
+    act(() => setBannerRef({ tone: 'caution', title: 'Skipped', lines }))
+    expect(screen.getByText('line-49')).toBeInTheDocument()
+    expect(screen.queryByText('line-50')).toBeNull()
+    expect(screen.getByText('and 10 more')).toBeInTheDocument()
+  })
+
+  it('keeps a success banner with lines as a banner, not a toast', () => {
+    ui()
+    act(() => setBannerRef({ tone: 'success', title: 'Added 2.', lines: ['x'] }))
+    expect(screen.getByRole('status').textContent).toContain('Added 2.')
+  })
+
+  it('turns a plain success into a toast without a banner', () => {
+    ui()
+    act(() => setBannerRef({ tone: 'success', title: 'Removed 1.' }))
+    expect(screen.queryByRole('status')).toBeNull()
+  })
+
+  it('shows one banner at a time', () => {
+    ui()
+    act(() => setBannerRef({ tone: 'caution', title: 'First' }))
+    act(() => setBannerRef({ tone: 'danger', title: 'Second' }))
+    expect(screen.queryByText('First')).toBeNull()
+    expect(screen.getByText('Second')).toBeInTheDocument()
+  })
 })

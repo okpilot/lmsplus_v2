@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { closeConfirmText } from './copy'
+import { closeConfirmText, issueSkipText } from './copy'
 
 const base = { attemptsRunning: 0, entriesNotStarted: 0, studentsNotStarted: 0 }
 
@@ -37,5 +37,26 @@ describe('closeConfirmText', () => {
     const t = closeConfirmText(base)
     expect(t).not.toContain('running')
     expect(t).not.toContain('not started')
+  })
+})
+
+describe('issueSkipText', () => {
+  const none = {
+    skippedAlreadyIssued: 0,
+    skippedAttemptTaken: 0,
+    skippedDeactivated: 0,
+    skippedNoConfig: 0,
+    skippedNotEnrolled: 0,
+    skippedPassed: 0,
+  }
+
+  it('is empty when nothing was skipped', () => {
+    expect(issueSkipText(none)).toBe('')
+  })
+
+  it('lists every reason with a count above zero', () => {
+    expect(issueSkipText({ ...none, skippedPassed: 1, skippedDeactivated: 2 })).toBe(
+      'Skipped: already passed, deactivated.',
+    )
   })
 })

@@ -30,8 +30,11 @@ export type SittingSummary = {
   status: SittingStatus
   scheduledAt: string
   candidates: number
+  deactivatedCandidates: number
   entries: number
   codesIssued: number
+  entriesWithAttempt: number
+  pendingRemovalNotices: number
   dayEnded: boolean
   attemptsRunning: number
   entriesNotStarted: number
@@ -41,3 +44,60 @@ export type SittingSummary = {
 }
 
 export type InvigilatorOption = { id: string; name: string }
+
+export const ROSTER_PAGE_SIZE = 50
+
+export type EntryStatus =
+  | 'no_code'
+  | 'waiting'
+  | 'ready'
+  | 'expired'
+  | 'voided'
+  | 'voided_attempt'
+  | 'running'
+  | 'finished'
+  | 'absent'
+  | 'discarded'
+
+export type RosterEntry = {
+  entryId: string
+  subjectId: string
+  subjectShort: string
+  subjectName: string
+  courseId: string | null
+  courseName: string | null
+  status: EntryStatus
+  attemptNumber: number | null
+  passed: boolean | null
+  score: number | null
+  codeId: string | null
+  code: string | null
+  codeExpiresAt: string | null
+  codeEmailedAt: string | null
+  voidReason: string | null
+  sessionId: string | null
+  sessionStartedAt: string | null
+}
+
+export type RosterRow = {
+  userId: string
+  name: string
+  email: string
+  deactivated: boolean
+  hasAttempt: boolean
+  entries: RosterEntry[]
+}
+
+export type RemovedEntryRow = {
+  entryId: string
+  userId: string
+  studentName: string
+  subjectShort: string
+  passedAt: string | null
+  removedAt: string
+  noticeSent: boolean
+}
+
+/** URL value of the Show filter; `attempts` maps to the RPC value `has_attempts`. */
+export type ShowValue = 'all' | 'needs_code' | 'attempts'
+export const SHOW_VALUES: readonly ShowValue[] = ['all', 'needs_code', 'attempts']

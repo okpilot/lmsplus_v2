@@ -9,6 +9,12 @@ describe('StatusText', () => {
     expect(container.querySelector('svg')).toBeNull()
   })
 
+  it('renders a muted caption under the label', () => {
+    render(<StatusText label="Needs codes" caption="1 of 2 have codes" />)
+    expect(screen.getByText('Needs codes')).toBeInTheDocument()
+    expect(screen.getByText('1 of 2 have codes')).toHaveClass('text-muted-foreground')
+  })
+
   it('adds a success-coloured symbol for success', () => {
     const { container } = render(<StatusText label="Passed" tone="success" />)
     expect(container.querySelector('svg')).toHaveClass('text-success')
