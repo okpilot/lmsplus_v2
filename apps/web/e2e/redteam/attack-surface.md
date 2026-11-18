@@ -1,6 +1,6 @@
 # Red Team — Attack Surface Map
 
-> Last updated: 2026-11-25 (#1777: MH–NC exam sitting rows)
+> Last updated: 2026-11-25 (#1777: MH–ND exam sitting rows)
 
 > `answer_matches`: EXECUTE revoked from PUBLIC, anon, authenticated; granted to service_role.
 
@@ -371,6 +371,7 @@
 | NA | void_sitting_code-reserved-system-void-reason-token | MEDIUM | exam-sitting-void-reason-reserved.spec.ts | BLOCKED |  | input-injection |
 | NB | void_internal_exam_code-sitting-code-reserved-void-reason-token-forges-cancellation-notice | MEDIUM | exam-sitting-legacy-void-sitting-code.spec.ts | GAP | #1820 | sibling-guard-gap |
 | NC | void_internal_exam_code-sitting-code-day-ended-sitting-lock-bypass | LOW | exam-sitting-legacy-void-sitting-code.spec.ts | GAP | #1820 | sibling-guard-gap |
+| ND | add_exam_sitting_candidates-group_add_counts-list_exam_sitting_people-eligibility-same_day-issue_preview-foreign-group-or-student-in-own-sitting | MEDIUM | exam-sitting-foreign-param-injection.spec.ts | BLOCKED |  | cross-tenant |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
