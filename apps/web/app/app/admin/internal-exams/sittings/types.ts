@@ -36,6 +36,7 @@ export type SittingSummary = {
   attemptsRunning: number
   entriesNotStarted: number
   studentsNotStarted: number
+  entriesWithoutCode: number
   entriesIssuable: number
 }
 

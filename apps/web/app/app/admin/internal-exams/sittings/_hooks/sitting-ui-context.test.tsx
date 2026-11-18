@@ -6,10 +6,11 @@ const m = vi.hoisted(() => ({
   toastError: vi.fn(),
   toastSuccess: vi.fn(),
   back: vi.fn(),
+  replace: vi.fn(),
   search: { value: '' },
 }))
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: m.back }),
+  useRouter: () => ({ push: vi.fn(), replace: m.replace, back: m.back }),
   usePathname: () => '/app/admin/internal-exams/sittings',
   useSearchParams: () => new URLSearchParams(m.search.value),
 }))
@@ -75,6 +76,22 @@ describe('shared close guard', () => {
     rerender()
     act(() => result.current[1].close())
     expect(m.back).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('openedHere reset', () => {
+  it('clears openedHere when dlg leaves the URL, so a later close replaces', () => {
+    const { result, rerender } = renderHook(() => useSittingUi(), { wrapper })
+    act(() => result.current.open('new'))
+    m.search.value = 'dlg=new'
+    rerender()
+    m.search.value = ''
+    rerender()
+    m.search.value = 'dlg=new'
+    rerender()
+    act(() => result.current.close())
+    expect(m.back).not.toHaveBeenCalled()
+    expect(m.replace).toHaveBeenCalledTimes(1)
   })
 })
 

@@ -57,10 +57,16 @@ export function useDialogParam(shared?: DialogRefs) {
     }
     startTransition(() => router.replace(href(null)))
   }, [href, router, openedHere, closing])
+  /** True once if this session opened the dialog; clears the flag so a later close() replaces instead of going back. */
+  const consumeOpenedHere = useCallback(() => {
+    const was = openedHere.current
+    openedHere.current = false
+    return was
+  }, [openedHere])
   const dlg = sp.get('dlg') ?? null
   // Standalone use (no provider): reset here. With a provider, the provider resets.
   useEffect(() => {
     if (!shared && dlg === null) closing.current = false
   }, [shared, dlg, closing])
-  return { dlg, isRefreshing, openerRef, open, close }
+  return { dlg, isRefreshing, openerRef, open, close, consumeOpenedHere }
 }

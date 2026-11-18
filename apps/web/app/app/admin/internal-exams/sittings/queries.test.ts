@@ -155,6 +155,7 @@ describe('getSummary', () => {
       attemptsRunning: 2,
       entriesNotStarted: 3,
       studentsNotStarted: 2,
+      entriesWithoutCode: 1,
       entriesIssuable: 1,
     })
   })

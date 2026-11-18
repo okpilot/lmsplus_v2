@@ -1,45 +1,30 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import userEvent from '@testing-library/user-event'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mockSearch = vi.hoisted(() => ({ value: '' }))
+const m = vi.hoisted(() => ({ search: '', open: vi.fn() }))
 vi.mock('next/navigation', () => ({
-  usePathname: () => '/app/admin/internal-exams',
-  useSearchParams: () => new URLSearchParams(mockSearch.value),
+  useSearchParams: () => new URLSearchParams(m.search),
 }))
-vi.mock('next/link', () => ({
-  default: ({
-    href,
-    children,
-    replace,
-  }: {
-    href: string
-    children: React.ReactNode
-    replace?: boolean
-  }) => (
-    <a href={href} data-replace={replace ? 'true' : undefined}>
-      {children}
-    </a>
-  ),
+vi.mock('../sittings/_hooks/sitting-ui-context', () => ({
+  useSittingUi: () => ({ open: m.open }),
 }))
 
 import { InternalExamsHeaderAction } from './internal-exams-header-action'
 
+beforeEach(() => m.open.mockReset())
+
 describe('InternalExamsHeaderAction', () => {
-  it('links to the new-sitting dialog on the sittings tab, keeping other params', () => {
-    mockSearch.value = 'tab=sittings&scope=open'
+  it('opens the new-sitting dialog with the button as opener on the sittings tab', async () => {
+    m.search = 'tab=sittings&scope=open'
     render(<InternalExamsHeaderAction />)
-    const href = screen.getByRole('link', { name: /New sitting/ }).getAttribute('href') as string
-    expect(href).toContain('tab=sittings')
-    expect(href).toContain('dlg=new')
-    expect(href).toContain('scope=open')
-    expect(screen.getByRole('link', { name: /New sitting/ })).toHaveAttribute(
-      'data-replace',
-      'true',
-    )
+    const button = screen.getByRole('button', { name: /New sitting/ })
+    await userEvent.setup().click(button)
+    expect(m.open).toHaveBeenCalledWith('new', button)
   })
 
   it.each(['tab=codes', 'tab=attempts', '', 'tab=bogus'])('renders nothing for "%s"', (qs) => {
-    mockSearch.value = qs
+    m.search = qs
     const { container } = render(<InternalExamsHeaderAction />)
     expect(container).toBeEmptyDOMElement()
   })

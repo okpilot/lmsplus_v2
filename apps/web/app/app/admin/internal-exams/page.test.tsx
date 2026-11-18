@@ -12,6 +12,11 @@ vi.mock('./_components/internal-exams-content', () => ({
 vi.mock('./_components/internal-exams-header-action', () => ({
   InternalExamsHeaderAction: () => <div data-testid="header-action" />,
 }))
+vi.mock('./sittings/_hooks/sitting-ui-context', () => ({
+  SittingUiProvider: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="provider">{children}</div>
+  ),
+}))
 vi.mock('./_components/internal-exams-fallback', () => ({
   InternalExamsFallback: () => <div />,
 }))
@@ -34,6 +39,13 @@ describe('InternalExamsPage', () => {
   it('renders the new-sitting header action', async () => {
     render(await InternalExamsPage({ searchParams: Promise.resolve({}) }))
     expect(screen.getByTestId('header-action')).toBeInTheDocument()
+  })
+
+  it('wraps the header action and the content in one sitting UI provider', async () => {
+    render(await InternalExamsPage({ searchParams: Promise.resolve({}) }))
+    const provider = screen.getByTestId('provider')
+    expect(provider).toContainElement(screen.getByTestId('header-action'))
+    expect(provider).toContainElement(screen.getByTestId('content'))
   })
 
   it('passes the parsed tab, scope and dlg to the content', async () => {

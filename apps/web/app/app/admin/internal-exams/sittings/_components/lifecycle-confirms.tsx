@@ -53,8 +53,8 @@ function StartConfirm(props: Readonly<Props>) {
       description={
         <>
           {START_CONFIRM_TEXT}
-          {summary.entriesIssuable > 0 && (
-            <strong className="mt-2 block">{noCodeLine(summary.entriesIssuable)}</strong>
+          {summary.entriesWithoutCode > 0 && (
+            <strong className="mt-2 block">{noCodeLine(summary.entriesWithoutCode)}</strong>
           )}
           {!sitting.invigilatorActive && (
             <strong className="mt-2 block">

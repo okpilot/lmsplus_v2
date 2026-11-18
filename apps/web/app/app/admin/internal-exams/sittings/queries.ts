@@ -92,6 +92,7 @@ export async function getSummary(sittingId: string): Promise<SittingSummary | nu
     attemptsRunning: r.attempts_running,
     entriesNotStarted: r.entries_not_started,
     studentsNotStarted: r.students_not_started,
+    entriesWithoutCode: r.entries_without_code,
     entriesIssuable: r.entries_issuable,
   }
 }

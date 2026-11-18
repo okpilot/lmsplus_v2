@@ -57,7 +57,10 @@ export function SittingUiProvider({ children }: Readonly<{ children: ReactNode }
   const closing = useRef(false)
   const dlg = useSearchParams().get('dlg')
   useEffect(() => {
-    if (dlg === null) closing.current = false
+    if (dlg === null) {
+      closing.current = false
+      openedHere.current = false
+    }
   }, [dlg])
   const [locked, setLocked] = useState(false)
   const [banner, setBannerState] = useState<ResultBannerData | null>(null)

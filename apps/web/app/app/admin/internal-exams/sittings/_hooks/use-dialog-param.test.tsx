@@ -99,4 +99,12 @@ describe('useDialogParam', () => {
     expect(mockReplace).toHaveBeenCalledTimes(1)
     expect(mockBack).toHaveBeenCalledTimes(1)
   })
+
+  it('consumeOpenedHere reports a session open once, then false', () => {
+    const { result } = renderHook(() => useDialogParam())
+    expect(result.current.consumeOpenedHere()).toBe(false)
+    act(() => result.current.open('new'))
+    expect(result.current.consumeOpenedHere()).toBe(true)
+    expect(result.current.consumeOpenedHere()).toBe(false)
+  })
 })

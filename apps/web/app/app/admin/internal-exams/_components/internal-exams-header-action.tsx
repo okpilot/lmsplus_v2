@@ -1,28 +1,19 @@
 'use client'
 
 import { Plus } from 'lucide-react'
-import Link from 'next/link'
-import { usePathname, useSearchParams } from 'next/navigation'
-import { buttonVariants } from '@/components/ui/button-variants'
+import { useSearchParams } from 'next/navigation'
+import { Button } from '@/components/ui/button'
+import { useSittingUi } from '../sittings/_hooks/sitting-ui-context'
 
 /** The page's one primary action; shown on the Sittings tab only. */
 export function InternalExamsHeaderAction() {
-  const sp = useSearchParams()
-  const pathname = usePathname()
-  const tab = sp.get('tab')
+  const tab = useSearchParams().get('tab')
+  const { open } = useSittingUi()
   if (tab !== 'sittings') return null
-  const params = new URLSearchParams(sp.toString())
-  params.set('tab', 'sittings')
-  params.set('dlg', 'new')
   return (
-    <Link
-      href={`${pathname}?${params.toString()}`}
-      replace
-      scroll={false}
-      className={buttonVariants()}
-    >
+    <Button onClick={(e) => open('new', e.currentTarget)}>
       <Plus className="size-icon" />
       New sitting
-    </Link>
+    </Button>
   )
 }
