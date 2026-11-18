@@ -358,6 +358,7 @@
 | MM | start_internal_exam_session-sitting-code-redeemed-before-start_exam_sitting | HIGH | exam-sitting-code-redeem-before-start.spec.ts | BLOCKED |  | sibling-guard-gap |
 | MO | start_internal_exam_session-sitting-code-after-pass-post-start-prune | MEDIUM | exam-sitting-redeem-gate-pass-overdue.spec.ts | BLOCKED |  | sibling-guard-gap |
 | MP | start_internal_exam_session-sitting-code-before-overdue-pass-recorded | MEDIUM | exam-sitting-redeem-gate-pass-overdue.spec.ts | BLOCKED |  | sibling-guard-gap |
+| MQ | list_exam_sittings-four-scopes-cross-org-non-admin-and-out-of-set-scope | MEDIUM | exam-sitting-list-scopes.spec.ts | BLOCKED |  | cross-tenant |
 | MR | start_internal_exam_session-list_my_active_internal_exam_codes-removed-entry-candidate-or-cancelled-sitting-code | HIGH | exam-sitting-removed-code-redeem.spec.ts | BLOCKED |  | soft-delete-bypass |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
