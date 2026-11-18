@@ -1,4 +1,3 @@
-import { cache } from 'react'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { readInvigilator } from './invigilator-lookup'
 import { readInvigilatorOptions } from './invigilator-reads'
@@ -70,8 +69,8 @@ export async function listSittings(
   return { rows: data.map(mapSittingRow), totalCount: Number(data[0]?.total_count ?? 0) }
 }
 
-/** One RPC per request: lazy-closes expired sittings and returns the summary counts. */
-export const getSummary = cache(async (sittingId: string): Promise<SittingSummary | null> => {
+/** Lazy-closes expired sittings and returns the summary counts. */
+export async function getSummary(sittingId: string): Promise<SittingSummary | null> {
   const { supabase } = await requireAdmin()
   const { data, error } = await supabase.rpc('get_exam_sitting_summary', {
     p_sitting_id: sittingId,
@@ -95,13 +94,13 @@ export const getSummary = cache(async (sittingId: string): Promise<SittingSummar
     studentsNotStarted: r.students_not_started,
     entriesIssuable: r.entries_issuable,
   }
-})
+}
 
 /**
  * Sitting row by id and org (cancelled included). Counts come from getSummary.
  * security.md §15 exception (g): cancelled sittings stay readable.
  */
-export const getSitting = cache(async (id: string): Promise<SittingRow | null> => {
+export async function getSitting(id: string): Promise<SittingRow | null> {
   const { supabase, organizationId } = await requireAdmin()
   const { data, error } = await supabase
     .from('exam_sittings')
@@ -135,7 +134,7 @@ export const getSitting = cache(async (id: string): Promise<SittingRow | null> =
     entriesAbsent: 0,
     endedAutomatically: data.ended_automatically,
   }
-})
+}
 
 /** Active admins and instructors of the caller's organization. Names need the service role (users RLS is self-only). */
 export async function listInvigilatorOptions(): Promise<InvigilatorOption[]> {

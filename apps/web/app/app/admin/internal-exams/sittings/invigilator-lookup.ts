@@ -9,9 +9,13 @@ type UserRow = {
   deleted_at: string | null
 }
 
+export function staffName(u: { full_name: string | null; email: string | null }): string {
+  return u.full_name ?? u.email ?? 'Unknown'
+}
+
 export function toInfo(u: UserRow): InvigilatorInfo {
   return {
-    name: u.full_name ?? u.email ?? 'Unknown',
+    name: staffName(u),
     active: u.deleted_at === null && (u.role === 'admin' || u.role === 'instructor'),
   }
 }

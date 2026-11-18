@@ -10,27 +10,18 @@ import { Input } from '@/components/ui/input'
 import { LoadingButton } from '@/components/ui/loading-button'
 import { Textarea } from '@/components/ui/textarea'
 import { useSittingUi } from '../_hooks/sitting-ui-context'
-import { editChanges, type SittingFormValues } from '../_utils/edit-changes'
-import { createSitting } from '../actions/create-sitting'
-import { updateSitting } from '../actions/update-sitting'
+import { defaultWhen, persist, toIsoOrNull } from '../_utils/sitting-form'
 import { type InvigilatorOption, SITTING_BASE, type SittingRow } from '../types'
 import { DialogShell } from './dialog-shell'
 import { OptionSelect } from './option-select'
 import { PopupBody, PopupFooter, PopupHeader } from './popup-parts'
-import { isoToUtcInput, utcInputToIso } from './sitting-labels'
+import { isoToUtcInput } from './sitting-labels'
 
 type Props =
   | { mode: 'new'; sitting?: undefined; invigilators: InvigilatorOption[] }
   | { mode: 'edit'; sitting: SittingRow; invigilators: InvigilatorOption[] }
 
 const NO_INVIGILATOR = 'none'
-
-function defaultWhen(): string {
-  const d = new Date()
-  d.setUTCDate(d.getUTCDate() + 1)
-  d.setUTCHours(9, 0, 0, 0)
-  return d.toISOString().slice(0, 16)
-}
 
 export function SittingFormDialog({ sitting, invigilators }: Readonly<Props>) {
   return (
@@ -40,37 +31,19 @@ export function SittingFormDialog({ sitting, invigilators }: Readonly<Props>) {
   )
 }
 
-/** Create, or update only what changed. Returns the sitting id, `{ id: null }` when nothing changed, or an error message. */
-async function persist(sitting: SittingRow | undefined, iso: string, v: SittingFormValues) {
-  if (sitting) {
-    const changes = editChanges(sitting, iso, v)
-    if (!changes) return { id: null }
-    const r = await updateSitting({ sittingId: sitting.id, ...changes })
-    return r.success ? { id: sitting.id } : { error: r.error }
-  }
-  const r = await createSitting({
-    scheduledAt: iso,
-    mode: v.mode,
-    invigilatorId: v.invigilatorId,
-    ...(v.materials.trim() ? { permittedMaterials: v.materials } : {}),
-  })
-  return r.success ? { id: r.sittingId } : { error: r.error }
-}
-
-function toIsoOrNull(value: string): string | null {
-  try {
-    return utcInputToIso(value)
-  } catch {
-    return null
-  }
-}
-
 function useFormFields(sitting: SittingRow | undefined) {
   const [when, setWhen] = useState(sitting ? isoToUtcInput(sitting.scheduledAt) : defaultWhen())
   const [mode, setMode] = useState<'remote' | 'in_person'>(sitting?.mode ?? 'remote')
   const [invigilatorId, setInvigilatorId] = useState(sitting?.invigilatorId ?? '')
   const [materials, setMaterials] = useState(sitting?.permittedMaterials ?? '')
   return { when, setWhen, mode, setMode, invigilatorId, setInvigilatorId, materials, setMaterials }
+}
+
+/** Drop `dlg` from the current history entry so Back from the new sitting lands on the list. */
+function dropDialogParam() {
+  const url = new URL(window.location.href)
+  url.searchParams.delete('dlg')
+  window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
 }
 
 function useSittingForm(sitting: SittingRow | undefined) {
@@ -102,7 +75,8 @@ function useSittingForm(sitting: SittingRow | undefined) {
     }
     setCreated(true)
     toast.success('Sitting created')
-    router.replace(`${SITTING_BASE}/${r.id}`)
+    dropDialogParam()
+    router.push(`${SITTING_BASE}/${r.id}`)
     return true
   }
 
@@ -123,16 +97,7 @@ function useSittingForm(sitting: SittingRow | undefined) {
     })
   }
 
-  return {
-    pending,
-    locked,
-    created,
-    valid,
-    error,
-    submit,
-    close,
-    fields,
-  }
+  return { pending, locked, created, valid, error, submit, close, fields }
 }
 
 /** The assigned invigilator stays selectable when no longer active. */

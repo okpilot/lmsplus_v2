@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const m = vi.hoisted(() => ({
   create: vi.fn(),
@@ -44,6 +44,7 @@ const edit = (status: string) =>
   )
 
 beforeEach(() => vi.resetAllMocks())
+afterEach(() => vi.restoreAllMocks())
 
 describe('SittingFormDialog', () => {
   it('disables Save in create mode until the form is valid', () => {
@@ -53,6 +54,8 @@ describe('SittingFormDialog', () => {
   })
 
   it('calls createSitting once on a double Save and keeps Save and Cancel disabled after success', async () => {
+    window.history.replaceState(null, '', '/app/admin/internal-exams?tab=sittings&dlg=new')
+    const replaceState = vi.spyOn(window.history, 'replaceState')
     m.create.mockResolvedValue({ success: true, sittingId: SID })
     const user = userEvent.setup()
     render(<SittingFormDialog mode="new" invigilators={invigilators as never} />)
@@ -61,7 +64,12 @@ describe('SittingFormDialog', () => {
     const save = screen.getByRole('button', { name: 'Save' })
     await user.click(save)
     await user.click(save)
-    await waitFor(() => expect(m.replace).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(m.push).toHaveBeenCalledTimes(1))
+    expect(m.push).toHaveBeenCalledWith(`/app/admin/internal-exams/sittings/${SID}`)
+    expect(replaceState).toHaveBeenCalledTimes(1)
+    expect(replaceState.mock.calls[0]?.[2]).not.toContain('dlg=')
+    expect(replaceState.mock.calls[0]?.[2]).toContain('tab=sittings')
+    expect(m.replace).not.toHaveBeenCalled()
     expect(m.create).toHaveBeenCalledTimes(1)
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled()
