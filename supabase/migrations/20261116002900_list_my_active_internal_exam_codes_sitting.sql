@@ -36,8 +36,8 @@ BEGIN
          es.id, es.scheduled_at, es.mode, es.status, es.permitted_materials
   FROM public.internal_exam_codes iec
   LEFT JOIN public.easa_subjects s ON s.id = iec.subject_id
-  LEFT JOIN public.exam_sitting_entries e ON e.id = iec.sitting_entry_id
-  LEFT JOIN public.exam_sittings es ON es.id = e.sitting_id
+  LEFT JOIN public.exam_sitting_entries e ON e.id = iec.sitting_entry_id AND e.deleted_at IS NULL
+  LEFT JOIN public.exam_sittings es ON es.id = e.sitting_id AND es.deleted_at IS NULL
   WHERE iec.student_id = v_user_id
     AND iec.consumed_at IS NULL
     AND iec.voided_at IS NULL
