@@ -237,6 +237,18 @@ describe('ensureExamConfigs', () => {
     expect(inserted).toHaveLength(0)
   })
 
+  it('inserts nothing when a later course already has two enabled configs', async () => {
+    const { inserted } = fakeConfigAdmin({
+      subjects: [ppl(1), ppl(2), rt(1), rt(2)],
+      configs: [
+        { subject_id: 'rt-1', enabled: true, deleted_at: null },
+        { subject_id: 'rt-2', enabled: true, deleted_at: null },
+      ],
+    })
+    await ensureExamConfigs('o')
+    expect(inserted).toHaveLength(0)
+  })
+
   it('never reuses a subject that already has a disabled or deleted config row', async () => {
     const { inserted } = fakeConfigAdmin({
       subjects: [ppl(1), ppl(2), ppl(3)],

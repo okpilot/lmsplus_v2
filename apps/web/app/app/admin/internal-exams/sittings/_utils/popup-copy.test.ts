@@ -198,6 +198,15 @@ describe('issue copy (AC 42, 43)', () => {
     expect(b.detail).toBe('Re-issued 2 expired codes. 1 exam already had a code.')
   })
 
+  it('is a caution when nothing was issued', () => {
+    const b = issuePopupBanner(
+      { ...done, issued: 0, reissuedAfterExpiry: 0, skippedAlreadyIssued: 2 },
+      0,
+    )
+    expect(b.tone).toBe('caution')
+    expect(b.title).toBe('Issued 0 codes.')
+  })
+
   it('is a caution with the skipped reasons when something was skipped', () => {
     const b = issuePopupBanner({ ...done, skippedPassed: 2, skippedDeactivated: 1 }, 3)
     expect(b.tone).toBe('caution')

@@ -129,7 +129,7 @@ export function issuePopupBanner(d: IssueCounts, previewTotal: number | null): R
     previewTotal !== null && previewTotal !== d.issued ? 'Counts changed since the preview.' : '',
   ].filter(Boolean)
   return {
-    tone: skippedTotal > 0 ? 'caution' : 'success',
+    tone: skippedTotal > 0 || d.issued === 0 ? 'caution' : 'success',
     title: `Issued ${plural(d.issued, 'code')}.`,
     ...(parts.length > 0 ? { detail: parts.join(' ') } : {}),
   }
