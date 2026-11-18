@@ -13,8 +13,7 @@ function useFormFields(sitting: SittingRow | undefined) {
   const [when, setWhen] = useState(sitting ? isoToUtcInput(sitting.scheduledAt) : defaultWhen())
   const [mode, setMode] = useState<'remote' | 'in_person'>(sitting?.mode ?? 'remote')
   const [invigilatorId, setInvigilatorId] = useState(sitting?.invigilatorId ?? '')
-  const [materials, setMaterials] = useState(sitting?.permittedMaterials ?? '')
-  return { when, setWhen, mode, setMode, invigilatorId, setInvigilatorId, materials, setMaterials }
+  return { when, setWhen, mode, setMode, invigilatorId, setInvigilatorId }
 }
 
 export type SittingFormFields = ReturnType<typeof useFormFields>

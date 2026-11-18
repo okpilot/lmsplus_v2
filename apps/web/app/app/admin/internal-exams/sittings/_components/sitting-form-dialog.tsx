@@ -83,7 +83,7 @@ function SittingForm({
         />
         {locked && (
           <p className="text-caption text-muted-foreground">
-            Locked once open: time, mode and materials. The invigilator can still be changed.
+            Locked once open: time and mode. The invigilator can still be changed.
           </p>
         )}
         <FieldError role="alert">{error}</FieldError>

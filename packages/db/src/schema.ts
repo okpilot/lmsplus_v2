@@ -174,7 +174,6 @@ export const CreateExamSittingSchema = z.object({
   scheduledAt: SittingTimeSchema,
   mode: SittingModeSchema,
   invigilatorId: z.uuid(),
-  permittedMaterials: z.string().trim().max(1000).optional(),
 })
 
 export const UpdateExamSittingSchema = z.object({
@@ -182,7 +181,6 @@ export const UpdateExamSittingSchema = z.object({
   scheduledAt: SittingTimeSchema.optional(),
   mode: SittingModeSchema.optional(),
   invigilatorId: z.uuid().optional(),
-  permittedMaterials: z.string().trim().max(1000).optional(),
 })
 
 export const ExamSittingIdSchema = z.object({ sittingId: z.uuid() })
@@ -231,6 +229,12 @@ export const IssueSittingCodesSchema = z.object({
   sittingId: z.uuid(),
   userIds: uuidList(500).min(1).optional(),
   entryIds: uuidList(500).min(1).optional(),
+})
+
+export const VoidSittingCodeSchema = z.object({
+  sittingId: z.uuid(),
+  codeId: z.uuid(),
+  reason: z.string().trim().min(1).max(500),
 })
 
 export const SubjectEligibilityQuerySchema = z.object({

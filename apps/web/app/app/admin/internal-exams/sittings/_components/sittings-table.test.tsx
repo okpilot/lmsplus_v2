@@ -37,7 +37,6 @@ const row = (over: Record<string, unknown> = {}) => ({
   invigilatorId: 'inv-1',
   invigilatorName: 'Ann Instructor',
   invigilatorActive: true,
-  permittedMaterials: null,
   startedAt: null,
   closedAt: null,
   candidates: 5,

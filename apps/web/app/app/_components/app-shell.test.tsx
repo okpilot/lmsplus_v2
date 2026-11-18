@@ -56,6 +56,16 @@ describe('AppShell', () => {
     expect(within(aside as HTMLElement).getByTestId('sidebar-nav')).toBeInTheDocument()
   })
 
+  it('hides the sidebar, and unpads the content, when printing', () => {
+    mockUsePathname.mockReturnValue('/app/dashboard')
+    render(<AppShell>Content</AppShell>)
+
+    expect(screen.getByTestId('sidebar-nav').closest('aside')?.className).toContain('print:hidden')
+    const inner = screen.getByText('Content')
+    expect(inner.className).toContain('print:max-w-none')
+    expect(inner.parentElement?.className).toContain('print:p-0')
+  })
+
   it('draws the desktop sidebar as a card panel with a right border', () => {
     mockUsePathname.mockReturnValue('/app/dashboard')
     render(<AppShell>Content</AppShell>)

@@ -52,4 +52,15 @@ describe('useSittingAction', () => {
     act(() => result.current.clearError())
     expect(result.current.error).toBeNull()
   })
+
+  it('reports a failure as a danger banner when errorAsBanner is set, leaving error empty', async () => {
+    const { result } = renderHook(() => useSittingAction())
+    act(() =>
+      result.current.run(async () => ({ success: false as const, error: 'Nope' }), vi.fn(), {
+        errorAsBanner: true,
+      }),
+    )
+    await waitFor(() => expect(m.toastError).toHaveBeenCalledWith('Nope'))
+    expect(result.current.error).toBeNull()
+  })
 })

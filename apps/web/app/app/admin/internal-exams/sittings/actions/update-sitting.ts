@@ -21,7 +21,6 @@ export async function updateSitting(
     ...(v.scheduledAt ? { p_scheduled_at: v.scheduledAt } : {}),
     ...(v.mode ? { p_mode: v.mode } : {}),
     ...(v.invigilatorId ? { p_invigilator_id: v.invigilatorId } : {}),
-    ...(v.permittedMaterials === undefined ? {} : { p_permitted_materials: v.permittedMaterials }),
   })
   if (error) return sittingFailure(error.message, 'Failed to update sitting')
   const row = firstRow(data)

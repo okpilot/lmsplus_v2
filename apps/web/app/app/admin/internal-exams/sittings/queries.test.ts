@@ -186,6 +186,37 @@ describe('getSummary', () => {
   })
 })
 
+describe('getSummary (people counts)', () => {
+  it('maps deactivatedCandidates, entriesWithAttempt and pendingRemovalNotices', async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          status: 'open',
+          scheduled_at: '2026-11-20T09:30:00Z',
+          candidates: 4,
+          deactivated_candidates: 2,
+          entries: 6,
+          entries_without_code: 1,
+          codes_issued: 5,
+          entries_with_attempt: 3,
+          pending_removal_notices: 4,
+          day_ended: false,
+          attempts_running: 0,
+          entries_not_started: 0,
+          students_not_started: 0,
+          entries_issuable: 1,
+        },
+      ],
+      error: null,
+    })
+    expect(await getSummary(SID)).toMatchObject({
+      deactivatedCandidates: 2,
+      entriesWithAttempt: 3,
+      pendingRemovalNotices: 4,
+    })
+  })
+})
+
 describe('getSitting', () => {
   it('reads a cancelled sitting scoped by organization and id', async () => {
     const sitting = chain({
@@ -195,7 +226,6 @@ describe('getSitting', () => {
         mode: 'in_person',
         status: 'cancelled',
         invigilator_id: 'inv-1',
-        permitted_materials: 'Notes',
         started_at: null,
         closed_at: null,
         ended_automatically: false,

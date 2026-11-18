@@ -10,7 +10,7 @@ const COPY: Record<string, string> = {
   sitting_not_found: 'Sitting not found',
   sitting_closed: 'This sitting is closed and cannot be changed.',
   sitting_day_ended: "This sitting's day has ended.",
-  sitting_not_editable: 'Time, mode and materials cannot be changed once the sitting is open.',
+  sitting_not_editable: 'Time and mode cannot be changed once the sitting is open.',
   sitting_not_scheduled: 'This sitting has already been started.',
   sitting_not_due:
     'Too early: a sitting can start from its UTC day. Edit the date to run it earlier.',
@@ -66,5 +66,47 @@ describe('sittingFailure', () => {
       success: false,
       error: 'Failed to update sitting',
     })
+  })
+})
+
+const PEOPLE_COPY: Record<string, string> = {
+  too_many_candidates: 'A sitting can hold at most 500 people.',
+  too_many_entries: 'A sitting can hold at most 2000 exams.',
+  subject_not_found: 'An exam you picked no longer exists. Reload and try again.',
+  exam_config_required: 'An exam you picked is not set up as an internal exam.',
+  candidate_has_attempt:
+    'Someone you selected has taken an exam. History is permanent: they cannot be removed.',
+  candidate_not_found: 'Someone you selected is no longer in this sitting. Reload the page.',
+  entry_has_attempt: 'This exam has been taken. It cannot be removed.',
+  entry_not_found: 'This exam is no longer in the sitting. Reload the page.',
+  student_not_found: 'A person you selected no longer exists. Reload and try again.',
+  code_generation_failed: 'Could not generate a unique code. Try again.',
+  group_not_found: 'This group no longer exists.',
+}
+
+describe('SITTING_RPC_ERRORS (people tokens)', () => {
+  it.each(Object.entries(PEOPLE_COPY))('maps token %s to its copy', (token, copy) => {
+    expect(SITTING_RPC_ERRORS[token]).toBe(copy)
+  })
+
+  it('has a copy line for every token the people migrations raise', () => {
+    const out = execFileSync(
+      'git',
+      [
+        'grep',
+        '-ohE',
+        "RAISE EXCEPTION '[a-z_]+'",
+        '--',
+        'supabase/migrations/20261116001[789]*.sql',
+        'supabase/migrations/20261116002[345]*.sql',
+        'supabase/migrations/20261117000[456789]*.sql',
+        'supabase/migrations/2026111600[0][568]*.sql',
+        'supabase/migrations/2026111700[0][123]*.sql',
+      ],
+      { cwd: `${__dirname}/../../../../../../../..`, encoding: 'utf8' },
+    )
+    const tokens = [...new Set([...out.matchAll(/'([a-z_]+)'/g)].map((m) => m[1] as string))]
+    expect(tokens.length).toBeGreaterThan(10)
+    for (const t of tokens) expect(SITTING_RPC_ERRORS, t).toHaveProperty(t)
   })
 })

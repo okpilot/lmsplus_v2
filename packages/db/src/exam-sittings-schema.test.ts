@@ -30,21 +30,10 @@ describe('AC-55 CreateExamSittingSchema', () => {
         .success,
     ).toBe(true)
   })
-  it('rejects permittedMaterials of 1001 chars and accepts 1000', () => {
-    expect(
-      parse('CreateExamSittingSchema', { ...create, permittedMaterials: 'x'.repeat(1001) }).success,
-    ).toBe(false)
-    expect(
-      parse('CreateExamSittingSchema', { ...create, permittedMaterials: 'x'.repeat(1000) }).success,
-    ).toBe(true)
-  })
-  it('trims permittedMaterials before the length check', () => {
-    const r = parse('CreateExamSittingSchema', {
-      ...create,
-      permittedMaterials: `  ${'x'.repeat(1000)}  `,
-    })
+  it('strips an extra permittedMaterials key', () => {
+    const r = parse('CreateExamSittingSchema', { ...create, permittedMaterials: 'Calculator' })
     expect(r.success).toBe(true)
-    expect(r.data?.permittedMaterials).toBe('x'.repeat(1000))
+    expect(r.data).not.toHaveProperty('permittedMaterials')
   })
   it('rejects an unknown mode', () => {
     expect(parse('CreateExamSittingSchema', { ...create, mode: 'x' }).success).toBe(false)
@@ -52,14 +41,10 @@ describe('AC-55 CreateExamSittingSchema', () => {
 })
 
 describe('AC-55 UpdateExamSittingSchema', () => {
-  it('accepts an empty permittedMaterials (clear) and rejects 1001 chars', () => {
-    expect(
-      parse('UpdateExamSittingSchema', { sittingId: SID, permittedMaterials: '' }).success,
-    ).toBe(true)
-    expect(
-      parse('UpdateExamSittingSchema', { sittingId: SID, permittedMaterials: 'x'.repeat(1001) })
-        .success,
-    ).toBe(false)
+  it('strips an extra permittedMaterials key', () => {
+    const r = parse('UpdateExamSittingSchema', { sittingId: SID, permittedMaterials: 'x' })
+    expect(r.success).toBe(true)
+    expect(r.data).not.toHaveProperty('permittedMaterials')
   })
   it('rejects a scheduledAt without an offset', () => {
     expect(
@@ -231,6 +216,25 @@ describe('AC-66 IssueSittingCodesSchema', () => {
         parse('IssueSittingCodesSchema', { sittingId: SID, [key]: [uid(7), uid(7)] }).success,
       ).toBe(false)
     }
+  })
+})
+
+describe('VoidSittingCodeSchema', () => {
+  const ok = { sittingId: SID, codeId: uid(2), reason: 'lost' }
+  it('accepts a valid input and trims the reason', () => {
+    const r = parse('VoidSittingCodeSchema', { ...ok, reason: '  lost  ' })
+    expect(r.success).toBe(true)
+    expect(r.data?.reason).toBe('lost')
+  })
+  it('rejects a reason that is blank after trim', () => {
+    expect(parse('VoidSittingCodeSchema', { ...ok, reason: '   ' }).success).toBe(false)
+  })
+  it('rejects a 501-character reason and accepts 500', () => {
+    expect(parse('VoidSittingCodeSchema', { ...ok, reason: 'x'.repeat(501) }).success).toBe(false)
+    expect(parse('VoidSittingCodeSchema', { ...ok, reason: 'x'.repeat(500) }).success).toBe(true)
+  })
+  it('rejects a non-uuid code id', () => {
+    expect(parse('VoidSittingCodeSchema', { ...ok, codeId: 'nope' }).success).toBe(false)
   })
 })
 

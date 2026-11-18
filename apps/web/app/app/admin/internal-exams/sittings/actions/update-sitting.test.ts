@@ -38,7 +38,7 @@ describe('updateSitting', () => {
     expect(params.p_invigilator_id).toBe(INV)
     expect(params.p_scheduled_at ?? null).toBeNull()
     expect(params.p_mode ?? null).toBeNull()
-    expect(params.p_permitted_materials ?? null).toBeNull()
+    expect('p_permitted_materials' in params).toBe(false)
   })
 
   it('succeeds and revalidates the list and the sitting page', async () => {
@@ -50,10 +50,7 @@ describe('updateSitting', () => {
   })
 
   it.each([
-    [
-      'sitting_not_editable',
-      'Time, mode and materials cannot be changed once the sitting is open.',
-    ],
+    ['sitting_not_editable', 'Time and mode cannot be changed once the sitting is open.'],
     ['sitting_closed', 'This sitting is closed and cannot be changed.'],
     ['sitting_day_ended', "This sitting's day has ended."],
   ])('maps %s to its copy', async (token, copy) => {

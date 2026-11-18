@@ -59,4 +59,18 @@ describe('ResultBanner', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
     expect(screen.queryByRole('alert')).toBeNull()
   })
+
+  it('turns a plain success into a toast without a banner', () => {
+    ui()
+    act(() => setBannerRef({ tone: 'success', title: 'Removed 1.' }))
+    expect(screen.queryByRole('status')).toBeNull()
+  })
+
+  it('shows one banner at a time', () => {
+    ui()
+    act(() => setBannerRef({ tone: 'caution', title: 'First' }))
+    act(() => setBannerRef({ tone: 'danger', title: 'Second' }))
+    expect(screen.queryByText('First')).toBeNull()
+    expect(screen.getByText('Second')).toBeInTheDocument()
+  })
 })

@@ -15,7 +15,6 @@ const VALID = {
   scheduledAt: '2026-11-20T09:30:00.000Z',
   mode: 'remote',
   invigilatorId: INV,
-  permittedMaterials: 'Calculator',
 }
 
 beforeEach(() => {
@@ -43,7 +42,6 @@ describe('createSitting', () => {
         p_scheduled_at: VALID.scheduledAt,
         p_mode: 'remote',
         p_invigilator_id: INV,
-        p_permitted_materials: 'Calculator',
       }),
     )
   })

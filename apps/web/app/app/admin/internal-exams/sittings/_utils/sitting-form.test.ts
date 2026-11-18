@@ -15,13 +15,11 @@ const sitting = {
   scheduledAt: '2026-11-20T09:30:00.000Z',
   mode: 'remote',
   invigilatorId: INV,
-  permittedMaterials: null,
 } as never
 const values = {
   when: '2026-11-20T09:30',
   mode: 'remote',
   invigilatorId: INV,
-  materials: '',
 } as const
 
 beforeEach(() => vi.resetAllMocks())
@@ -40,18 +38,11 @@ describe('toIsoOrNull', () => {
 })
 
 describe('persist', () => {
-  it('creates with materials only when non-blank and returns the new id', async () => {
+  it('creates and returns the new id', async () => {
     m.create.mockResolvedValue({ success: true, sittingId: SID })
     const iso = '2026-11-21T10:00:00.000Z'
-    expect(await persist(undefined, iso, { ...values, materials: ' ' })).toEqual({ id: SID })
+    expect(await persist(undefined, iso, values)).toEqual({ id: SID })
     expect(m.create).toHaveBeenCalledWith({ scheduledAt: iso, mode: 'remote', invigilatorId: INV })
-    await persist(undefined, iso, { ...values, materials: 'Calc' })
-    expect(m.create).toHaveBeenLastCalledWith({
-      scheduledAt: iso,
-      mode: 'remote',
-      invigilatorId: INV,
-      permittedMaterials: 'Calc',
-    })
   })
 
   it('returns the create error', async () => {
