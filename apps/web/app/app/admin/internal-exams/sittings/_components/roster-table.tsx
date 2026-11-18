@@ -24,7 +24,7 @@ function emptyText(q: string, show: ShowValue): string {
 }
 
 function Head({ rows, editable }: Readonly<Pick<Props, 'rows' | 'editable'>>) {
-  const { rosterIds, setRosterPage, isRefreshing } = useSittingUi()
+  const { rosterIds, setRosterPage } = useSittingUi()
   const pageIds = rows.map((r) => r.userId)
   const ticked = pageIds.filter((id) => rosterIds.includes(id)).length
   const all = ticked === pageIds.length
@@ -37,7 +37,6 @@ function Head({ rows, editable }: Readonly<Pick<Props, 'rows' | 'editable'>>) {
               aria-label={`Select all ${rows.length} shown`}
               checked={all}
               indeterminate={ticked > 0 && !all}
-              disabled={isRefreshing}
               onCheckedChange={(c) => setRosterPage(pageIds, c === true)}
             />
           </TableHead>

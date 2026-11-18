@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const { mockGetAdminClient } = vi.hoisted(() => ({ mockGetAdminClient: vi.fn() }))
 vi.mock('./supabase', () => ({ getAdminClient: mockGetAdminClient }))
 
-import { cleanupE2eExamSittings } from './exam-sitting-cleanup'
+import { cleanupE2eExamSittings, markE2eSitting } from './exam-sitting-cleanup'
 import { EXAM_SITTING_E2E_PREFIX } from './exam-sitting-markers'
 
 type Call = { table: string; method: string; args: unknown[] }
@@ -190,5 +190,26 @@ describe('cleanupE2eExamSittings (seeded sittings)', () => {
     await cleanupE2eExamSittings()
     expect(deleteUser).toHaveBeenCalledWith('u1')
     expect(deleteUser).toHaveBeenCalledWith('u2')
+  })
+})
+
+describe('markE2eSitting', () => {
+  it('writes the E2E-SIT- marker to the sitting id', async () => {
+    const calls = mockTables({ exam_sittings: [{ data: [{ id: 's1' }], error: null }] })
+    await markE2eSitting('s1')
+    const upd = calls.find((c) => c.method === 'update')
+    const patch = (upd?.args[0] ?? {}) as { permitted_materials?: string }
+    expect(patch.permitted_materials).toMatch(new RegExp(`^${EXAM_SITTING_E2E_PREFIX}`))
+    expect(calls.find((c) => c.method === 'eq')?.args).toEqual(['id', 's1'])
+  })
+
+  it('throws on a database error', async () => {
+    mockTables({ exam_sittings: [{ data: null, error: { message: 'boom' } }] })
+    await expect(markE2eSitting('s1')).rejects.toThrow('markE2eSitting: boom')
+  })
+
+  it('throws when no row matched', async () => {
+    mockTables({ exam_sittings: [{ data: [], error: null }] })
+    await expect(markE2eSitting('s1')).rejects.toThrow('no sitting s1')
   })
 })

@@ -1,5 +1,4 @@
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import type { SittingFormFields as Fields } from '../_hooks/use-sitting-form'
 import type { InvigilatorOption } from '../types'
 import { OptionSelect } from './option-select'
@@ -50,20 +49,6 @@ export function SittingFormFields({ fields: f, invigilators, pending, locked }: 
         ]}
         onChange={(v) => f.setInvigilatorId(v === NO_INVIGILATOR ? '' : v)}
       />
-      <label
-        htmlFor="sitting-materials"
-        className="block space-y-1 text-label text-muted-foreground"
-      >
-        Permitted materials (optional)
-        <Textarea
-          id="sitting-materials"
-          value={f.materials}
-          maxLength={1000}
-          disabled={off}
-          className="min-w-0"
-          onChange={(e) => f.setMaterials(e.target.value)}
-        />
-      </label>
     </>
   )
 }

@@ -58,7 +58,7 @@ export function PersonRow({
   onToggle,
   onRemove,
 }: Readonly<Props>) {
-  const { rosterIds, toggleRoster, isRefreshing } = useSittingUi()
+  const { rosterIds, toggleRoster } = useSittingUi()
   const name = row.name || row.email
   const ticked = rosterIds.includes(row.userId)
   return (
@@ -69,7 +69,6 @@ export function PersonRow({
             <Checkbox
               aria-label={`Select ${name}`}
               checked={ticked}
-              disabled={isRefreshing}
               onCheckedChange={() => toggleRoster(row.userId)}
             />
           </TableCell>

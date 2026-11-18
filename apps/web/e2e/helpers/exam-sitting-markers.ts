@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 
-/** Marker prefix on `exam_sittings.permitted_materials` for rows created by sitting E2E specs. */
+/** Marker prefix on `exam_sittings.permitted_materials` written by `markE2eSitting`, `seedSitting` and the red-team helpers. */
 export const EXAM_SITTING_E2E_PREFIX = 'E2E-SIT-'
 
 /** Unique marked `permitted_materials` value (<= 1000 chars). */

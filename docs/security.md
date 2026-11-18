@@ -760,7 +760,7 @@ CREATE POLICY audit_read_admins ON audit_events
 | `student_group.members_added` | Admin adds students to a group (`add_student_group_members()` RPC, migration `20261115000300`; metadata `{user_ids}`; none when 0 added) |
 | `student_group.members_removed` | Admin removes students from a group (`remove_student_group_members()` RPC; metadata `{user_ids}`; none when 0 removed) |
 | `exam_sitting.created` | Admin creates a sitting (`create_exam_sitting()`, #1777; metadata `{scheduled_at, mode, invigilator_id, permitted_materials_set}`) |
-| `exam_sitting.updated` | Admin changes time, mode or materials (`update_exam_sitting()`; metadata `{scheduled_at:{old,new}, mode:{old,new}, permitted_materials_changed, codes_restamped}`; none when nothing changed) |
+| `exam_sitting.updated` | Admin changes time, mode or materials (materials not sent by product code, Decision 259) (`update_exam_sitting()`; metadata `{scheduled_at:{old,new}, mode:{old,new}, permitted_materials_changed, codes_restamped}`; none when nothing changed) |
 | `exam_sitting.invigilator_reassigned` | Invigilator changed (`update_exam_sitting()`; metadata `{from, to}`) |
 | `exam_sitting.started` | `start_exam_sitting()`; metadata `{codes_restamped, invigilator_active, entries_without_code}` |
 | `exam_sitting.closed` | `close_exam_sitting()` or lazy auto-close; metadata `{codes_voided, attempts_running, absent_count, automatic}` |

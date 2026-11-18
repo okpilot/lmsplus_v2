@@ -10,7 +10,7 @@ const COPY: Record<string, string> = {
   sitting_not_found: 'Sitting not found',
   sitting_closed: 'This sitting is closed and cannot be changed.',
   sitting_day_ended: "This sitting's day has ended.",
-  sitting_not_editable: 'Time, mode and materials cannot be changed once the sitting is open.',
+  sitting_not_editable: 'Time and mode cannot be changed once the sitting is open.',
   sitting_not_scheduled: 'This sitting has already been started.',
   sitting_not_due:
     'Too early: a sitting can start from its UTC day. Edit the date to run it earlier.',

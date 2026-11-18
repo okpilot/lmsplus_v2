@@ -41,7 +41,7 @@ export function ResultBanner() {
         <Icon aria-hidden="true" className="size-icon shrink-0" />
         <span className="text-foreground">{banner.title}</span>
       </AlertTitle>
-      {(banner.detail || banner.lines?.length) && (
+      {(banner.detail || (banner.lines?.length ?? 0) > 0) && (
         <AlertDescription>
           {banner.detail && <p className="text-foreground">{banner.detail}</p>}
           {banner.lines && <Lines lines={banner.lines} />}

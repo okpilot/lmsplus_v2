@@ -31,7 +31,6 @@ export async function persist(sitting: SittingRow | undefined, iso: string, v: S
     scheduledAt: iso,
     mode: v.mode,
     invigilatorId: v.invigilatorId,
-    ...(v.materials.trim() ? { permittedMaterials: v.materials } : {}),
   })
   return r.success ? { id: r.sittingId } : { error: r.error }
 }

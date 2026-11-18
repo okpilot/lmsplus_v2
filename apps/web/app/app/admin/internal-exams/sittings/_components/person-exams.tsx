@@ -33,7 +33,6 @@ export function PersonExams({ sittingId, person: r, editable, span }: Readonly<P
                 <PersonExamItem
                   key={e.entryId}
                   sittingId={sittingId}
-                  userId={r.userId}
                   personName={r.name || r.email}
                   deactivated={r.deactivated}
                   entry={e}

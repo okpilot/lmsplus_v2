@@ -11,13 +11,11 @@ const row = (status: string) =>
     scheduledAt: ISO,
     mode: 'remote',
     invigilatorId: INV,
-    permittedMaterials: 'Calculator',
   }) as unknown as SittingRow
 const same = {
   when: '2026-11-20T09:30',
   mode: 'remote' as const,
   invigilatorId: INV,
-  materials: 'Calculator',
 }
 
 describe('editChanges', () => {
@@ -32,19 +30,12 @@ describe('editChanges', () => {
         when: '2026-11-21T10:00',
         mode: 'in_person',
         invigilatorId: INV2,
-        materials: 'Map',
       }),
     ).toEqual({
       scheduledAt: iso,
       mode: 'in_person',
       invigilatorId: INV2,
-      permittedMaterials: 'Map',
     })
-  })
-
-  it('treats blank materials as unchanged when the sitting has none', () => {
-    const s = { ...row('scheduled'), permittedMaterials: null } as SittingRow
-    expect(editChanges(s, ISO, { ...same, materials: '  ' })).toBeNull()
   })
 
   it('sends only the invigilator once the sitting is no longer scheduled', () => {
@@ -53,12 +44,11 @@ describe('editChanges', () => {
         when: '2030-01-01T00:00',
         mode: 'in_person',
         invigilatorId: INV2,
-        materials: 'x',
       }),
     ).toEqual({ invigilatorId: INV2 })
   })
 
   it('returns null for a locked sitting when only locked fields changed', () => {
-    expect(editChanges(row('open'), ISO, { ...same, mode: 'in_person', materials: 'x' })).toBeNull()
+    expect(editChanges(row('open'), ISO, { ...same, mode: 'in_person' })).toBeNull()
   })
 })

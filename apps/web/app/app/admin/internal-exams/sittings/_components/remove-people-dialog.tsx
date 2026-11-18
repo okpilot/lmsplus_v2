@@ -14,7 +14,7 @@ type Props = {
 }
 
 export function RemovePeopleDialog({ sittingId, userIds, onClose }: Readonly<Props>) {
-  const { clearRoster } = useSittingUi()
+  const { setRosterPage } = useSittingUi()
   const { pending, error, run, clearError } = useSittingAction()
   return (
     <ConfirmDialog
@@ -34,7 +34,7 @@ export function RemovePeopleDialog({ sittingId, userIds, onClose }: Readonly<Pro
           () => removeCandidates({ sittingId, userIds: userIds ?? [] }),
           (d) => {
             onClose()
-            clearRoster()
+            setRosterPage(userIds ?? [], false)
             return {
               tone: 'success',
               title: `Removed ${d.removed}.`,

@@ -73,6 +73,14 @@ describe('ResultBanner', () => {
     expect(screen.getByText('Bob · AGK: not enrolled')).toBeInTheDocument()
   })
 
+  it('renders no stray 0 or description for an empty lines array', () => {
+    ui()
+    act(() => setBannerRef({ tone: 'caution', title: 'Skipped', lines: [] }))
+    const status = screen.getByRole('status')
+    expect(status.textContent).not.toContain('0')
+    expect(status.querySelector('ul')).toBeNull()
+  })
+
   it('shows at most 50 lines, then "and N more"', () => {
     ui()
     const lines = Array.from({ length: 60 }, (_, i) => `line-${i}`)

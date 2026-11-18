@@ -421,6 +421,48 @@ describe('PeopleSection remove people', () => {
     )
   })
 
+  it('unticks only the removed people after success', async () => {
+    m.removeCandidates.mockResolvedValue({
+      success: true,
+      removed: 1,
+      entriesRemoved: 1,
+      codesVoided: 1,
+    })
+    ui({ rows: [person(1), person(2), person(3)], total: 3 })
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('checkbox', { name: 'Select Person 1' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Select Person 2' }))
+    await user.click(screen.getByRole('button', { name: 'Actions for Person 3' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Remove from sitting' }))
+    const dialog = await screen.findByRole('alertdialog')
+    await user.click(within(dialog).getByRole('button', { name: 'Remove' }))
+    await waitFor(() =>
+      expect(m.removeCandidates).toHaveBeenCalledWith({ sittingId: 'sit-1', userIds: ['u3'] }),
+    )
+    await waitFor(() => expect(m.toastSuccess).toHaveBeenCalled())
+    expect(screen.getByRole('checkbox', { name: 'Select Person 1' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Select Person 2' })).toBeChecked()
+  })
+
+  it('unticks the removed people after a bulk remove', async () => {
+    m.removeCandidates.mockResolvedValue({
+      success: true,
+      removed: 2,
+      entriesRemoved: 2,
+      codesVoided: 2,
+    })
+    ui({ rows: [person(1), person(2)] })
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('checkbox', { name: 'Select Person 1' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Select Person 2' }))
+    await user.click(screen.getByRole('button', { name: 'Remove' }))
+    const dialog = await screen.findByRole('alertdialog')
+    await user.click(within(dialog).getByRole('button', { name: 'Remove' }))
+    await waitFor(() => expect(m.toastSuccess).toHaveBeenCalled())
+    expect(screen.getByRole('checkbox', { name: 'Select Person 1' })).not.toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Select Person 2' })).not.toBeChecked()
+  })
+
   it('opens the same confirm from the row menu with Remove from sitting', async () => {
     ui()
     const user = userEvent.setup()

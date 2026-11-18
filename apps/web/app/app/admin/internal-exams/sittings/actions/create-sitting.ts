@@ -16,7 +16,6 @@ export async function createSitting(
     p_scheduled_at: v.scheduledAt,
     p_mode: v.mode,
     p_invigilator_id: v.invigilatorId,
-    ...(v.permittedMaterials ? { p_permitted_materials: v.permittedMaterials } : {}),
   })
   if (error) return sittingFailure(error.message, 'Failed to create sitting')
   const sittingId = data?.[0]?.sitting_id

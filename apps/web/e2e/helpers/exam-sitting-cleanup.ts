@@ -2,6 +2,7 @@ import {
   EXAM_SITTING_E2E_PREFIX,
   EXAM_SITTING_SEED_EMAIL_PREFIX,
   EXAM_SITTING_SEED_PREFIX,
+  makeSittingE2eMaterials,
 } from './exam-sitting-markers'
 import { getAdminClient } from './supabase'
 
@@ -113,4 +114,15 @@ async function cleanupEmptySittings(): Promise<void> {
   if (deleteError) throw new Error(`cleanupE2eExamSittings delete: ${deleteError.message}`)
   const n = deleted?.length ?? 0
   if (n > 0) console.log(`cleanupE2eExamSittings: deleted ${n} sitting(s)`)
+}
+
+/** Marks a sitting created through the UI so the cleanup finds it (service role, test data only). Throws on error or when no row matched. */
+export async function markE2eSitting(id: string): Promise<void> {
+  const { data, error } = await getAdminClient()
+    .from('exam_sittings')
+    .update({ permitted_materials: makeSittingE2eMaterials() })
+    .eq('id', id)
+    .select('id')
+  if (error) throw new Error(`markE2eSitting: ${error.message}`)
+  if ((data ?? []).length === 0) throw new Error(`markE2eSitting: no sitting ${id}`)
 }

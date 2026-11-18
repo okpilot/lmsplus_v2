@@ -31,7 +31,6 @@ const sitting = (status: string) => ({
   scheduledAt: '2026-11-20T09:30:00.000Z',
   mode: 'remote',
   invigilatorId: INV,
-  permittedMaterials: 'Calculator',
   invigilatorName: 'Ann Instructor',
 })
 
@@ -167,14 +166,12 @@ describe('SittingFormDialog', () => {
     expect(await screen.findByRole('option', { name: 'Old Ann (inactive)' })).toBeInTheDocument()
   })
 
-  it('locks time and materials once the sitting is open', () => {
+  it('locks time and mode once the sitting is open', () => {
     edit('open')
     expect(screen.getByLabelText('Date and time (UTC)')).toBeDisabled()
-    expect(screen.getByLabelText(/Permitted materials/)).toBeDisabled()
+    expect(screen.getByRole('combobox', { name: 'Mode' })).toBeDisabled()
     expect(
-      screen.getByText(
-        'Locked once open: time, mode and materials. The invigilator can still be changed.',
-      ),
+      screen.getByText('Locked once open: time and mode. The invigilator can still be changed.'),
     ).toBeInTheDocument()
   })
 

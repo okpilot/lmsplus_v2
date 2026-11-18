@@ -15,7 +15,6 @@ export type SittingRow = {
   invigilatorId: string
   invigilatorName: string
   invigilatorActive: boolean
-  permittedMaterials: string | null
   startedAt: string | null
   closedAt: string | null
   candidates: number
@@ -46,6 +45,9 @@ export type SittingSummary = {
 export type InvigilatorOption = { id: string; name: string }
 
 export const ROSTER_PAGE_SIZE = 50
+
+/** Entries holding a usable, unspent code. */
+export const LIVE_ENTRY_STATUSES: ReadonlySet<string> = new Set(['waiting', 'ready'])
 
 export type EntryStatus =
   | 'no_code'

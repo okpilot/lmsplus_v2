@@ -7,7 +7,6 @@ import { ExamRowMenu } from './exam-row-menu'
 
 type Props = {
   sittingId: string
-  userId: string
   personName: string
   deactivated: boolean
   entry: RosterEntry

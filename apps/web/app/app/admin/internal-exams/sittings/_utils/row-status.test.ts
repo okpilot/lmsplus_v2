@@ -67,6 +67,21 @@ describe('rowStatus', () => {
       expect(rs('open', [ex('finished'), ex('ready')])).toMatchObject({ label: 'In progress' })
     })
 
+    it('counts discarded as done: only-discarded shows Done with its caption', () => {
+      expect(rs('open', [ex('discarded')])).toMatchObject({
+        label: 'Done',
+        tone: 'success',
+        caption: '1 discarded',
+      })
+    })
+
+    it('shows In progress when discarded is done and another exam waits', () => {
+      expect(rs('open', [ex('discarded'), ex('waiting')])).toMatchObject({
+        label: 'In progress',
+        caption: '1 of 2 done',
+      })
+    })
+
     it('shows Not started when nothing has started', () => {
       expect(rs('open', [ex('ready'), ex('ready')])).toMatchObject({
         label: 'Not started',
@@ -106,6 +121,29 @@ describe('rowStatus', () => {
 
     it('shows Absent (neutral) when nothing finished', () => {
       expect(rs('closed', [ex('absent')])).toMatchObject({ label: 'Absent', tone: 'neutral' })
+    })
+
+    it('shows Attempt discarded when nothing finished and one attempt was discarded', () => {
+      expect(rs('closed', [ex('discarded'), ex('absent')])).toMatchObject({
+        label: 'Attempt discarded',
+        tone: 'neutral',
+        caption: '1 absent · 1 discarded',
+      })
+    })
+
+    it('omits the caption of Attempt discarded when it equals the label', () => {
+      expect(rs('closed', [ex('discarded')])?.caption).toBe('1 discarded')
+    })
+
+    it('shows All passed with a discarded part when one finished and one was discarded', () => {
+      expect(rs('closed', [ex('finished', true), ex('discarded')])).toMatchObject({
+        label: 'All passed',
+        caption: '1 passed · 1 discarded',
+      })
+    })
+
+    it('keeps Absent when every exam is absent', () => {
+      expect(rs('closed', [ex('absent'), ex('absent')])).toMatchObject({ label: 'Absent' })
     })
   })
 })

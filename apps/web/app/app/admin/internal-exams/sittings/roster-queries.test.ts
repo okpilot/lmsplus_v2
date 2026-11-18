@@ -169,6 +169,12 @@ describe('getRemoved', () => {
     total_count: 3,
   }
 
+  it('maps a NULL subject_short (soft-deleted subject) to an empty string', async () => {
+    mockRpc.mockResolvedValue({ data: [{ ...REMOVED, subject_short: null }], error: null })
+    const r = await getRemoved(SID)
+    expect(r?.rows[0]?.subjectShort).toBe('')
+  })
+
   it('maps rows and the total', async () => {
     mockRpc.mockResolvedValue({ data: [REMOVED], error: null })
     const r = await getRemoved(SID)

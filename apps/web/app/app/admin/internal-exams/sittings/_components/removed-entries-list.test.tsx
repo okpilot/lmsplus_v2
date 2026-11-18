@@ -24,6 +24,11 @@ describe('RemovedEntriesList', () => {
     expect(screen.getByText(/Ann Student · FPM · passed /)).toBeInTheDocument()
   })
 
+  it('names an empty subject Unknown subject', () => {
+    render(<RemovedEntriesList rows={[row({ subjectShort: '' }) as never]} total={1} />)
+    expect(screen.getByText(/Ann Student · Unknown subject · passed /)).toBeInTheDocument()
+  })
+
   it('shows notice sent or pending per row', () => {
     render(
       <RemovedEntriesList

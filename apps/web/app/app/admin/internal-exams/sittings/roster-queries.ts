@@ -163,7 +163,8 @@ export async function getRemoved(
       entryId: r.entry_id,
       userId: r.user_id,
       studentName: r.student_name,
-      subjectShort: r.subject_short,
+      // Generated type says string; the LEFT JOIN returns NULL for a soft-deleted subject.
+      subjectShort: r.subject_short ?? '',
       passedAt: r.passed_at,
       removedAt: r.removed_at,
       noticeSent: r.notice_sent,

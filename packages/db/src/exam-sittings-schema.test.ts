@@ -30,21 +30,10 @@ describe('AC-55 CreateExamSittingSchema', () => {
         .success,
     ).toBe(true)
   })
-  it('rejects permittedMaterials of 1001 chars and accepts 1000', () => {
-    expect(
-      parse('CreateExamSittingSchema', { ...create, permittedMaterials: 'x'.repeat(1001) }).success,
-    ).toBe(false)
-    expect(
-      parse('CreateExamSittingSchema', { ...create, permittedMaterials: 'x'.repeat(1000) }).success,
-    ).toBe(true)
-  })
-  it('trims permittedMaterials before the length check', () => {
-    const r = parse('CreateExamSittingSchema', {
-      ...create,
-      permittedMaterials: `  ${'x'.repeat(1000)}  `,
-    })
+  it('strips an extra permittedMaterials key', () => {
+    const r = parse('CreateExamSittingSchema', { ...create, permittedMaterials: 'Calculator' })
     expect(r.success).toBe(true)
-    expect(r.data?.permittedMaterials).toBe('x'.repeat(1000))
+    expect(r.data).not.toHaveProperty('permittedMaterials')
   })
   it('rejects an unknown mode', () => {
     expect(parse('CreateExamSittingSchema', { ...create, mode: 'x' }).success).toBe(false)
@@ -52,14 +41,10 @@ describe('AC-55 CreateExamSittingSchema', () => {
 })
 
 describe('AC-55 UpdateExamSittingSchema', () => {
-  it('accepts an empty permittedMaterials (clear) and rejects 1001 chars', () => {
-    expect(
-      parse('UpdateExamSittingSchema', { sittingId: SID, permittedMaterials: '' }).success,
-    ).toBe(true)
-    expect(
-      parse('UpdateExamSittingSchema', { sittingId: SID, permittedMaterials: 'x'.repeat(1001) })
-        .success,
-    ).toBe(false)
+  it('strips an extra permittedMaterials key', () => {
+    const r = parse('UpdateExamSittingSchema', { sittingId: SID, permittedMaterials: 'x' })
+    expect(r.success).toBe(true)
+    expect(r.data).not.toHaveProperty('permittedMaterials')
   })
   it('rejects a scheduledAt without an offset', () => {
     expect(

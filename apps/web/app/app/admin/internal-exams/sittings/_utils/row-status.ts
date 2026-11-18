@@ -1,4 +1,4 @@
-import type { RosterEntry, SittingStatus } from '../types'
+import { LIVE_ENTRY_STATUSES, type RosterEntry, type SittingStatus } from '../types'
 
 export type RowStatus = { label: string; tone: 'neutral' | 'success' | 'danger'; caption?: string }
 
@@ -11,9 +11,14 @@ type Input = Readonly<{
 type Entries = Input['entries']
 
 const NEEDS_CODE: ReadonlySet<string> = new Set(['no_code', 'expired', 'voided'])
-const LIVE: ReadonlySet<string> = new Set(['waiting', 'ready'])
 const VOIDED: ReadonlySet<string> = new Set(['voided', 'voided_attempt'])
-const DONE: ReadonlySet<string> = new Set(['finished', 'absent', 'voided', 'voided_attempt'])
+const DONE: ReadonlySet<string> = new Set([
+  'finished',
+  'absent',
+  'voided',
+  'voided_attempt',
+  'discarded',
+])
 
 const count = (entries: Entries, pred: (s: string) => boolean) =>
   entries.filter((e) => pred(e.status)).length
@@ -28,7 +33,7 @@ function breakdown(parts: readonly (readonly [number, string])[]): string {
 
 function scheduled(entries: Entries): RowStatus {
   if (entries.some((e) => NEEDS_CODE.has(e.status))) {
-    const have = count(entries, (s) => LIVE.has(s))
+    const have = count(entries, (s) => LIVE_ENTRY_STATUSES.has(s))
     return {
       label: 'Needs codes',
       tone: 'neutral',
@@ -47,6 +52,7 @@ function open(entries: Entries): RowStatus {
       [count(entries, (s) => s === 'finished'), 'finished'],
       [absent, 'absent'],
       [count(entries, (s) => VOIDED.has(s)), 'voided'],
+      [count(entries, (s) => s === 'discarded'), 'discarded'],
     ])
     return { label: 'Done', tone: 'success', caption }
   }
@@ -61,15 +67,18 @@ function closed(entries: Entries): RowStatus {
   const failed = entries.filter((e) => e.status === 'finished' && e.passed === false).length
   const absent = count(entries, (s) => s === 'absent')
   const finished = count(entries, (s) => s === 'finished')
+  const discarded = count(entries, (s) => s === 'discarded')
   const caption = breakdown([
     [passed, 'passed'],
     [failed, 'failed'],
     [absent, 'absent'],
+    [discarded, 'discarded'],
   ])
   const withCaption = (s: RowStatus): RowStatus =>
     caption && caption !== s.label ? { ...s, caption } : s
   if (failed > 0) return withCaption({ label: `${failed} failed`, tone: 'danger' })
   if (finished > 0) return withCaption({ label: 'All passed', tone: 'success' })
+  if (discarded > 0) return withCaption({ label: 'Attempt discarded', tone: 'neutral' })
   return { label: 'Absent', tone: 'neutral' }
 }
 

@@ -6,7 +6,7 @@ import { MAX_TICKS } from '../parse-sitting-params'
 
 /** Bulk bar for ticked people; replaces the toolbar while anything is ticked. */
 export function SittingBulkActions({ onRemove }: Readonly<{ onRemove: (ids: string[]) => void }>) {
-  const { rosterIds, clearRoster, isRefreshing } = useSittingUi()
+  const { rosterIds, clearRoster } = useSittingUi()
   const tooMany = rosterIds.length > MAX_TICKS
   return (
     <>
@@ -14,7 +14,7 @@ export function SittingBulkActions({ onRemove }: Readonly<{ onRemove: (ids: stri
       <Button
         size="sm"
         variant="destructive"
-        disabled={tooMany || isRefreshing}
+        disabled={tooMany}
         onClick={() => onRemove(rosterIds)}
       >
         Remove

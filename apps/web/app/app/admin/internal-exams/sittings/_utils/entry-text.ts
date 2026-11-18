@@ -1,4 +1,4 @@
-import type { EntryStatus, RosterEntry } from '../types'
+import { type EntryStatus, LIVE_ENTRY_STATUSES, type RosterEntry } from '../types'
 import { formatTitleDate } from './format-dates'
 
 export const ENTRY_STATUS_LABEL: Record<EntryStatus, string> = {
@@ -61,7 +61,7 @@ function codeText(e: RosterEntry, sharedExpiry: boolean): string {
   }
   if (!e.codeExpiresAt) return ''
   if (e.status === 'expired') return `Expired ${formatTitleDate(e.codeExpiresAt)}`
-  if ((e.status === 'waiting' || e.status === 'ready') && !sharedExpiry) {
+  if (LIVE_ENTRY_STATUSES.has(e.status) && !sharedExpiry) {
     return `Valid until ${formatTitleDate(e.codeExpiresAt)}`
   }
   return ''

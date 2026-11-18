@@ -226,7 +226,6 @@ describe('getSitting', () => {
         mode: 'in_person',
         status: 'cancelled',
         invigilator_id: 'inv-1',
-        permitted_materials: 'Notes',
         started_at: null,
         closed_at: null,
         ended_automatically: false,

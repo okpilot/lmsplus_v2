@@ -436,7 +436,7 @@ CREATE TABLE exam_sittings (
   scheduled_at         TIMESTAMPTZ NOT NULL,
   mode                 TEXT NOT NULL CHECK (mode IN ('remote', 'in_person')),
   invigilator_id       UUID NOT NULL REFERENCES users(id),
-  permitted_materials  TEXT NULL CHECK (permitted_materials IS NULL OR char_length(permitted_materials) BETWEEN 1 AND 1000),
+  permitted_materials  TEXT NULL CHECK (permitted_materials IS NULL OR char_length(permitted_materials) BETWEEN 1 AND 1000), -- unused by product code (Decision 259); e2e/red-team marker
   started_at           TIMESTAMPTZ NULL,
   started_by           UUID NULL REFERENCES users(id),
   closed_at            TIMESTAMPTZ NULL,
@@ -456,7 +456,7 @@ CREATE INDEX idx_exam_sittings_org_scheduled ON exam_sittings(organization_id, s
 CREATE INDEX idx_exam_sittings_invigilator ON exam_sittings(invigilator_id) WHERE deleted_at IS NULL;
 ```
 
-Test teardown hard-deletes `exam_sittings` rows marked `E2E-SIT-` with no entries or candidates (closed rows cannot carry `deleted_at`); never in product code.
+Test teardown (`apps/web/e2e/helpers/exam-sitting-cleanup.ts`) hard-deletes marked `E2E-SIT-` sittings with no entries or candidates, and the `E2E-SIT-SEED-` sittings `seedSitting` builds with their codes, sessions, entries, candidates, enrolments and users; never in product code.
 
 CHECKs: started, closed and deleted pairs (`*_at` NULL iff `*_by` NULL); `closed_at IS NOT NULL ⇒ started_at IS NOT NULL`; not both closed and deleted; `ended_automatically ⇒ closed_at IS NOT NULL OR deleted_at IS NOT NULL`. `status` is generated; transitions are one-way and Closed is final.
 
@@ -1107,8 +1107,8 @@ ORDER BY deleted_at DESC;
 | `student_groups` | Yes | Retired groups kept as history; `delete_student_group` sets `deleted_at`/`deleted_by`; the name becomes reusable |
 | `student_group_members` | Yes | Removed memberships kept as history; `remove_student_group_members` / `delete_student_group` set `deleted_at`/`deleted_by`, re-adding inserts a new active row |
 | `exam_sittings` | Yes | Cancel sets `deleted_at`/`deleted_by`; never hard-deleted in product code (test teardown exception: §2 `exam_sittings`); kept at least 3 years after training completion (ORA.ATO.120) |
-| `exam_sitting_candidates` | Yes | Removal sets `deleted_at`/`deleted_by`; never hard-deleted; kept at least 3 years after training completion (ORA.ATO.120) |
-| `exam_sitting_entries` | Yes | Removal sets `deleted_at`/`deleted_by`; never hard-deleted; kept at least 3 years after training completion (ORA.ATO.120) |
+| `exam_sitting_candidates` | Yes | Removal sets `deleted_at`/`deleted_by`; never hard-deleted in product code (test teardown exception: §2 `exam_sittings`); kept at least 3 years after training completion (ORA.ATO.120) |
+| `exam_sitting_entries` | Yes | Removal sets `deleted_at`/`deleted_by`; never hard-deleted in product code (test teardown exception: §2 `exam_sittings`); kept at least 3 years after training completion (ORA.ATO.120) |
 | `quiz_sessions` | Yes | Sessions can be discarded (soft-deleted via `deleted_at`). A saved-for-later quiz is a soft-deleted row with `saved_at` set; `resume_saved_quiz` clears both, `discard_saved_quiz` clears `saved_at`; `set_user_enrolments` soft-deletes a student's open sessions and clears `saved_at` of their saved quizzes outside the final enrolment set |
 | `quiz_session_answers` | No | Immutable |
 | `quiz_session_progress` | No | Rows are never deleted; lifecycle follows `quiz_sessions` (soft delete). `ON DELETE CASCADE` on `session_id` serves test-teardown hard-deletes only |
@@ -1123,9 +1123,9 @@ ORDER BY deleted_at DESC;
 | `exam_configs` | Yes | Per-subject exam configuration; soft-deleted when org removes exam mode |
 | `exam_config_distributions` | Hard DELETE (approved exception) | No `deleted_at`; replaced atomically by `upsert_exam_config` RPC. Also cascades from parent `exam_configs` via `ON DELETE CASCADE`. RLS policies (admin SELECT/INSERT/DELETE) filter `ec.deleted_at IS NULL` on the parent join (mig 083), so direct PostgREST access to distributions of a soft-deleted exam config is blocked at the policy layer; `upsert_exam_config` runs as owner `postgres` (BYPASSRLS), so the replace-on-save flow is unaffected |
 | `question_comments` | Hard DELETE (explicit exception — low audit value) | deleted_at exists as safety net but not used by application code |
-| `internal_exam_codes` | Yes | Issued codes form an audit trail; admin void uses `voided_at`/`void_reason`, soft-delete reserved for compliance archival |
+| `internal_exam_codes` | Yes | Issued codes form an audit trail; admin void uses `voided_at`/`void_reason`, soft-delete reserved for compliance archival; test teardown exception: §2 `exam_sittings` |
 
-**Service-role integration-test teardown — sanctioned hard-delete exception.** The `packages/db/src/__integration__/**` cleanup helpers (`cleanupTestData` / `cleanupReferenceData`) hard-DELETE ephemeral per-suite fixtures — including the immutable tables above (`audit_events`, `student_responses`, `quiz_session_answers`) — via the service-role client, to reset the disposable local integration DB between runs (a soft-delete can't reset accumulating fixtures). This is **test-infra only**: the no-hard-DELETE + immutable-table rules still govern the production app (enforced via RLS) and all non-`__integration__` `packages/db/src` code. The local `.claude/hooks/check-soft-delete-guard.mjs` excludes `__integration__` and `e2e/`, and `.coderabbit.yaml` carries the matching exception scoped to `packages/db/src/__integration__/` teardown helpers only (declared within its `packages/db/src/**` path-instruction block). The e2e helper `apps/web/e2e/helpers/exam-sitting-cleanup.ts` applies the same test-only exception to `exam_sittings` rows marked `E2E-SIT-` with no entries or candidates.
+**Service-role integration-test teardown — sanctioned hard-delete exception.** The `packages/db/src/__integration__/**` cleanup helpers (`cleanupTestData` / `cleanupReferenceData`) hard-DELETE ephemeral per-suite fixtures — including the immutable tables above (`audit_events`, `student_responses`, `quiz_session_answers`) — via the service-role client, to reset the disposable local integration DB between runs (a soft-delete can't reset accumulating fixtures). This is **test-infra only**: the no-hard-DELETE + immutable-table rules still govern the production app (enforced via RLS) and all non-`__integration__` `packages/db/src` code. The local `.claude/hooks/check-soft-delete-guard.mjs` excludes `__integration__` and `e2e/`, and `.coderabbit.yaml` carries the matching exception scoped to `packages/db/src/__integration__/` teardown helpers only (declared within its `packages/db/src/**` path-instruction block). The e2e helper `apps/web/e2e/helpers/exam-sitting-cleanup.ts` applies the same test-only exception; scope in §2 `exam_sittings`.
 
 > **Admin write access (migration 039):** `easa_subjects`, `easa_topics`, and `easa_subtopics` have RLS policies granting INSERT/UPDATE to users where `is_admin()` returns `true` (the DELETE policies were dropped by mig `20261107000100`; delete is `soft_delete_syllabus_item`). All other users have SELECT-only access. These policies exist to support the Admin Syllabus Manager feature. Column grants: see **Column grants** in §2 (`easa_subjects` / `easa_topics` / `easa_subtopics`). SELECT is enrolment-scoped for students.
 
@@ -1176,7 +1176,7 @@ verb_noun pattern:
   remove_student_group_members ← write, admin-only: soft-delete the active memberships of 1..500 distinct ids (deactivated users allowed), returns rows removed, audit `student_group.members_removed` (SECURITY DEFINER, mig 20261115000300 #1776)
   get_student_groups_with_counts ← read, admin-only: active same-org groups with `description`, `active_count` / `deactivated_count` of active-membership students (deactivated students keep memberships; `users.deleted_at` read per §15 (e)), ordered by `lower(name)`, then `id`; no audit row (SECURITY DEFINER, mig 20261115000500 #1776)
   create_exam_sitting        ← write, admin-only: create a scheduled sitting (details only; UTC day not in the past, same-org active admin/instructor invigilator), audit `exam_sitting.created` (SECURITY DEFINER, mig 20261116001200 #1777)
-  update_exam_sitting        ← write, admin-only: change time, mode, materials (scheduled only) or invigilator (scheduled or open); re-stamps unused codes on a time change, returns `notify_code_ids`; audit `exam_sitting.updated` / `exam_sitting.invigilator_reassigned` (SECURITY DEFINER, mig 20261116001300 #1777)
+  update_exam_sitting        ← write, admin-only: change time, mode, materials (scheduled only; materials not sent by product code, Decision 259) or invigilator (scheduled or open); re-stamps unused codes on a time change, returns `notify_code_ids`; audit `exam_sitting.updated` / `exam_sitting.invigilator_reassigned` (SECURITY DEFINER, mig 20261116001300 #1777)
   start_exam_sitting         ← write, admin-only: scheduled to open; `sitting_not_due` before the sitting's UTC day; lazy-closes expired sittings, prunes, re-stamps codes; audit `exam_sitting.started` (SECURITY DEFINER, mig 20261116001400 #1777)
   close_exam_sitting         ← write, admin-only: open to closed, voids unused codes (`sitting_closed`); audit `exam_sitting.closed` (SECURITY DEFINER, mig 20261116001500 #1777)
   cancel_exam_sitting        ← write, admin-only: soft-delete a scheduled or open sitting with no attempts, voids unused codes (`sitting_cancelled`), returns `notify_code_ids`; audit `exam_sitting.cancelled` (SECURITY DEFINER, mig 20261116001600 #1777)

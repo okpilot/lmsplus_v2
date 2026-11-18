@@ -48,7 +48,6 @@ function ui(over: Record<string, unknown> = {}, entryOver: Record<string, unknow
     <SittingUiProvider>
       <ExamRowMenu
         sittingId="sit-1"
-        userId="u1"
         personName="Ann Student"
         deactivated={false}
         editable
