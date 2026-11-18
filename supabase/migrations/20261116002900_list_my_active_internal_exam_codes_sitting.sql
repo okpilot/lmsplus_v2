@@ -42,6 +42,7 @@ BEGIN
     AND iec.consumed_at IS NULL
     AND iec.voided_at IS NULL
     AND iec.deleted_at IS NULL
+    AND (iec.sitting_entry_id IS NULL OR es.id IS NOT NULL)
     AND (iec.expires_at > now() OR es.status = 'scheduled')
     AND (es.id IS NULL OR NOT private.sitting_day_ended(es.scheduled_at))
   ORDER BY COALESCE(es.scheduled_at, iec.expires_at) ASC

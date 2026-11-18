@@ -83,7 +83,11 @@ BEGIN
     IF v_p.action = 'reissue_after_expiry' THEN
       UPDATE public.internal_exam_codes c
          SET voided_at = now(), voided_by = v_g.admin_id, void_reason = 'reissued_after_expiry'
-       WHERE c.id = v_p.old_code_id AND c.organization_id = v_g.org_id;
+       WHERE c.id = v_p.old_code_id AND c.organization_id = v_g.org_id
+         AND c.consumed_at IS NULL AND c.voided_at IS NULL AND c.deleted_at IS NULL;
+      IF NOT FOUND THEN
+        CONTINUE;
+      END IF;
       INSERT INTO public.audit_events
         (organization_id, actor_id, actor_role, event_type, resource_type, resource_id, metadata)
       VALUES (v_g.org_id, v_g.admin_id, v_g.admin_role, 'internal_exam.code_voided', 'internal_exam_code', v_p.old_code_id,
