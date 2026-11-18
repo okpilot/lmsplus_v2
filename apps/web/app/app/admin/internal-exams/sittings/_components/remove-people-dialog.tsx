@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { useSittingUi } from '../_hooks/sitting-ui-context'
 import { plural } from '../_utils/plural'
@@ -16,6 +17,9 @@ type Props = {
 export function RemovePeopleDialog({ sittingId, userIds, onClose }: Readonly<Props>) {
   const { setRosterPage } = useSittingUi()
   const { pending, error, run, clearError } = useSittingAction()
+  // Keep the last count so the title does not flash "Remove 0 people?" while the dialog closes.
+  const [count, setCount] = useState(userIds?.length ?? 0)
+  if (userIds && userIds.length !== count) setCount(userIds.length)
   return (
     <ConfirmDialog
       open={userIds !== null}
@@ -24,7 +28,7 @@ export function RemovePeopleDialog({ sittingId, userIds, onClose }: Readonly<Pro
         clearError()
         onClose()
       }}
-      title={`Remove ${plural(userIds?.length ?? 0, 'person', 'people')}?`}
+      title={`Remove ${plural(count, 'person', 'people')}?`}
       description="Their exams are removed and unused codes voided. Anyone who has taken an exam cannot be removed."
       confirmLabel="Remove"
       pending={pending}

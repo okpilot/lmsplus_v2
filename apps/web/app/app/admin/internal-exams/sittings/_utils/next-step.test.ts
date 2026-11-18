@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { nextStep } from './next-step'
+import { examActions, nextStep } from './next-step'
 
 const entry = (status: string, sessionId: string | null = null) =>
   ({ entryId: 'e1', status, sessionId }) as never
@@ -46,5 +46,35 @@ describe('nextStep', () => {
 
   it('has no View attempt without a session', () => {
     expect(nextStep(entry('running'), { editable: true, deactivated: false })).toBeNull()
+  })
+})
+
+describe('examActions', () => {
+  const withCode = (status: string) => ({ ...(entry(status) as object), codeId: 'k1' }) as never
+
+  it.each([
+    ['no_code', null, true],
+    ['waiting', 'k1', true],
+    ['ready', 'k1', true],
+    ['expired', null, true],
+    ['voided', null, true],
+    ['running', null, false],
+    ['finished', null, false],
+    ['voided_attempt', null, false],
+    ['absent', null, false],
+    ['discarded', null, false],
+  ])(
+    'for a %s exam offers void %s and remove %s when editable',
+    (status, voidCodeId, canRemove) => {
+      expect(examActions(withCode(status), { editable: true })).toEqual({ voidCodeId, canRemove })
+    },
+  )
+
+  it('offers nothing when the sitting is not editable', () => {
+    for (const status of ['waiting', 'ready', 'no_code'])
+      expect(examActions(withCode(status), { editable: false })).toEqual({
+        voidCodeId: null,
+        canRemove: false,
+      })
   })
 })

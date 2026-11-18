@@ -123,6 +123,40 @@ describe('rowStatus', () => {
       expect(rs('closed', [ex('absent')])).toMatchObject({ label: 'Absent', tone: 'neutral' })
     })
 
+    it('shows In progress with a running caption when a closed sitting has only a running attempt', () => {
+      expect(rs('closed', [ex('running')])).toEqual({
+        label: 'In progress',
+        tone: 'neutral',
+        caption: '1 running',
+      })
+    })
+
+    it('shows In progress over All passed when an attempt is still running', () => {
+      expect(rs('closed', [ex('finished', true), ex('running')])).toMatchObject({
+        label: 'In progress',
+        caption: '1 passed · 1 running',
+      })
+    })
+
+    it('shows Attempt voided when the only attempt was voided', () => {
+      expect(rs('closed', [ex('voided_attempt')])).toEqual({
+        label: 'Attempt voided',
+        tone: 'neutral',
+        caption: '1 attempt voided',
+      })
+    })
+
+    it('shows Attempt voided with an absent part', () => {
+      expect(rs('closed', [ex('voided_attempt'), ex('absent')])).toMatchObject({
+        label: 'Attempt voided',
+        caption: '1 absent · 1 attempt voided',
+      })
+    })
+
+    it('shows Absent without a caption when nobody started', () => {
+      expect(rs('closed', [ex('absent')])).toEqual({ label: 'Absent', tone: 'neutral' })
+    })
+
     it('shows Attempt discarded when nothing finished and one attempt was discarded', () => {
       expect(rs('closed', [ex('discarded'), ex('absent')])).toMatchObject({
         label: 'Attempt discarded',

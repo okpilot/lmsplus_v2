@@ -63,22 +63,26 @@ function open(entries: Entries): RowStatus {
 }
 
 function closed(entries: Entries): RowStatus {
+  const of = (status: string) => count(entries, (s) => s === status)
   const passed = entries.filter((e) => e.status === 'finished' && e.passed === true).length
   const failed = entries.filter((e) => e.status === 'finished' && e.passed === false).length
-  const absent = count(entries, (s) => s === 'absent')
-  const finished = count(entries, (s) => s === 'finished')
-  const discarded = count(entries, (s) => s === 'discarded')
+  const [running, finished] = [of('running'), of('finished')]
+  const [discarded, voidedAttempt] = [of('discarded'), of('voided_attempt')]
   const caption = breakdown([
     [passed, 'passed'],
     [failed, 'failed'],
-    [absent, 'absent'],
+    [running, 'running'],
+    [of('absent'), 'absent'],
+    [voidedAttempt, 'attempt voided'],
     [discarded, 'discarded'],
   ])
   const withCaption = (s: RowStatus): RowStatus =>
     caption && caption !== s.label ? { ...s, caption } : s
   if (failed > 0) return withCaption({ label: `${failed} failed`, tone: 'danger' })
+  if (running > 0) return withCaption({ label: 'In progress', tone: 'neutral' })
   if (finished > 0) return withCaption({ label: 'All passed', tone: 'success' })
   if (discarded > 0) return withCaption({ label: 'Attempt discarded', tone: 'neutral' })
+  if (voidedAttempt > 0) return withCaption({ label: 'Attempt voided', tone: 'neutral' })
   return { label: 'Absent', tone: 'neutral' }
 }
 

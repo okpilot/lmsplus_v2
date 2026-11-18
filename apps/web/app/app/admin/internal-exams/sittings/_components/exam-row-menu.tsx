@@ -5,8 +5,8 @@ import { useState } from 'react'
 import { RowMenu } from '@/components/admin/row-menu'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { MenuItem, MenuSeparator } from '@/components/ui/menu'
-import { type NextStep, nextStep } from '../_utils/next-step'
-import { LIVE_ENTRY_STATUSES, type RosterEntry } from '../types'
+import { examActions, type NextStep, nextStep } from '../_utils/next-step'
+import type { RosterEntry } from '../types'
 import { useExamActions } from './use-exam-actions'
 import { VoidCodeDialog } from './void-code-dialog'
 
@@ -17,15 +17,6 @@ type Props = {
   entry: RosterEntry
   editable: boolean
 }
-
-/** An exam with an attempt, or whose attempt was discarded, stays in the sitting. */
-const KEEPS_RECORD: ReadonlySet<string> = new Set([
-  'running',
-  'finished',
-  'voided_attempt',
-  'absent',
-  'discarded',
-])
 
 type Confirm = 'remove' | 'void' | null
 
@@ -55,9 +46,7 @@ export function ExamRowMenu({
   const [confirm, setConfirm] = useState<Confirm>(null)
   const who = `${entry.subjectShort}, ${personName}`
   const a = useExamActions({ sittingId, entry, personName, who, onDone: () => setConfirm(null) })
-  const live = LIVE_ENTRY_STATUSES.has(entry.status)
-  const codeId = editable && live ? entry.codeId : null
-  const canRemove = editable && !KEEPS_RECORD.has(entry.status)
+  const { voidCodeId: codeId, canRemove } = examActions(entry, { editable })
   const step = nextStep(entry, { editable, deactivated })
   if (!step && !codeId && !canRemove) return null
   const dismiss = () => {

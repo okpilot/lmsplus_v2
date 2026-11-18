@@ -1,6 +1,6 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CopyCodeButton } from './copy-code-button'
 
 const writeText = vi.fn()
@@ -9,8 +9,12 @@ beforeEach(() => {
   vi.resetAllMocks()
 })
 
-function setup() {
-  const user = userEvent.setup()
+afterEach(() => {
+  vi.useRealTimers()
+})
+
+function setup(options: Parameters<typeof userEvent.setup>[0] = {}) {
+  const user = userEvent.setup(options)
   Object.defineProperty(navigator, 'clipboard', {
     value: { writeText },
     configurable: true,
@@ -33,6 +37,20 @@ describe('CopyCodeButton', () => {
     const user = setup()
     await user.click(screen.getByRole('button', { name: 'Copy code for Ann' }))
     await waitFor(() => expect(writeText).toHaveBeenCalled())
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
+  })
+
+  it('keeps announcing for the full window after a second copy', async () => {
+    vi.useFakeTimers()
+    writeText.mockResolvedValue(undefined)
+    setup()
+    const button = screen.getByRole('button', { name: 'Copy code for Ann' })
+    await act(async () => button.click())
+    await act(() => vi.advanceTimersByTimeAsync(1500))
+    await act(async () => button.click())
+    await act(() => vi.advanceTimersByTimeAsync(1000))
+    expect(screen.getByRole('status')).toHaveTextContent('Code copied')
+    await act(() => vi.advanceTimersByTimeAsync(1100))
     expect(screen.getByRole('status')).toBeEmptyDOMElement()
   })
 })
