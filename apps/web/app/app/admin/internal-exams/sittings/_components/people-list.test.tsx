@@ -78,7 +78,7 @@ describe('PeopleList', () => {
   it('shows an empty note without a header checkbox', () => {
     list([])
     expect(screen.getByText('No students to add.')).toBeInTheDocument()
-    expect(screen.getByRole('checkbox', { name: /Select all 0/ })).toHaveAttribute(
+    expect(screen.getByRole('checkbox', { name: 'Select this page' })).toHaveAttribute(
       'aria-disabled',
       'true',
     )
@@ -95,11 +95,11 @@ describe('PeopleList', () => {
     const user = userEvent.setup()
     list([row(1), row(2)])
     await user.click(screen.getByRole('checkbox', { name: 'Select Person 1' }))
-    expect(screen.getByRole('checkbox', { name: 'Select all 2 shown' })).toHaveAttribute(
+    expect(screen.getByRole('checkbox', { name: 'Select this page' })).toHaveAttribute(
       'aria-checked',
       'mixed',
     )
-    await user.click(screen.getByRole('checkbox', { name: 'Select all 2 shown' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Select this page' }))
     expect(screen.getByTestId('probe')).toHaveTextContent('u1,u2')
   })
 

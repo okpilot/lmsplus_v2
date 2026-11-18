@@ -24,7 +24,6 @@ export function SelectPageCheckbox({
   return (
     <Label className="text-caption text-foreground">
       <Checkbox
-        aria-label={`Select all ${total} shown`}
         checked={all}
         indeterminate={ticked > 0 && !all}
         disabled={disabled || total === 0}
