@@ -87,6 +87,36 @@ describe('listSittings', () => {
   })
 })
 
+describe('listSittings out-of-range page', () => {
+  it('snaps to the last page when the requested page has no rows', async () => {
+    const last = { ...RPC_ROW, id: 'last-row', total_count: 61 }
+    mockRpc
+      .mockResolvedValueOnce({ data: [], error: null })
+      .mockResolvedValueOnce({ data: [RPC_ROW], error: null })
+      .mockResolvedValueOnce({ data: [last], error: null })
+    const r = await listSittings('past', 99)
+    expect(mockRpc).toHaveBeenNthCalledWith(
+      3,
+      'list_exam_sittings',
+      expect.objectContaining({ p_offset: 50 }),
+    )
+    expect(r.rows.map((x) => x.id)).toEqual(['last-row'])
+    expect(r.totalCount).toBe(61)
+  })
+
+  it('returns empty when the scope has no sittings at all', async () => {
+    mockRpc.mockResolvedValue({ data: [], error: null })
+    expect(await listSittings('past', 5)).toEqual({ rows: [], totalCount: 0 })
+    expect(mockRpc).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not re-query when the page has rows', async () => {
+    mockRpc.mockResolvedValue({ data: [RPC_ROW], error: null })
+    await listSittings('past', 2)
+    expect(mockRpc).toHaveBeenCalledTimes(1)
+  })
+})
+
 describe('getSummary', () => {
   it('returns null when the sitting is not found', async () => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'sitting_not_found' } })

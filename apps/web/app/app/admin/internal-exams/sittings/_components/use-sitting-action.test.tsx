@@ -14,13 +14,13 @@ import { useSittingAction } from './use-sitting-action'
 beforeEach(() => vi.resetAllMocks())
 
 describe('useSittingAction', () => {
-  it('refreshes the page and reports the banner built by onOk on success', async () => {
+  it('reports the banner built by onOk on success and does not refresh (the action revalidates)', async () => {
     const { result } = renderHook(() => useSittingAction())
     const onOk = vi.fn().mockReturnValue({ tone: 'success', title: 'Done.' })
     act(() => result.current.run(async () => ({ success: true as const, n: 1 }), onOk))
-    await waitFor(() => expect(m.refresh).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(m.toastSuccess).toHaveBeenCalledWith('Done.', undefined))
     expect(onOk).toHaveBeenCalledWith({ success: true, n: 1 })
-    expect(m.toastSuccess).toHaveBeenCalledWith('Done.', undefined)
+    expect(m.refresh).not.toHaveBeenCalled()
     expect(result.current.error).toBeNull()
   })
 

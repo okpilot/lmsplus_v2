@@ -54,11 +54,12 @@ function ui(confirm: Confirm, s: Record<string, unknown> = summary) {
 beforeEach(() => vi.resetAllMocks())
 
 describe('LifecycleConfirms', () => {
-  it('starts the sitting, closes the dialog, toasts the restamped code count and refreshes', async () => {
+  it('starts the sitting, closes the dialog, toasts the restamped code count', async () => {
     m.start.mockResolvedValue({ success: true, codesRestamped: 3 })
     ui('start')
     await userEvent.setup().click(await screen.findByRole('button', { name: 'Start sitting' }))
-    await waitFor(() => expect(m.refresh).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(m.setConfirm).toHaveBeenCalledWith(null))
+    expect(m.refresh).not.toHaveBeenCalled()
     expect(m.start).toHaveBeenCalledWith({ sittingId: 'sit-1' })
     expect(m.setConfirm).toHaveBeenCalledWith(null)
     expect(m.toastSuccess).toHaveBeenCalledWith('Sitting started.', {
@@ -90,7 +91,8 @@ describe('LifecycleConfirms', () => {
     m.start.mockResolvedValue({ success: true, codesRestamped: 3, entriesWithoutCode: 2 })
     ui('start')
     await userEvent.setup().click(await screen.findByRole('button', { name: 'Start sitting' }))
-    await waitFor(() => expect(m.refresh).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(m.setConfirm).toHaveBeenCalledWith(null))
+    expect(m.refresh).not.toHaveBeenCalled()
     expect(m.toastError).toHaveBeenCalledWith('Sitting started.')
     expect(m.toastSuccess).not.toHaveBeenCalled()
   })
@@ -104,7 +106,8 @@ describe('LifecycleConfirms', () => {
     })
     ui('close')
     await userEvent.setup().click(await screen.findByRole('button', { name: 'Close sitting' }))
-    await waitFor(() => expect(m.refresh).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(m.setConfirm).toHaveBeenCalledWith(null))
+    expect(m.refresh).not.toHaveBeenCalled()
     expect(m.close).toHaveBeenCalledWith({ sittingId: 'sit-1' })
     expect(m.toastSuccess).toHaveBeenCalledWith('Sitting closed.', {
       description: '1 code voided, 2 running, 4 absent.',
@@ -115,7 +118,8 @@ describe('LifecycleConfirms', () => {
     m.cancel.mockResolvedValue({ success: true, codesVoided: 5 })
     ui('cancel')
     await userEvent.setup().click(await screen.findByRole('button', { name: 'Cancel sitting' }))
-    await waitFor(() => expect(m.refresh).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(m.setConfirm).toHaveBeenCalledWith(null))
+    expect(m.refresh).not.toHaveBeenCalled()
     expect(m.cancel).toHaveBeenCalledWith({ sittingId: 'sit-1' })
     expect(m.toastSuccess).toHaveBeenCalledWith('Sitting cancelled.', {
       description: '5 codes voided.',

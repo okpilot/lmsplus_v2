@@ -35,7 +35,7 @@ describe('createSitting', () => {
   })
 
   it('calls create_exam_sitting with the parsed fields', async () => {
-    mockRpc.mockResolvedValue({ data: SID, error: null })
+    mockRpc.mockResolvedValue({ data: [{ sitting_id: SID }], error: null })
     await createSitting(VALID)
     expect(mockRpc).toHaveBeenCalledWith(
       'create_exam_sitting',
@@ -49,7 +49,7 @@ describe('createSitting', () => {
   })
 
   it('returns the new sittingId and revalidates the list', async () => {
-    mockRpc.mockResolvedValue({ data: SID, error: null })
+    mockRpc.mockResolvedValue({ data: [{ sitting_id: SID }], error: null })
     const r = await createSitting(VALID)
     expect(r).toEqual({ success: true, sittingId: SID })
     expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/internal-exams')

@@ -69,4 +69,17 @@ describe('loadSittingPage', () => {
     m.getSitting.mockResolvedValue({ id: SID, scheduledAt: '2020-01-01T09:00:00Z' })
     expect((await loadSittingPage(SID)).notDue).toBe(false)
   })
+
+  it.each(['scheduled', 'open'])('loads invigilator options for a %s sitting', async (status) => {
+    m.getSummary.mockResolvedValue({ status, scheduledAt: '2026-11-20T09:30:00Z' })
+    await loadSittingPage(SID)
+    expect(m.listInvigilatorOptions).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['closed', 'cancelled'])('skips invigilator options for a %s sitting', async (status) => {
+    m.getSummary.mockResolvedValue({ status, scheduledAt: '2026-11-20T09:30:00Z' })
+    const r = await loadSittingPage(SID)
+    expect(m.listInvigilatorOptions).not.toHaveBeenCalled()
+    expect(r.invigilators).toEqual([])
+  })
 })

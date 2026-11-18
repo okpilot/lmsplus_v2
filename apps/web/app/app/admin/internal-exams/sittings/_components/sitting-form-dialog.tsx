@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { DialogDescription, DialogTitle } from '@/components/ui/dialog'
@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { LoadingButton } from '@/components/ui/loading-button'
 import { Textarea } from '@/components/ui/textarea'
 import { useSittingUi } from '../_hooks/sitting-ui-context'
+import { editChanges, type SittingFormValues } from '../_utils/edit-changes'
 import { createSitting } from '../actions/create-sitting'
 import { updateSitting } from '../actions/update-sitting'
 import { type InvigilatorOption, SITTING_BASE, type SittingRow } from '../types'
@@ -39,34 +40,8 @@ export function SittingFormDialog({ sitting, invigilators }: Readonly<Props>) {
   )
 }
 
-type Values = {
-  when: string
-  mode: 'remote' | 'in_person'
-  invigilatorId: string
-  materials: string
-}
-
-/** Fields that differ from the loaded sitting; a started sitting only ever sends the invigilator. Null when nothing changed. */
-function editChanges(sitting: SittingRow, iso: string, v: Values) {
-  const locked = sitting.status !== 'scheduled'
-  const changes: {
-    scheduledAt?: string
-    mode?: 'remote' | 'in_person'
-    invigilatorId?: string
-    permittedMaterials?: string
-  } = {}
-  if (!locked) {
-    if (v.when !== isoToUtcInput(sitting.scheduledAt)) changes.scheduledAt = iso
-    if (v.mode !== sitting.mode) changes.mode = v.mode
-    if ((v.materials.trim() || null) !== (sitting.permittedMaterials ?? null))
-      changes.permittedMaterials = v.materials
-  }
-  if (v.invigilatorId !== sitting.invigilatorId) changes.invigilatorId = v.invigilatorId
-  return Object.keys(changes).length > 0 ? changes : null
-}
-
 /** Create, or update only what changed. Returns the sitting id, `{ id: null }` when nothing changed, or an error message. */
-async function persist(sitting: SittingRow | undefined, iso: string, v: Values) {
+async function persist(sitting: SittingRow | undefined, iso: string, v: SittingFormValues) {
   if (sitting) {
     const changes = editChanges(sitting, iso, v)
     if (!changes) return { id: null }
@@ -90,29 +65,45 @@ function toIsoOrNull(value: string): string | null {
   }
 }
 
-function useSittingForm(sitting: SittingRow | undefined) {
-  const router = useRouter()
-  const { close, setLocked, setBanner } = useSittingUi()
-  const [pending, startTransition] = useTransition()
+function useFormFields(sitting: SittingRow | undefined) {
   const [when, setWhen] = useState(sitting ? isoToUtcInput(sitting.scheduledAt) : defaultWhen())
   const [mode, setMode] = useState<'remote' | 'in_person'>(sitting?.mode ?? 'remote')
   const [invigilatorId, setInvigilatorId] = useState(sitting?.invigilatorId ?? '')
   const [materials, setMaterials] = useState(sitting?.permittedMaterials ?? '')
+  return { when, setWhen, mode, setMode, invigilatorId, setInvigilatorId, materials, setMaterials }
+}
+
+function useSittingForm(sitting: SittingRow | undefined) {
+  const router = useRouter()
+  const { close, setLocked, setBanner } = useSittingUi()
+  const [pending, startTransition] = useTransition()
+  const fields = useFormFields(sitting)
+  const { when, mode, invigilatorId, materials } = fields
   const [error, setError] = useState<string | null>(null)
+  const [created, setCreated] = useState(false)
   const iso = toIsoOrNull(when)
   const valid = iso !== null && invigilatorId !== ''
   const locked = sitting !== undefined && sitting.status !== 'scheduled'
 
-  async function saveSitting(isoValue: string) {
+  // A created sitting navigates away: stay locked (no second Save, no dismiss) until unmount.
+  useEffect(() => () => setLocked(false), [setLocked])
+
+  /** Returns true after a create: the page navigates away and the form stays locked. */
+  async function saveSitting(isoValue: string): Promise<boolean> {
     const r = await persist(sitting, isoValue, { when, mode, invigilatorId, materials })
-    if (r.error !== undefined) return setError(r.error)
-    if (r.id === null) return close()
-    if (sitting) {
-      setBanner({ tone: 'success', title: 'Details saved.' })
-      return close()
+    if (r.error !== undefined) {
+      setError(r.error)
+      return false
     }
+    if (r.id === null || sitting) {
+      if (r.id !== null) setBanner({ tone: 'success', title: 'Details saved.' })
+      close()
+      return false
+    }
+    setCreated(true)
     toast.success('Sitting created')
     router.replace(`${SITTING_BASE}/${r.id}`)
+    return true
   }
 
   function submit() {
@@ -121,12 +112,13 @@ function useSittingForm(sitting: SittingRow | undefined) {
     setLocked(true)
     setBanner(null)
     startTransition(async () => {
+      let stays = false
       try {
-        await saveSitting(iso)
+        stays = await saveSitting(iso)
       } catch {
         setError('Service error. Please try again.')
       } finally {
-        setLocked(false)
+        if (!stays) setLocked(false)
       }
     })
   }
@@ -134,35 +126,59 @@ function useSittingForm(sitting: SittingRow | undefined) {
   return {
     pending,
     locked,
+    created,
     valid,
     error,
     submit,
     close,
-    fields: {
-      when,
-      setWhen,
-      mode,
-      setMode,
-      invigilatorId,
-      setInvigilatorId,
-      materials,
-      setMaterials,
-    },
+    fields,
   }
+}
+
+/** The assigned invigilator stays selectable when no longer active. */
+function withAssignedInvigilator(
+  sitting: SittingRow | undefined,
+  invigilators: InvigilatorOption[],
+) {
+  if (!sitting || invigilators.some((i) => i.id === sitting.invigilatorId)) return invigilators
+  return [
+    { id: sitting.invigilatorId, name: `${sitting.invigilatorName} (inactive)` },
+    ...invigilators,
+  ]
+}
+
+type FooterProps = {
+  pending: boolean
+  created: boolean
+  valid: boolean
+  close: () => void
+  submit: () => void
+}
+
+function FormFooter({ pending, created, valid, close, submit }: Readonly<FooterProps>) {
+  return (
+    <PopupFooter>
+      <Button variant="outline" disabled={pending || created} onClick={close}>
+        Cancel
+      </Button>
+      <LoadingButton
+        onClick={submit}
+        loading={pending}
+        disabled={!valid || created}
+        loadingText="Saving..."
+      >
+        Save
+      </LoadingButton>
+    </PopupFooter>
+  )
 }
 
 function SittingForm({
   sitting,
   invigilators,
 }: Readonly<{ sitting?: SittingRow; invigilators: InvigilatorOption[] }>) {
-  const { pending, locked, valid, error, submit, close, fields: f } = useSittingForm(sitting)
-  const options =
-    sitting && !invigilators.some((i) => i.id === sitting.invigilatorId)
-      ? [
-          { id: sitting.invigilatorId, name: `${sitting.invigilatorName} (inactive)` },
-          ...invigilators,
-        ]
-      : invigilators
+  const { pending, locked, error, fields: f, ...footer } = useSittingForm(sitting)
+  const options = withAssignedInvigilator(sitting, invigilators)
   return (
     <>
       <PopupHeader>
@@ -224,14 +240,7 @@ function SittingForm({
         )}
         <FieldError role="alert">{error}</FieldError>
       </PopupBody>
-      <PopupFooter>
-        <Button variant="outline" disabled={pending} onClick={close}>
-          Cancel
-        </Button>
-        <LoadingButton onClick={submit} loading={pending} disabled={!valid} loadingText="Saving...">
-          Save
-        </LoadingButton>
-      </PopupFooter>
+      <FormFooter pending={pending} {...footer} />
     </>
   )
 }

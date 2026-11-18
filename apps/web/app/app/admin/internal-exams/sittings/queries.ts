@@ -15,11 +15,32 @@ function toStatus(v: string | null): SittingStatus {
   return v === 'open' || v === 'closed' || v === 'cancelled' ? v : 'scheduled'
 }
 
-export async function listSittings(
-  scope: SittingScope,
-  page = 1,
-): Promise<{ rows: SittingRow[]; totalCount: number }> {
-  const { supabase } = await requireAdmin()
+type ListRow = Awaited<ReturnType<typeof fetchSittingsPage>>[number]
+
+function mapSittingRow(r: ListRow): SittingRow {
+  return {
+    id: r.id,
+    scheduledAt: r.scheduled_at,
+    mode: r.mode === 'in_person' ? 'in_person' : 'remote',
+    status: toStatus(r.status),
+    invigilatorId: r.invigilator_id,
+    invigilatorName: r.invigilator_name,
+    invigilatorActive: r.invigilator_active,
+    permittedMaterials: r.permitted_materials,
+    startedAt: r.started_at,
+    closedAt: r.closed_at,
+    candidates: r.candidates,
+    entries: r.entries,
+    entriesWithoutCode: r.entries_without_code,
+    entriesFinished: r.entries_finished,
+    entriesAbsent: r.entries_absent,
+    endedAutomatically: r.ended_automatically,
+  }
+}
+
+type Supabase = Awaited<ReturnType<typeof requireAdmin>>['supabase']
+
+async function fetchSittingsPage(supabase: Supabase, scope: SittingScope, page: number) {
   const { data, error } = await supabase.rpc('list_exam_sittings', {
     p_scope: scope,
     p_limit: SITTINGS_PAGE_SIZE,
@@ -29,27 +50,24 @@ export async function listSittings(
     console.error('[listSittings] RPC error:', error.message)
     throw new Error('Failed to load sittings')
   }
-  const rows = (data ?? []).map(
-    (r): SittingRow => ({
-      id: r.id,
-      scheduledAt: r.scheduled_at,
-      mode: r.mode === 'in_person' ? 'in_person' : 'remote',
-      status: toStatus(r.status),
-      invigilatorId: r.invigilator_id,
-      invigilatorName: r.invigilator_name,
-      invigilatorActive: r.invigilator_active,
-      permittedMaterials: r.permitted_materials,
-      startedAt: r.started_at,
-      closedAt: r.closed_at,
-      candidates: r.candidates,
-      entries: r.entries,
-      entriesWithoutCode: r.entries_without_code,
-      entriesFinished: r.entries_finished,
-      entriesAbsent: r.entries_absent,
-      endedAutomatically: r.ended_automatically,
-    }),
-  )
-  return { rows, totalCount: Number(data?.[0]?.total_count ?? 0) }
+  return data ?? []
+}
+
+/** An out-of-range page snaps to the last page, like the codes list (#1041). */
+export async function listSittings(
+  scope: SittingScope,
+  page = 1,
+): Promise<{ rows: SittingRow[]; totalCount: number }> {
+  const { supabase } = await requireAdmin()
+  let data = await fetchSittingsPage(supabase, scope, page)
+  if (data.length === 0 && page > 1) {
+    const first = await fetchSittingsPage(supabase, scope, 1)
+    const totalCount = Number(first[0]?.total_count ?? 0)
+    if (totalCount === 0) return { rows: [], totalCount }
+    const last = Math.max(1, Math.ceil(totalCount / SITTINGS_PAGE_SIZE))
+    data = last === 1 ? first : await fetchSittingsPage(supabase, scope, Math.min(page, last))
+  }
+  return { rows: data.map(mapSittingRow), totalCount: Number(data[0]?.total_count ?? 0) }
 }
 
 /** One RPC per request: lazy-closes expired sittings and returns the summary counts. */

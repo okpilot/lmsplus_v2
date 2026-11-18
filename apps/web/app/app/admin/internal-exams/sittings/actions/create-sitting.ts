@@ -3,12 +3,7 @@
 import { CreateExamSittingSchema } from '@repo/db/schema'
 import { revalidatePath } from 'next/cache'
 import { requireAdmin } from '@/lib/auth/require-admin'
-import {
-  firstRow,
-  SITTING_ROOT,
-  type SittingActionResult,
-  sittingFailure,
-} from './sitting-action-result'
+import { SITTING_ROOT, type SittingActionResult, sittingFailure } from './sitting-action-result'
 
 export async function createSitting(
   input: unknown,
@@ -24,8 +19,8 @@ export async function createSitting(
     ...(v.permittedMaterials ? { p_permitted_materials: v.permittedMaterials } : {}),
   })
   if (error) return sittingFailure(error.message, 'Failed to create sitting')
-  const sittingId = typeof data === 'string' ? data : firstRow(data)?.sitting_id
-  if (typeof sittingId !== 'string') return { success: false, error: 'Failed to create sitting' }
+  const sittingId = data?.[0]?.sitting_id
+  if (!sittingId) return { success: false, error: 'Failed to create sitting' }
   revalidatePath(SITTING_ROOT)
   return { success: true, sittingId }
 }

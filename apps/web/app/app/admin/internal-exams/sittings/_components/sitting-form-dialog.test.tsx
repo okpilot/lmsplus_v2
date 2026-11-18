@@ -52,6 +52,21 @@ describe('SittingFormDialog', () => {
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
   })
 
+  it('calls createSitting once on a double Save and keeps Save and Cancel disabled after success', async () => {
+    m.create.mockResolvedValue({ success: true, sittingId: SID })
+    const user = userEvent.setup()
+    render(<SittingFormDialog mode="new" invigilators={invigilators as never} />)
+    await user.click(screen.getByRole('combobox', { name: 'Invigilator' }))
+    await user.click(await screen.findByRole('option', { name: 'Ann Instructor' }))
+    const save = screen.getByRole('button', { name: 'Save' })
+    await user.click(save)
+    await user.click(save)
+    await waitFor(() => expect(m.replace).toHaveBeenCalledTimes(1))
+    expect(m.create).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled()
+  })
+
   it('prefills the UTC date input from the sitting in edit mode', () => {
     edit('scheduled')
     expect(screen.getByLabelText('Date and time (UTC)')).toHaveValue('2026-11-20T09:30')
