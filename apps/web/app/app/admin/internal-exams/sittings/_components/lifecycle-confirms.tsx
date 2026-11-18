@@ -1,6 +1,8 @@
 'use client'
 
+import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { useSittingUi } from '../_hooks/sitting-ui-context'
 import { CANCEL_CONFIRM_TEXT, closeConfirmText, START_CONFIRM_TEXT } from '../_utils/copy'
 import { plural } from '../_utils/plural'
 import { noCodeLine, startResultBanner } from '../_utils/start-result'
@@ -17,6 +19,8 @@ type Props = {
   summary: SittingSummary
   confirm: Confirm
   setConfirm: (c: Confirm) => void
+  /** Opens the Issue popup; the Start confirm stays selected but hidden until the popup closes. */
+  onIssueNow: () => void
 }
 
 export function LifecycleConfirms(props: Readonly<Props>) {
@@ -42,9 +46,10 @@ function useConfirm(which: Exclude<Confirm, null>, { setConfirm }: Props) {
 function StartConfirm(props: Readonly<Props>) {
   const { sitting, summary, confirm } = props
   const { pending, error, run, dismiss, onOpenChange } = useConfirm('start', props)
+  const { dlg, isRefreshing } = useSittingUi()
   return (
     <ConfirmDialog
-      open={confirm === 'start'}
+      open={confirm === 'start' && dlg !== 'issue'}
       onOpenChange={onOpenChange}
       title="Start sitting?"
       description={
@@ -52,6 +57,17 @@ function StartConfirm(props: Readonly<Props>) {
           {START_CONFIRM_TEXT}
           {summary.entriesWithoutCode > 0 && (
             <strong className="mt-2 block">{noCodeLine(summary.entriesWithoutCode)}</strong>
+          )}
+          {summary.entriesIssuable > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-2"
+              disabled={isRefreshing}
+              onClick={props.onIssueNow}
+            >
+              Issue now
+            </Button>
           )}
           {!sitting.invigilatorActive && (
             <strong className="mt-2 block">

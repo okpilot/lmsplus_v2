@@ -225,6 +225,15 @@ export const AddSittingEntriesSchema = z
   .refine((v) => v.userIds.length === v.subjectIds.length, 'Arrays must have equal length')
   .refine(SittingPairsRefine, 'Duplicate pairs')
 
+export const AddSittingExamsSchema = z
+  .object({
+    sittingId: z.uuid(),
+    subjectIds: uuidList(200).min(1),
+    userIds: uuidList(500).min(1).optional(),
+    all: z.literal(true).optional(),
+  })
+  .refine((v) => (v.userIds === undefined) !== (v.all === undefined), 'Pick userIds or all')
+
 export const IssueSittingCodesSchema = z.object({
   sittingId: z.uuid(),
   userIds: uuidList(500).min(1).optional(),

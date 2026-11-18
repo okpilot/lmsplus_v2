@@ -40,8 +40,15 @@ describe('InternalExamsTabs', () => {
   it('exposes the tab testids and marks the active tab with aria-selected', () => {
     renderTabs()
     expect(screen.getByRole('tablist')).toBeInTheDocument()
-    expect(screen.getByTestId('tab-codes')).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByTestId('tab-sittings')).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByTestId('tab-codes')).toHaveAttribute('aria-selected', 'false')
     expect(screen.getByTestId('tab-attempts')).toHaveAttribute('aria-selected', 'false')
+  })
+
+  it('orders the tabs Sittings, Codes, Attempts', () => {
+    renderTabs()
+    const ids = screen.getAllByRole('tab').map((t) => t.getAttribute('data-testid'))
+    expect(ids).toEqual(['tab-sittings', 'tab-codes', 'tab-attempts'])
   })
 
   it('writes the clicked tab to the URL instead of local state', async () => {
@@ -54,7 +61,7 @@ describe('InternalExamsTabs', () => {
 
   it('navigates again after the URL tab changes (Back, then another tab)', async () => {
     const user = userEvent.setup()
-    mockSearch.value = ''
+    mockSearch.value = 'tab=codes'
     const view = renderTabs()
     await user.click(screen.getByTestId('tab-attempts'))
     expect(mockReplace).toHaveBeenCalledTimes(1)
@@ -107,12 +114,12 @@ describe('InternalExamsTabs', () => {
     expect(screen.getByTestId('tabpanel-attempts')).toBeInTheDocument()
   })
 
-  it('selects the sittings tab from ?tab=sittings and lists it last', () => {
+  it('selects the sittings tab from ?tab=sittings and lists it first', () => {
     mockSearch.value = 'tab=sittings'
     renderTabs()
     expect(screen.getByTestId('tab-sittings')).toHaveAttribute('aria-selected', 'true')
     const tabs = screen.getAllByRole('tab').map((t) => t.getAttribute('data-testid'))
-    expect(tabs).toEqual(['tab-codes', 'tab-attempts', 'tab-sittings'])
+    expect(tabs).toEqual(['tab-sittings', 'tab-codes', 'tab-attempts'])
   })
 
   it('styles the active tab with the shared segmented look', () => {

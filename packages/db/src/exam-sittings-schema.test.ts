@@ -299,3 +299,34 @@ describe('AC-68 RosterQuerySchema', () => {
     expect(parse('RosterQuerySchema', { sittingId: SID, show: 'x' }).success).toBe(false)
   })
 })
+
+describe('AddSittingExamsSchema (AC 57)', () => {
+  const ok = { sittingId: SID, subjectIds: ids(2, 300), userIds: ids(2, 400) }
+  it('accepts explicit userIds', () => {
+    expect(parse('AddSittingExamsSchema', ok).success).toBe(true)
+  })
+  it('accepts all:true without userIds', () => {
+    const { userIds: _u, ...rest } = ok
+    expect(parse('AddSittingExamsSchema', { ...rest, all: true }).success).toBe(true)
+  })
+  it('rejects userIds together with all:true', () => {
+    expect(parse('AddSittingExamsSchema', { ...ok, all: true }).success).toBe(false)
+  })
+  it('rejects neither userIds nor all', () => {
+    const { userIds: _u, ...rest } = ok
+    expect(parse('AddSittingExamsSchema', rest).success).toBe(false)
+  })
+  it('rejects zero subjects and 201 subjects, accepts 200', () => {
+    expect(parse('AddSittingExamsSchema', { ...ok, subjectIds: [] }).success).toBe(false)
+    expect(parse('AddSittingExamsSchema', { ...ok, subjectIds: ids(201, 1000) }).success).toBe(
+      false,
+    )
+    expect(parse('AddSittingExamsSchema', { ...ok, subjectIds: ids(200, 1000) }).success).toBe(true)
+  })
+  it('rejects duplicate ids and non-uuids', () => {
+    expect(parse('AddSittingExamsSchema', { ...ok, subjectIds: [uid(5), uid(5)] }).success).toBe(
+      false,
+    )
+    expect(parse('AddSittingExamsSchema', { ...ok, userIds: ['nope'] }).success).toBe(false)
+  })
+})

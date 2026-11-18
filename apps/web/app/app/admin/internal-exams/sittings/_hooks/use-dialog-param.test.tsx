@@ -12,7 +12,7 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(mockSearch.value),
 }))
 
-import { type DialogRefs, dialogHref, useDialogParam } from './use-dialog-param'
+import { type DialogRefs, dialogHref, paramsHref, useDialogParam } from './use-dialog-param'
 
 beforeEach(() => {
   vi.resetAllMocks()
@@ -129,6 +129,77 @@ describe('useDialogParam', () => {
     act(() => result.current.open('new'))
     expect(result.current.consumeOpenedHere()).toBe(true)
     expect(result.current.consumeOpenedHere()).toBe(false)
+  })
+})
+
+describe('useDialogParam popups (AC 46)', () => {
+  it('opens with extras and does not scroll', () => {
+    const { result } = renderHook(() => useDialogParam())
+    act(() => result.current.open('exams', null, { ids: 'u1,u2' }))
+    const [url, opts] = mockPush.mock.calls[0] ?? []
+    expect(url).toContain('dlg=exams')
+    expect(url).toContain('ids=u1%2Cu2')
+    expect(opts).toEqual({ scroll: false })
+  })
+
+  it('strips stale popup params when opening another popup', () => {
+    mockSearch.value = 'tab=sittings&dlg=people&pq=ann&pgroup=g1&ppage=2&ids=a&all=1'
+    const { result } = renderHook(() => useDialogParam())
+    act(() => result.current.open('issue'))
+    const url = mockPush.mock.calls[0]?.[0] as string
+    expect(url).toBe('/app/admin/internal-exams?tab=sittings&dlg=issue')
+  })
+
+  it('replaces popup params in place without adding history', () => {
+    mockSearch.value = 'tab=sittings&dlg=people'
+    const { result } = renderHook(() => useDialogParam())
+    act(() => result.current.replaceParams({ pq: 'a', ppage: null }))
+    act(() => result.current.replaceParams({ pq: 'an' }))
+    act(() => result.current.replaceParams({ pq: null }))
+    expect(mockPush).not.toHaveBeenCalled()
+    expect(mockReplace).toHaveBeenCalledTimes(3)
+    expect(mockReplace.mock.calls[0]).toEqual([
+      '/app/admin/internal-exams?tab=sittings&dlg=people&pq=a',
+      { scroll: false },
+    ])
+  })
+
+  it('closes by replacing without any popup param when deep-linked', () => {
+    mockSearch.value = 'tab=sittings&dlg=exams&ids=u1&all=1&pq=x'
+    const { result } = renderHook(() => useDialogParam())
+    act(() => result.current.close())
+    expect(mockReplace.mock.calls[0]?.[0]).toBe('/app/admin/internal-exams?tab=sittings')
+  })
+
+  it('runs navigation in the shared transition and reports its pending state', () => {
+    const start = vi.fn((fn: () => void) => fn())
+    const refs: DialogRefs = {
+      openedHere: { current: false },
+      openerRef: { current: null },
+      closing: { current: false },
+      nav: { pending: true, start },
+    }
+    const { result } = renderHook(() => useDialogParam(refs))
+    expect(result.current.isRefreshing).toBe(true)
+    act(() => result.current.open('people'))
+    act(() => result.current.replaceParams({ pq: 'x' }))
+    expect(start).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('paramsHref', () => {
+  it('sets, replaces and removes params, keeping the rest', () => {
+    expect(paramsHref('/p', 'a=1&b=2', { b: '3', c: '4', a: null })).toBe('/p?b=3&c=4')
+  })
+  it('returns the bare pathname when nothing is left', () => {
+    expect(paramsHref('/p', 'a=1', { a: null })).toBe('/p')
+  })
+})
+
+describe('dialogHref popup params', () => {
+  it('drops every popup param when the dialog is removed or another opens', () => {
+    expect(dialogHref('/p', 'tab=sittings&dlg=exams&ids=u1&all=1', null)).toBe('/p?tab=sittings')
+    expect(dialogHref('/p', 'dlg=people&pq=x&pgroup=g&ppage=2', 'issue')).toBe('/p?dlg=issue')
   })
 })
 

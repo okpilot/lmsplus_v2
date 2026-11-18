@@ -116,3 +116,75 @@ export type RemovedEntryRow = {
 /** URL value of the Show filter; `attempts` maps to the RPC value `has_attempts`. */
 export type ShowValue = 'all' | 'needs_code' | 'attempts'
 export const SHOW_VALUES: readonly ShowValue[] = ['all', 'needs_code', 'attempts']
+
+export const PEOPLE_PAGE_SIZE = 50
+
+/** A student who can be added to the sitting (Add people popup). */
+export type AddablePerson = {
+  userId: string
+  name: string
+  email: string
+  deactivated: boolean
+  groups: string
+  courses: string
+}
+
+/** One exam of the Add exams popup, aggregated over the picked people. */
+export type SubjectEligibility = {
+  subjectId: string
+  subjectName: string
+  subjectShort: string
+  courseId: string | null
+  courseName: string | null
+  people: number
+  eligible: number
+  enteredHere: number
+  passed: number
+  attemptRunning: number
+  enteredElsewhere: number
+  notEnrolled: number
+  deactivated: number
+  /** Pair state; only set when exactly one person was picked. */
+  state: string | null
+  attemptCount: number | null
+  passedAt: string | null
+  passedScore: number | null
+  elsewhereSittingId: string | null
+  elsewhereAt: string | null
+}
+
+export type IssuePreviewDetail = {
+  entryId: string
+  student: string
+  subjectShort: string
+  reason: string
+}
+
+export type IssuePreview = {
+  /** Entries per plan reason (`issue`, `reissue_after_expiry`, `already_issued`, skip reasons). */
+  counts: Record<string, number>
+  studentsToIssue: number
+  /** Skipped entries other than `already_issued`, at most 200. */
+  details: IssuePreviewDetail[]
+}
+
+export type GroupOption = { id: string; name: string }
+export type CourseOption = { id: string; name: string }
+export type GroupAddCounts = { activeNew: number; deactivatedNew: number }
+export type SameDayPerson = {
+  userId: string
+  name: string
+  sittingId: string
+  scheduledAt: string
+}
+
+/** A popup read on a closed sitting or after its UTC day: the popup shows `This sitting has ended.` */
+export type Ended = { ended: true }
+export const ENDED: Ended = { ended: true }
+
+/** Who a popup acts on, resolved server-side from `ids` / `all`. */
+export type Selection =
+  | { kind: 'all' }
+  | { kind: 'ids'; ids: string[]; truncated: boolean }
+  | { kind: 'whole' }
+  | { kind: 'empty' }

@@ -36,6 +36,8 @@ beforeEach(() => {
     removed: { rows: [], total: 0 },
     invigilators: [],
     notDue: false,
+    editable: true,
+    selection: { kind: 'empty' },
   })
 })
 
@@ -60,6 +62,18 @@ describe('SittingPage', () => {
       SID,
       expect.objectContaining({ q: 'ann', show: 'needs_code', page: 2 }),
     )
+  })
+
+  it('seeds the provider from the selection the loader resolved (AC 35, 59)', async () => {
+    const loaded = await m.load()
+    m.load.mockResolvedValue({
+      ...loaded,
+      selection: { kind: 'ids', ids: ['u1'], truncated: false },
+    })
+    const el = (await SittingPage(params(SID, { dlg: 'exams', ids: 'u1' }) as never)) as {
+      props: { initialSelection: unknown }
+    }
+    expect(el.props.initialSelection).toEqual({ ids: ['u1'], all: false })
   })
 
   it('is composition only: no filtering, mapping or branching on data', () => {

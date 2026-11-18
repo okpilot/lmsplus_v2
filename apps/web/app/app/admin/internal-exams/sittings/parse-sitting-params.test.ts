@@ -40,3 +40,77 @@ describe('parseSittingParams', () => {
     expect(r.page).toBe(1)
   })
 })
+
+const U = (n: number) => `00000000-0000-4000-a000-${String(n).padStart(12, '0')}`
+
+describe('parseSittingParams: popup params (AC 52)', () => {
+  it.each(['people', 'exams', 'issue'])('keeps the dlg value %s', (dlg) => {
+    expect(parseSittingParams({ dlg })).toMatchObject({ dlg })
+  })
+
+  it.each(['new', 'edit', 'bogus', ['people']])('ignores the dlg value %j', (dlg) => {
+    expect(parseSittingParams({ dlg }).dlg).toBeUndefined()
+  })
+
+  it('reads valid, deduped uuid ids and drops non-uuids', () => {
+    const r = parseSittingParams({ ids: `${U(1)},nope,${U(2)},${U(1)}` })
+    expect(r.selection).toMatchObject({ present: true, all: false, ids: [U(1), U(2)] })
+    expect(r.selection?.truncated).toBe(false)
+  })
+
+  it('keeps the first 100 ids and flags truncation', () => {
+    const ids = Array.from({ length: 150 }, (_, i) => U(i + 1)).join(',')
+    const r = parseSittingParams({ ids })
+    expect(r.selection?.ids).toHaveLength(100)
+    expect(r.selection?.ids[0]).toBe(U(1))
+    expect(r.selection?.truncated).toBe(true)
+  })
+
+  it('ignores an ids string longer than 8192 characters', () => {
+    const r = parseSittingParams({ ids: `${U(1)},${'a'.repeat(8200)}` })
+    expect(r.selection?.ids ?? []).toEqual([])
+  })
+
+  it('ignores an array-valued ids', () => {
+    expect(parseSittingParams({ ids: [U(1)] }).selection?.ids ?? []).toEqual([])
+  })
+
+  it('lets all=1 win over ids', () => {
+    const r = parseSittingParams({ all: '1', ids: U(1) })
+    expect(r.selection).toMatchObject({ present: true, all: true })
+  })
+
+  it('reports no selection when neither ids nor all is given', () => {
+    expect(parseSittingParams({}).selection).toMatchObject({ present: false, all: false, ids: [] })
+  })
+
+  it('reads the people filters and defaults page to 1', () => {
+    const r = parseSittingParams({
+      pq: 'ann',
+      pgroup: U(3),
+      pcourse: U(4),
+      pstatus: 'inactive',
+      ppage: '2',
+    })
+    expect(r.people).toMatchObject({
+      q: 'ann',
+      group: U(3),
+      course: U(4),
+      status: 'inactive',
+      page: 2,
+    })
+    expect(parseSittingParams({}).people?.page).toBe(1)
+  })
+
+  it('ignores invalid people filters', () => {
+    const r = parseSittingParams({ pgroup: 'x', pcourse: 'y', pstatus: 'weird', ppage: '0' })
+    expect(r.people?.group).toBeUndefined()
+    expect(r.people?.course).toBeUndefined()
+    expect(r.people?.status).toBeUndefined()
+    expect(r.people?.page).toBe(1)
+  })
+
+  it('does not read a ret param', () => {
+    expect(parseSittingParams({ ret: 'start' })).not.toHaveProperty('ret')
+  })
+})

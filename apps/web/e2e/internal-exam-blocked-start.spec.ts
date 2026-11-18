@@ -26,7 +26,7 @@ test.use({ storageState: 'e2e/.auth/admin.json' })
 const SUBJECT_LABEL_FRAGMENT = 'Meteorology'
 
 async function issueCodeAsAdmin(adminPage: Page): Promise<string> {
-  await adminPage.goto('/app/admin/internal-exams')
+  await adminPage.goto('/app/admin/internal-exams?tab=codes')
   await expect(adminPage.getByRole('heading', { name: 'Internal Exams' })).toBeVisible()
   const form = adminPage.getByTestId('issue-code-form')
   await form.locator('[aria-label="Student"]').click()

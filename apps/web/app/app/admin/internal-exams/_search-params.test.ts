@@ -35,9 +35,9 @@ describe('parseInternalExamsSearchParams', () => {
 })
 
 describe('parseInternalExamsSearchParams: tab, scope, dlg', () => {
-  it('defaults tab to codes and scope to upcoming', () => {
+  it('defaults tab to sittings and scope to upcoming', () => {
     const r = parseInternalExamsSearchParams({})
-    expect(r.tab).toBe('codes')
+    expect(r.tab).toBe('sittings')
     expect(r.scope).toBe('upcoming')
     expect(r.dlg).toBeUndefined()
   })
@@ -47,9 +47,9 @@ describe('parseInternalExamsSearchParams: tab, scope, dlg', () => {
       expect(parseInternalExamsSearchParams({ tab }).tab).toBe(tab)
   })
 
-  it('falls back to codes for an unknown or array tab', () => {
-    expect(parseInternalExamsSearchParams({ tab: 'x' }).tab).toBe('codes')
-    expect(parseInternalExamsSearchParams({ tab: ['sittings', 'codes'] }).tab).toBe('codes')
+  it('falls back to sittings for an unknown or array tab', () => {
+    expect(parseInternalExamsSearchParams({ tab: 'x' }).tab).toBe('sittings')
+    expect(parseInternalExamsSearchParams({ tab: ['sittings', 'codes'] }).tab).toBe('sittings')
   })
 
   it('keeps each recognised scope', () => {
