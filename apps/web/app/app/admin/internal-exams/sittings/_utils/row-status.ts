@@ -73,7 +73,10 @@ function closed(entries: Entries): RowStatus {
     caption && caption !== s.label ? { ...s, caption } : s
   if (failed > 0) return withCaption({ label: `${failed} failed`, tone: 'danger' })
   if (running > 0) return withCaption({ label: 'In progress', tone: 'neutral' })
-  if (finished > 0) return withCaption({ label: 'All passed', tone: 'success' })
+  if (finished === entries.length && passed === finished) {
+    return withCaption({ label: 'All passed', tone: 'success' })
+  }
+  if (passed > 0) return withCaption({ label: `${passed} passed`, tone: 'success' })
   if (discarded > 0) return withCaption({ label: 'Attempt discarded', tone: 'neutral' })
   if (voidedAttempt > 0) return withCaption({ label: 'Attempt voided', tone: 'neutral' })
   return { label: 'Absent', tone: 'neutral' }

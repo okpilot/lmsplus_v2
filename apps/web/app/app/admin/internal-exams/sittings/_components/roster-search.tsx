@@ -12,8 +12,10 @@ export function RosterSearch({ value }: Readonly<{ value: string }>) {
   const [text, setText] = useState(value)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
-    if (!timer.current) setText((prev) => (prev.trim() === value ? prev : value))
-  }, [value])
+    if (timer.current) return
+    setText((prev) => (prev.trim() === value ? prev : value))
+    if (searchDraft) searchDraft.current = null
+  }, [value, searchDraft])
   useEffect(
     () => () => {
       if (timer.current) clearTimeout(timer.current)
@@ -28,7 +30,6 @@ export function RosterSearch({ value }: Readonly<{ value: string }>) {
     timer.current = setTimeout(() => {
       timer.current = null
       if (searchDraft && searchDraft.current === null) return
-      if (searchDraft) searchDraft.current = null
       update({ q: v.trim() || null, page: null })
     }, 300)
   }

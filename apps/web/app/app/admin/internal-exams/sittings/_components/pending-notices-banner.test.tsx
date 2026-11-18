@@ -11,19 +11,15 @@ describe('PendingNoticesBanner', () => {
   it('states the plural copy with the count and no Send button', () => {
     render(<PendingNoticesBanner count={3} />)
     expect(
-      screen.getByText(
-        '3 students removed because they passed will be notified once email sending is available.',
-      ),
+      screen.getByText('3 notices waiting to be sent once email sending is available.'),
     ).toBeInTheDocument()
     expect(screen.queryByRole('button')).toBeNull()
   })
 
-  it('uses the singular for one student', () => {
+  it('uses the singular for one notice', () => {
     render(<PendingNoticesBanner count={1} />)
     expect(
-      screen.getByText(
-        '1 student removed because they passed will be notified once email sending is available.',
-      ),
+      screen.getByText('1 notice waiting to be sent once email sending is available.'),
     ).toBeInTheDocument()
   })
 })

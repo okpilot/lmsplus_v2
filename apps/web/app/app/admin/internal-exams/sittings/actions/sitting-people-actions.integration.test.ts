@@ -13,6 +13,7 @@ import {
 } from '@/lib/integration-support/harness'
 import { removeCandidates } from './remove-candidates'
 import { removeSittingEntries } from './remove-entries'
+import { voidSittingCode } from './void-sitting-code'
 
 const admin = getAdminClient()
 const suffix = fixtureSuffix()
@@ -133,6 +134,51 @@ describe('sitting people Server Actions (app-layer integration)', () => {
     expect(await removeCandidates({ sittingId, userIds: [s2] })).toEqual({
       success: false,
       error: 'Someone you selected is no longer in this sitting. Reload the page.',
+    })
+  })
+
+  it('voidSittingCode voids an unused code and reports code_voided copy on a repeat', async () => {
+    const ent = await admin
+      .from('exam_sitting_entries')
+      .insert({
+        organization_id: orgId,
+        sitting_id: sittingId,
+        user_id: s1,
+        subject_id: refs.subjectId,
+      })
+      .select('id')
+      .single()
+    if (ent.error) throw new Error(`entry: ${ent.error.message}`)
+    const c = await admin
+      .from('internal_exam_codes')
+      .insert({
+        code: `VP${suffix}`,
+        subject_id: refs.subjectId,
+        student_id: s1,
+        issued_by: adminId,
+        organization_id: orgId,
+        sitting_entry_id: ent.data.id,
+        expires_at: new Date(Date.now() + 7_200_000).toISOString(),
+      })
+      .select('id')
+      .single()
+    if (c.error) throw new Error(`code: ${c.error.message}`)
+    await signInAs(adminEmail, password)
+    expect(await voidSittingCode({ sittingId, codeId: c.data.id, reason: 'Wrong person' })).toEqual(
+      {
+        success: true,
+        codeId: c.data.id,
+      },
+    )
+    const { data } = await admin
+      .from('internal_exam_codes')
+      .select('voided_at')
+      .eq('id', c.data.id)
+      .single()
+    expect(data?.voided_at).not.toBeNull()
+    expect(await voidSittingCode({ sittingId, codeId: c.data.id, reason: 'again' })).toEqual({
+      success: false,
+      error: 'Code is already voided.',
     })
   })
 })

@@ -123,6 +123,48 @@ describe('RosterSearch', () => {
     expect(url).toContain('q=ann')
   })
 
+  it('Show change after the debounce fired but before value updates carries no stale q', () => {
+    window.history.replaceState(null, '', '/x?q=Bea&page=4')
+    render(
+      <SittingUiProvider>
+        <RosterSearch value="Bea" />
+        <ShowFilter value="all" />
+      </SittingUiProvider>,
+    )
+    fireEvent.change(screen.getByLabelText(LABEL), { target: { value: '' } })
+    act(() => {
+      vi.advanceTimersByTime(300)
+    })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Show' }), {
+      target: { value: 'needs_code' },
+    })
+    const url = mockReplace.mock.calls.at(-1)?.[0] as string
+    expect(url).toContain('show=needs_code')
+    expect(url).not.toContain('q=')
+  })
+
+  it('value update from an earlier write does not drop a newer pending draft', () => {
+    const tree = (value: string) => (
+      <SittingUiProvider>
+        <RosterSearch value={value} />
+        <ShowFilter value="all" />
+      </SittingUiProvider>
+    )
+    const { rerender } = render(tree(''))
+    const box = screen.getByLabelText(LABEL)
+    fireEvent.change(box, { target: { value: 'A' } })
+    act(() => {
+      vi.advanceTimersByTime(300)
+    })
+    fireEvent.change(box, { target: { value: 'B' } })
+    rerender(tree('A'))
+    fireEvent.change(screen.getByRole('combobox', { name: 'Show' }), {
+      target: { value: 'needs_code' },
+    })
+    const url = mockReplace.mock.calls.at(-1)?.[0] as string
+    expect(url).toContain('q=B')
+  })
+
   it('unmount clears the pending timer', () => {
     const { unmount } = render(<RosterSearch value="" />)
     fireEvent.change(screen.getByLabelText(LABEL), { target: { value: 'ann' } })

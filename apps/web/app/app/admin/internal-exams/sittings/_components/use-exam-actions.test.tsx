@@ -67,7 +67,7 @@ describe('useExamActions', () => {
   })
 
   it('voids with the reason, calls onDone and toasts the exam owner', async () => {
-    m.voidCode.mockResolvedValue({ success: true })
+    m.voidCode.mockResolvedValue({ success: true, codeId: 'c1' })
     const { result, onDone } = setup()
     act(() => result.current.voidCode('c1', 'lost'))
     await waitFor(() =>

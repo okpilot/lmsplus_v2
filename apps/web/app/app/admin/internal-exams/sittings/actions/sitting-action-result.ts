@@ -33,6 +33,9 @@ export const SITTING_RPC_ERRORS: Record<string, string> = {
   entry_not_found: 'This exam is no longer in the sitting. Reload the page.',
   student_not_found: 'A person you selected no longer exists. Reload and try again.',
   code_generation_failed: 'Could not generate a unique code. Try again.',
+  code_not_found: 'Code not found. Refresh the page.',
+  code_voided: 'Code is already voided.',
+  code_in_use: 'This code has been used. Refresh the page.',
   group_not_found: 'This group no longer exists.',
 }
 

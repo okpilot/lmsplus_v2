@@ -130,7 +130,22 @@ describe('rowStatus', () => {
       expect(r?.caption).toBeUndefined()
     })
 
-    it('shows All passed (success) when finished and none failed', () => {
+    it('shows N passed (success) when some passed and the rest are absent', () => {
+      expect(rs('closed', [ex('finished', true), ex('absent')])).toEqual({
+        label: '1 passed',
+        tone: 'success',
+        caption: '1 passed · 1 absent',
+      })
+    })
+
+    it('does not show All passed when a finished exam has passed=null', () => {
+      expect(rs('closed', [ex('finished', true), ex('finished', null)])).toMatchObject({
+        label: '1 passed',
+      })
+      expect(rs('closed', [ex('finished', null)])?.label).not.toBe('All passed')
+    })
+
+    it('shows All passed (success) when every exam finished and passed', () => {
       expect(rs('closed', [ex('finished', true), ex('finished', true)])).toMatchObject({
         label: 'All passed',
         tone: 'success',
@@ -187,9 +202,9 @@ describe('rowStatus', () => {
       expect(rs('closed', [ex('discarded')])?.caption).toBe('1 discarded')
     })
 
-    it('shows All passed with a discarded part when one finished and one was discarded', () => {
+    it('shows N passed with a discarded part when one finished and one was discarded', () => {
       expect(rs('closed', [ex('finished', true), ex('discarded')])).toMatchObject({
-        label: 'All passed',
+        label: '1 passed',
         caption: '1 passed · 1 discarded',
       })
     })

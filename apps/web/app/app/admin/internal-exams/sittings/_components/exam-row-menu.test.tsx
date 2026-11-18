@@ -218,8 +218,6 @@ describe('ExamRowMenu Void code', () => {
     m.voidCode.mockResolvedValue({
       success: true,
       codeId: 'k1',
-      sessionId: null,
-      sessionEnded: false,
     })
     ui()
     const { user, dialog } = await openVoid()
