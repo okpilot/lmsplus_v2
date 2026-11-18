@@ -5,6 +5,7 @@ import { RemovedEntriesList } from '../_components/removed-entries-list'
 import { ResultBanner } from '../_components/result-banner'
 import { SittingCounts } from '../_components/sitting-counts'
 import { SittingHeader } from '../_components/sitting-header'
+import { SittingPopups } from '../_components/sitting-popups'
 import { SittingUiProvider } from '../_hooks/sitting-ui-context'
 import { initialSelectionOf } from '../_utils/initial-selection'
 import { loadSittingPage } from '../_utils/load-sitting-page'
@@ -45,6 +46,7 @@ export default async function SittingPage({ params, searchParams }: Readonly<Pag
           page={sp.page}
         />
         <RemovedEntriesList rows={removed.rows} total={removed.total} />
+        <SittingPopups sitting={sitting} params={sp} editable={editable} selection={selection} />
       </div>
     </SittingUiProvider>
   )
