@@ -19,7 +19,6 @@ const VOID_REASON_LABEL: Record<string, string> = {
   sitting_cancelled: 'sitting cancelled',
   reissued_after_expiry: 're-issued after expiry',
   entry_removed: 'exam removed',
-  candidate_removed: 'person removed',
 }
 
 const SHOWS_CODE: ReadonlySet<EntryStatus> = new Set(['waiting', 'ready', 'running', 'finished'])

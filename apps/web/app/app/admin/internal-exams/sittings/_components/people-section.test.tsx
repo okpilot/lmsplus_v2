@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -369,22 +369,14 @@ describe('PeopleSection selection', () => {
   })
 
   it('keeps a typed search alive when a row is ticked', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true })
-    try {
-      ui()
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
-      fireEvent.change(screen.getByLabelText('Search people in this sitting'), {
-        target: { value: 'ann' },
-      })
-      await user.click(screen.getByRole('checkbox', { name: 'Select Person 1' }))
-      act(() => {
-        vi.advanceTimersByTime(300)
-      })
-      expect(m.replace).toHaveBeenCalledTimes(1)
-      expect(m.replace.mock.calls[0]?.[0]).toContain('q=ann')
-    } finally {
-      vi.useRealTimers()
-    }
+    ui()
+    const user = userEvent.setup()
+    fireEvent.change(screen.getByLabelText('Search people in this sitting'), {
+      target: { value: 'ann' },
+    })
+    await user.click(screen.getByRole('checkbox', { name: 'Select Person 1' }))
+    await waitFor(() => expect(m.replace).toHaveBeenCalledTimes(1))
+    expect(m.replace.mock.calls[0]?.[0]).toContain('q=ann')
   })
 
   it('disables the tick of a person with an attempt and excludes them from select all', async () => {

@@ -30,11 +30,27 @@ vi.mock('@/app/app/_components/filter-select', () => ({
   ),
 }))
 
-import { SittingUiProvider } from '../_hooks/sitting-ui-context'
+import { SittingUiProvider, useSittingUi } from '../_hooks/sitting-ui-context'
 import { RosterSearch } from './roster-search'
 import { ShowFilter } from './show-filter'
 
 const LABEL = 'Search people in this sitting'
+
+function TickProbe() {
+  const { rosterIds, toggleRoster } = useSittingUi()
+  return (
+    <button type="button" onClick={() => toggleRoster('p1')}>
+      ticks:{rosterIds.length}
+    </button>
+  )
+}
+const withTick = (
+  <SittingUiProvider>
+    <TickProbe />
+    <RosterSearch value="" />
+    <ShowFilter value="all" />
+  </SittingUiProvider>
+)
 
 beforeEach(() => {
   vi.useFakeTimers()
@@ -163,6 +179,40 @@ describe('RosterSearch', () => {
     })
     const url = mockReplace.mock.calls.at(-1)?.[0] as string
     expect(url).toContain('q=B')
+  })
+
+  it('clears roster ticks when the debounced search writes the URL', () => {
+    render(withTick)
+    fireEvent.click(screen.getByRole('button', { name: 'ticks:0' }))
+    expect(screen.getByRole('button', { name: 'ticks:1' })).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText(LABEL), { target: { value: 'ann' } })
+    act(() => {
+      vi.advanceTimersByTime(300)
+    })
+    expect(screen.getByRole('button', { name: 'ticks:0' })).toBeInTheDocument()
+  })
+
+  it('clears roster ticks when Show flushes the pending search', () => {
+    render(withTick)
+    fireEvent.click(screen.getByRole('button', { name: 'ticks:0' }))
+    fireEvent.change(screen.getByLabelText(LABEL), { target: { value: 'ann' } })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Show' }), {
+      target: { value: 'needs_code' },
+    })
+    act(() => {
+      vi.advanceTimersByTime(1000)
+    })
+    expect(mockReplace).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('button', { name: 'ticks:0' })).toBeInTheDocument()
+  })
+
+  it('keeps roster ticks when unmounted before the debounce fires', () => {
+    const { unmount } = render(withTick)
+    fireEvent.click(screen.getByRole('button', { name: 'ticks:0' }))
+    fireEvent.change(screen.getByLabelText(LABEL), { target: { value: 'ann' } })
+    unmount()
+    vi.advanceTimersByTime(1000)
+    expect(mockReplace).not.toHaveBeenCalled()
   })
 
   it('unmount clears the pending timer', () => {

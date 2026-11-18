@@ -110,7 +110,7 @@ test('Void code with a reason shows Voided, then Issue new code makes it live ag
   await expect(page.getByRole('button', { name: /^Copy code for / })).toBeVisible()
 })
 
-test('Remove person from the row menu and in bulk; a person with an attempt is refused', async ({
+test('Remove person from the row menu and in bulk; a person with an attempt cannot be selected or removed', async ({
   page,
 }) => {
   const { sittingId } = await seedSitting({ status: 'open', people: THREE })
@@ -125,16 +125,9 @@ test('Remove person from the row menu and in bulk; a person with an attempt is r
   await page.getByRole('alertdialog').getByRole('button', { name: 'Remove' }).click()
   await expect(personRow(page, 'E2E Bea Ready')).toHaveCount(0)
 
-  await page.getByRole('checkbox', { name: 'Select E2E Cy Attempt' }).check()
-  await page.getByRole('button', { name: 'Remove' }).click()
-  await page.getByRole('alertdialog').getByRole('button', { name: 'Remove' }).click()
-  const dialog = page.getByRole('alertdialog')
-  await expect(
-    dialog.getByText(
-      'Someone you selected has taken an exam. History is permanent: they cannot be removed.',
-    ),
-  ).toBeVisible()
-  await dialog.getByRole('button', { name: 'Cancel' }).click()
+  await expect(page.getByRole('checkbox', { name: 'Select E2E Cy Attempt' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Actions for E2E Cy Attempt' })).toHaveCount(0)
+  await page.reload()
   await expect(personRow(page, 'E2E Cy Attempt')).toBeVisible()
 })
 

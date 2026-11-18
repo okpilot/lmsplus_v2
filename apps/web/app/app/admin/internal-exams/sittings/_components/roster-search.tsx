@@ -8,7 +8,7 @@ import { useSittingUi } from '../_hooks/sitting-ui-context'
 /** Debounced (300 ms) search; writes `q` and drops `page`. The URL re-syncs the box unless typing is pending. */
 export function RosterSearch({ value }: Readonly<{ value: string }>) {
   const update = useUpdateSearchParams()
-  const { searchDraft } = useSittingUi()
+  const { searchDraft, clearRoster } = useSittingUi()
   const [text, setText] = useState(value)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
@@ -30,6 +30,7 @@ export function RosterSearch({ value }: Readonly<{ value: string }>) {
     timer.current = setTimeout(() => {
       timer.current = null
       if (searchDraft && searchDraft.current === null) return
+      clearRoster()
       update({ q: v.trim() || null, page: null })
     }, 300)
   }

@@ -1,10 +1,8 @@
 import { Heading } from '@/components/ui/heading'
-import { formatUtc } from '@/lib/utils/format-utc'
+import { fmtDate } from '../_utils/format-dates'
 import type { RemovedEntryRow } from '../types'
 
 type Props = { rows: readonly RemovedEntryRow[]; total: number }
-
-const DAY = { day: 'numeric', month: 'short', year: 'numeric' } as const
 
 /** Exams removed automatically because the student passed; hidden when there are none. */
 export function RemovedEntriesList({ rows, total }: Readonly<Props>) {
@@ -16,7 +14,7 @@ export function RemovedEntriesList({ rows, total }: Readonly<Props>) {
         {rows.map((r) => (
           <li key={r.entryId}>
             {r.studentName.trim() || 'Unknown student'} · {r.subjectShort || 'Unknown subject'} ·{' '}
-            {r.passedAt ? `passed ${formatUtc(r.passedAt, DAY, { label: false })} · ` : ''}
+            {r.passedAt ? `passed ${fmtDate(r.passedAt)} · ` : ''}
             {r.noticeSent ? 'notice sent' : 'notice pending'}
           </li>
         ))}

@@ -231,6 +231,12 @@ export const IssueSittingCodesSchema = z.object({
   entryIds: uuidList(500).min(1).optional(),
 })
 
+export const VoidSittingCodeSchema = z.object({
+  sittingId: z.uuid(),
+  codeId: z.uuid(),
+  reason: z.string().trim().min(1).max(500),
+})
+
 export const SubjectEligibilityQuerySchema = z.object({
   sittingId: z.uuid(),
   userIds: uuidList(100).min(1).optional(),

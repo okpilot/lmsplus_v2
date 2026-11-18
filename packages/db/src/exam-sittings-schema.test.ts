@@ -219,6 +219,25 @@ describe('AC-66 IssueSittingCodesSchema', () => {
   })
 })
 
+describe('VoidSittingCodeSchema', () => {
+  const ok = { sittingId: SID, codeId: uid(2), reason: 'lost' }
+  it('accepts a valid input and trims the reason', () => {
+    const r = parse('VoidSittingCodeSchema', { ...ok, reason: '  lost  ' })
+    expect(r.success).toBe(true)
+    expect(r.data?.reason).toBe('lost')
+  })
+  it('rejects a reason that is blank after trim', () => {
+    expect(parse('VoidSittingCodeSchema', { ...ok, reason: '   ' }).success).toBe(false)
+  })
+  it('rejects a 501-character reason and accepts 500', () => {
+    expect(parse('VoidSittingCodeSchema', { ...ok, reason: 'x'.repeat(501) }).success).toBe(false)
+    expect(parse('VoidSittingCodeSchema', { ...ok, reason: 'x'.repeat(500) }).success).toBe(true)
+  })
+  it('rejects a non-uuid code id', () => {
+    expect(parse('VoidSittingCodeSchema', { ...ok, codeId: 'nope' }).success).toBe(false)
+  })
+})
+
 describe('AC-67 SubjectEligibilityQuerySchema', () => {
   it('accepts omitted userIds and 1..100 distinct ids', () => {
     expect(parse('SubjectEligibilityQuerySchema', { sittingId: SID }).success).toBe(true)

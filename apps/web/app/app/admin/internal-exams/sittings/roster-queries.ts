@@ -100,9 +100,6 @@ async function fetchRoster(supabase: Supabase, a: Query): Promise<RosterRpcRow[]
   return data ?? []
 }
 
-/** Postgres `int` ceiling for `p_offset`; a larger page snaps to the last page instead of overflowing. */
-const MAX_PAGE = Math.floor(2_147_483_647 / ROSTER_PAGE_SIZE)
-
 type RosterPage = { rows: RosterRow[]; total: number }
 
 const totalOf = (rows: RosterRpcRow[]) => Number(rows[0]?.total_count ?? 0)
@@ -116,10 +113,9 @@ export async function getRoster(a: {
 }): Promise<RosterPage | null> {
   const { supabase } = await requireAdmin()
   const base = { sittingId: a.sittingId, q: a.q, show: a.show, limit: ROSTER_PAGE_SIZE }
-  const page = Math.min(a.page, MAX_PAGE)
-  let rows = await fetchRoster(supabase, { ...base, page })
+  let rows = await fetchRoster(supabase, { ...base, page: a.page })
   if (rows === null) return null
-  if (rows.length === 0 && page > 1) {
+  if (rows.length === 0 && a.page > 1) {
     const first = await fetchRoster(supabase, { ...base, page: 1 })
     const total = totalOf(first ?? [])
     if (total === 0) return { rows: [], total: 0 }

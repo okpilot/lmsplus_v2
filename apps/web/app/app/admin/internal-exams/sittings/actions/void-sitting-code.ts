@@ -1,6 +1,6 @@
 'use server'
 
-import { z } from 'zod'
+import { VoidSittingCodeSchema } from '@repo/db/schema'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import {
   firstRow,
@@ -8,12 +8,6 @@ import {
   type SittingActionResult,
   sittingFailure,
 } from './sitting-action-result'
-
-const VoidSittingCodeSchema = z.object({
-  sittingId: z.uuid(),
-  codeId: z.uuid(),
-  reason: z.string().trim().min(1).max(500),
-})
 
 /** Voids one unused code of the sitting (admin-only, audited); refuses used, voided or foreign codes. */
 export async function voidSittingCode(
