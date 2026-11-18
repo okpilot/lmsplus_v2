@@ -486,6 +486,32 @@ describe('RPC: list_my_active_internal_exam_codes (sitting columns)', () => {
     expect((await w.sittingRow(staleSit)).status).toBe('closed')
   })
 
+  it('AC-47: an unvoided code on a soft-deleted entry or sitting is not listed as a legacy code', async () => {
+    const sitE = await w.sitting({ day: 1 })
+    const eDel = await w.enter(sitE, w.s1, w.subA)
+    const cEntry = await w.code(eDel)
+    const sitS = await w.sitting({ day: 1 })
+    const cSitting = await w.code(await w.enter(sitS, w.s1, w.subB))
+    const now = new Date().toISOString()
+    must(
+      (await admin
+        .from('exam_sitting_entries')
+        .update({ deleted_at: now, deleted_by: w.a1 })
+        .eq('id', eDel)) as Res,
+      'soft-delete entry',
+    )
+    must(
+      (await admin
+        .from('exam_sittings')
+        .update({ deleted_at: now, deleted_by: w.a1 })
+        .eq('id', sitS)) as Res,
+      'soft-delete sitting',
+    )
+    const ids = (await list()).map((r) => r.id)
+    expect(ids).not.toContain(cEntry)
+    expect(ids).not.toContain(cSitting)
+  })
+
   it('AC-47: another student never sees these codes and a deactivated caller is refused', async () => {
     const id = await legacy({ student: w.s2 })
     expect((await list()).map((r) => r.id)).not.toContain(id)

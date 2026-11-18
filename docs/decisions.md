@@ -244,3 +244,8 @@
 ## 249 — 2026-11-17 — Candidates are an explicit snapshot; group expansion is server-side at add time; a candidate with an attempt cannot be removed. #1777
 ## 250 — 2026-11-17 — Group and sitting reads that must show deactivated users read `users` without `deleted_at` (security.md §15 (f)). #1777
 ## 251 — 2026-11-17 — SECURITY DEFINER trigger functions (`RETURNS trigger`) with EXECUTE revoked from PUBLIC, anon and authenticated need no `auth.uid()` check; they still set `search_path`. #1777
+## 252 — 2026-11-17 — Entry eligibility has one source, `private.sitting_pair_state` (first match wins, database.md § Exam sitting RPCs); the eligibility read and `add_exam_sitting_entries` never re-derive it. #1777
+## 253 — 2026-11-17 — Entries are added only by `add_exam_sitting_entries`: at most 1000 pairs per call, at most 2000 live per sitting, an org advisory lock after the sitting lock so one pair cannot enter two sittings. #1777
+## 254 — 2026-11-17 — Codes are issued from `private.sitting_issue_plan`: one live code per entry; an expired unused code is voided `reissued_after_expiry` and replaced in the same transaction; issue prunes passed entries first; issue and preview results and audit rows carry no plaintext code. #1777
+## 255 — 2026-11-17 — `list_exam_sitting_roster` returns the plaintext code to admins only, and only while it is unvoided and consumed or unexpired; students never. #1777
+## 256 — 2026-11-17 — security.md §15 exception (g): sitting reads of cancelled (soft-deleted) `exam_sittings` omit `deleted_at IS NULL`; admin-gated, org-scoped, named inline. #1777
