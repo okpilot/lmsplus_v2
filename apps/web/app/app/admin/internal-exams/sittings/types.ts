@@ -168,8 +168,6 @@ export type IssuePreview = {
   details: IssuePreviewDetail[]
 }
 
-export type GroupOption = { id: string; name: string }
-export type CourseOption = { id: string; name: string }
 export type GroupAddCounts = { activeNew: number; deactivatedNew: number }
 export type SameDayPerson = {
   userId: string

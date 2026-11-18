@@ -23,6 +23,7 @@ const PLAIN_REASONS = new Set(['issue', 'reissue_after_expiry', 'already_issued'
 function Skipped({ preview }: Readonly<{ preview: IssuePreview }>) {
   const skipped = Object.entries(preview.counts).filter(([k]) => !PLAIN_REASONS.has(k))
   if (skipped.length === 0) return null
+  const total = skipped.reduce((sum, [, n]) => sum + n, 0)
   return (
     <div className="space-y-1">
       <p className="text-label text-muted-foreground">Skipped</p>
@@ -35,9 +36,10 @@ function Skipped({ preview }: Readonly<{ preview: IssuePreview }>) {
       </ul>
       {preview.details.length > 0 && (
         <details className="text-caption">
-          <summary className="cursor-pointer">
-            Show skipped exams ({preview.details.length})
-          </summary>
+          <summary className="cursor-pointer">Show skipped exams ({total})</summary>
+          {preview.details.length < total && (
+            <p className="mt-1">The first {preview.details.length} are listed.</p>
+          )}
           <ul className="mt-1 list-disc pl-prose-indent">
             {preview.details.map((d) => (
               <li key={d.entryId}>

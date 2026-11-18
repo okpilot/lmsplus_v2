@@ -75,6 +75,19 @@ describe('useDialogParam', () => {
     expect(mockReplace).toHaveBeenCalledWith('/app/admin/internal-exams?tab=sittings&scope=open')
   })
 
+  it('ignores param edits once the dialog is closing, and accepts them after it reopens', () => {
+    const { result, rerender } = renderHook(() => useDialogParam())
+    act(() => result.current.open('people'))
+    mockSearch.value = 'tab=sittings&scope=open&dlg=people'
+    rerender()
+    act(() => result.current.close())
+    act(() => result.current.replaceParams({ pq: 'ann' }))
+    expect(mockReplace).not.toHaveBeenCalled()
+    act(() => result.current.open('people'))
+    act(() => result.current.replaceParams({ pq: 'ann' }))
+    expect(mockReplace.mock.calls[0]?.[0] as string).toContain('pq=ann')
+  })
+
   it('collapses two close() calls into one router.back()', () => {
     const refs: DialogRefs = {
       openedHere: { current: true },

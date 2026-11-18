@@ -79,6 +79,28 @@ describe('IssueCodesPanel', () => {
     expect(screen.getByText('Bob · NAV — exam disabled')).toBeInTheDocument()
   })
 
+  it('counts every skipped exam and says when only the first ones are listed', () => {
+    const details = Array.from({ length: 200 }, (_, i) => ({
+      entryId: `e${i}`,
+      student: `S${i}`,
+      subjectShort: 'NAV',
+      reason: 'passed',
+    }))
+    panel({ counts: { issue: 1, passed: 350 }, details })
+    expect(screen.getByText('Show skipped exams (350)')).toBeInTheDocument()
+    expect(screen.getByText('The first 200 are listed.')).toBeInTheDocument()
+    expect(screen.getAllByText(/ · NAV — already passed$/)).toHaveLength(200)
+  })
+
+  it('lists every skipped exam without a first-only note when none are cut', () => {
+    panel({
+      counts: { issue: 1, passed: 1 },
+      details: [{ entryId: 'e1', student: 'Ann', subjectShort: 'FPM', reason: 'passed' }],
+    })
+    expect(screen.getByText('Show skipped exams (1)')).toBeInTheDocument()
+    expect(screen.queryByText(/are listed\./)).not.toBeInTheDocument()
+  })
+
   it('Nothing to issue: Close only, no Issue button (AC 42)', () => {
     panel({ counts: { already_issued: 2 } })
     expect(screen.getByText('Nothing to issue.')).toBeInTheDocument()
