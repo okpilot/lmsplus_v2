@@ -53,6 +53,22 @@ describe('cleanupE2eExamSittings', () => {
     expect(like?.args).toEqual(['permitted_materials', `${EXAM_SITTING_E2E_PREFIX}%`])
   })
 
+  it('leaves marked sittings that have entries or candidates', async () => {
+    const calls = mockTables({
+      exam_sittings: [
+        { data: [{ id: 's1' }, { id: 's2' }, { id: 's3' }], error: null },
+        { data: [{ id: 's3' }], error: null },
+      ],
+      exam_sitting_entries: [{ data: [{ sitting_id: 's1' }], error: null }],
+      exam_sitting_candidates: [{ data: [{ sitting_id: 's2' }], error: null }],
+    })
+    await cleanupE2eExamSittings()
+    const del = calls.find((c) => c.method === 'delete')
+    expect(del?.table).toBe('exam_sittings')
+    const inCall = calls.filter((c) => c.table === 'exam_sittings' && c.method === 'in').at(-1)
+    expect(inCall?.args).toEqual(['id', ['s3']])
+  })
+
   it('deletes the marked sittings by id', async () => {
     const calls = mockTables({
       exam_sittings: [

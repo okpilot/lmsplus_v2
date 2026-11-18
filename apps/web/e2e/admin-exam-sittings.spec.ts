@@ -18,10 +18,11 @@ function utcInput(daysAhead: number, hhmm: string): string {
   return `${d.toISOString().slice(0, 10)}T${hhmm}`
 }
 
-test.beforeEach((_fixtures, testInfo) => {
-  const now = new Date()
-  testInfo.skip(now.getUTCHours() === 23 && now.getUTCMinutes() >= 55, 'UTC day rollover window')
-})
+const loadedAt = new Date()
+test.skip(
+  loadedAt.getUTCHours() === 23 && loadedAt.getUTCMinutes() >= 55,
+  'UTC day rollover window',
+)
 
 async function createSitting(
   page: import('@playwright/test').Page,
@@ -34,7 +35,10 @@ async function createSitting(
   await page.getByRole('combobox', { name: 'Mode' }).click()
   await page.getByRole('option', { name: 'Remote' }).click()
   await page.getByRole('combobox', { name: 'Invigilator' }).click()
-  await page.getByRole('option').first().click()
+  await page
+    .getByRole('option', { name: /\((admin|instructor)\)$/ })
+    .first()
+    .click()
   await page.getByLabel(/Permitted materials/).fill(opts.materials)
   await page.getByRole('button', { name: 'Save' }).click()
   await expect(page).toHaveURL(SITTING_URL)
@@ -48,7 +52,10 @@ test('admin creates a sitting, refuses a past date, and lands on its page', asyn
   await page.getByRole('combobox', { name: 'Mode' }).click()
   await page.getByRole('option', { name: 'Remote' }).click()
   await page.getByRole('combobox', { name: 'Invigilator' }).click()
-  await page.getByRole('option').first().click()
+  await page
+    .getByRole('option', { name: /\((admin|instructor)\)$/ })
+    .first()
+    .click()
   await page.getByRole('button', { name: 'Save' }).click()
   await expect(page.getByText('The sitting date must be today or later (UTC).')).toBeVisible()
   await page.keyboard.press('Escape')
