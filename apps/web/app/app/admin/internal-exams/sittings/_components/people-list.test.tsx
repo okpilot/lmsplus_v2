@@ -63,6 +63,18 @@ describe('PeopleList', () => {
     expect(screen.getByText('2 students')).toBeInTheDocument()
   })
 
+  it('does not let a deactivated person be ticked (the add RPC refuses them)', () => {
+    list([row(1), row(2, { deactivated: true })])
+    expect(screen.getByRole('checkbox', { name: /Select .*2/ })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    )
+    expect(screen.getByRole('checkbox', { name: /Select .*1$/ })).not.toHaveAttribute(
+      'aria-disabled',
+      'true',
+    )
+  })
+
   it('shows an empty note without a header checkbox', () => {
     list([])
     expect(screen.getByText('No students to add.')).toBeInTheDocument()

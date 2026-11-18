@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { ADMIN_TEST_EMAIL, getAdminOrganizationId, signInAsAdmin } from './helpers/admin-supabase'
+import { insertExamConfig } from './helpers/exam-config-cleanup'
 import { getAdminClient, TEST_EMAIL } from './helpers/supabase'
 import {
   cleanupSittingFixtures,
@@ -47,15 +48,7 @@ test.describe('Admin Exam Config — disable blocked while a sitting uses the su
       .eq('id', subjectId)
       .single()
     if (subjectErr || !subject) throw new Error(`subject: ${subjectErr?.message}`)
-    const { error: cfgErr } = await admin.from('exam_configs').insert({
-      organization_id: orgId,
-      subject_id: subjectId,
-      enabled: true,
-      total_questions: 10,
-      time_limit_seconds: 3600,
-      pass_mark: 75,
-    })
-    if (cfgErr) throw new Error(`exam_configs: ${cfgErr.message}`)
+    await insertExamConfig(admin, { orgId, subjectId })
 
     const adminClient = await signInAsAdmin()
     const sittingId = await createSittingRpc(adminClient, adminRow.id)

@@ -188,11 +188,11 @@ describe('issue copy (AC 42, 43)', () => {
 
   it('adds re-issued and already-had-a-code lines without a caution', () => {
     const b = issuePopupBanner(
-      { ...done, issued: 1, reissuedAfterExpiry: 2, skippedAlreadyIssued: 1 },
+      { ...done, issued: 3, reissuedAfterExpiry: 2, skippedAlreadyIssued: 1 },
       3,
     )
     expect(b.tone).toBe('success')
-    expect(b.title).toBe('Issued 1 code.')
+    expect(b.title).toBe('Issued 3 codes.')
     expect(b.detail).toBe('Re-issued 2 expired codes. 1 exam already had a code.')
   })
 
@@ -202,7 +202,10 @@ describe('issue copy (AC 42, 43)', () => {
     expect(b.detail).toBe('3 skipped: 2 already passed, 1 deactivated.')
   })
 
-  it('notes a changed count against the preview', () => {
+  it('notes a changed count against the preview (issued includes re-issues)', () => {
+    expect(issuePopupBanner({ ...done, reissuedAfterExpiry: 1 }, 3).detail).toBe(
+      'Re-issued 1 expired code.',
+    )
     expect(issuePopupBanner(done, 5).detail).toBe('Counts changed since the preview.')
     expect(issuePopupBanner(done, null).detail).toBeUndefined()
   })

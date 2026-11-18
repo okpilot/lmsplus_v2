@@ -1,6 +1,7 @@
 import {
   EXAM_SITTING_E2E_PREFIX,
   EXAM_SITTING_SEED_EMAIL_PREFIX,
+  EXAM_SITTING_SEED_GROUP_PREFIX,
   EXAM_SITTING_SEED_PREFIX,
   makeSittingE2eMaterials,
 } from './exam-sitting-markers'
@@ -51,6 +52,22 @@ async function deleteSeededRows(admin: Admin, sittingIds: string[]) {
   )
 }
 
+/** Hard-deletes the groups `seedSitting` built, members first; they must go before the seeded users (FK). */
+async function deleteSeededGroups(admin: Admin) {
+  const groups = await admin
+    .from('student_groups')
+    .select('id')
+    .like('name', `${EXAM_SITTING_SEED_GROUP_PREFIX}%`)
+  check('seed groups lookup', groups.error)
+  const ids = (groups.data ?? []).map((g) => g.id)
+  if (ids.length === 0) return
+  check(
+    'seed group members delete',
+    (await admin.from('student_group_members').delete().in('group_id', ids)).error,
+  )
+  check('seed groups delete', (await admin.from('student_groups').delete().in('id', ids)).error)
+}
+
 /** Deletes the students `seedSitting` created (users row, then auth user) once nothing references them. */
 async function deleteSeededUsers(admin: Admin) {
   const users = await admin
@@ -85,7 +102,16 @@ async function cleanupSeededExamSittings(): Promise<void> {
   check('seed lookup', error)
   const ids = (data ?? []).map((r) => r.id)
   if (ids.length > 0) await deleteSeededRows(admin, ids)
-  await deleteSeededUsers(admin)
+  const errors: string[] = []
+  // Groups before users; a failed group step does not skip the users (their delete cascades the memberships).
+  for (const step of [deleteSeededGroups, deleteSeededUsers]) {
+    try {
+      await step(admin)
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e))
+    }
+  }
+  if (errors.length > 0) throw new Error(errors.join('; '))
 }
 
 /** Hard-deletes the marked exam_sittings that have no entries or candidates (service role, test data only); red-team seeds with people are left alone. Seeded sittings go with their people. */

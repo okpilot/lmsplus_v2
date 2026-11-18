@@ -34,7 +34,7 @@ function PersonItem({ person, busy }: Readonly<{ person: AddablePerson; busy: bo
           className="mt-1"
           aria-label={`Select ${label}`}
           checked={people.ids.includes(person.userId)}
-          disabled={busy}
+          disabled={busy || person.deactivated}
           onCheckedChange={() => people.toggle(person.userId)}
         />
         <span className="block min-w-0">
@@ -58,7 +58,7 @@ function SelectBar({
   busy,
 }: Readonly<{ rows: readonly AddablePerson[]; total: number; busy: boolean }>) {
   const { people } = useSittingUi()
-  const ids = rows.map((r) => r.userId)
+  const ids = rows.filter((r) => !r.deactivated).map((r) => r.userId)
   const onPage = ids.filter((id) => people.ids.includes(id)).length
   return (
     <div className="flex items-center gap-3 border-b py-2 text-caption">
