@@ -31,15 +31,6 @@ function withoutPopupParams(search: string): string {
   return params.toString()
 }
 
-/** `pathname?search` with `dlg` set, or removed when null; every other popup param is dropped, the rest kept. */
-export function dialogHref(pathname: string, search: string, dlg: DialogParam | null): string {
-  const params = new URLSearchParams(search)
-  for (const key of POPUP_PARAMS) if (key !== 'dlg') params.delete(key)
-  if (dlg) params.set('dlg', dlg)
-  else params.delete('dlg')
-  return withQuery(pathname, params)
-}
-
 /** `pathname?search` with each key of `patch` set, or removed when null; other params kept. */
 export function paramsHref(
   pathname: string,
@@ -140,7 +131,9 @@ export function useDialogParam(shared?: DialogRefs) {
       router.back()
       return
     }
-    startTransition(() => router.replace(dialogHref(pathname, search, null), { scroll: false }))
+    startTransition(() =>
+      router.replace(paramsHref(pathname, withoutPopupParams(search), {}), { scroll: false }),
+    )
   }, [pathname, search, router, startTransition, openedHere, closing, isRefreshing])
   return { dlg, isRefreshing, openerRef, open, replaceParams, close, consumeOpenedHere }
 }

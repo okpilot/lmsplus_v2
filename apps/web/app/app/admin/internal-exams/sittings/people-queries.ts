@@ -1,4 +1,5 @@
 import { SittingPeopleQuerySchema, SubjectEligibilityQuerySchema } from '@repo/db/schema'
+import type { Database } from '@repo/db/types'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { isEnded } from './_utils/is-ended'
 import type { SelectionParams } from './parse-sitting-params'
@@ -26,6 +27,8 @@ function readFailure(name: string, message: string, fallback: string): Ended | n
 
 type PeoplePage = { rows: AddablePerson[]; total: number; page: number }
 type PeopleQuery = ReturnType<typeof SittingPeopleQuerySchema.parse>
+type EligibilityRow =
+  Database['public']['Functions']['get_exam_sitting_subject_eligibility']['Returns'][number]
 type PeopleRpcRow = {
   user_id: string
   full_name: string | null
@@ -69,6 +72,23 @@ async function snapToLast(supabase: Supabase, query: PeopleQuery) {
   return rows === null || isEnded(rows) ? rows : { rows, page: last }
 }
 
+/** The requested page, or the last page when it is past the end. */
+async function fetchSnapped(supabase: Supabase, query: PeopleQuery) {
+  const requested = query.page ?? 1
+  const rows = await fetchPeople(supabase, query, requested)
+  if (Array.isArray(rows) && rows.length === 0 && requested > 1) return snapToLast(supabase, query)
+  return rows === null || isEnded(rows) ? rows : { rows, page: requested }
+}
+
+const toAddablePerson = (r: PeopleRpcRow): AddablePerson => ({
+  userId: r.user_id,
+  name: r.full_name ?? '',
+  email: r.email,
+  deactivated: r.deactivated,
+  groups: r.groups,
+  courses: r.courses,
+})
+
 /** A page of addable people (not yet in the sitting), 50 per page, status Active unless told otherwise; a page past the end snaps to the last page. */
 export async function listPeople(a: {
   sittingId: string
@@ -87,31 +107,38 @@ export async function listPeople(a: {
     page: a.page,
   })
   const { supabase } = await requireAdmin()
-  const requested = query.page ?? 1
-  let rows = await fetchPeople(supabase, query, requested)
-  let page = requested
-  if (Array.isArray(rows) && rows.length === 0 && requested > 1) {
-    const snapped = await snapToLast(supabase, query)
-    if (snapped === null || isEnded(snapped)) return snapped
-    rows = snapped.rows
-    page = snapped.page
-  }
-  if (rows === null || isEnded(rows)) return rows
+  const res = await fetchSnapped(supabase, query)
+  if (res === null || isEnded(res)) return res
   return {
-    rows: rows.map((r) => ({
-      userId: r.user_id,
-      name: r.full_name ?? '',
-      email: r.email,
-      deactivated: r.deactivated,
-      groups: r.groups,
-      courses: r.courses,
-    })),
-    total: totalOf(rows),
-    page,
+    rows: res.rows.map(toAddablePerson),
+    total: totalOf(res.rows),
+    page: res.page,
   }
 }
 
 /** Exams of the picked people (`userIds` omitted = every candidate), one row per exam with its live config. */
+const toEligibility = (r: EligibilityRow): SubjectEligibility => ({
+  subjectId: r.subject_id,
+  subjectName: r.subject_name,
+  subjectShort: r.subject_short,
+  courseId: r.course_id,
+  courseName: r.course_name,
+  people: r.people,
+  eligible: r.eligible,
+  enteredHere: r.entered_here,
+  passed: r.passed,
+  attemptRunning: r.attempt_running,
+  enteredElsewhere: r.entered_elsewhere,
+  notEnrolled: r.not_enrolled,
+  deactivated: r.deactivated,
+  state: r.state,
+  attemptCount: r.attempt_count,
+  passedAt: r.passed_at,
+  passedScore: r.passed_score === null ? null : Number(r.passed_score),
+  elsewhereSittingId: r.elsewhere_sitting_id,
+  elsewhereAt: r.elsewhere_at,
+})
+
 export async function getSubjectEligibility(
   sittingId: string,
   userIds?: readonly string[],
@@ -126,27 +153,7 @@ export async function getSubjectEligibility(
     ...(query.userIds ? { p_user_ids: query.userIds } : {}),
   })
   if (error) return readFailure('getSubjectEligibility', error.message, 'Failed to load exams')
-  return (data ?? []).map((r) => ({
-    subjectId: r.subject_id,
-    subjectName: r.subject_name,
-    subjectShort: r.subject_short,
-    courseId: r.course_id,
-    courseName: r.course_name,
-    people: r.people,
-    eligible: r.eligible,
-    enteredHere: r.entered_here,
-    passed: r.passed,
-    attemptRunning: r.attempt_running,
-    enteredElsewhere: r.entered_elsewhere,
-    notEnrolled: r.not_enrolled,
-    deactivated: r.deactivated,
-    state: r.state,
-    attemptCount: r.attempt_count,
-    passedAt: r.passed_at,
-    passedScore: r.passed_score === null ? null : Number(r.passed_score),
-    elsewhereSittingId: r.elsewhere_sitting_id,
-    elsewhereAt: r.elsewhere_at,
-  }))
+  return (data ?? []).map(toEligibility)
 }
 
 /** What `issueSittingCodes` would do for the picked people (`userIds` omitted = the whole sitting). */

@@ -85,11 +85,13 @@ function pickConfigPlan(
   const enabled = new Set(rows.filter((r) => r.enabled && !r.deleted_at).map((r) => r.subject_id))
   const byCourse = new Map<string, SubjectRow[]>()
   for (const s of subjects) byCourse.set(s.course_id, [...(byCourse.get(s.course_id) ?? []), s])
-  for (const list of byCourse.values()) {
-    const have = list.filter((s) => enabled.has(s.id)).length
+  const lists = [...byCourse.values()]
+  const haveOf = (list: SubjectRow[]) => list.filter((s) => enabled.has(s.id)).length
+  if (lists.some((list) => haveOf(list) >= MIN_CONFIGS)) return []
+  for (const list of lists) {
+    const need = MIN_CONFIGS - haveOf(list)
     const free = list.filter((s) => !taken.has(s.id))
-    if (have >= MIN_CONFIGS) return []
-    if (free.length >= MIN_CONFIGS - have) return free.slice(0, MIN_CONFIGS - have)
+    if (free.length >= need) return free.slice(0, need)
   }
   return null
 }

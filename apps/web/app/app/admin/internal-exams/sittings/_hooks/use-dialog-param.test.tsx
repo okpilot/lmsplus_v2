@@ -11,7 +11,7 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(mockSearch.value),
 }))
 
-import { type DialogRefs, dialogHref, paramsHref, useDialogParam } from './use-dialog-param'
+import { type DialogRefs, paramsHref, useDialogParam } from './use-dialog-param'
 
 beforeEach(() => {
   vi.resetAllMocks()
@@ -70,6 +70,13 @@ describe('useDialogParam', () => {
     act(() => result.current.open('people'))
     act(() => result.current.replaceParams({ pq: 'ann' }))
     expect(mockReplace.mock.calls[0]?.[0] as string).toContain('pq=ann')
+  })
+
+  it('closing drops every popup param and keeps the rest', () => {
+    mockSearch.value = 'tab=sittings&dlg=exams&ids=u1&all=1&pq=x&ppage=2'
+    const { result } = renderHook(() => useDialogParam())
+    act(() => result.current.close())
+    expect(mockReplace.mock.calls[0]?.[0]).toBe('/app/admin/internal-exams?tab=sittings')
   })
 
   it('collapses two close() calls into one router.back()', () => {
@@ -246,32 +253,5 @@ describe('paramsHref', () => {
   })
   it('returns the bare pathname when nothing is left', () => {
     expect(paramsHref('/p', 'a=1', { a: null })).toBe('/p')
-  })
-})
-
-describe('dialogHref popup params', () => {
-  it('drops every popup param when the dialog is removed or another opens', () => {
-    expect(dialogHref('/p', 'tab=sittings&dlg=exams&ids=u1&all=1', null)).toBe('/p?tab=sittings')
-    expect(dialogHref('/p', 'dlg=people&pq=x&pgroup=g&ppage=2', 'issue')).toBe('/p?dlg=issue')
-  })
-})
-
-describe('dialogHref', () => {
-  it('adds the dialog while keeping the other params', () => {
-    expect(dialogHref('/p', 'tab=sittings&scope=open', 'new')).toBe(
-      '/p?tab=sittings&scope=open&dlg=new',
-    )
-  })
-
-  it('replaces an existing dialog', () => {
-    expect(dialogHref('/p', 'dlg=new&tab=sittings', 'edit')).toBe('/p?dlg=edit&tab=sittings')
-  })
-
-  it('removes the dialog and keeps the rest', () => {
-    expect(dialogHref('/p', 'tab=sittings&dlg=new', null)).toBe('/p?tab=sittings')
-  })
-
-  it('returns the bare pathname when nothing is left', () => {
-    expect(dialogHref('/p', 'dlg=edit', null)).toBe('/p')
   })
 })

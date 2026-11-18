@@ -256,7 +256,6 @@ export async function seedSitting(input: SeedInput): Promise<SeedResult> {
     .select('id, short, course_id')
     .is('deleted_at', null)
     .order('short')
-    .limit(12)
   if (subjectRes.error || !subjectRes.data?.length) fail('subjects', subjectRes.error)
   const configs = await admin
     .from('exam_configs')
@@ -267,9 +266,9 @@ export async function seedSitting(input: SeedInput): Promise<SeedResult> {
   if (configs.error) fail('exam configs', configs.error)
   const configured = new Set((configs.data ?? []).map((c) => c.subject_id))
   // Subjects with an exam config first: only those can be issued a code.
-  const subjects = [...(subjectRes.data as Subject[])].sort(
-    (a, b) => Number(configured.has(b.id)) - Number(configured.has(a.id)),
-  )
+  const subjects = [...(subjectRes.data as Subject[])]
+    .sort((a, b) => Number(configured.has(b.id)) - Number(configured.has(a.id)))
+    .slice(0, 12)
 
   const status = input.status ?? 'scheduled'
   const now = new Date().toISOString()
