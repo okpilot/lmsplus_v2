@@ -15,7 +15,7 @@ export type DialogParam = 'new' | 'edit'
 
 export type TabKey = 'sittings' | 'codes' | 'attempts'
 
-function parseTab(value: string | string[] | undefined): TabKey {
+export function parseTab(value: string | string[] | null | undefined): TabKey {
   return value === 'sittings' || value === 'attempts' ? value : 'codes'
 }
 

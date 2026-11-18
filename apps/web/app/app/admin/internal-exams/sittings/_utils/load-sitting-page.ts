@@ -10,7 +10,12 @@ export async function loadSittingPage(rawId: string) {
   if (!id.success) notFound()
   const summary = await getSummary(id.data)
   if (!summary) notFound()
-  const [sitting, invigilators] = await Promise.all([getSitting(id.data), listInvigilatorOptions()])
+  // Only scheduled and open sittings have an Edit dialog, the only consumer of the options.
+  const editable = summary.status === 'scheduled' || summary.status === 'open'
+  const [sitting, invigilators] = await Promise.all([
+    getSitting(id.data),
+    editable ? listInvigilatorOptions() : Promise.resolve([]),
+  ])
   if (!sitting) notFound()
   const notDue = new Date().toISOString().slice(0, 10) < isoDay(sitting.scheduledAt)
   return { sitting, summary, invigilators, notDue }

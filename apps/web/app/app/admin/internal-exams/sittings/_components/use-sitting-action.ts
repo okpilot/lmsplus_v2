@@ -1,4 +1,3 @@
-import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { useSittingUi } from '../_hooks/sitting-ui-context'
 import type { ResultBannerData } from '../_utils/copy'
@@ -6,10 +5,9 @@ import type { SittingActionResult } from '../actions/sitting-action-result'
 
 /**
  * Runs a sitting action in a transition. The previous banner is cleared first; `onOk` returns the new
- * banner (or null) and the page refreshes. A failure stays in the confirm dialog (`error`).
+ * banner (or null); the action revalidates the page. A failure stays in the confirm dialog (`error`).
  */
 export function useSittingAction() {
-  const router = useRouter()
   const { setBanner } = useSittingUi()
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -28,7 +26,6 @@ export function useSittingAction() {
           return
         }
         setBanner(onOk(result))
-        router.refresh()
       } catch {
         setError('Service error. Please try again.')
       }

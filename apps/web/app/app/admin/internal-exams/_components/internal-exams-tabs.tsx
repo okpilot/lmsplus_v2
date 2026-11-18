@@ -4,7 +4,7 @@ import { useSearchParams } from 'next/navigation'
 import { useEffect, useRef } from 'react'
 import { useUpdateSearchParams } from '@/app/app/_hooks/use-update-search-params'
 import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
-import type { TabKey } from '../_search-params'
+import { parseTab, type TabKey } from '../_search-params'
 import { SittingsTab } from '../sittings/_components/sittings-tab'
 import type { SittingRow, SittingScope } from '../sittings/types'
 import type {
@@ -29,10 +29,6 @@ type Props = {
   sittings?: { rows: SittingRow[]; totalCount: number; scope: SittingScope; page: number } | null
 }
 
-function readTabParam(value: string | null): TabKey {
-  return value === 'attempts' || value === 'sittings' ? value : 'codes'
-}
-
 export function InternalExamsTabs({
   students,
   subjects,
@@ -45,7 +41,7 @@ export function InternalExamsTabs({
   sittings,
 }: Readonly<Props>) {
   const update = useUpdateSearchParams()
-  const tab = readTabParam(useSearchParams().get('tab'))
+  const tab = parseTab(useSearchParams().get('tab'))
   // Tabs activate on focus and on click: one request per target until the URL tab changes.
   const pending = useRef<TabKey | null>(null)
   // biome-ignore lint/correctness/useExhaustiveDependencies: `tab` is the trigger that re-arms the guard
@@ -53,7 +49,7 @@ export function InternalExamsTabs({
     pending.current = null
   }, [tab])
   const select = (value: string | null) => {
-    const to = readTabParam(value)
+    const to = parseTab(value)
     if (to === tab || pending.current === to) return
     pending.current = to
     update({ tab: to, page: null, dlg: null })
