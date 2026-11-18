@@ -12,6 +12,8 @@ export const START_INTERNAL_EXAM_ERROR_MESSAGES: Record<string, string> = {
   active_session_exists:
     'You already have an active internal exam session for this subject. Submit it before starting a new one.',
   // Single-active-session guard (PR A) — a different mode's session is live.
+  overdue_attempt_pending:
+    'Your previous attempt at this exam is still being finalised. Reload the page, then enter your code again.',
   another_session_active:
     'You already have an active session. Finish or discard it before starting a new one.',
   insufficient_questions_for_exam: 'Cannot start exam: not enough questions configured.',

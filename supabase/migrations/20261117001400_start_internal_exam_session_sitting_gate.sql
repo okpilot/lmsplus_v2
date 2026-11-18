@@ -105,7 +105,7 @@ BEGIN
     RAISE EXCEPTION 'not_enrolled';
   END IF;
 
-  PERFORM private.sitting_redeem_gate(v_code_entry, v_student_id, v_code_subject, v_sitting_status, v_sitting_at);
+  PERFORM private.sitting_redeem_gate(v_org_id, v_code_entry, v_student_id, v_code_subject, v_sitting_status, v_sitting_at);
 
   -- Auto-complete any same-subject internal_exam past +30s grace.
   -- All quiz_sessions columns aliased as qs.* — the function's RETURNS TABLE
@@ -126,7 +126,7 @@ BEGIN
   IF v_old_session_id IS NOT NULL THEN
     -- Sitting code: the overdue attempt must finish first so its pass counts.
     IF v_code_entry IS NOT NULL THEN
-      RAISE EXCEPTION 'another_session_active';
+      RAISE EXCEPTION 'overdue_attempt_pending';
     END IF;
     PERFORM public.complete_overdue_exam_session(v_old_session_id);
   END IF;

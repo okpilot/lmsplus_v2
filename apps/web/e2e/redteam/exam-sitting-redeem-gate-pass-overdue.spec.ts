@@ -8,7 +8,7 @@
  *
  * MP attack: the student holds an unfinished overdue same-subject attempt, then redeems the open
  * sitting's code to have the overdue attempt auto-completed by the redeem.
- * Expected: `another_session_active`; overdue attempt stays unfinished; code unconsumed.
+ * Expected: `overdue_attempt_pending`; overdue attempt stays unfinished; code unconsumed.
  * CONTROL: a legacy code (no sitting entry) auto-completes the same overdue attempt.
  *
  * Hermetic: throwaway students; sittings carry EXAM_SITTING_E2E_PREFIX; afterEach soft-deletes the
@@ -254,7 +254,7 @@ test.describe('Red Team: sitting redeem gate — prior pass and overdue attempt 
     const { data, error } = await mpStudent.rpc('start_internal_exam_session', {
       p_code: code.code,
     })
-    expect(error?.message ?? `started ${JSON.stringify(data)}`).toMatch(/another_session_active/)
+    expect(error?.message ?? `started ${JSON.stringify(data)}`).toMatch(/overdue_attempt_pending/)
     expect(await sessionEndedAt(admin, overdue.id)).toBeNull()
     expect((await readCode(admin, code.id)).consumed_at).toBeNull()
 

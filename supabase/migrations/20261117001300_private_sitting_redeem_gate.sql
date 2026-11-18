@@ -1,6 +1,6 @@
 -- private.sitting_redeem_gate: exam-start gate for sitting codes. #1777
 CREATE OR REPLACE FUNCTION private.sitting_redeem_gate(
-  p_entry_id uuid, p_student_id uuid, p_subject_id uuid, p_sitting_status text, p_scheduled_at timestamptz
+  p_org_id uuid, p_entry_id uuid, p_student_id uuid, p_subject_id uuid, p_sitting_status text, p_scheduled_at timestamptz
 )
 RETURNS void
 LANGUAGE plpgsql
@@ -18,7 +18,8 @@ BEGIN
 
   IF EXISTS (
     SELECT 1 FROM public.quiz_sessions q
-     WHERE q.student_id = p_student_id
+     WHERE q.organization_id = p_org_id
+       AND q.student_id = p_student_id
        AND q.subject_id = p_subject_id
        AND q.mode = 'internal_exam'
        AND q.deleted_at IS NULL
@@ -35,7 +36,7 @@ BEGIN
 END;
 $$;
 
-REVOKE EXECUTE ON FUNCTION private.sitting_redeem_gate(uuid, uuid, uuid, text, timestamptz) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION private.sitting_redeem_gate(uuid, uuid, uuid, uuid, text, timestamptz) FROM PUBLIC, anon, authenticated;
 
 COMMENT ON FUNCTION private.void_unused_sitting_codes(uuid, uuid[], text, uuid, text, uuid) IS
-  'Takes no sitting lock. Every caller holds exam_sittings FOR UPDATE; redeem locks the sitting FOR SHARE before the code FOR UPDATE.';
+  'Takes no sitting lock. Every caller holds exam_sittings FOR UPDATE.';
