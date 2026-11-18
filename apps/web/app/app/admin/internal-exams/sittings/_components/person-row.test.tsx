@@ -107,6 +107,15 @@ describe('PersonRow', () => {
     expect(screen.queryByRole('button', { name: 'Actions for Ann Pilot' })).toBeNull()
   })
 
+  it('disables the tick and offers no Remove for a person who has taken an exam', () => {
+    ui({ row: row({ hasAttempt: true }) })
+    expect(screen.getByRole('checkbox', { name: 'Select Ann Pilot' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    )
+    expect(screen.queryByRole('button', { name: 'Actions for Ann Pilot' })).toBeNull()
+  })
+
   it('calls onRemove from the row menu', async () => {
     const { onRemove } = ui()
     const user = userEvent.setup()

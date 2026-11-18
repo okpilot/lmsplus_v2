@@ -6,7 +6,7 @@ import { RowMenu } from '@/components/admin/row-menu'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { MenuItem, MenuSeparator } from '@/components/ui/menu'
 import { examActions, type NextStep, nextStep } from '../_utils/next-step'
-import type { RosterEntry } from '../types'
+import { LIVE_ENTRY_STATUSES, type RosterEntry } from '../types'
 import { useExamActions } from './use-exam-actions'
 import { VoidCodeDialog } from './void-code-dialog'
 
@@ -85,7 +85,11 @@ export function ExamRowMenu({
           open={confirm === 'remove'}
           onOpenChange={(o) => (o ? setConfirm('remove') : dismiss())}
           title={`Remove ${entry.subjectName || entry.subjectShort} for ${personName}?`}
-          description="Its unused code is voided."
+          description={
+            LIVE_ENTRY_STATUSES.has(entry.status)
+              ? 'Its unused code is voided.'
+              : 'The exam is removed from this sitting.'
+          }
           confirmLabel="Remove exam"
           pending={a.pending}
           error={a.error}

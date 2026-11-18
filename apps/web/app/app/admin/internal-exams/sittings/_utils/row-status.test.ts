@@ -152,6 +152,13 @@ describe('rowStatus', () => {
       })
     })
 
+    it('shows Finished (neutral) when a finished exam has no grade yet', () => {
+      expect(rs('closed', [ex('finished', null)])).toEqual({
+        label: '1 finished',
+        tone: 'neutral',
+      })
+    })
+
     it('shows Absent (neutral) when nothing finished', () => {
       expect(rs('closed', [ex('absent')])).toMatchObject({ label: 'Absent', tone: 'neutral' })
     })

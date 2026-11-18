@@ -25,17 +25,18 @@ function emptyText(q: string, show: ShowValue): string {
 
 function Head({ rows, editable }: Readonly<Pick<Props, 'rows' | 'editable'>>) {
   const { rosterIds, setRosterPage } = useSittingUi()
-  const pageIds = rows.map((r) => r.userId)
+  const pageIds = rows.filter((r) => !r.hasAttempt).map((r) => r.userId)
   const ticked = pageIds.filter((id) => rosterIds.includes(id)).length
-  const all = ticked === pageIds.length
+  const all = pageIds.length > 0 && ticked === pageIds.length
   return (
     <TableHeader>
       <TableRow>
         {editable && (
           <TableHead className="w-10">
             <Checkbox
-              aria-label={`Select all ${rows.length} shown`}
+              aria-label={`Select all ${pageIds.length} shown`}
               checked={all}
+              disabled={pageIds.length === 0}
               indeterminate={ticked > 0 && !all}
               onCheckedChange={(c) => setRosterPage(pageIds, c === true)}
             />

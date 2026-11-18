@@ -49,6 +49,11 @@ export const ROSTER_PAGE_SIZE = 50
 /** Entries holding a usable, unspent code. */
 export const LIVE_ENTRY_STATUSES: ReadonlySet<string> = new Set(['waiting', 'ready'])
 
+export const NEEDS_CODE_STATUSES_LIST = ['no_code', 'expired', 'voided'] as const
+export type NeedsCodeStatus = (typeof NEEDS_CODE_STATUSES_LIST)[number]
+/** Entries that need a (new) code. */
+export const NEEDS_CODE_STATUSES: ReadonlySet<string> = new Set(NEEDS_CODE_STATUSES_LIST)
+
 export type EntryStatus =
   | 'no_code'
   | 'waiting'

@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -112,9 +112,10 @@ describe('PeopleSection layout', () => {
     expect(screen.getByText('Showing 1–50 of 120 people')).toBeInTheDocument()
   })
 
-  it('shows the visible-page summary with people and exams', () => {
-    ui()
-    expect(screen.getByText('2 people · 2 exams')).toBeInTheDocument()
+  it('summarises every matching person, not only the current page', () => {
+    ui({ total: 120 })
+    expect(screen.getByText('120 people')).toBeInTheDocument()
+    expect(screen.queryByText(/ · \d+ exams?/)).toBeNull()
   })
 })
 
@@ -365,6 +366,44 @@ describe('PeopleSection selection', () => {
     expect(screen.queryByText(/selected/)).toBeNull()
     await userEvent.setup().click(screen.getByRole('checkbox', { name: 'Select Person 1' }))
     expect(screen.getByText(/1 selected/)).toBeInTheDocument()
+  })
+
+  it('keeps a typed search alive when a row is ticked', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      ui()
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+      fireEvent.change(screen.getByLabelText('Search people in this sitting'), {
+        target: { value: 'ann' },
+      })
+      await user.click(screen.getByRole('checkbox', { name: 'Select Person 1' }))
+      act(() => {
+        vi.advanceTimersByTime(300)
+      })
+      expect(m.replace).toHaveBeenCalledTimes(1)
+      expect(m.replace.mock.calls[0]?.[0]).toContain('q=ann')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('disables the tick of a person with an attempt and excludes them from select all', async () => {
+    ui({ rows: [person(1), person(2, { hasAttempt: true })] })
+    expect(screen.getByRole('checkbox', { name: 'Select Person 2' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    )
+    await userEvent.setup().click(screen.getByRole('checkbox', { name: 'Select all 1 shown' }))
+    expect(screen.getByRole('checkbox', { name: 'Select Person 1' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Select Person 2' })).not.toBeChecked()
+  })
+
+  it('disables select all when nobody on the page can be ticked', () => {
+    ui({ rows: [person(1, { hasAttempt: true })], total: 1 })
+    expect(screen.getByRole('checkbox', { name: 'Select all 0 shown' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    )
   })
 
   it('shows the Remove bulk action once a row is ticked, and no Email action', async () => {

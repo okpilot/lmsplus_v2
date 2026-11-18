@@ -17,8 +17,9 @@ function Lines({ lines }: Readonly<{ lines: readonly string[] }>) {
   const more = lines.length - MAX_LINES
   return (
     <ul className="text-foreground">
-      {lines.slice(0, MAX_LINES).map((line) => (
-        <li key={line}>{line}</li>
+      {lines.slice(0, MAX_LINES).map((line, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: lines may repeat; order is stable
+        <li key={`${i}:${line}`}>{line}</li>
       ))}
       {more > 0 && <li>and {more} more</li>}
     </ul>

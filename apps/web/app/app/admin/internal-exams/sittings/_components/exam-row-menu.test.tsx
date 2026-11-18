@@ -168,6 +168,13 @@ describe('ExamRowMenu Remove exam', () => {
     expect(within(dialog).getByText('Its unused code is voided.')).toBeInTheDocument()
   })
 
+  it('describes the voided code only for an entry with a live code', async () => {
+    ui({}, { status: 'no_code', code: null, codeId: null })
+    const { dialog } = await openRemove()
+    expect(within(dialog).queryByText('Its unused code is voided.')).toBeNull()
+    expect(within(dialog).getByText('The exam is removed from this sitting.')).toBeInTheDocument()
+  })
+
   it('removes the entry on confirm', async () => {
     m.remove.mockResolvedValue({ success: true, removed: 1, codesVoided: 1 })
     ui()

@@ -24,6 +24,11 @@ describe('RemovedEntriesList', () => {
     expect(screen.getByText(/Ann Student · FPM · passed /)).toBeInTheDocument()
   })
 
+  it('omits the pass date segment when passedAt is null', () => {
+    render(<RemovedEntriesList rows={[row({ passedAt: null }) as never]} total={1} />)
+    expect(screen.getByText('Ann Student · FPM · notice pending')).toBeInTheDocument()
+  })
+
   it('names an empty subject Unknown subject', () => {
     render(<RemovedEntriesList rows={[row({ subjectShort: '' }) as never]} total={1} />)
     expect(screen.getByText(/Ann Student · Unknown subject · passed /)).toBeInTheDocument()

@@ -1,14 +1,21 @@
-import { LIVE_ENTRY_STATUSES, type RosterEntry } from '../types'
+import {
+  LIVE_ENTRY_STATUSES,
+  NEEDS_CODE_STATUSES,
+  type NeedsCodeStatus,
+  type RosterEntry,
+} from '../types'
+
+type IssueLabel = 'Issue code' | 'Re-issue' | 'Issue new code'
 
 export type NextStep =
-  | { kind: 'issue'; label: 'Issue code' | 'Re-issue' | 'Issue new code'; href?: undefined }
+  | { kind: 'issue'; label: IssueLabel; href?: undefined }
   | { kind: 'view'; label: 'View attempt'; href: string }
 
-const ISSUE_LABEL = {
+const ISSUE_LABEL: Record<NeedsCodeStatus, IssueLabel> = {
   no_code: 'Issue code',
   expired: 'Re-issue',
   voided: 'Issue new code',
-} as const
+}
 
 const ATTEMPT: ReadonlySet<string> = new Set(['finished', 'voided_attempt'])
 
@@ -26,8 +33,8 @@ export function nextStep(e: RosterEntry, { editable, deactivated }: Ctx): NextSt
       : null
   }
   if (!editable || deactivated) return null
-  if (e.status === 'no_code' || e.status === 'expired' || e.status === 'voided') {
-    return { kind: 'issue', label: ISSUE_LABEL[e.status] }
+  if (NEEDS_CODE_STATUSES.has(e.status)) {
+    return { kind: 'issue', label: ISSUE_LABEL[e.status as NeedsCodeStatus] }
   }
   return null
 }

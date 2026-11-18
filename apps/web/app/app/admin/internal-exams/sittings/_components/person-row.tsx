@@ -69,6 +69,7 @@ export function PersonRow({
             <Checkbox
               aria-label={`Select ${name}`}
               checked={ticked}
+              disabled={row.hasAttempt}
               onCheckedChange={() => toggleRoster(row.userId)}
             />
           </TableCell>
@@ -95,11 +96,13 @@ export function PersonRow({
         <StatusCell row={row} sittingStatus={sittingStatus} />
         {editable && (
           <TableCell className="text-right">
-            <RowMenu label={`Actions for ${name}`}>
-              <MenuItem tone="danger" onClick={onRemove}>
-                Remove from sitting
-              </MenuItem>
-            </RowMenu>
+            {!row.hasAttempt && (
+              <RowMenu label={`Actions for ${name}`}>
+                <MenuItem tone="danger" onClick={onRemove}>
+                  Remove from sitting
+                </MenuItem>
+              </RowMenu>
+            )}
           </TableCell>
         )}
       </TableRow>

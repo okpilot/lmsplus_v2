@@ -15,8 +15,8 @@ export function RemovedEntriesList({ rows, total }: Readonly<Props>) {
       <ul className="text-caption">
         {rows.map((r) => (
           <li key={r.entryId}>
-            {r.studentName.trim() || 'Unknown student'} · {r.subjectShort || 'Unknown subject'} ·
-            passed {r.passedAt ? formatUtc(r.passedAt, DAY, { label: false }) : ''} ·{' '}
+            {r.studentName.trim() || 'Unknown student'} · {r.subjectShort || 'Unknown subject'} ·{' '}
+            {r.passedAt ? `passed ${formatUtc(r.passedAt, DAY, { label: false })} · ` : ''}
             {r.noticeSent ? 'notice sent' : 'notice pending'}
           </li>
         ))}

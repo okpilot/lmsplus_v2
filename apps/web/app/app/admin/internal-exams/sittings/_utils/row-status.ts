@@ -1,4 +1,9 @@
-import { LIVE_ENTRY_STATUSES, type RosterEntry, type SittingStatus } from '../types'
+import {
+  LIVE_ENTRY_STATUSES,
+  NEEDS_CODE_STATUSES,
+  type RosterEntry,
+  type SittingStatus,
+} from '../types'
 
 export type RowStatus = { label: string; tone: 'neutral' | 'success' | 'danger'; caption?: string }
 
@@ -10,7 +15,6 @@ type Input = Readonly<{
 
 type Entries = Input['entries']
 
-const NEEDS_CODE: ReadonlySet<string> = new Set(['no_code', 'expired', 'voided'])
 const DONE: ReadonlySet<string> = new Set(['finished', 'absent', 'voided_attempt', 'discarded'])
 
 const count = (entries: Entries, pred: (s: string) => boolean) =>
@@ -25,7 +29,7 @@ function breakdown(parts: readonly (readonly [number, string])[]): string {
 }
 
 function scheduled(entries: Entries): RowStatus {
-  if (entries.some((e) => NEEDS_CODE.has(e.status))) {
+  if (entries.some((e) => NEEDS_CODE_STATUSES.has(e.status))) {
     const have = count(entries, (s) => LIVE_ENTRY_STATUSES.has(s))
     return {
       label: 'Needs codes',
@@ -59,11 +63,13 @@ function closed(entries: Entries): RowStatus {
   const of = (status: string) => count(entries, (s) => s === status)
   const passed = entries.filter((e) => e.status === 'finished' && e.passed === true).length
   const failed = entries.filter((e) => e.status === 'finished' && e.passed === false).length
+  const ungraded = entries.filter((e) => e.status === 'finished' && e.passed === null).length
   const [running, finished] = [of('running'), of('finished')]
   const [discarded, voidedAttempt] = [of('discarded'), of('voided_attempt')]
   const caption = breakdown([
     [passed, 'passed'],
     [failed, 'failed'],
+    [ungraded, 'finished'],
     [running, 'running'],
     [of('absent'), 'absent'],
     [voidedAttempt, 'attempt voided'],
@@ -77,6 +83,7 @@ function closed(entries: Entries): RowStatus {
     return withCaption({ label: 'All passed', tone: 'success' })
   }
   if (passed > 0) return withCaption({ label: `${passed} passed`, tone: 'success' })
+  if (ungraded > 0) return withCaption({ label: `${ungraded} finished`, tone: 'neutral' })
   if (discarded > 0) return withCaption({ label: 'Attempt discarded', tone: 'neutral' })
   if (voidedAttempt > 0) return withCaption({ label: 'Attempt voided', tone: 'neutral' })
   return { label: 'Absent', tone: 'neutral' }

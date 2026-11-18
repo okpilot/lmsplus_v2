@@ -73,6 +73,17 @@ describe('ResultBanner', () => {
     expect(screen.getByText('Bob · AGK: not enrolled')).toBeInTheDocument()
   })
 
+  it('renders duplicate lines twice without a key warning', () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    ui()
+    act(() =>
+      setBannerRef({ tone: 'caution', title: 'Skipped', lines: ['Same line', 'Same line'] }),
+    )
+    expect(screen.getAllByText('Same line')).toHaveLength(2)
+    expect(err).not.toHaveBeenCalled()
+    err.mockRestore()
+  })
+
   it('renders no stray 0 or description for an empty lines array', () => {
     ui()
     act(() => setBannerRef({ tone: 'caution', title: 'Skipped', lines: [] }))

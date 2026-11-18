@@ -32,11 +32,6 @@ type Props = {
   page: number
 }
 
-function summaryText(rows: readonly RosterRow[]): string {
-  const exams = rows.reduce((n, r) => n + r.entries.length, 0)
-  return `${plural(rows.length, 'person', 'people')} · ${plural(exams, 'exam')}`
-}
-
 /** The sitting's people as a related list: section header, toolbar or bulk bar, table, pagination. */
 export function PeopleSection(p: Readonly<Props>) {
   const { rosterIds } = useSittingUi()
@@ -46,16 +41,15 @@ export function PeopleSection(p: Readonly<Props>) {
     <Section title="People" count={p.summary.candidates}>
       <ListCard
         filters={
-          bulk ? (
-            <SittingBulkActions onRemove={setRemoveIds} />
-          ) : (
-            <>
+          <>
+            <div className={bulk ? 'hidden' : 'contents'}>
               <RosterSearch value={p.q} />
               <ShowFilter value={p.show} />
-            </>
-          )
+            </div>
+            {bulk && <SittingBulkActions onRemove={setRemoveIds} />}
+          </>
         }
-        summary={summaryText(p.rows)}
+        summary={plural(p.total, 'person', 'people')}
         footer={
           p.total > ROSTER_PAGE_SIZE && (
             <PaginationBar

@@ -1,3 +1,4 @@
+import type { IssueCounts } from '../actions/issue-sitting-codes'
 import { plural } from './plural'
 
 /** One banner shown at a time; its tone follows the outcome. */
@@ -39,14 +40,17 @@ export const CANCEL_CONFIRM_TEXT =
   'Unused codes are voided. A cancelled sitting cannot be restored.'
 
 /** Why a single-entry issue produced no code. */
-export function issueSkipText(d: {
-  skippedAlreadyIssued: number
-  skippedAttemptTaken: number
-  skippedDeactivated: number
-  skippedNoConfig: number
-  skippedNotEnrolled: number
-  skippedPassed: number
-}): string {
+export function issueSkipText(
+  d: Pick<
+    IssueCounts,
+    | 'skippedAlreadyIssued'
+    | 'skippedAttemptTaken'
+    | 'skippedDeactivated'
+    | 'skippedNoConfig'
+    | 'skippedNotEnrolled'
+    | 'skippedPassed'
+  >,
+): string {
   const reasons = [
     d.skippedAlreadyIssued > 0 ? 'already has a code' : '',
     d.skippedAttemptTaken > 0 ? 'attempt already taken' : '',
