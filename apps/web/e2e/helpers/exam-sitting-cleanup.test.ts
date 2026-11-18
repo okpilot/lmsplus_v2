@@ -285,6 +285,58 @@ describe('cleanupE2eExamSittings (per-step isolation)', () => {
   })
 })
 
+describe('cleanupE2eExamSittings (seeded groups)', () => {
+  function withAuth(queues: Record<string, Result[]>) {
+    const calls = mockTables(queues)
+    const deleteUser = vi.fn().mockResolvedValue({ error: null })
+    const client = mockGetAdminClient() as Record<string, unknown>
+    mockGetAdminClient.mockReturnValue({ ...client, auth: { admin: { deleteUser } } })
+    return { calls, deleteUser }
+  }
+
+  it('deletes the seeded groups and their members before the seeded users', async () => {
+    const { calls, deleteUser } = withAuth({
+      exam_sittings: [{ data: [], error: null }],
+      student_groups: [{ data: [{ id: 'g1' }], error: null }],
+      users: [{ data: [{ id: 'u1' }], error: null }],
+    })
+    await cleanupE2eExamSittings()
+    const like = calls.find((c) => c.table === 'student_groups' && c.method === 'like')
+    expect(like?.args).toEqual(['name', 'E2E-GRP-SIT-%'])
+    const membersDelete = calls.findIndex(
+      (c) => c.table === 'student_group_members' && c.method === 'delete',
+    )
+    const groupsDelete = calls.findIndex(
+      (c) => c.table === 'student_groups' && c.method === 'delete',
+    )
+    const usersDelete = calls.findIndex((c) => c.table === 'users' && c.method === 'delete')
+    expect(membersDelete).toBeGreaterThan(-1)
+    expect(membersDelete).toBeLessThan(groupsDelete)
+    expect(groupsDelete).toBeLessThan(usersDelete)
+    expect(deleteUser).toHaveBeenCalledWith('u1')
+  })
+
+  it('deletes nothing from the group tables when no seeded group exists', async () => {
+    const { calls } = withAuth({ exam_sittings: [{ data: [], error: null }] })
+    await cleanupE2eExamSittings()
+    expect(calls.some((c) => c.table === 'student_group_members' && c.method === 'delete')).toBe(
+      false,
+    )
+    expect(calls.some((c) => c.table === 'student_groups' && c.method === 'delete')).toBe(false)
+  })
+
+  it('still deletes the seeded users when the group delete fails, and reports the error', async () => {
+    const { deleteUser } = withAuth({
+      exam_sittings: [{ data: [], error: null }],
+      student_groups: [{ data: [{ id: 'g1' }], error: null }],
+      student_group_members: [{ data: null, error: { message: 'members blocked' } }],
+      users: [{ data: [{ id: 'u1' }], error: null }],
+    })
+    await expect(cleanupE2eExamSittings()).rejects.toThrow(/afterEach: .*members blocked/)
+    expect(deleteUser).toHaveBeenCalledWith('u1')
+  })
+})
+
 describe('markE2eSitting', () => {
   it('writes the E2E-SIT- marker to the sitting id', async () => {
     const calls = mockTables({ exam_sittings: [{ data: [{ id: 's1' }], error: null }] })

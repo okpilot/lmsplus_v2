@@ -124,9 +124,7 @@ export function issuePopupBanner(d: IssueCounts, previewTotal: number | null): R
     skippedTotal > 0
       ? `${skippedTotal} skipped: ${skipped.map(([n, l]) => `${n} ${l}`).join(', ')}.`
       : '',
-    previewTotal !== null && previewTotal !== d.issued + d.reissuedAfterExpiry
-      ? 'Counts changed since the preview.'
-      : '',
+    previewTotal !== null && previewTotal !== d.issued ? 'Counts changed since the preview.' : '',
   ].filter(Boolean)
   return {
     tone: skippedTotal > 0 ? 'caution' : 'success',
