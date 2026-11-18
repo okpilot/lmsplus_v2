@@ -99,6 +99,11 @@ export function useDialogParam(shared?: DialogRefs) {
   useEffect(() => {
     pending.current = stillPending(search, pending.current)
   }, [search])
+  /** Latest `isRefreshing` for `close`, which can run after an await from an earlier render. */
+  const refreshing = useRef(isRefreshing)
+  useEffect(() => {
+    refreshing.current = isRefreshing
+  }, [isRefreshing])
   const open = useCallback(
     (name: DialogParam, opener?: HTMLElement | null, extra?: Readonly<Record<string, string>>) => {
       const active = document.activeElement
@@ -125,7 +130,7 @@ export function useDialogParam(shared?: DialogRefs) {
     closing.current = true
     pending.current = {}
     // Back while a replace is unsettled lets that replace land on the entry before the popup.
-    const back = openedHere.current && !isRefreshing
+    const back = openedHere.current && !refreshing.current
     openedHere.current = false
     if (back) {
       router.back()
@@ -134,6 +139,6 @@ export function useDialogParam(shared?: DialogRefs) {
     startTransition(() =>
       router.replace(paramsHref(pathname, withoutPopupParams(search), {}), { scroll: false }),
     )
-  }, [pathname, search, router, startTransition, openedHere, closing, isRefreshing])
+  }, [pathname, search, router, startTransition, openedHere, closing])
   return { dlg, isRefreshing, openerRef, open, replaceParams, close, consumeOpenedHere }
 }
