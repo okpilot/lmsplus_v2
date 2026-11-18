@@ -559,7 +559,7 @@ reviews:
           are owned by postgres, which holds BYPASSRLS, so RLS is not evaluated at all and the
           soft-delete filter must be replicated manually in every query. (SECURITY DEFINER ALONE
           does not bypass RLS — it re-runs as the owner, and under FORCE ROW LEVEL SECURITY not
-          even the owner is exempt; the bypass comes from the owner's BYPASSRLS attribute.) Three carve-outs. Write-once carve-out: SELECTs fetching records by IDs
+          even the owner is exempt; the bypass comes from the owner's BYPASSRLS attribute.) Write-once carve-out: SELECTs fetching records by IDs
           stored in an immutable, write-once column may omit the filter. Examples include
           (docs/security.md §15 is the authoritative list, not this enumeration): (a) finish_quiz_session (via _grade_session_progress and _score_graded_session),
           check_quiz_answer, check_non_mc_answer, and save_quiz_answer reading
