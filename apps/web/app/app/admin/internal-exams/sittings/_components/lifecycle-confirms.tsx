@@ -82,7 +82,10 @@ function StartConfirm(props: Readonly<Props>) {
             return {
               tone: 'success',
               title: 'Sitting started.',
-              detail: `${plural(d.codesRestamped, 'code')} will work until you close the sitting.`,
+              detail:
+                d.codesRestamped > 0
+                  ? `${plural(d.codesRestamped, 'code')} will work until you close the sitting.`
+                  : undefined,
             }
           },
         )
