@@ -75,7 +75,9 @@ export function IssueCodesPanel({ sittingId, userIds, preview }: Readonly<Props>
             : 'Nothing to issue.'}
         </p>
         {already > 0 && (
-          <p className="text-caption text-muted-foreground">{already} already have a code.</p>
+          <p className="text-caption text-muted-foreground">
+            {plural(already, 'exam')} already {already === 1 ? 'has' : 'have'} a code.
+          </p>
         )}
         <Skipped preview={preview} />
         <FieldError role="alert">{error}</FieldError>
