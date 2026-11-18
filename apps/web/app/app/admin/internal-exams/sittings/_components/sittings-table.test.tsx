@@ -12,14 +12,16 @@ vi.mock('next/link', () => ({
     href,
     children,
     onClick,
+    onKeyDown,
     prefetch,
   }: {
     href: string
     children: React.ReactNode
     onClick?: (e: React.MouseEvent) => void
+    onKeyDown?: (e: React.KeyboardEvent) => void
     prefetch?: boolean
   }) => (
-    <a href={href} onClick={onClick} data-prefetch={String(prefetch)}>
+    <a href={href} onClick={onClick} onKeyDown={onKeyDown} data-prefetch={String(prefetch)}>
       {children}
     </a>
   ),
@@ -66,6 +68,12 @@ describe('SittingsTable', () => {
     render(<SittingsTable rows={[row()] as never} />)
     fireEvent.keyDown(screen.getAllByRole('row')[1] as HTMLElement, { key: 'Enter' })
     expect(mockPush).toHaveBeenCalledWith('/app/admin/internal-exams/sittings/sit-1')
+  })
+
+  it('does not push the row route when Enter is pressed on the date link', () => {
+    render(<SittingsTable rows={[row()] as never} />)
+    fireEvent.keyDown(screen.getByRole('link'), { key: 'Enter' })
+    expect(mockPush).not.toHaveBeenCalled()
   })
 
   it('holds the only link in the date cell, unprefetched', () => {

@@ -9,6 +9,8 @@ vi.mock('react', async (orig) => ({
   cache: <T>(f: T) => f,
 }))
 vi.mock('@/lib/auth/require-admin', () => ({ requireAdmin: mockRequireAdmin }))
+const mockAdminFrom = vi.hoisted(() => vi.fn())
+vi.mock('@repo/db/admin', () => ({ adminClient: { from: mockAdminFrom } }))
 
 import { getSitting, getSummary, listSittings } from './queries'
 
@@ -127,6 +129,7 @@ describe('getSummary', () => {
       attemptsRunning: 2,
       entriesNotStarted: 3,
       studentsNotStarted: 2,
+      entriesIssuable: 1,
     })
   })
 })
@@ -148,9 +151,17 @@ describe('getSitting', () => {
       error: null,
     })
     const users = chain({ data: { full_name: 'Ann Instructor', deleted_at: null }, error: null })
-    mockFrom.mockImplementation((t: string) => (t === 'exam_sittings' ? sitting : users))
+    mockFrom.mockReturnValue(sitting)
+    mockAdminFrom.mockReturnValue(users)
     const r = await getSitting(SID)
     expect(r).toMatchObject({ id: SID, status: 'cancelled', mode: 'in_person' })
+    expect(mockAdminFrom).toHaveBeenCalledWith('users')
+    expect((users.eq as ReturnType<typeof vi.fn>).mock.calls).toEqual(
+      expect.arrayContaining([
+        ['organization_id', ORG],
+        ['id', 'inv-1'],
+      ]),
+    )
     const eqArgs = (sitting.eq as ReturnType<typeof vi.fn>).mock.calls
     expect(eqArgs).toContainEqual(['organization_id', ORG])
     expect(eqArgs).toContainEqual(['id', SID])

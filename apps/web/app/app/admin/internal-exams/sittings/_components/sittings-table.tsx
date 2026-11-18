@@ -67,6 +67,7 @@ function SittingRowView({ r }: Readonly<{ r: SittingRow }>) {
           href={href}
           prefetch={false}
           onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
           className="font-medium text-foreground no-underline focus-visible:underline"
         >
           {formatListDate(r.scheduledAt)}

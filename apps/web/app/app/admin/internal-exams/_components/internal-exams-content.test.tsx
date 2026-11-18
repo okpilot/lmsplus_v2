@@ -31,12 +31,12 @@ beforeEach(() => {
   m.sittings.mockResolvedValue(empty)
 })
 
-const props = { codesPage: 1, attemptsPage: 1, scope: 'upcoming', dlg: undefined }
+const props = { codesPage: 1, attemptsPage: 1, sittingsPage: 1, scope: 'upcoming', dlg: undefined }
 
 describe('InternalExamsContent', () => {
   it('fetches only the sittings list on the sittings tab', async () => {
     await InternalExamsContent({ ...props, tab: 'sittings' } as never)
-    expect(m.sittings).toHaveBeenCalledWith('upcoming')
+    expect(m.sittings).toHaveBeenCalledWith('upcoming', 1)
     expect(m.codes).not.toHaveBeenCalled()
     expect(m.attempts).not.toHaveBeenCalled()
   })

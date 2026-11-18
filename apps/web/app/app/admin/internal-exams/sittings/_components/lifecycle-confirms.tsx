@@ -38,8 +38,12 @@ function useConfirm(which: Exclude<Confirm, null>, { setConfirm }: Props) {
   return { ...action, dismiss, onOpenChange }
 }
 
+function noCodeLine(n: number): string {
+  return `${plural(n, 'exam')} ${n === 1 ? 'has' : 'have'} no code yet. They cannot start until you issue codes.`
+}
+
 function StartConfirm(props: Readonly<Props>) {
-  const { sitting, confirm } = props
+  const { sitting, summary, confirm } = props
   const { pending, error, run, dismiss, onOpenChange } = useConfirm('start', props)
   return (
     <ConfirmDialog
@@ -49,6 +53,9 @@ function StartConfirm(props: Readonly<Props>) {
       description={
         <>
           {START_CONFIRM_TEXT}
+          {summary.entriesIssuable > 0 && (
+            <strong className="mt-2 block">{noCodeLine(summary.entriesIssuable)}</strong>
+          )}
           {!sitting.invigilatorActive && (
             <strong className="mt-2 block">
               The assigned invigilator {sitting.invigilatorName} is no longer an active admin or
@@ -66,6 +73,12 @@ function StartConfirm(props: Readonly<Props>) {
           () => startSitting({ sittingId: sitting.id }),
           (d) => {
             dismiss()
+            if (d.entriesWithoutCode > 0)
+              return {
+                tone: 'caution',
+                title: 'Sitting started.',
+                detail: noCodeLine(d.entriesWithoutCode),
+              }
             return {
               tone: 'success',
               title: 'Sitting started.',

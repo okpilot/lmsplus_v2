@@ -102,6 +102,22 @@ describe('SittingLifecycleButtons', () => {
     ).toBeInTheDocument()
   })
 
+  it('warns in the Start confirm when exams have no code yet', async () => {
+    const user = userEvent.setup()
+    render(
+      <SittingLifecycleButtons
+        sitting={sitting('scheduled') as never}
+        summary={{ ...summary, entriesIssuable: 2 } as never}
+        notDue={false}
+        dayEnded={false}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Start sitting' }))
+    expect(
+      await screen.findByText('2 exams have no code yet. They cannot start until you issue codes.'),
+    ).toBeInTheDocument()
+  })
+
   it('warns in the Start confirm when the invigilator is inactive', async () => {
     const user = userEvent.setup()
     render(
