@@ -1,5 +1,9 @@
 import { randomUUID } from 'node:crypto'
-import { EXAM_SITTING_SEED_EMAIL_PREFIX, EXAM_SITTING_SEED_PREFIX } from './exam-sitting-markers'
+import {
+  EXAM_SITTING_SEED_EMAIL_PREFIX,
+  EXAM_SITTING_SEED_GROUP_PREFIX,
+  EXAM_SITTING_SEED_PREFIX,
+} from './exam-sitting-markers'
 import { getAdminClient } from './supabase'
 
 /** The E2E admin (invigilator and creator of every seeded sitting). */
@@ -10,16 +14,23 @@ export type SeedEntryState = 'live' | 'no_code' | 'expired' | 'voided' | 'finish
 
 export type SeedInput = {
   status?: 'scheduled' | 'open' | 'closed'
-  people: { name: string; entries: { state: SeedEntryState }[] }[]
+  /** `enrolled`: enrol a person without exams in the course of the first configured subject (so they can sit it). */
+  people: { name: string; entries: { state: SeedEntryState }[]; enrolled?: boolean }[]
   /** Extra people without exams, named `E2E Extra NN`. */
   extraPeople?: number
   /** Students removed automatically because they passed: listed in the removed list. */
   autoRemoved?: { name: string }[]
+  /** Students who are not candidates of the sitting (the Add people list), `e2e-sit-` emails. */
+  addable?: { name: string; deactivated?: boolean }[]
+  /** Student groups named `E2E-GRP-SIT-<name>`; `members` are names of people or addable people. */
+  groups?: { name: string; members: string[] }[]
 }
 
 export type SeedResult = {
   sittingId: string
   people: { name: string; userId: string }[]
+  addable: { name: string; userId: string }[]
+  groups: { name: string; id: string }[]
 }
 
 type Admin = ReturnType<typeof getAdminClient>
@@ -166,6 +177,67 @@ async function seedAutoRemoved(
   if (res.error) fail('audit events', res.error)
 }
 
+async function enrolInCourse(
+  admin: Admin,
+  c: { orgId: string; adminId: string; userId: string; courseId: string },
+): Promise<void> {
+  const res = await admin.from('course_enrolments').insert({
+    organization_id: c.orgId,
+    user_id: c.userId,
+    course_id: c.courseId,
+    enrolled_by: c.adminId,
+  })
+  if (res.error) fail('enrolment', res.error)
+}
+
+async function seedAddable(
+  admin: Admin,
+  orgId: string,
+  list: { name: string; deactivated?: boolean }[],
+): Promise<{ name: string; userId: string }[]> {
+  const ids = await createStudents(
+    admin,
+    orgId,
+    list.map((p) => p.name),
+  )
+  const dead = ids.filter((_, i) => list[i]?.deactivated)
+  if (dead.length > 0) {
+    const res = await admin
+      .from('users')
+      .update({ deleted_at: new Date().toISOString() })
+      .in('id', dead)
+    if (res.error) fail('deactivate', res.error)
+  }
+  return list.map((p, i) => ({ name: p.name, userId: ids[i] as string }))
+}
+
+async function seedGroups(
+  admin: Admin,
+  c: { orgId: string; adminId: string; byName: Map<string, string> },
+  groups: { name: string; members: string[] }[],
+): Promise<{ name: string; id: string }[]> {
+  const out: { name: string; id: string }[] = []
+  for (const g of groups) {
+    const name = `${EXAM_SITTING_SEED_GROUP_PREFIX}${g.name}`
+    const row = await admin
+      .from('student_groups')
+      .insert({ organization_id: c.orgId, name, created_by: c.adminId })
+      .select('id')
+      .single()
+    if (row.error || !row.data) fail('group', row.error)
+    const members = g.members.map((m) => {
+      const userId = c.byName.get(m)
+      if (!userId) throw new Error(`seedSitting group ${g.name}: unknown member ${m}`)
+      return { organization_id: c.orgId, group_id: row.data.id, user_id: userId }
+    })
+    const res =
+      members.length > 0 ? await admin.from('student_group_members').insert(members) : null
+    if (res?.error) fail('group members', res.error)
+    out.push({ name, id: row.data.id })
+  }
+  return out
+}
+
 /**
  * Service-role seed of one marked sitting with people, entries and codes (no RPC, no email).
  * Every sitting and user it creates carries a marker that `cleanupE2eExamSittings` removes.
@@ -184,15 +256,19 @@ export async function seedSitting(input: SeedInput): Promise<SeedResult> {
     .select('id, short, course_id')
     .is('deleted_at', null)
     .order('short')
-    .limit(12)
   if (subjectRes.error || !subjectRes.data?.length) fail('subjects', subjectRes.error)
-  const configs = await admin.from('exam_configs').select('subject_id').is('deleted_at', null)
+  const configs = await admin
+    .from('exam_configs')
+    .select('subject_id')
+    .eq('organization_id', orgId)
+    .eq('enabled', true)
+    .is('deleted_at', null)
   if (configs.error) fail('exam configs', configs.error)
   const configured = new Set((configs.data ?? []).map((c) => c.subject_id))
   // Subjects with an exam config first: only those can be issued a code.
-  const subjects = [...(subjectRes.data as Subject[])].sort(
-    (a, b) => Number(configured.has(b.id)) - Number(configured.has(a.id)),
-  )
+  const subjects = [...(subjectRes.data as Subject[])]
+    .sort((a, b) => Number(configured.has(b.id)) - Number(configured.has(a.id)))
+    .slice(0, 12)
 
   const status = input.status ?? 'scheduled'
   const now = new Date().toISOString()
@@ -226,20 +302,26 @@ export async function seedSitting(input: SeedInput): Promise<SeedResult> {
 
   const ctx = { orgId, adminId, sittingId, subjects }
   for (const [i, p] of input.people.entries()) {
+    const userId = userIds[i] as string
     await seedEntries(
       admin,
       ctx,
-      userIds[i] as string,
+      userId,
       p.entries.map((e) => e.state),
     )
+    if (p.enrolled && p.entries.length === 0) {
+      const courseId = (subjects[0] as Subject).course_id
+      await enrolInCourse(admin, { orgId, adminId, userId, courseId })
+    }
   }
   await seedAutoRemoved(
     admin,
     ctx,
     (input.autoRemoved ?? []).map((p) => p.name),
   )
-  return {
-    sittingId,
-    people: input.people.map((p, i) => ({ name: p.name, userId: userIds[i] as string })),
-  }
+  const people = input.people.map((p, i) => ({ name: p.name, userId: userIds[i] as string }))
+  const addable = await seedAddable(admin, orgId, input.addable ?? [])
+  const byName = new Map([...people, ...addable].map((p) => [p.name, p.userId]))
+  const groups = await seedGroups(admin, { orgId, adminId, byName }, input.groups ?? [])
+  return { sittingId, people, addable, groups }
 }

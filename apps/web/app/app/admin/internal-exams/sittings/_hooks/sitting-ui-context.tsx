@@ -11,11 +11,13 @@ import {
   useMemo,
   useRef,
   useState,
+  useTransition,
 } from 'react'
 import { toast } from 'sonner'
 import type { ResultBannerData } from '../_utils/copy'
 import { type DialogRefs, useDialogParam } from './use-dialog-param'
 import { NO_ROSTER, type RosterSelection, useRosterSelection } from './use-roster-selection'
+import { type TickSet, useTickSet } from './use-tick-set'
 
 type Shared = {
   refs: DialogRefs
@@ -25,15 +27,24 @@ type Shared = {
   banner: ResultBannerData | null
   setBanner: (b: ResultBannerData | null) => void
   roster: RosterSelection
+  /** Ticks of the Add people popup; they survive popup param changes. */
+  people: TickSet
   /** Search text typed but not yet written to the URL; Show flushes it with its own write. */
   searchDraft: MutableRefObject<string | null>
 }
 
 const SittingUiContext = createContext<Shared | null>(null)
 
-/** One banner at a time; success is a toast. */
+const NO_PEOPLE: TickSet = {
+  ids: [],
+  toggle: () => undefined,
+  setMany: () => undefined,
+  clear: () => undefined,
+}
+
+/** One banner at a time; success is a toast, unless it carries lines (those stay readable in the banner). */
 function toastOrBanner(b: ResultBannerData | null, set: (b: ResultBannerData | null) => void) {
-  if (b?.tone === 'success') {
+  if (b?.tone === 'success' && !b.lines?.length) {
     set(null)
     toast.success(b.title, b.detail ? { description: b.detail } : undefined)
   } else set(b)
@@ -54,11 +65,14 @@ export function useSittingUi() {
     banner: shared?.banner ?? null,
     setBanner: shared?.setBanner ?? noBanner,
     ...(shared?.roster ?? NO_ROSTER),
+    people: shared?.people ?? NO_PEOPLE,
     searchDraft: shared?.searchDraft,
   }
 }
 
-export function SittingUiProvider({ children }: Readonly<{ children: ReactNode }>) {
+type ProviderProps = { children: ReactNode }
+
+export function SittingUiProvider({ children }: Readonly<ProviderProps>) {
   const openedHere = useRef(false)
   const openerRef = useRef<HTMLElement | null>(null)
   const closing = useRef(false)
@@ -76,18 +90,21 @@ export function SittingUiProvider({ children }: Readonly<{ children: ReactNode }
     [],
   )
   const roster = useRosterSelection()
+  const people = useTickSet()
+  const [pending, start] = useTransition()
   const searchDraft = useRef<string | null>(null)
   const value = useMemo<Shared>(
     () => ({
-      refs: { openedHere, openerRef, closing },
+      refs: { openedHere, openerRef, closing, nav: { pending, start } },
       locked,
       setLocked,
       banner,
       setBanner,
       roster,
+      people,
       searchDraft,
     }),
-    [locked, banner, setBanner, roster],
+    [locked, banner, setBanner, roster, people, pending],
   )
   return <SittingUiContext.Provider value={value}>{children}</SittingUiContext.Provider>
 }

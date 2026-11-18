@@ -11,15 +11,23 @@ type Insert = { table: string; rows: Record<string, unknown>[] }
 
 function fakeAdmin() {
   const inserts: Insert[] = []
+  const updates: Insert[] = []
   let n = 0
   const builder = (table: string) => {
     const api: Record<string, unknown> = {}
-    const result = () => ({ data: [{ id: `id-${++n}`, short: 'FPM' }], error: null })
+    const result = () => ({
+      data: [{ id: `id-${++n}`, short: 'FPM', course_id: 'course-1' }],
+      error: null,
+    })
     for (const m of ['select', 'eq', 'is', 'in', 'order', 'limit', 'like', 'neq']) {
       api[m] = () => api
     }
     api.insert = (rows: Record<string, unknown> | Record<string, unknown>[]) => {
       inserts.push({ table, rows: Array.isArray(rows) ? rows : [rows] })
+      return api
+    }
+    api.update = (row: Record<string, unknown>) => {
+      updates.push({ table, rows: [row] })
       return api
     }
     api.single = () => Promise.resolve({ data: { id: `id-${++n}` }, error: null })
@@ -33,7 +41,7 @@ function fakeAdmin() {
       admin: { createUser: async () => ({ data: { user: { id: `u-${++n}` } }, error: null }) },
     },
   })
-  return inserts
+  return Object.assign(inserts, { updates })
 }
 
 beforeEach(() => vi.resetAllMocks())
@@ -70,5 +78,61 @@ describe('seedSitting', () => {
     expect(typeof r.sittingId).toBe('string')
     expect(r.people[0]).toMatchObject({ name: 'Ann' })
     expect(typeof r.people[0]?.userId).toBe('string')
+  })
+})
+
+describe('seedSitting addable people, enrolment and groups', () => {
+  it('creates addable students that are not candidates and deactivates the flagged one', async () => {
+    const inserts = fakeAdmin()
+    const r = await seedSitting({
+      people: [{ name: 'Ann', entries: [] }],
+      addable: [{ name: 'Zed' }, { name: 'Dee', deactivated: true }],
+    })
+    const cands = inserts
+      .filter((i) => i.table === 'exam_sitting_candidates')
+      .flatMap((i) => i.rows)
+    expect(cands).toHaveLength(1)
+    const users = inserts.filter((i) => i.table === 'users').flatMap((i) => i.rows)
+    expect(users.map((u) => u.full_name)).toEqual(expect.arrayContaining(['Ann', 'Zed', 'Dee']))
+    expect(users.every((u) => String(u.email).startsWith('e2e-sit-'))).toBe(true)
+    expect(r.addable.map((a) => a.name)).toEqual(['Zed', 'Dee'])
+    const dead = (inserts as unknown as { updates: Insert[] }).updates.find(
+      (u) => u.table === 'users',
+    )
+    expect(dead?.rows[0]).toHaveProperty('deleted_at')
+  })
+
+  it('enrols an enrolled person without exams in the first configured subject course', async () => {
+    const inserts = fakeAdmin()
+    await seedSitting({
+      people: [
+        { name: 'Ann', entries: [], enrolled: true },
+        { name: 'Bea', entries: [] },
+      ],
+    })
+    const enrol = inserts.filter((i) => i.table === 'course_enrolments').flatMap((i) => i.rows)
+    expect(enrol).toHaveLength(1)
+    expect(enrol[0]).toMatchObject({ course_id: 'course-1' })
+  })
+
+  it('builds groups named E2E-GRP-SIT- with the listed people and addable people as members', async () => {
+    const inserts = fakeAdmin()
+    const r = await seedSitting({
+      people: [{ name: 'Ann', entries: [] }],
+      addable: [{ name: 'Zed' }],
+      groups: [{ name: 'Alpha', members: ['Ann', 'Zed'] }],
+    })
+    const group = inserts.find((i) => i.table === 'student_groups')
+    expect(group?.rows[0]).toMatchObject({ name: 'E2E-GRP-SIT-Alpha' })
+    const members = inserts.find((i) => i.table === 'student_group_members')
+    expect(members?.rows.map((m) => m.user_id)).toEqual([r.people[0]?.userId, r.addable[0]?.userId])
+    expect(r.groups[0]?.name).toBe('E2E-GRP-SIT-Alpha')
+  })
+
+  it('rejects a group member that is not a seeded person', async () => {
+    fakeAdmin()
+    await expect(
+      seedSitting({ people: [], groups: [{ name: 'Alpha', members: ['Nobody'] }] }),
+    ).rejects.toThrow(/unknown member Nobody/)
   })
 })

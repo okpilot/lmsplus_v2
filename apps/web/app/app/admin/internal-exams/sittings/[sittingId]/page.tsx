@@ -5,6 +5,7 @@ import { RemovedEntriesList } from '../_components/removed-entries-list'
 import { ResultBanner } from '../_components/result-banner'
 import { SittingCounts } from '../_components/sitting-counts'
 import { SittingHeader } from '../_components/sitting-header'
+import { SittingPopups } from '../_components/sitting-popups'
 import { SittingUiProvider } from '../_hooks/sitting-ui-context'
 import { loadSittingPage } from '../_utils/load-sitting-page'
 import { parseSittingParams } from '../parse-sitting-params'
@@ -17,7 +18,7 @@ type PageProps = {
 export default async function SittingPage({ params, searchParams }: Readonly<PageProps>) {
   await requireAdmin()
   const sp = parseSittingParams(await searchParams)
-  const { sitting, summary, invigilators, notDue, roster, removed, editable } =
+  const { sitting, summary, invigilators, notDue, roster, removed, editable, selection } =
     await loadSittingPage((await params).sittingId, sp)
   return (
     <SittingUiProvider key={sitting.id}>
@@ -44,6 +45,7 @@ export default async function SittingPage({ params, searchParams }: Readonly<Pag
           page={sp.page}
         />
         <RemovedEntriesList rows={removed.rows} total={removed.total} />
+        <SittingPopups sitting={sitting} params={sp} editable={editable} selection={selection} />
       </div>
     </SittingUiProvider>
   )

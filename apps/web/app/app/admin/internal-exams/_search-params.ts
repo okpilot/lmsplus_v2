@@ -11,12 +11,24 @@ function parseCodeStatus(value: string | string[] | undefined): ListCodesFilters
     : undefined
 }
 
-export type DialogParam = 'new' | 'edit'
+export type DialogParam = 'new' | 'edit' | 'people' | 'exams' | 'issue'
+
+/** Every URL param a sitting popup owns; opening or closing a popup drops the stale ones. */
+export const POPUP_PARAMS = [
+  'dlg',
+  'ids',
+  'all',
+  'pq',
+  'pgroup',
+  'pcourse',
+  'pstatus',
+  'ppage',
+] as const
 
 export type TabKey = 'sittings' | 'codes' | 'attempts'
 
 export function parseTab(value: string | string[] | null | undefined): TabKey {
-  return value === 'sittings' || value === 'attempts' ? value : 'codes'
+  return value === 'codes' || value === 'attempts' ? value : 'sittings'
 }
 
 function parseDlg(value: string | string[] | undefined): DialogParam | undefined {
@@ -34,7 +46,7 @@ export type InternalExamsSearchParams = {
 }
 
 /**
- * Normalizes the admin Internal Exams page's raw search params: the active tab (default codes),
+ * Normalizes the admin Internal Exams page's raw search params: the active tab (default sittings),
  * a whitelisted code status (invalid/absent → undefined), the sittings scope and the table page
  * numbers. Extracted so `page.tsx` stays composition-only.
  */

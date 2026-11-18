@@ -110,7 +110,7 @@ test('Void code with a reason shows Voided, then Issue new code makes it live ag
   await expect(page.getByRole('button', { name: /^Copy code for / })).toBeVisible()
 })
 
-test('Remove person from the row menu and in bulk; a person with an attempt cannot be selected or removed', async ({
+test('Remove person from the row menu and in bulk; a person with an attempt cannot be selected or removed (⋯ offers Add exams only)', async ({
   page,
 }) => {
   const { sittingId } = await seedSitting({ status: 'open', people: THREE })
@@ -126,7 +126,10 @@ test('Remove person from the row menu and in bulk; a person with an attempt cann
   await expect(personRow(page, 'E2E Bea Ready')).toHaveCount(0)
 
   await expect(page.getByRole('checkbox', { name: 'Select E2E Cy Attempt' })).toBeDisabled()
-  await expect(page.getByRole('button', { name: 'Actions for E2E Cy Attempt' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Actions for E2E Cy Attempt' }).click()
+  await expect(page.getByRole('menuitem', { name: 'Add exams' })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: 'Remove from sitting' })).toHaveCount(0)
+  await page.keyboard.press('Escape')
   await page.reload()
   await expect(personRow(page, 'E2E Cy Attempt')).toBeVisible()
 })

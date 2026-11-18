@@ -8,7 +8,13 @@ vi.mock('./supabase', () => ({
   getAdminClient: mockGetAdminClient,
 }))
 
-import { countActiveSubjectExamConfigs, softDeleteSubjectExamConfigs } from './exam-config-cleanup'
+import {
+  cleanupCreatedExamConfigs,
+  countActiveSubjectExamConfigs,
+  ensureExamConfigs,
+  insertExamConfig,
+  softDeleteSubjectExamConfigs,
+} from './exam-config-cleanup'
 
 type Call = { table: string; method: string; args: unknown[] }
 type Result = { data: unknown; error: { message: string } | null; count?: number }
@@ -149,5 +155,134 @@ describe('countActiveSubjectExamConfigs', () => {
       exam_configs: { data: null, error: { message: 'boom' } },
     })
     await expect(countActiveSubjectExamConfigs('100')).rejects.toThrow(/boom/)
+  })
+})
+
+type Cfg = { subject_id: string; enabled: boolean; deleted_at: string | null }
+
+function fakeConfigAdmin(o: {
+  subjects: { id: string; course_id: string }[]
+  configs: Cfg[]
+  deleteError?: string
+}) {
+  const inserted: Record<string, unknown>[] = []
+  const deletedIds: string[][] = []
+  const builder = (table: string) => {
+    let op = 'select'
+    const api: Record<string, unknown> = {}
+    const result = () => {
+      if (op === 'delete') {
+        return o.deleteError
+          ? { data: null, error: { message: o.deleteError } }
+          : { data: (deletedIds.at(-1) ?? []).map((id) => ({ id })), error: null }
+      }
+      return { data: table === 'easa_subjects' ? o.subjects : o.configs, error: null }
+    }
+    for (const m of ['select', 'eq', 'is']) api[m] = () => api
+    api.insert = (row: Record<string, unknown>) => {
+      op = 'insert'
+      inserted.push(row)
+      return api
+    }
+    api.delete = () => {
+      op = 'delete'
+      return api
+    }
+    api.in = (_c: string, ids: string[]) => {
+      deletedIds.push(ids)
+      return api
+    }
+    api.single = () => Promise.resolve({ data: { id: `cfg-${inserted.length}` }, error: null })
+    // biome-ignore lint/suspicious/noThenProperty: awaitable mock
+    api.then = (r: (v: unknown) => void) => Promise.resolve(result()).then(r)
+    return api
+  }
+  mockGetAdminClient.mockReturnValue({ from: builder })
+  return { inserted, deletedIds }
+}
+
+const ppl = (n: number) => ({ id: `ppl-${n}`, course_id: 'PPL' })
+const rt = (n: number) => ({ id: `rt-${n}`, course_id: 'RT' })
+
+describe('insertExamConfig', () => {
+  it('inserts an enabled config for the subject in the organization and returns its id', async () => {
+    const { inserted } = fakeConfigAdmin({ subjects: [], configs: [] })
+    const id = await insertExamConfig(mockGetAdminClient() as never, { orgId: 'o', subjectId: 's' })
+    expect(id).toBe('cfg-1')
+    expect(inserted[0]).toMatchObject({ organization_id: 'o', subject_id: 's', enabled: true })
+  })
+})
+
+describe('ensureExamConfigs', () => {
+  it('inserts only the missing config when one subject of the course is already enabled', async () => {
+    const { inserted } = fakeConfigAdmin({
+      subjects: [ppl(1), ppl(2), rt(1)],
+      configs: [{ subject_id: 'ppl-1', enabled: true, deleted_at: null }],
+    })
+    await ensureExamConfigs('o')
+    expect(inserted).toHaveLength(1)
+    expect(inserted[0]).toMatchObject({ organization_id: 'o', subject_id: 'ppl-2' })
+    await cleanupCreatedExamConfigs()
+  })
+
+  it('inserts nothing when a course already has two enabled configs', async () => {
+    const { inserted } = fakeConfigAdmin({
+      subjects: [ppl(1), ppl(2)],
+      configs: [
+        { subject_id: 'ppl-1', enabled: true, deleted_at: null },
+        { subject_id: 'ppl-2', enabled: true, deleted_at: null },
+      ],
+    })
+    await ensureExamConfigs('o')
+    expect(inserted).toHaveLength(0)
+  })
+
+  it('inserts nothing when a later course already has two enabled configs', async () => {
+    const { inserted } = fakeConfigAdmin({
+      subjects: [ppl(1), ppl(2), rt(1), rt(2)],
+      configs: [
+        { subject_id: 'rt-1', enabled: true, deleted_at: null },
+        { subject_id: 'rt-2', enabled: true, deleted_at: null },
+      ],
+    })
+    await ensureExamConfigs('o')
+    expect(inserted).toHaveLength(0)
+  })
+
+  it('never reuses a subject that already has a disabled or deleted config row', async () => {
+    const { inserted } = fakeConfigAdmin({
+      subjects: [ppl(1), ppl(2), ppl(3)],
+      configs: [{ subject_id: 'ppl-1', enabled: false, deleted_at: null }],
+    })
+    await ensureExamConfigs('o')
+    expect(inserted.map((r) => r.subject_id)).toEqual(['ppl-2', 'ppl-3'])
+    await cleanupCreatedExamConfigs()
+  })
+
+  it('fails with a clear message when no course can reach two configs', async () => {
+    fakeConfigAdmin({ subjects: [ppl(1), rt(1)], configs: [] })
+    await expect(ensureExamConfigs('o')).rejects.toThrow(
+      /ensureExamConfigs: no course has 2 subjects/,
+    )
+  })
+})
+
+describe('cleanupCreatedExamConfigs', () => {
+  it('deletes only the configs ensureExamConfigs created, then forgets them', async () => {
+    const { deletedIds } = fakeConfigAdmin({ subjects: [ppl(1), ppl(2)], configs: [] })
+    await ensureExamConfigs('o')
+    await cleanupCreatedExamConfigs()
+    expect(deletedIds.at(-1)).toEqual(['cfg-1', 'cfg-2'])
+    const before = deletedIds.length
+    await cleanupCreatedExamConfigs()
+    expect(deletedIds).toHaveLength(before)
+  })
+
+  it('throws when the delete fails and keeps the ids for a retry', async () => {
+    fakeConfigAdmin({ subjects: [ppl(1), ppl(2)], configs: [], deleteError: 'fk block' })
+    await ensureExamConfigs('o')
+    await expect(cleanupCreatedExamConfigs()).rejects.toThrow('cleanupCreatedExamConfigs: fk block')
+    fakeConfigAdmin({ subjects: [], configs: [] })
+    await cleanupCreatedExamConfigs()
   })
 })

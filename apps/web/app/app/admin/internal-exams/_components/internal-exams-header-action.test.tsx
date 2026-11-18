@@ -15,6 +15,12 @@ import { InternalExamsHeaderAction } from './internal-exams-header-action'
 beforeEach(() => m.open.mockReset())
 
 describe('InternalExamsHeaderAction', () => {
+  it.each(['', 'tab=bogus'])('renders the new-sitting button on the default tab for "%s"', (qs) => {
+    m.search = qs
+    render(<InternalExamsHeaderAction />)
+    expect(screen.getByRole('button', { name: /New sitting/ })).toBeInTheDocument()
+  })
+
   it('opens the new-sitting dialog with the button as opener on the sittings tab', async () => {
     m.search = 'tab=sittings&scope=open'
     render(<InternalExamsHeaderAction />)
@@ -23,7 +29,7 @@ describe('InternalExamsHeaderAction', () => {
     expect(m.open).toHaveBeenCalledWith('new', button)
   })
 
-  it.each(['tab=codes', 'tab=attempts', '', 'tab=bogus'])('renders nothing for "%s"', (qs) => {
+  it.each(['tab=codes', 'tab=attempts'])('renders nothing for "%s"', (qs) => {
     m.search = qs
     const { container } = render(<InternalExamsHeaderAction />)
     expect(container).toBeEmptyDOMElement()

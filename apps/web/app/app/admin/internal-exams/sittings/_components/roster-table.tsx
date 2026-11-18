@@ -6,6 +6,7 @@ import { EmptyDescription } from '@/components/ui/empty'
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useSittingUi } from '../_hooks/sitting-ui-context'
 import type { RosterRow, ShowValue, SittingStatus } from '../types'
+import { AddPeopleButton } from './add-people-button'
 import { PersonRow } from './person-row'
 
 type Props = {
@@ -24,10 +25,10 @@ function emptyText(q: string, show: ShowValue): string {
 }
 
 function Head({ rows, editable }: Readonly<Pick<Props, 'rows' | 'editable'>>) {
-  const { rosterIds, setRosterPage } = useSittingUi()
+  const { rosterIds, selectAll, setRosterPage } = useSittingUi()
   const pageIds = rows.filter((r) => !r.hasAttempt).map((r) => r.userId)
   const ticked = pageIds.filter((id) => rosterIds.includes(id)).length
-  const all = pageIds.length > 0 && ticked === pageIds.length
+  const all = selectAll || (pageIds.length > 0 && ticked === pageIds.length)
   return (
     <TableHeader>
       <TableRow>
@@ -37,7 +38,7 @@ function Head({ rows, editable }: Readonly<Pick<Props, 'rows' | 'editable'>>) {
               aria-label={`Select all ${pageIds.length} shown`}
               checked={all}
               disabled={pageIds.length === 0}
-              indeterminate={ticked > 0 && !all}
+              indeterminate={!selectAll && ticked > 0 && !all}
               onCheckedChange={(c) => setRosterPage(pageIds, c === true)}
             />
           </TableHead>
@@ -68,9 +69,11 @@ export function RosterTable({ rows, q, show, ...rest }: Readonly<Props>) {
       return next
     })
   if (rows.length === 0) {
+    const unfiltered = !q && show === 'all'
     return (
-      <div className="p-card text-center">
+      <div className="space-y-stack p-card text-center">
         <EmptyDescription>{emptyText(q, show)}</EmptyDescription>
+        {rest.editable && unfiltered && <AddPeopleButton variant="default" size="default" />}
       </div>
     )
   }

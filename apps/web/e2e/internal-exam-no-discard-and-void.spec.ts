@@ -34,7 +34,7 @@ test.use({ storageState: 'e2e/.auth/admin.json' })
 const SUBJECT_LABEL_FRAGMENT = 'Meteorology'
 
 async function issueCodeAsAdmin(adminPage: Page, subjectFragment: string): Promise<string> {
-  await adminPage.goto('/app/admin/internal-exams')
+  await adminPage.goto('/app/admin/internal-exams?tab=codes')
   await expect(adminPage.getByRole('heading', { name: 'Internal Exams' })).toBeVisible()
   const form = adminPage.getByTestId('issue-code-form')
   await form.locator('[aria-label="Student"]').click()
@@ -138,7 +138,7 @@ test.describe('internal exam — no-discard + admin void', () => {
       await page.waitForTimeout(300)
 
       // Admin: navigate to internal-exams, void the freshly issued code.
-      await adminPage.goto('/app/admin/internal-exams')
+      await adminPage.goto('/app/admin/internal-exams?tab=codes')
       await expect(adminPage.getByRole('heading', { name: 'Internal Exams' })).toBeVisible()
 
       // Find the row containing this code and click its Void button.
