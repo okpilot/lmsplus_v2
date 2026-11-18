@@ -1,27 +1,37 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useUpdateSearchParams } from '@/app/app/_hooks/use-update-search-params'
 import { Input } from '@/components/ui/input'
 import { useSittingUi } from '../_hooks/sitting-ui-context'
 
-/** Debounced (300 ms) search; writes `q` and drops `page`. */
+/** Debounced (300 ms) search; writes `q` and drops `page`. The URL re-syncs the box unless typing is pending. */
 export function RosterSearch({ value }: Readonly<{ value: string }>) {
   const update = useUpdateSearchParams()
   const { searchDraft } = useSittingUi()
   const [text, setText] = useState(value)
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
-    if (text.trim() === value) {
+    if (!timer.current) setText((prev) => (prev.trim() === value ? prev : value))
+  }, [value])
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current)
       if (searchDraft) searchDraft.current = null
-      return
-    }
-    if (searchDraft) searchDraft.current = text
-    const t = setTimeout(() => {
+    },
+    [searchDraft],
+  )
+  const onType = (v: string) => {
+    setText(v)
+    if (timer.current) clearTimeout(timer.current)
+    if (searchDraft) searchDraft.current = v
+    timer.current = setTimeout(() => {
+      timer.current = null
       if (searchDraft && searchDraft.current === null) return
-      update({ q: text.trim() || null, page: null })
+      if (searchDraft) searchDraft.current = null
+      update({ q: v.trim() || null, page: null })
     }, 300)
-    return () => clearTimeout(t)
-  }, [text, value, update, searchDraft])
+  }
   return (
     <Input
       aria-label="Search people in this sitting"
@@ -29,7 +39,7 @@ export function RosterSearch({ value }: Readonly<{ value: string }>) {
       className="w-col-lg"
       value={text}
       maxLength={100}
-      onChange={(e) => setText(e.target.value)}
+      onChange={(e) => onType(e.target.value)}
     />
   )
 }
