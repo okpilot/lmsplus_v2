@@ -6,6 +6,7 @@ vi.mock('@/lib/auth/require-admin', () => ({ requireAdmin: m.requireAdmin }))
 vi.mock('../_utils/load-sitting-page', () => ({ loadSittingPage: m.load }))
 vi.mock('../_components/sitting-header', () => ({ SittingHeader: () => null }))
 vi.mock('../_components/result-banner', () => ({ ResultBanner: () => null }))
+vi.mock('../_components/sitting-popups', () => ({ SittingPopups: () => null }))
 vi.mock('../_hooks/sitting-ui-context', () => ({
   SittingUiProvider: ({ children }: { children: unknown }) => children,
 }))
@@ -74,6 +75,23 @@ describe('SittingPage', () => {
       props: { initialSelection: unknown }
     }
     expect(el.props.initialSelection).toEqual({ ids: ['u1'], all: false })
+  })
+
+  it('renders the popups with the parsed params, editability and selection (AC 51, 59)', async () => {
+    const el = (await SittingPage(params(SID, { dlg: 'people', pq: 'ann' }) as never)) as {
+      props: {
+        children: { props: { children: { type: unknown; props: Record<string, unknown> }[] } }
+      }
+    }
+    const popups = el.props.children.props.children.find(
+      (c) => (c.type as { name?: string }).name === 'SittingPopups',
+    )
+    expect(popups?.props).toMatchObject({
+      sitting: { id: SID },
+      editable: true,
+      selection: { kind: 'empty' },
+      params: { dlg: 'people', people: { q: 'ann', page: 1 } },
+    })
   })
 
   it('is composition only: no filtering, mapping or branching on data', () => {
