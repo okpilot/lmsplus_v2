@@ -19,6 +19,7 @@ export function toInfo(u: UserRow): InvigilatorInfo {
 /**
  * Name and active flag of a sitting's invigilator. Service role (`users_select` is self-only),
  * scoped by `organization_id` and `id`.
+ * security.md §15 exception (f): service-role read of users, org-scoped, includes deactivated.
  */
 export async function readInvigilator(
   organizationId: string,

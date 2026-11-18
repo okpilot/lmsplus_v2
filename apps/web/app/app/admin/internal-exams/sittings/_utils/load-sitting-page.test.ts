@@ -76,6 +76,17 @@ describe('loadSittingPage', () => {
     expect(m.listInvigilatorOptions).toHaveBeenCalledTimes(1)
   })
 
+  it('skips invigilator options when the day has ended', async () => {
+    m.getSummary.mockResolvedValue({
+      status: 'scheduled',
+      scheduledAt: '2026-11-20T09:30:00Z',
+      dayEnded: true,
+    })
+    const r = await loadSittingPage(SID)
+    expect(m.listInvigilatorOptions).not.toHaveBeenCalled()
+    expect(r.invigilators).toEqual([])
+  })
+
   it.each(['closed', 'cancelled'])('skips invigilator options for a %s sitting', async (status) => {
     m.getSummary.mockResolvedValue({ status, scheduledAt: '2026-11-20T09:30:00Z' })
     const r = await loadSittingPage(SID)

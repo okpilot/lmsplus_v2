@@ -15,7 +15,12 @@ export function InternalExamsHeaderAction() {
   params.set('tab', 'sittings')
   params.set('dlg', 'new')
   return (
-    <Link href={`${pathname}?${params.toString()}`} scroll={false} className={buttonVariants()}>
+    <Link
+      href={`${pathname}?${params.toString()}`}
+      replace
+      scroll={false}
+      className={buttonVariants()}
+    >
       <Plus className="size-icon" />
       New sitting
     </Link>

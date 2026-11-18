@@ -7,8 +7,18 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(mockSearch.value),
 }))
 vi.mock('next/link', () => ({
-  default: ({ href, children }: { href: string; children: React.ReactNode }) => (
-    <a href={href}>{children}</a>
+  default: ({
+    href,
+    children,
+    replace,
+  }: {
+    href: string
+    children: React.ReactNode
+    replace?: boolean
+  }) => (
+    <a href={href} data-replace={replace ? 'true' : undefined}>
+      {children}
+    </a>
   ),
 }))
 
@@ -22,6 +32,10 @@ describe('InternalExamsHeaderAction', () => {
     expect(href).toContain('tab=sittings')
     expect(href).toContain('dlg=new')
     expect(href).toContain('scope=open')
+    expect(screen.getByRole('link', { name: /New sitting/ })).toHaveAttribute(
+      'data-replace',
+      'true',
+    )
   })
 
   it.each(['tab=codes', 'tab=attempts', '', 'tab=bogus'])('renders nothing for "%s"', (qs) => {

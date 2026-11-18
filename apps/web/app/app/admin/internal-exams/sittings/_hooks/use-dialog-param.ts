@@ -11,7 +11,7 @@ export type DialogRefs = {
 }
 
 /**
- * Dialog state in the URL (`?dlg=`). `open` pushes a history entry and `close` pops it when this
+ * Dialog state in the URL (`?dlg=`). `open` pushes a history entry (recording `opener`, else the focused element, for focus return) and `close` pops it when this
  * session opened the dialog; a deep-linked dialog closes by replacing the URL without `dlg`.
  */
 export function useDialogParam(shared?: DialogRefs) {
@@ -25,7 +25,7 @@ export function useDialogParam(shared?: DialogRefs) {
   const openerRef = shared?.openerRef ?? ownOpener
   const href = useCallback(
     (dlg: DialogParam | null) => {
-      const params = new URLSearchParams(sp?.toString() ?? '')
+      const params = new URLSearchParams(sp.toString())
       if (dlg) params.set('dlg', dlg)
       else params.delete('dlg')
       const qs = params.toString()
@@ -34,9 +34,9 @@ export function useDialogParam(shared?: DialogRefs) {
     [pathname, sp],
   )
   const open = useCallback(
-    (name: DialogParam) => {
-      openerRef.current =
-        document.activeElement instanceof HTMLElement ? document.activeElement : null
+    (name: DialogParam, opener?: HTMLElement | null) => {
+      const active = document.activeElement
+      openerRef.current = opener ?? (active instanceof HTMLElement ? active : null)
       openedHere.current = true
       startTransition(() => router.push(href(name)))
     },
@@ -50,5 +50,5 @@ export function useDialogParam(shared?: DialogRefs) {
     }
     startTransition(() => router.replace(href(null)))
   }, [href, router, openedHere])
-  return { dlg: sp?.get('dlg') ?? null, isRefreshing, openerRef, open, close }
+  return { dlg: sp.get('dlg') ?? null, isRefreshing, openerRef, open, close }
 }

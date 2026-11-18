@@ -35,7 +35,7 @@ describe('readInvigilatorOptions', () => {
     expect(await readInvigilatorOptions('org-1')).toEqual([
       { id: 'u1', name: 'Ann (instructor)' },
       { id: 'u2', name: 'b@x.io (admin)' },
-      { id: 'u3', name: 'u3 (admin)' },
+      { id: 'u3', name: 'Unknown (admin)' },
     ])
     expect(b.eq).toHaveBeenCalledWith('organization_id', 'org-1')
     expect(b.in).toHaveBeenCalledWith('role', ['admin', 'instructor'])
