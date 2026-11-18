@@ -156,6 +156,64 @@ export const StudentGroupMembersSchema = z.object({
 
 export type StudentGroupMembersInput = z.infer<typeof StudentGroupMembersSchema>
 
+// --- Exam sitting schemas ---
+
+const uuidList = (max: number) =>
+  z
+    .array(z.uuid())
+    .max(max)
+    .refine(
+      (ids) => new Set(ids.map((id) => id.toLowerCase())).size === ids.length,
+      'Duplicate ids',
+    )
+
+const SittingTimeSchema = z.iso.datetime({ offset: true })
+const SittingModeSchema = z.enum(['remote', 'in_person'])
+
+export const CreateExamSittingSchema = z.object({
+  scheduledAt: SittingTimeSchema,
+  mode: SittingModeSchema,
+  invigilatorId: z.uuid(),
+  permittedMaterials: z.string().trim().max(1000).optional(),
+})
+
+export const UpdateExamSittingSchema = z.object({
+  sittingId: z.uuid(),
+  scheduledAt: SittingTimeSchema.optional(),
+  mode: SittingModeSchema.optional(),
+  invigilatorId: z.uuid().optional(),
+  permittedMaterials: z.string().trim().max(1000).optional(),
+})
+
+export const ExamSittingIdSchema = z.object({ sittingId: z.uuid() })
+
+export const AddSittingCandidatesSchema = z
+  .object({
+    sittingId: z.uuid(),
+    userIds: uuidList(500).default([]),
+    groupIds: uuidList(50).default([]),
+  })
+  .refine((v) => v.userIds.length + v.groupIds.length > 0, 'Select at least one student or group')
+
+export const RemoveSittingCandidatesSchema = z.object({
+  sittingId: z.uuid(),
+  userIds: uuidList(500).min(1),
+})
+
+export const RemoveSittingEntriesSchema = z.object({
+  sittingId: z.uuid(),
+  entryIds: uuidList(2000).min(1),
+})
+
+export const SittingPeopleQuerySchema = z.object({
+  sittingId: z.uuid(),
+  q: z.string().trim().max(100).optional(),
+  groupId: z.uuid().optional(),
+  courseId: z.uuid().optional(),
+  status: z.enum(['active', 'inactive']).optional(),
+  page: z.number().int().min(1).optional(),
+})
+
 // --- Admin: Exam Config schemas ---
 
 const ExamConfigDistributionSchema = z.object({

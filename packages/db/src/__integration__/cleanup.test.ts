@@ -236,6 +236,10 @@ describe('cleanupTestData', () => {
       .mockReturnValueOnce(buildChain({ data: [], error: null })) // fsrs_cards
       .mockReturnValueOnce(buildChain({ data: [], error: null })) // audit_events
       .mockReturnValueOnce(buildChain({ data: [], error: null })) // student_responses
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // internal_exam_codes
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // exam_sitting_entries
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // exam_sitting_candidates
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // exam_sittings
       .mockReturnValueOnce(buildChain({ data: [{ id: 'sess-1' }], error: null })) // quiz_sessions lookup
       .mockReturnValueOnce(buildChain({ data: [], error: null })) // quiz_session_answers
       .mockReturnValueOnce(buildChain({ data: [], error: null })) // quiz_sessions delete
@@ -257,11 +261,15 @@ describe('cleanupTestData', () => {
 
     expect(mockFrom).toHaveBeenNthCalledWith(1, 'fsrs_cards')
     expect(mockFrom).toHaveBeenNthCalledWith(2, 'audit_events')
-    expect(mockFrom).toHaveBeenNthCalledWith(4, 'quiz_sessions') // id lookup before child delete
-    expect(mockFrom).toHaveBeenNthCalledWith(5, 'quiz_session_answers')
-    expect(mockFrom).toHaveBeenNthCalledWith(9, 'exam_configs') // exam_configs before users/org
-    expect(mockFrom).toHaveBeenNthCalledWith(13, 'users') // after the syllabus deleted_by resets
-    expect(mockFrom).toHaveBeenNthCalledWith(14, 'organizations') // org deleted last
+    expect(mockFrom).toHaveBeenNthCalledWith(4, 'internal_exam_codes')
+    expect(mockFrom).toHaveBeenNthCalledWith(5, 'exam_sitting_entries')
+    expect(mockFrom).toHaveBeenNthCalledWith(6, 'exam_sitting_candidates')
+    expect(mockFrom).toHaveBeenNthCalledWith(7, 'exam_sittings')
+    expect(mockFrom).toHaveBeenNthCalledWith(8, 'quiz_sessions') // id lookup before child delete
+    expect(mockFrom).toHaveBeenNthCalledWith(9, 'quiz_session_answers')
+    expect(mockFrom).toHaveBeenNthCalledWith(13, 'exam_configs') // exam_configs before users/org
+    expect(mockFrom).toHaveBeenNthCalledWith(17, 'users') // after the syllabus deleted_by resets
+    expect(mockFrom).toHaveBeenNthCalledWith(18, 'organizations') // org deleted last
     expect(mockDeleteUser).toHaveBeenCalledTimes(2)
     expect(mockDeleteUser).toHaveBeenNthCalledWith(1, 'u-1')
     expect(mockDeleteUser).toHaveBeenNthCalledWith(2, 'u-2')
@@ -273,6 +281,10 @@ describe('cleanupTestData', () => {
       .mockReturnValueOnce(buildChain({ data: [], error: null })) // fsrs_cards
       .mockReturnValueOnce(buildChain({ data: [], error: null })) // audit_events
       .mockReturnValueOnce(buildChain({ data: [], error: null })) // student_responses
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // internal_exam_codes
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // exam_sitting_entries
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // exam_sitting_candidates
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // exam_sittings
       .mockReturnValueOnce(buildChain({ data: null, error: { message: 'lookup boom' } })) // lookup fails
       .mockReturnValue(buildChain({ data: [], error: null })) // every later step
     mockDeleteUser.mockResolvedValue({ error: null })
@@ -293,6 +305,10 @@ describe('cleanupTestData', () => {
       .mockReturnValueOnce(buildChain({ data: null, error: { message: 'audit boom' } })) // audit_events fails
       .mockReturnValueOnce(buildChain({ data: [], error: null })) // fsrs_cards
       .mockReturnValueOnce(buildChain({ data: [], error: null })) // student_responses
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // internal_exam_codes
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // exam_sitting_entries
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // exam_sitting_candidates
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // exam_sittings
       .mockReturnValueOnce(buildChain({ data: [], error: null })) // quiz_sessions lookup
       .mockReturnValueOnce(buildChain({ data: [], error: null })) // quiz_session_answers
       .mockReturnValueOnce(buildChain({ data: [], error: null })) // quiz_sessions delete
@@ -412,6 +428,34 @@ describe('cleanupTestData with ids a failed beforeAll never assigned', () => {
     ])
     expect(mockDeleteUser).toHaveBeenCalledTimes(1)
     expect(mockDeleteUser).toHaveBeenCalledWith('u-1')
+  })
+})
+
+describe('cleanupTestData exam sitting teardown (AC-58)', () => {
+  it('deletes codes, entries, candidates, sittings in that order, org-scoped, before sessions', async () => {
+    const recorded = recordQueries()
+    mockDeleteUser.mockResolvedValue({ error: null })
+
+    await cleanupTestData({ admin: adminForTestData, orgId: 'org-1', userIds: [] })
+
+    const tables = recorded.map((r) => r.table)
+    const at = (t: string) => tables.indexOf(t)
+    expect(at('internal_exam_codes')).toBeGreaterThan(-1)
+    expect(at('internal_exam_codes')).toBeLessThan(at('exam_sitting_entries'))
+    expect(at('exam_sitting_entries')).toBeLessThan(at('exam_sitting_candidates'))
+    expect(at('exam_sitting_candidates')).toBeLessThan(at('exam_sittings'))
+    expect(at('exam_sittings')).toBeLessThan(at('quiz_sessions'))
+    expect(at('audit_events')).toBeLessThan(at('internal_exam_codes'))
+    for (const t of [
+      'internal_exam_codes',
+      'exam_sitting_entries',
+      'exam_sitting_candidates',
+      'exam_sittings',
+    ]) {
+      const r = recorded.find((x) => x.table === t)
+      expect(r?.calls.some((c) => c.method === 'delete')).toBe(true)
+      expect(r?.calls.find((c) => c.method === 'eq')?.args).toEqual(['organization_id', 'org-1'])
+    }
   })
 })
 

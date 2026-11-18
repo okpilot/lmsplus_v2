@@ -117,6 +117,14 @@ async function deleteOrgFixtures(admin: SupabaseClient, orgId: string): Promise<
     'student_responses',
     admin.from('student_responses').delete().eq('organization_id', orgId),
   )
+  for (const table of [
+    'internal_exam_codes',
+    'exam_sitting_entries',
+    'exam_sitting_candidates',
+    'exam_sittings',
+  ]) {
+    await deleteOrLog(table, admin.from(table).delete().eq('organization_id', orgId))
+  }
   const lookupError = await deleteSessionRows(admin, orgId)
   await deleteOrLog('questions', admin.from('questions').delete().eq('organization_id', orgId))
   await deleteOrLog(
