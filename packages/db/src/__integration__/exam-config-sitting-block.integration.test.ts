@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, onTestFinished } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
 import { fixtureSuffix } from './fixture-suffix'
 import { seedReferenceData } from './seed'
@@ -516,46 +516,49 @@ describe('exam config sitting block and syllabus guards', () => {
       topicCode: `SD${suffix}-01`,
       topicName: `Sit Dead Topic ${suffix}`,
     })
-    try {
-      const sit = await w.sitting({ day: 1 })
-      await w.candidate(sit, w.s1)
-      const gone = await w.entry(sit, w.s1, dead.subjectId)
-      must(
-        await admin
-          .from('exam_sitting_entries')
-          .update({ deleted_at: new Date().toISOString() })
-          .eq('id', gone),
-        'soft delete entry',
-      )
-      must(
-        await admin
-          .from('easa_subjects')
-          .update({ deleted_at: new Date().toISOString() })
-          .eq('id', dead.subjectId),
-        'soft delete subject',
-      )
-      const ins = await admin.from('exam_sitting_entries').insert({
-        organization_id: w.orgA,
-        sitting_id: sit,
-        user_id: w.s1,
-        subject_id: dead.subjectId,
-      })
-      expect(ins.error).not.toBeNull()
-      const live = await w.entry(sit, w.s1, w.subB)
-      const mv = await admin
+    // teardown: entries reference the subject that cleanupReferenceData removes
+    onTestFinished(async () => {
+      const { error: entryErr } = await admin
         .from('exam_sitting_entries')
-        .update({ subject_id: dead.subjectId })
-        .eq('id', live)
-      expect(mv.error).not.toBeNull()
-      const restore = await admin
-        .from('exam_sitting_entries')
-        .update({ deleted_at: null })
-        .eq('id', gone)
-      expect(restore.error?.message).toMatch(/parent_not_found/)
-    } finally {
-      // teardown: entries reference the subject that cleanupReferenceData removes
-      await admin.from('exam_sitting_entries').delete().eq('subject_id', dead.subjectId)
+        .delete()
+        .eq('subject_id', dead.subjectId)
+      if (entryErr) throw new Error(`AC-39 teardown entries: ${entryErr.message}`)
       await cleanupReferenceData({ admin, refs: [dead] })
-    }
+    })
+    const sit = await w.sitting({ day: 1 })
+    await w.candidate(sit, w.s1)
+    const gone = await w.entry(sit, w.s1, dead.subjectId)
+    must(
+      await admin
+        .from('exam_sitting_entries')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', gone),
+      'soft delete entry',
+    )
+    must(
+      await admin
+        .from('easa_subjects')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', dead.subjectId),
+      'soft delete subject',
+    )
+    const ins = await admin.from('exam_sitting_entries').insert({
+      organization_id: w.orgA,
+      sitting_id: sit,
+      user_id: w.s1,
+      subject_id: dead.subjectId,
+    })
+    expect(ins.error).not.toBeNull()
+    const live = await w.entry(sit, w.s1, w.subB)
+    const mv = await admin
+      .from('exam_sitting_entries')
+      .update({ subject_id: dead.subjectId })
+      .eq('id', live)
+    expect(mv.error).not.toBeNull()
+    const restore = await admin
+      .from('exam_sitting_entries')
+      .update({ deleted_at: null })
+      .eq('id', gone)
+    expect(restore.error?.message).toMatch(/parent_not_found/)
   })
 })
