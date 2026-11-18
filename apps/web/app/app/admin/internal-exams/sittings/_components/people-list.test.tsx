@@ -149,12 +149,23 @@ describe('PeopleList', () => {
     expect(screen.getByTestId('probe')).toHaveTextContent('u1')
   })
 
-  it('adds a whole group with groupIds only, whatever is ticked (AC 34)', async () => {
+  it('adds a whole group together with the ticked people (AC 34)', async () => {
     m.add.mockResolvedValue({ success: true, added: 2, skippedExisting: 0, skippedDeactivated: 0 })
     const user = userEvent.setup()
     list([row(1)], group)
     await user.click(screen.getByRole('checkbox', { name: 'Select Person 1' }))
-    await user.click(screen.getByRole('button', { name: 'Add whole group "Group A" (2 new)' }))
-    expect(m.add).toHaveBeenCalledWith({ sittingId: 's1', groupIds: ['g1'] })
+    await user.click(
+      screen.getByRole('button', { name: 'Add whole group "Group A" (2 new) + 1 selected' }),
+    )
+    expect(m.add).toHaveBeenCalledWith({ sittingId: 's1', userIds: ['u1'], groupIds: ['g1'] })
+  })
+
+  it('adds a whole group with no userIds when nobody is ticked (AC 34)', async () => {
+    m.add.mockResolvedValue({ success: true, added: 2, skippedExisting: 0, skippedDeactivated: 0 })
+    list([row(1)], group)
+    await userEvent
+      .setup()
+      .click(screen.getByRole('button', { name: 'Add whole group "Group A" (2 new)' }))
+    expect(m.add).toHaveBeenCalledWith({ sittingId: 's1', userIds: [], groupIds: ['g1'] })
   })
 })

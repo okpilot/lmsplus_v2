@@ -117,7 +117,7 @@ export function PeopleList({ sittingId, filters, rows, total, page, group }: Rea
         pending={pending}
         busy={busy}
         onAddSelected={() => add({ userIds: people.ids })}
-        onAddGroup={() => group && add({ groupIds: [group.id] })}
+        onAddGroup={() => group && add({ userIds: people.ids, groupIds: [group.id] })}
         onClear={people.clear}
       />
     </>

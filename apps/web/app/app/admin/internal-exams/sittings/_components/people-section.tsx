@@ -45,6 +45,12 @@ function PeopleActions({ issuable }: Readonly<{ issuable: number }>) {
   )
 }
 
+function needsCodeIds(rows: readonly RosterRow[]) {
+  return new Set(
+    rows.filter((r) => personNeedsCode(r.entries) && !r.deactivated).map((r) => r.userId),
+  )
+}
+
 /** The sitting's people as a related list: section header, toolbar or bulk bar, table, pagination. */
 export function PeopleSection(p: Readonly<Props>) {
   const { rosterIds, selectAll } = useSittingUi()
@@ -68,9 +74,7 @@ export function PeopleSection(p: Readonly<Props>) {
               <SittingBulkActions
                 onRemove={setRemoveIds}
                 pageIds={tickable.map((r) => r.userId)}
-                needsCodeIds={
-                  new Set(tickable.filter((r) => personNeedsCode(r.entries)).map((r) => r.userId))
-                }
+                needsCodeIds={needsCodeIds(tickable)}
                 filtered={Boolean(p.q) || p.show !== 'all'}
                 candidates={p.summary.candidates}
                 shown={p.rows.length}
