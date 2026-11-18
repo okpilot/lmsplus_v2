@@ -68,17 +68,23 @@ describe('LifecycleConfirms', () => {
   })
 
   it('warns in the Start confirm when exams have no code yet', async () => {
-    ui('start', { ...summary, entriesIssuable: 2 })
+    ui('start', { ...summary, entriesWithoutCode: 2 })
     expect(
       await screen.findByText('2 exams have no code yet. They cannot start until you issue codes.'),
     ).toBeInTheDocument()
   })
 
   it('uses the singular in the no-code line', async () => {
-    ui('start', { ...summary, entriesIssuable: 1 })
+    ui('start', { ...summary, entriesWithoutCode: 1 })
     expect(
       await screen.findByText('1 exam has no code yet. They cannot start until you issue codes.'),
     ).toBeInTheDocument()
+  })
+
+  it('shows no no-code line when issuable entries exist but none lacks a code', async () => {
+    ui('start', { ...summary, entriesWithoutCode: 0, entriesIssuable: 2 })
+    await screen.findByRole('button', { name: 'Start sitting' })
+    expect(screen.queryByText(/no code yet/)).not.toBeInTheDocument()
   })
 
   it('shows no no-code line when every exam has a code', async () => {

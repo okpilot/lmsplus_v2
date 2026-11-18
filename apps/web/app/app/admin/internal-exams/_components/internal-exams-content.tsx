@@ -3,7 +3,6 @@ import { listInternalExamAttempts } from '../attempts-queries'
 import { PAGE_SIZE } from '../pagination'
 import { listExamSubjects, listInternalExamCodes } from '../queries'
 import { SittingNewDialog } from '../sittings/_components/sitting-new-dialog'
-import { SittingUiProvider } from '../sittings/_hooks/sitting-ui-context'
 import { listInvigilatorOptions, listSittings } from '../sittings/queries'
 import { listOrgStudents } from '../students-queries'
 import { InternalExamsTabs } from './internal-exams-tabs'
@@ -54,11 +53,7 @@ export async function InternalExamsContent(params: Readonly<InternalExamsSearchP
           }
         }
       />
-      {sittings && dlg === 'new' && (
-        <SittingUiProvider>
-          <SittingNewDialog invigilators={sittings.invigilators} />
-        </SittingUiProvider>
-      )}
+      {sittings && dlg === 'new' && <SittingNewDialog invigilators={sittings.invigilators} />}
     </>
   )
 }

@@ -18,6 +18,7 @@ vi.mock('next/navigation', () => ({
 }))
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
+import { SittingUiProvider, useSittingUi } from '../_hooks/sitting-ui-context'
 import { SittingFormDialog } from './sitting-form-dialog'
 
 const SID = '00000000-0000-4000-a000-0000000000a1'
@@ -73,6 +74,37 @@ describe('SittingFormDialog', () => {
     expect(m.create).toHaveBeenCalledTimes(1)
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled()
+  })
+
+  it('replaces the dialog entry with the sitting when the dialog was opened in this session', async () => {
+    window.history.replaceState(null, '', '/app/admin/internal-exams?tab=sittings&dlg=new')
+    const replaceState = vi.spyOn(window.history, 'replaceState')
+    m.create.mockResolvedValue({ success: true, sittingId: SID })
+    const user = userEvent.setup()
+    function Opener() {
+      const { open } = useSittingUi()
+      return (
+        <button type="button" onClick={() => open('new')}>
+          opener
+        </button>
+      )
+    }
+    render(
+      <SittingUiProvider>
+        <Opener />
+        <SittingFormDialog mode="new" invigilators={invigilators as never} />
+      </SittingUiProvider>,
+    )
+    await user.click(screen.getByRole('button', { name: 'opener', hidden: true }))
+    await user.click(screen.getByRole('combobox', { name: 'Invigilator' }))
+    await user.click(await screen.findByRole('option', { name: 'Ann Instructor' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() =>
+      expect(m.replace).toHaveBeenCalledWith(`/app/admin/internal-exams/sittings/${SID}`),
+    )
+    expect(m.push).toHaveBeenCalledTimes(1)
+    expect(m.push.mock.calls[0]?.[0]).toContain('dlg=new')
+    expect(replaceState).not.toHaveBeenCalled()
   })
 
   it('prefills the UTC date input from the sitting in edit mode', () => {

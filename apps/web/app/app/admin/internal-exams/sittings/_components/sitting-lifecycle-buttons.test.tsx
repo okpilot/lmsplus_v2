@@ -107,7 +107,7 @@ describe('SittingLifecycleButtons', () => {
     render(
       <SittingLifecycleButtons
         sitting={sitting('scheduled') as never}
-        summary={{ ...summary, entriesIssuable: 2 } as never}
+        summary={{ ...summary, entriesWithoutCode: 2 } as never}
         notDue={false}
         dayEnded={false}
       />,

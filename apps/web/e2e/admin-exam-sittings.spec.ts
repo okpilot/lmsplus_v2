@@ -29,7 +29,7 @@ async function createSitting(
   opts: { daysAhead: number; time: string; materials: string },
 ) {
   await page.goto(`${LIST}?tab=sittings`)
-  await page.getByRole('link', { name: /New sitting/ }).click()
+  await page.getByRole('button', { name: /New sitting/ }).click()
   await expect(page).toHaveURL(/tab=sittings&dlg=new|dlg=new&tab=sittings/)
   await page.getByLabel('Date and time (UTC)').fill(utcInput(opts.daysAhead, opts.time))
   await page.getByRole('combobox', { name: 'Mode' }).click()
@@ -46,7 +46,7 @@ async function createSitting(
 
 test('admin creates a sitting, refuses a past date, and lands on its page', async ({ page }) => {
   await page.goto(`${LIST}?tab=sittings`)
-  await page.getByRole('link', { name: /New sitting/ }).click()
+  await page.getByRole('button', { name: /New sitting/ }).click()
   await expect(page).toHaveURL(/dlg=new/)
   await page.getByLabel('Date and time (UTC)').fill(utcInput(-2, '09:00'))
   await page.getByRole('combobox', { name: 'Mode' }).click()
