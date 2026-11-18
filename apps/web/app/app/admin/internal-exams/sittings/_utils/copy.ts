@@ -7,6 +7,14 @@ export type ResultBannerData = {
   detail?: string
 }
 
+function notStartedLine(entries: number, students: number): string {
+  if (entries === 0) return ''
+  const counts = `${plural(entries, 'exam')} (${plural(students, 'student')})`
+  return entries === 1
+    ? `${counts} has not started: it will be marked absent and its code voided.`
+    : `${counts} have not started: they will be marked absent and their codes voided.`
+}
+
 export function closeConfirmText(s: {
   attemptsRunning: number
   entriesNotStarted: number
@@ -16,9 +24,7 @@ export function closeConfirmText(s: {
     s.attemptsRunning > 0
       ? `${plural(s.attemptsRunning, 'attempt')} running will continue to the end.`
       : '',
-    s.entriesNotStarted > 0
-      ? `${plural(s.entriesNotStarted, 'exam')} (${plural(s.studentsNotStarted, 'student')}) have not started: they will be marked absent and their codes voided.`
-      : '',
+    notStartedLine(s.entriesNotStarted, s.studentsNotStarted),
     'A closed sitting cannot be reopened.',
   ]
     .filter(Boolean)

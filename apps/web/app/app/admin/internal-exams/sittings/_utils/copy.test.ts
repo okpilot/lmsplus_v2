@@ -26,6 +26,13 @@ describe('closeConfirmText', () => {
     expect(t).toContain('marked absent and their codes voided')
   })
 
+  it('uses the singular when one exam has not started', () => {
+    const t = closeConfirmText({ ...base, entriesNotStarted: 1, studentsNotStarted: 1 })
+    expect(t).toContain(
+      '1 exam (1 student) has not started: it will be marked absent and its code voided.',
+    )
+  })
+
   it('omits both lines when nothing is running or pending', () => {
     const t = closeConfirmText(base)
     expect(t).not.toContain('running')

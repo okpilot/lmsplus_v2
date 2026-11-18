@@ -456,7 +456,7 @@ CREATE INDEX idx_exam_sittings_org_scheduled ON exam_sittings(organization_id, s
 CREATE INDEX idx_exam_sittings_invigilator ON exam_sittings(invigilator_id) WHERE deleted_at IS NULL;
 ```
 
-Test teardown hard-deletes `exam_sittings` rows marked `E2E-SIT-` (closed rows cannot carry `deleted_at`); never in product code.
+Test teardown hard-deletes `exam_sittings` rows marked `E2E-SIT-` with no entries or candidates (closed rows cannot carry `deleted_at`); never in product code.
 
 CHECKs: started, closed and deleted pairs (`*_at` NULL iff `*_by` NULL); `closed_at IS NOT NULL ⇒ started_at IS NOT NULL`; not both closed and deleted; `ended_automatically ⇒ closed_at IS NOT NULL OR deleted_at IS NOT NULL`. `status` is generated; transitions are one-way and Closed is final.
 
@@ -1125,7 +1125,7 @@ ORDER BY deleted_at DESC;
 | `question_comments` | Hard DELETE (explicit exception — low audit value) | deleted_at exists as safety net but not used by application code |
 | `internal_exam_codes` | Yes | Issued codes form an audit trail; admin void uses `voided_at`/`void_reason`, soft-delete reserved for compliance archival |
 
-**Service-role integration-test teardown — sanctioned hard-delete exception.** The `packages/db/src/__integration__/**` cleanup helpers (`cleanupTestData` / `cleanupReferenceData`) hard-DELETE ephemeral per-suite fixtures — including the immutable tables above (`audit_events`, `student_responses`, `quiz_session_answers`) — via the service-role client, to reset the disposable local integration DB between runs (a soft-delete can't reset accumulating fixtures). This is **test-infra only**: the no-hard-DELETE + immutable-table rules still govern the production app (enforced via RLS) and all non-`__integration__` `packages/db/src` code. The local `.claude/hooks/check-soft-delete-guard.mjs` excludes `__integration__`, and `.coderabbit.yaml` carries the matching exception scoped to `packages/db/src/__integration__/` teardown helpers only (declared within its `packages/db/src/**` path-instruction block).
+**Service-role integration-test teardown — sanctioned hard-delete exception.** The `packages/db/src/__integration__/**` cleanup helpers (`cleanupTestData` / `cleanupReferenceData`) hard-DELETE ephemeral per-suite fixtures — including the immutable tables above (`audit_events`, `student_responses`, `quiz_session_answers`) — via the service-role client, to reset the disposable local integration DB between runs (a soft-delete can't reset accumulating fixtures). This is **test-infra only**: the no-hard-DELETE + immutable-table rules still govern the production app (enforced via RLS) and all non-`__integration__` `packages/db/src` code. The local `.claude/hooks/check-soft-delete-guard.mjs` excludes `__integration__` and `e2e/`, and `.coderabbit.yaml` carries the matching exception scoped to `packages/db/src/__integration__/` teardown helpers only (declared within its `packages/db/src/**` path-instruction block).
 
 > **Admin write access (migration 039):** `easa_subjects`, `easa_topics`, and `easa_subtopics` have RLS policies granting INSERT/UPDATE to users where `is_admin()` returns `true` (the DELETE policies were dropped by mig `20261107000100`; delete is `soft_delete_syllabus_item`). All other users have SELECT-only access. These policies exist to support the Admin Syllabus Manager feature. Column grants: see **Column grants** in §2 (`easa_subjects` / `easa_topics` / `easa_subtopics`). SELECT is enrolment-scoped for students.
 

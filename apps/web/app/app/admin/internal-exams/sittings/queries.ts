@@ -97,7 +97,10 @@ export const getSummary = cache(async (sittingId: string): Promise<SittingSummar
   }
 })
 
-/** Sitting row by id and org (cancelled included). Counts come from getSummary. */
+/**
+ * Sitting row by id and org (cancelled included). Counts come from getSummary.
+ * security.md §15 exception (g): cancelled sittings stay readable.
+ */
 export const getSitting = cache(async (id: string): Promise<SittingRow | null> => {
   const { supabase, organizationId } = await requireAdmin()
   const { data, error } = await supabase

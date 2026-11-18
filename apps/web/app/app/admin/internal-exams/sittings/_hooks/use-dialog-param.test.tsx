@@ -27,6 +27,18 @@ describe('useDialogParam', () => {
     expect(url).toContain('scope=open')
   })
 
+  it('records a given opener instead of the focused element', () => {
+    const trigger = document.createElement('button')
+    const other = document.createElement('button')
+    document.body.append(trigger, other)
+    other.focus()
+    const { result } = renderHook(() => useDialogParam())
+    act(() => result.current.open('edit', trigger))
+    expect(result.current.openerRef.current).toBe(trigger)
+    trigger.remove()
+    other.remove()
+  })
+
   it('closes with history back when the dialog was opened in this session', () => {
     const { result, rerender } = renderHook(() => useDialogParam())
     act(() => result.current.open('new'))

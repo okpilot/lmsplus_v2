@@ -1,6 +1,7 @@
 import { adminClient } from '@repo/db/admin'
 import type { InvigilatorOption } from './types'
 
+/** Service role: `users_select` is self-only; org-scoped; `deleted_at IS NULL` applied. */
 export async function readInvigilatorOptions(organizationId: string): Promise<InvigilatorOption[]> {
   const { data, error } = await adminClient
     .from('users')
@@ -15,6 +16,6 @@ export async function readInvigilatorOptions(organizationId: string): Promise<In
   }
   return (data ?? []).map((u) => ({
     id: u.id,
-    name: `${u.full_name ?? u.email ?? u.id} (${u.role})`,
+    name: `${u.full_name ?? u.email ?? 'Unknown'} (${u.role})`,
   }))
 }

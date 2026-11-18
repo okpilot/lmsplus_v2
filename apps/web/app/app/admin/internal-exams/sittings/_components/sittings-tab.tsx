@@ -38,11 +38,7 @@ export function SittingsTab({ rows, totalCount, scope, page = 1 }: Readonly<Prop
   const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
   const setScope = (value: string | null) =>
-    startTransition(() =>
-      router.replace(
-        scopeUrl(pathname, searchParams ?? new URLSearchParams(), readScopeParam(value)),
-      ),
-    )
+    startTransition(() => router.replace(scopeUrl(pathname, searchParams, readScopeParam(value))))
   return (
     <ListCard
       filters={
