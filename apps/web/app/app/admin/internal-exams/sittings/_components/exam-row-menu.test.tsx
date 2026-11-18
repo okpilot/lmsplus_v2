@@ -88,7 +88,7 @@ describe('ExamRowMenu items', () => {
     expect(await items(userEvent.setup())).toEqual(['Issue new code', 'Remove exam'])
   })
 
-  it.each(['running', 'finished', 'voided_attempt'])(
+  it.each(['finished', 'voided_attempt'])(
     'offers only View attempt for a %s exam (no Remove exam, no Void code)',
     async (status) => {
       ui({}, { status, sessionId: 'sess-1' })
@@ -118,6 +118,11 @@ describe('ExamRowMenu items', () => {
       expect(screen.queryByRole('button', { name: TRIGGER })).toBeNull()
     },
   )
+
+  it('renders no menu for a running exam', () => {
+    ui({}, { status: 'running', sessionId: 'sess-1' })
+    expect(screen.queryByRole('button', { name: TRIGGER })).toBeNull()
+  })
 
   it('renders no menu for a discarded attempt', () => {
     ui({}, { status: 'discarded', code: null })

@@ -10,7 +10,7 @@ const ISSUE_LABEL = {
   voided: 'Issue new code',
 } as const
 
-const ATTEMPT: ReadonlySet<string> = new Set(['running', 'finished', 'voided_attempt'])
+const ATTEMPT: ReadonlySet<string> = new Set(['finished', 'voided_attempt'])
 
 type Ctx = Readonly<{ editable: boolean; deactivated: boolean }>
 

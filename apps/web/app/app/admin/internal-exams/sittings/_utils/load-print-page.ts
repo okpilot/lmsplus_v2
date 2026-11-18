@@ -12,6 +12,7 @@ export async function loadPrintPage(rawId: string) {
   if (!summary || summary.dayEnded) notFound()
   if (summary.status !== 'scheduled' && summary.status !== 'open') notFound()
   const people = (await getRosterAll(id.data))
+    .filter((r) => !r.deactivated)
     .map((r) => ({
       ...r,
       entries: r.entries.filter((e) => e.code && LIVE_ENTRY_STATUSES.has(e.status)),

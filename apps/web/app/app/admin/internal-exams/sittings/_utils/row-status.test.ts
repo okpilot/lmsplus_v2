@@ -67,6 +67,24 @@ describe('rowStatus', () => {
       expect(rs('open', [ex('finished'), ex('ready')])).toMatchObject({ label: 'In progress' })
     })
 
+    it('does not count a voided code as done: only-voided is Not started', () => {
+      expect(rs('open', [ex('voided')])).toEqual({ label: 'Not started', tone: 'neutral' })
+    })
+
+    it('shows In progress with 1 of 2 done for a voided code plus a finished exam', () => {
+      expect(rs('open', [ex('voided'), ex('finished')])).toMatchObject({
+        label: 'In progress',
+        caption: '1 of 2 done',
+      })
+    })
+
+    it('counts voided_attempt as done and captions it attempt voided', () => {
+      expect(rs('open', [ex('voided_attempt'), ex('finished')])).toMatchObject({
+        label: 'Done',
+        caption: '1 finished · 1 attempt voided',
+      })
+    })
+
     it('counts discarded as done: only-discarded shows Done with its caption', () => {
       expect(rs('open', [ex('discarded')])).toMatchObject({
         label: 'Done',

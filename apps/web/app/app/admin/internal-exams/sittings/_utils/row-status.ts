@@ -11,14 +11,7 @@ type Input = Readonly<{
 type Entries = Input['entries']
 
 const NEEDS_CODE: ReadonlySet<string> = new Set(['no_code', 'expired', 'voided'])
-const VOIDED: ReadonlySet<string> = new Set(['voided', 'voided_attempt'])
-const DONE: ReadonlySet<string> = new Set([
-  'finished',
-  'absent',
-  'voided',
-  'voided_attempt',
-  'discarded',
-])
+const DONE: ReadonlySet<string> = new Set(['finished', 'absent', 'voided_attempt', 'discarded'])
 
 const count = (entries: Entries, pred: (s: string) => boolean) =>
   entries.filter((e) => pred(e.status)).length
@@ -51,7 +44,7 @@ function open(entries: Entries): RowStatus {
     const caption = breakdown([
       [count(entries, (s) => s === 'finished'), 'finished'],
       [absent, 'absent'],
-      [count(entries, (s) => VOIDED.has(s)), 'voided'],
+      [count(entries, (s) => s === 'voided_attempt'), 'attempt voided'],
       [count(entries, (s) => s === 'discarded'), 'discarded'],
     ])
     return { label: 'Done', tone: 'success', caption }

@@ -13,14 +13,11 @@ describe('nextStep', () => {
     expect(nextStep(entry(status), { editable: true, deactivated: false })?.label).toBe(label)
   })
 
-  it.each(['running', 'finished', 'voided_attempt'])(
-    'links %s with a session to View attempt',
-    (status) => {
-      const s = nextStep(entry(status, 'sess-1'), { editable: true, deactivated: false })
-      expect(s?.label).toBe('View attempt')
-      expect(s?.href).toBe('/app/admin/internal-exams/report?session=sess-1')
-    },
-  )
+  it.each(['finished', 'voided_attempt'])('links %s with a session to View attempt', (status) => {
+    const s = nextStep(entry(status, 'sess-1'), { editable: true, deactivated: false })
+    expect(s?.label).toBe('View attempt')
+    expect(s?.href).toBe('/app/admin/internal-exams/report?session=sess-1')
+  })
 
   it('hides Issue-type steps for a deactivated person', () => {
     for (const status of ['no_code', 'expired', 'voided'])
@@ -44,8 +41,12 @@ describe('nextStep', () => {
     expect(nextStep(entry(status), { editable: true, deactivated: false })).toBeNull()
   })
 
+  it('has no next step for a running exam, even with a session', () => {
+    expect(nextStep(entry('running', 'sess-1'), { editable: true, deactivated: false })).toBeNull()
+  })
+
   it('has no View attempt without a session', () => {
-    expect(nextStep(entry('running'), { editable: true, deactivated: false })).toBeNull()
+    expect(nextStep(entry('finished'), { editable: true, deactivated: false })).toBeNull()
   })
 })
 

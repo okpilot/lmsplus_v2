@@ -1690,7 +1690,7 @@ Extended by migration `20261116002900` (#1777): appends `sitting_id, sitting_sch
 
 `easa_subjects` is joined without a `deleted_at` predicate: `soft_delete_syllabus_item` refuses a subject while an unconsumed, unvoided, unexpired code references it.
 
-Ordered by `COALESCE(sitting_scheduled_at, expires_at) ASC`, limited to 100 rows (the issuance ceiling is well below this — the cap is defensive).
+Ordered by `COALESCE(es.scheduled_at, iec.expires_at) ASC`, limited to 100 rows (the issuance ceiling is well below this — the cap is defensive).
 
 ```sql
 CREATE OR REPLACE FUNCTION public.list_my_active_internal_exam_codes()

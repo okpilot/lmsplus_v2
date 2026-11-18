@@ -81,6 +81,15 @@ describe('loadPrintPage', () => {
     expect(r.people[0]?.entries.map((e) => e.entryId)).toEqual(['e1', 'e2'])
   })
 
+  it('skips deactivated people', async () => {
+    m.getRosterAll.mockResolvedValue([
+      { ...person('u1', [entry({ entryId: 'e1' })]), deactivated: true },
+      { ...person('u2', [entry({ entryId: 'e2' })]), deactivated: false },
+    ])
+    const r = await loadPrintPage(SID)
+    expect(r.people.map((p) => p.userId)).toEqual(['u2'])
+  })
+
   it('accepts an open sitting', async () => {
     m.getSummary.mockResolvedValue({ status: 'open', scheduledAt: 'x', dayEnded: false })
     await expect(loadPrintPage(SID)).resolves.toMatchObject({ people: [] })
