@@ -120,19 +120,21 @@ describe('addExamsBanner (AC 39)', () => {
 describe('sameDayText (AC 40)', () => {
   const p = (name: string, at = '2026-11-18T09:30:00Z') => ({ name, scheduledAt: at })
   it('uses is for one person and are for several', () => {
-    expect(sameDayText([p('Ann')])).toBe('Ann is also in a sitting today (09:30 UTC).')
+    expect(sameDayText([p('Ann')])).toBe('Ann is also in another sitting that day (09:30 UTC).')
     expect(sameDayText([p('Ann'), p('Bob')])).toBe(
-      'Ann and Bob are also in a sitting today (09:30 UTC).',
+      'Ann and Bob are also in another sitting that day (09:30 UTC).',
     )
   })
   it('joins three names with a comma and and', () => {
     expect(sameDayText(['A', 'B', 'C'].map((n) => p(n)))).toBe(
-      'A, B and C are also in a sitting today (09:30 UTC).',
+      'A, B and C are also in another sitting that day (09:30 UTC).',
     )
   })
   it('names three then and r more', () => {
     const many = ['A', 'B', 'C', 'D', 'E'].map((n) => p(n))
-    expect(sameDayText(many)).toBe('A, B, C and 2 more are also in a sitting today (09:30 UTC).')
+    expect(sameDayText(many)).toBe(
+      'A, B, C and 2 more are also in another sitting that day (09:30 UTC).',
+    )
   })
   it('uses the earliest time', () => {
     expect(

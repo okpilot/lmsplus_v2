@@ -102,12 +102,44 @@ describe('listPeople', () => {
         },
       ],
       total: 120,
+      page: 1,
     })
   })
 
   it('returns an empty page with total 0 when there are no rows', async () => {
     mockRpc.mockResolvedValue({ data: [], error: null })
-    expect(await listPeople({ sittingId: SID, page: 1 })).toEqual({ rows: [], total: 0 })
+    expect(await listPeople({ sittingId: SID, page: 1 })).toEqual({ rows: [], total: 0, page: 1 })
+  })
+
+  it('snaps a page past the end to the last page', async () => {
+    mockRpc
+      .mockResolvedValueOnce({ data: [], error: null })
+      .mockResolvedValueOnce({ data: [rpcRow], error: null })
+      .mockResolvedValueOnce({ data: [{ ...rpcRow, user_id: U2 }], error: null })
+    const res = await listPeople({ sittingId: SID, page: 9 })
+    expect(mockRpc.mock.calls.map((c) => c[1].p_offset)).toEqual([400, 0, 100])
+    expect(res).toMatchObject({ total: 120, page: 3, rows: [{ userId: U2 }] })
+  })
+
+  it('snaps to page 1 without a third read when everything fits one page', async () => {
+    mockRpc
+      .mockResolvedValueOnce({ data: [], error: null })
+      .mockResolvedValueOnce({ data: [{ ...rpcRow, total_count: 7 }], error: null })
+    const res = await listPeople({ sittingId: SID, page: 4 })
+    expect(mockRpc).toHaveBeenCalledTimes(2)
+    expect(res).toMatchObject({ total: 7, page: 1 })
+  })
+
+  it('returns an empty page 1 when nobody matches past the end', async () => {
+    mockRpc.mockResolvedValue({ data: [], error: null })
+    expect(await listPeople({ sittingId: SID, page: 3 })).toEqual({ rows: [], total: 0, page: 1 })
+  })
+
+  it('returns Ended when a snap read finds the sitting closed', async () => {
+    mockRpc
+      .mockResolvedValueOnce({ data: [], error: null })
+      .mockResolvedValueOnce({ data: null, error: { message: 'sitting_closed' } })
+    expect(await listPeople({ sittingId: SID, page: 3 })).toEqual({ ended: true })
   })
 
   it('returns null when the sitting is not found', async () => {

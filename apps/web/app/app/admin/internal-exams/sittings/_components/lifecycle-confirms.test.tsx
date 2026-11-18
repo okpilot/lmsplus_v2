@@ -166,6 +166,15 @@ describe('LifecycleConfirms Issue now (AC 45)', () => {
     expect(screen.queryByRole('button', { name: 'Issue now' })).toBeNull()
   })
 
+  it('disables Issue now while the start request is pending', async () => {
+    m.start.mockReturnValue(new Promise(() => undefined))
+    ui('start', { ...summary, entriesWithoutCode: 2, entriesIssuable: 2 })
+    const issue = await screen.findByRole('button', { name: 'Issue now' })
+    expect(issue).toBeEnabled()
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Start sitting' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Issue now' })).toBeDisabled())
+  })
+
   it('calls onIssueNow and does not start the sitting', async () => {
     ui('start', { ...summary, entriesWithoutCode: 2, entriesIssuable: 2 })
     await userEvent.setup().click(await screen.findByRole('button', { name: 'Issue now' }))

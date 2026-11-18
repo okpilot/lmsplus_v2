@@ -28,16 +28,25 @@ vi.mock('next/navigation', () => ({
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
 import { SittingUiProvider } from '../_hooks/sitting-ui-context'
+import type { SittingParams } from '../parse-sitting-params'
 import { SittingPopups } from './sitting-popups'
 
 const sitting = { id: 's1', scheduledAt: '2026-11-18T09:30:00Z' }
 const FILTERS = { page: 2, q: 'ann' }
 
+const params = (over: Partial<SittingParams> = {}): SittingParams => ({
+  show: 'all',
+  page: 1,
+  selection: { present: false, all: false, ids: [], truncated: false },
+  people: { page: 1 },
+  ...over,
+})
+
 function popups(over: Record<string, unknown> = {}) {
   const props = {
     sitting,
     editable: true,
-    params: { show: 'all', page: 1, dlg: 'people', people: FILTERS },
+    params: params({ dlg: 'people', people: FILTERS }),
     selection: { kind: 'empty' },
     ...over,
   }
@@ -63,7 +72,7 @@ describe('SittingPopups', () => {
   it('renders the Add exams body with the resolved selection', () => {
     m.search = 'dlg=exams'
     const selection = { kind: 'all' }
-    popups({ params: { show: 'all', page: 1, dlg: 'exams' }, selection })
+    popups({ params: params({ dlg: 'exams' }), selection })
     expect(screen.getByText('exams body')).toBeInTheDocument()
     expect(m.exams).toHaveBeenCalledWith({ sittingId: 's1', selection })
   })
@@ -71,7 +80,7 @@ describe('SittingPopups', () => {
   it('renders the Issue body with the sitting day and selection', () => {
     m.search = 'dlg=issue'
     const selection = { kind: 'whole' }
-    popups({ params: { show: 'all', page: 1, dlg: 'issue' }, selection })
+    popups({ params: params({ dlg: 'issue' }), selection })
     expect(screen.getByText('issue body')).toBeInTheDocument()
     expect(m.issue).toHaveBeenCalledWith({
       sittingId: 's1',
@@ -87,7 +96,7 @@ describe('SittingPopups', () => {
   })
 
   it('renders nothing without a dlg param', () => {
-    popups({ params: { show: 'all', page: 1 } })
+    popups({ params: params() })
     expect(m.people).not.toHaveBeenCalled()
     expect(screen.queryByRole('dialog')).toBeNull()
   })

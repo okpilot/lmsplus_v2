@@ -21,7 +21,16 @@ vi.mock('../queries', () => ({
 vi.mock('../roster-queries', () => ({ getRoster: m.getRoster, getRemoved: m.getRemoved }))
 vi.mock('../people-queries', () => ({ resolveSelection: m.resolveSelection }))
 
+import type { SittingParams } from '../parse-sitting-params'
 import { loadSittingPage } from './load-sitting-page'
+
+const params = (over: Partial<SittingParams> = {}): SittingParams => ({
+  show: 'all',
+  page: 1,
+  selection: { present: false, all: false, ids: [], truncated: false },
+  people: { page: 1 },
+  ...over,
+})
 
 const SID = '00000000-0000-4000-a000-0000000000a1'
 
@@ -44,23 +53,23 @@ beforeEach(() => {
 
 describe('loadSittingPage', () => {
   it('returns 404 for a non-uuid id without querying', async () => {
-    await expect(loadSittingPage('not-a-uuid')).rejects.toThrow('NEXT_NOT_FOUND')
+    await expect(loadSittingPage('not-a-uuid', params())).rejects.toThrow('NEXT_NOT_FOUND')
     expect(m.getSummary).not.toHaveBeenCalled()
   })
 
   it('returns 404 when there is no summary', async () => {
     m.getSummary.mockResolvedValue(null)
-    await expect(loadSittingPage(SID)).rejects.toThrow('NEXT_NOT_FOUND')
+    await expect(loadSittingPage(SID, params())).rejects.toThrow('NEXT_NOT_FOUND')
     expect(m.getSitting).not.toHaveBeenCalled()
   })
 
   it('returns 404 when the sitting row is missing', async () => {
     m.getSitting.mockResolvedValue(null)
-    await expect(loadSittingPage(SID)).rejects.toThrow('NEXT_NOT_FOUND')
+    await expect(loadSittingPage(SID, params())).rejects.toThrow('NEXT_NOT_FOUND')
   })
 
   it('reads the summary before the sitting', async () => {
-    await loadSittingPage(SID)
+    await loadSittingPage(SID, params())
     const s = m.getSummary.mock.invocationCallOrder[0] as number
     const g = m.getSitting.mock.invocationCallOrder[0] as number
     expect(s).toBeLessThan(g)
@@ -68,7 +77,7 @@ describe('loadSittingPage', () => {
 
   it('returns sitting, summary, invigilators and notDue for a future sitting', async () => {
     m.getSitting.mockResolvedValue({ id: SID, scheduledAt: '2999-01-01T09:00:00Z' })
-    const r = await loadSittingPage(SID)
+    const r = await loadSittingPage(SID, params())
     expect(r.invigilators).toEqual([{ id: 'i1', name: 'Ann' }])
     expect(r.summary).toMatchObject({ status: 'scheduled' })
     expect(r.notDue).toBe(true)
@@ -76,12 +85,12 @@ describe('loadSittingPage', () => {
 
   it('is not notDue for a past sitting', async () => {
     m.getSitting.mockResolvedValue({ id: SID, scheduledAt: '2020-01-01T09:00:00Z' })
-    expect((await loadSittingPage(SID)).notDue).toBe(false)
+    expect((await loadSittingPage(SID, params())).notDue).toBe(false)
   })
 
   it.each(['scheduled', 'open'])('loads invigilator options for a %s sitting', async (status) => {
     m.getSummary.mockResolvedValue({ status, scheduledAt: '2026-11-20T09:30:00Z' })
-    await loadSittingPage(SID)
+    await loadSittingPage(SID, params())
     expect(m.listInvigilatorOptions).toHaveBeenCalledTimes(1)
   })
 
@@ -91,27 +100,27 @@ describe('loadSittingPage', () => {
       scheduledAt: '2026-11-20T09:30:00Z',
       dayEnded: true,
     })
-    const r = await loadSittingPage(SID)
+    const r = await loadSittingPage(SID, params())
     expect(m.listInvigilatorOptions).not.toHaveBeenCalled()
     expect(r.invigilators).toEqual([])
   })
 
   it.each(['closed', 'cancelled'])('skips invigilator options for a %s sitting', async (status) => {
     m.getSummary.mockResolvedValue({ status, scheduledAt: '2026-11-20T09:30:00Z' })
-    const r = await loadSittingPage(SID)
+    const r = await loadSittingPage(SID, params())
     expect(m.listInvigilatorOptions).not.toHaveBeenCalled()
     expect(r.invigilators).toEqual([])
   })
 
   it('reads the summary before the roster', async () => {
-    await loadSittingPage(SID, { q: 'ann', show: 'needs_code', page: 2 })
+    await loadSittingPage(SID, params({ q: 'ann', show: 'needs_code', page: 2 }))
     const s = m.getSummary.mock.invocationCallOrder[0] as number
     const r = m.getRoster.mock.invocationCallOrder[0] as number
     expect(s).toBeLessThan(r)
   })
 
   it('reads the roster with the parsed q, show and page', async () => {
-    await loadSittingPage(SID, { q: 'ann', show: 'needs_code', page: 2 })
+    await loadSittingPage(SID, params({ q: 'ann', show: 'needs_code', page: 2 }))
     expect(m.getRoster).toHaveBeenCalledWith(
       expect.objectContaining({ sittingId: SID, q: 'ann', show: 'needs_code', page: 2 }),
     )
@@ -122,7 +131,7 @@ describe('loadSittingPage', () => {
     'reads roster and removed list for a %s sitting',
     async (status) => {
       m.getSummary.mockResolvedValue({ status, scheduledAt: '2026-11-20T09:30:00Z' })
-      const r = await loadSittingPage(SID, { show: 'all', page: 1 })
+      const r = await loadSittingPage(SID, params())
       expect(m.getRoster).toHaveBeenCalledTimes(1)
       expect(m.getRemoved).toHaveBeenCalledTimes(1)
       expect(r.roster).toEqual({ rows: [], total: 0 })
@@ -131,9 +140,7 @@ describe('loadSittingPage', () => {
   )
 
   it('returns 404 without reading the roster for a non-uuid id', async () => {
-    await expect(loadSittingPage('nope', { show: 'all', page: 1 })).rejects.toThrow(
-      'NEXT_NOT_FOUND',
-    )
+    await expect(loadSittingPage('nope', params())).rejects.toThrow('NEXT_NOT_FOUND')
     expect(m.getRoster).not.toHaveBeenCalled()
   })
 })
@@ -142,19 +149,19 @@ describe('loadSittingPage selection (AC 35, 51, 59)', () => {
   const sel = { present: true, all: false, ids: ['u1'], truncated: false }
 
   it('resolves the selection once for an editable sitting with dlg=exams', async () => {
-    const r = await loadSittingPage(SID, { show: 'all', page: 1, dlg: 'exams', selection: sel })
+    const r = await loadSittingPage(SID, params({ dlg: 'exams', selection: sel }))
     expect(m.resolveSelection).toHaveBeenCalledTimes(1)
     expect(m.resolveSelection).toHaveBeenCalledWith(SID, 'exams', sel)
     expect(r.selection).toEqual({ kind: 'ids', ids: ['u1'], truncated: false })
   })
 
   it('resolves it for dlg=issue', async () => {
-    await loadSittingPage(SID, { show: 'all', page: 1, dlg: 'issue', selection: sel })
+    await loadSittingPage(SID, params({ dlg: 'issue', selection: sel }))
     expect(m.resolveSelection).toHaveBeenCalledWith(SID, 'issue', sel)
   })
 
   it.each([undefined, 'people' as const])('does not resolve it for dlg=%s', async (dlg) => {
-    const r = await loadSittingPage(SID, { show: 'all', page: 1, dlg, selection: sel })
+    const r = await loadSittingPage(SID, params({ dlg, selection: sel }))
     expect(m.resolveSelection).not.toHaveBeenCalled()
     expect(r.selection).toEqual({ kind: 'empty' })
   })
@@ -168,21 +175,12 @@ describe('loadSittingPage selection (AC 35, 51, 59)', () => {
     async (status, dayEnded) => {
       m.getSummary.mockResolvedValue({ status, scheduledAt: '2026-11-20T09:30:00Z', dayEnded })
       if (status === 'scheduled') {
-        const r = await loadSittingPage(SID, { show: 'all', page: 1, dlg: 'exams', selection: sel })
+        const r = await loadSittingPage(SID, params({ dlg: 'exams', selection: sel }))
         expect(r.editable).toBe(false)
       } else {
-        await loadSittingPage(SID, { show: 'all', page: 1, dlg: 'exams', selection: sel })
+        await loadSittingPage(SID, params({ dlg: 'exams', selection: sel }))
       }
       expect(m.resolveSelection).not.toHaveBeenCalled()
     },
   )
-
-  it('treats a missing selection param as not present', async () => {
-    await loadSittingPage(SID, { show: 'all', page: 1, dlg: 'issue' })
-    expect(m.resolveSelection).toHaveBeenCalledWith(
-      SID,
-      'issue',
-      expect.objectContaining({ present: false, all: false, ids: [] }),
-    )
-  })
 })

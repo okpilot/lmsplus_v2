@@ -22,7 +22,7 @@ const TITLES: Readonly<Record<PopupDlg, string>> = {
 
 function OpenBody({ dlg, sitting, params, selection }: Readonly<Props & { dlg: PopupDlg }>) {
   if (dlg === 'people') {
-    return <AddPeopleContent sittingId={sitting.id} filters={params.people ?? { page: 1 }} />
+    return <AddPeopleContent sittingId={sitting.id} filters={params.people} />
   }
   if (dlg === 'exams') return <AddExamsContent sittingId={sitting.id} selection={selection} />
   return (

@@ -164,6 +164,52 @@ describe('useDialogParam popups (AC 46)', () => {
     ])
   })
 
+  it('carries both patches when a second replaceParams runs before the first commits', () => {
+    mockSearch.value = 'tab=sittings&dlg=people'
+    const { result } = renderHook(() => useDialogParam())
+    act(() => {
+      result.current.replaceParams({ pq: 'ann' })
+      result.current.replaceParams({ pgroup: 'g1' })
+    })
+    expect(mockReplace.mock.calls[1]?.[0]).toBe(
+      '/app/admin/internal-exams?tab=sittings&dlg=people&pq=ann&pgroup=g1',
+    )
+  })
+
+  it('keeps a patch pending until the committed URL carries it', () => {
+    mockSearch.value = 'tab=sittings&dlg=people'
+    const { result, rerender } = renderHook(() => useDialogParam())
+    act(() => {
+      result.current.replaceParams({ pq: 'ann' })
+      result.current.replaceParams({ pgroup: 'g1' })
+    })
+    mockSearch.value = 'tab=sittings&dlg=people&pq=ann'
+    rerender()
+    act(() => result.current.replaceParams({ pcourse: 'c1' }))
+    expect(mockReplace.mock.calls[2]?.[0]).toBe(
+      '/app/admin/internal-exams?tab=sittings&dlg=people&pq=ann&pgroup=g1&pcourse=c1',
+    )
+    mockSearch.value = 'tab=sittings&dlg=people&pq=ann&pgroup=g1&pcourse=c1'
+    rerender()
+    act(() => result.current.replaceParams({ ppage: '2' }))
+    expect(mockReplace.mock.calls[3]?.[0]).toBe(
+      '/app/admin/internal-exams?tab=sittings&dlg=people&pq=ann&pgroup=g1&pcourse=c1&ppage=2',
+    )
+  })
+
+  it('drops pending patches when a popup opens or closes', () => {
+    mockSearch.value = 'tab=sittings&dlg=people'
+    const { result } = renderHook(() => useDialogParam())
+    act(() => result.current.replaceParams({ pq: 'ann' }))
+    act(() => result.current.close())
+    act(() => result.current.open('exams'))
+    mockSearch.value = 'tab=sittings&dlg=people'
+    act(() => result.current.replaceParams({ pgroup: 'g1' }))
+    expect(mockReplace.mock.calls.at(-1)?.[0]).toBe(
+      '/app/admin/internal-exams?tab=sittings&dlg=people&pgroup=g1',
+    )
+  })
+
   it('closes by replacing without any popup param when deep-linked', () => {
     mockSearch.value = 'tab=sittings&dlg=exams&ids=u1&all=1&pq=x'
     const { result } = renderHook(() => useDialogParam())

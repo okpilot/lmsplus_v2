@@ -2,6 +2,7 @@
 
 import { Button } from '@/components/ui/button'
 import { useSittingUi } from '../_hooks/sitting-ui-context'
+import { nothingToIssue } from '../_utils/person-rollup'
 import { MAX_TICKS } from '../types'
 
 type Props = {
@@ -35,11 +36,6 @@ function SelectAllLink({ pageIds, filtered, candidates, shown }: Readonly<Props>
   )
 }
 
-/** Issue is pointless only when every tick is on this page and none of them needs a code. */
-function nothingToIssue(ticks: readonly string[], p: Pick<Props, 'pageIds' | 'needsCodeIds'>) {
-  return ticks.every((id) => p.pageIds.includes(id)) && !ticks.some((id) => p.needsCodeIds.has(id))
-}
-
 /** Bulk bar for ticked people; replaces the toolbar while anything is ticked. */
 export function SittingBulkActions(p: Readonly<Props>) {
   const { rosterIds, selectAll, clearRoster, open, isRefreshing } = useSittingUi()
@@ -47,7 +43,7 @@ export function SittingBulkActions(p: Readonly<Props>) {
   const params: Record<string, string> = selectAll
     ? { all: '1' }
     : { ids: rosterIds.slice(0, MAX_TICKS + 1).join(',') }
-  const issueOff = !selectAll && nothingToIssue(rosterIds, p)
+  const issueOff = !selectAll && nothingToIssue(rosterIds, p.pageIds, p.needsCodeIds)
   return (
     <>
       <span className="text-label tabular-nums">

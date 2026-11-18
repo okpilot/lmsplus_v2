@@ -137,7 +137,9 @@ describe('SubjectPicker', () => {
     picker({
       sameDay: [{ userId: 'u1', name: 'Ann', sittingId: 'x', scheduledAt: '2026-11-18T09:30:00Z' }],
     })
-    expect(screen.getByText('Ann is also in a sitting today (09:30 UTC).')).toBeInTheDocument()
+    expect(
+      screen.getByText('Ann is also in another sitting that day (09:30 UTC).'),
+    ).toBeInTheDocument()
   })
 
   it('footer counts the exams and disables Add above 1000 (AC 38)', async () => {
@@ -148,6 +150,15 @@ describe('SubjectPicker', () => {
     await user.click(screen.getByRole('checkbox', { name: 'Add NAV' }))
     expect(screen.getByRole('button', { name: 'Add exams' })).toBeDisabled()
     expect(screen.getByText(/Too many: 600 people x 2 exams = 1200/)).toBeInTheDocument()
+  })
+
+  it('the header checkbox ticks every tickable exam and unticks them again', async () => {
+    const user = userEvent.setup()
+    picker()
+    await user.click(screen.getByRole('checkbox', { name: 'Select all 2 shown' }))
+    expect(screen.getByRole('status')).toHaveTextContent('2 exams for 2 people')
+    await user.click(screen.getByRole('checkbox', { name: 'Select all 2 shown' }))
+    expect(screen.getByRole('status')).not.toHaveTextContent('2 exams')
   })
 
   it('sends all people x the chosen exams, closes, and toasts the plain success (AC 39)', async () => {

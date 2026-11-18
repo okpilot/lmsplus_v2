@@ -1,4 +1,5 @@
 import { adminClient } from '@repo/db/admin'
+import { requireAdmin } from '@/lib/auth/require-admin'
 
 /**
  * Display names of up to 100 people, deactivated ones included. Service role (`users_select` is self-only),
@@ -21,7 +22,17 @@ export async function readUserNames(
     throw new Error('Failed to load people')
   }
   for (const u of data ?? []) {
-    out.set(u.id, u.full_name ?? u.email ?? 'Unknown')
+    out.set(u.id, u.full_name || u.email || 'Unknown')
   }
   return out
+}
+
+/** One display name for a popup title. Cosmetic: a failed read must not fail the popup. */
+export async function readUserName(userId: string): Promise<string> {
+  try {
+    const { organizationId } = await requireAdmin()
+    return (await readUserNames(organizationId, [userId])).get(userId) ?? 'Unknown'
+  } catch {
+    return 'this person'
+  }
 }

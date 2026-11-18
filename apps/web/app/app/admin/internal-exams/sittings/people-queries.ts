@@ -1,6 +1,7 @@
 import { SittingPeopleQuerySchema, SubjectEligibilityQuerySchema } from '@repo/db/schema'
 import { getGroupsWithCounts } from '@/app/app/admin/students/groups/queries'
 import { requireAdmin } from '@/lib/auth/require-admin'
+import { isEnded } from './_utils/is-ended'
 import type { SelectionParams } from './parse-sitting-params'
 import {
   type AddablePerson,
@@ -26,9 +27,52 @@ function readFailure(name: string, message: string, fallback: string): Ended | n
   throw new Error(fallback)
 }
 
-type PeoplePage = { rows: AddablePerson[]; total: number }
+type PeoplePage = { rows: AddablePerson[]; total: number; page: number }
+type PeopleQuery = ReturnType<typeof SittingPeopleQuerySchema.parse>
+type PeopleRpcRow = {
+  user_id: string
+  full_name: string | null
+  email: string
+  deactivated: boolean
+  groups: string
+  courses: string
+  total_count: number
+}
 
-/** A page of addable people (not yet in the sitting), 50 per page, status Active unless told otherwise. */
+/** One page of the people RPC; null when the sitting is not found. */
+async function fetchPeople(
+  supabase: Supabase,
+  query: PeopleQuery,
+  page: number,
+): Promise<PeopleRpcRow[] | Ended | null> {
+  const { data, error } = await supabase.rpc('list_exam_sitting_people', {
+    p_sitting_id: query.sittingId,
+    ...(query.q ? { p_q: query.q } : {}),
+    ...(query.groupId ? { p_group_id: query.groupId } : {}),
+    ...(query.courseId ? { p_course_id: query.courseId } : {}),
+    p_status: query.status,
+    p_limit: PEOPLE_PAGE_SIZE,
+    p_offset: (page - 1) * PEOPLE_PAGE_SIZE,
+  })
+  if (error) return readFailure('listPeople', error.message, 'Failed to load people')
+  return data ?? []
+}
+
+const totalOf = (rows: readonly PeopleRpcRow[]) => Number(rows[0]?.total_count ?? 0)
+
+/** The page to show when `page` is past the end: the last page, or null-total when nobody matches. */
+async function snapToLast(supabase: Supabase, query: PeopleQuery) {
+  const first = await fetchPeople(supabase, query, 1)
+  if (first === null || isEnded(first)) return first
+  const total = totalOf(first)
+  if (total === 0) return { rows: first, page: 1 }
+  const last = Math.max(1, Math.ceil(total / PEOPLE_PAGE_SIZE))
+  if (last === 1) return { rows: first, page: 1 }
+  const rows = await fetchPeople(supabase, query, last)
+  return rows === null || isEnded(rows) ? rows : { rows, page: last }
+}
+
+/** A page of addable people (not yet in the sitting), 50 per page, status Active unless told otherwise; a page past the end snaps to the last page. */
 export async function listPeople(a: {
   sittingId: string
   q?: string
@@ -46,17 +90,16 @@ export async function listPeople(a: {
     page: a.page,
   })
   const { supabase } = await requireAdmin()
-  const { data, error } = await supabase.rpc('list_exam_sitting_people', {
-    p_sitting_id: query.sittingId,
-    ...(query.q ? { p_q: query.q } : {}),
-    ...(query.groupId ? { p_group_id: query.groupId } : {}),
-    ...(query.courseId ? { p_course_id: query.courseId } : {}),
-    p_status: query.status,
-    p_limit: PEOPLE_PAGE_SIZE,
-    p_offset: ((query.page ?? 1) - 1) * PEOPLE_PAGE_SIZE,
-  })
-  if (error) return readFailure('listPeople', error.message, 'Failed to load people')
-  const rows = data ?? []
+  const requested = query.page ?? 1
+  let rows = await fetchPeople(supabase, query, requested)
+  let page = requested
+  if (Array.isArray(rows) && rows.length === 0 && requested > 1) {
+    const snapped = await snapToLast(supabase, query)
+    if (snapped === null || isEnded(snapped)) return snapped
+    rows = snapped.rows
+    page = snapped.page
+  }
+  if (rows === null || isEnded(rows)) return rows
   return {
     rows: rows.map((r) => ({
       userId: r.user_id,
@@ -66,7 +109,8 @@ export async function listPeople(a: {
       groups: r.groups,
       courses: r.courses,
     })),
-    total: Number(rows[0]?.total_count ?? 0),
+    total: totalOf(rows),
+    page,
   }
 }
 

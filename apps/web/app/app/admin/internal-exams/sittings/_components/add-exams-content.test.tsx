@@ -4,15 +4,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const m = vi.hoisted(() => ({
   getSubjectEligibility: vi.fn(),
   getSameDayPeople: vi.fn(),
-  readUserNames: vi.fn(),
-  requireAdmin: vi.fn(),
+  readUserName: vi.fn(),
 }))
 vi.mock('../people-queries', () => ({
   getSubjectEligibility: m.getSubjectEligibility,
   getSameDayPeople: m.getSameDayPeople,
 }))
-vi.mock('../people-lookup', () => ({ readUserNames: m.readUserNames }))
-vi.mock('@/lib/auth/require-admin', () => ({ requireAdmin: m.requireAdmin }))
+vi.mock('../people-lookup', () => ({ readUserName: m.readUserName }))
 vi.mock('../actions/add-exams', () => ({ addSittingExams: vi.fn() }))
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
@@ -60,10 +58,9 @@ async function body(selection: Selection) {
 
 beforeEach(() => {
   vi.resetAllMocks()
-  m.requireAdmin.mockResolvedValue({ organizationId: 'o1' })
   m.getSubjectEligibility.mockResolvedValue([row(2)])
   m.getSameDayPeople.mockResolvedValue([])
-  m.readUserNames.mockResolvedValue(new Map([['u1', 'Ann Student']]))
+  m.readUserName.mockResolvedValue('Ann Student')
 })
 
 describe('AddExamsContent', () => {
@@ -80,7 +77,7 @@ describe('AddExamsContent', () => {
     expect(screen.getByRole('heading', { name: 'Add exams for Ann Student' })).toBeInTheDocument()
     expect(m.getSubjectEligibility).toHaveBeenCalledWith('s1', ['u1'])
     expect(m.getSameDayPeople).toHaveBeenCalledWith('s1', ['u1'])
-    expect(m.readUserNames).toHaveBeenCalledWith('o1', ['u1'])
+    expect(m.readUserName).toHaveBeenCalledWith('u1')
   })
 
   it('a deactivated single person: Deactivated prefix and Add disabled (AC 36)', async () => {
@@ -95,7 +92,20 @@ describe('AddExamsContent', () => {
   it('several people: counts in the title, no name lookup', async () => {
     await body({ kind: 'ids', ids: ['u1', 'u2', 'u3'], truncated: false })
     expect(screen.getByRole('heading', { name: 'Add exams for 3 people' })).toBeInTheDocument()
-    expect(m.readUserNames).not.toHaveBeenCalled()
+    expect(m.readUserName).not.toHaveBeenCalled()
+  })
+
+  it('reads the single name in parallel with the eligibility reads', async () => {
+    let release: (v: unknown) => void = () => undefined
+    m.getSubjectEligibility.mockReturnValue(new Promise((r) => (release = r)))
+    const pending = AddExamsContent({
+      sittingId: 's1',
+      selection: { kind: 'ids', ids: ['u1'], truncated: false },
+    })
+    await Promise.resolve()
+    expect(m.readUserName).toHaveBeenCalledWith('u1')
+    release([row(1)])
+    await pending
   })
 
   it('all-mode: asks with no ids and titles with every person (AC 41)', async () => {
@@ -115,7 +125,9 @@ describe('AddExamsContent', () => {
       { userId: 'u1', name: 'Ann', sittingId: 'x', scheduledAt: '2026-11-18T09:30:00Z' },
     ])
     await body({ kind: 'ids', ids: ['u1', 'u2'], truncated: false })
-    expect(screen.getByText('Ann is also in a sitting today (09:30 UTC).')).toBeInTheDocument()
+    expect(
+      screen.getByText('Ann is also in another sitting that day (09:30 UTC).'),
+    ).toBeInTheDocument()
   })
 
   it('ended sitting: message and Close only (AC 60)', async () => {

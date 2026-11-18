@@ -149,6 +149,21 @@ describe('addSittingExams', () => {
     expect([...args.p_user_ids].sort()).toEqual([U1, U2])
   })
 
+  it('in all-mode with no candidates says so without calling the RPC', async () => {
+    const chain = Object.assign(Promise.resolve({ data: [], error: null }), {
+      select: vi.fn(),
+      eq: vi.fn(),
+      is: vi.fn(),
+    })
+    for (const k of ['select', 'eq', 'is'] as const) chain[k].mockReturnValue(chain)
+    mockFrom.mockReturnValue(chain)
+    expect(await addSittingExams({ sittingId: SID, subjectIds: [S1], all: true })).toEqual({
+      success: false,
+      error: 'No people in this sitting.',
+    })
+    expect(mockRpc).not.toHaveBeenCalled()
+  })
+
   it('revalidates the list and the sitting page on success', async () => {
     mockRpc.mockResolvedValue({ data: [rpcRow({ added: 1 })], error: null })
     await addSittingExams({ sittingId: SID, subjectIds: [S1], userIds: [U1] })

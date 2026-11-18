@@ -23,3 +23,12 @@ export function sharedExpiry(entries: readonly RosterEntry[]): string | null {
 export function personNeedsCode(entries: readonly Pick<RosterEntry, 'status'>[]): boolean {
   return entries.some((e) => NEEDS_CODE_STATUSES.has(e.status))
 }
+
+/** Issue is pointless only when every tick is on this page and none of them needs a code. */
+export function nothingToIssue(
+  ticks: readonly string[],
+  pageIds: readonly string[],
+  needsCodeIds: ReadonlySet<string>,
+): boolean {
+  return ticks.every((id) => pageIds.includes(id)) && !ticks.some((id) => needsCodeIds.has(id))
+}
