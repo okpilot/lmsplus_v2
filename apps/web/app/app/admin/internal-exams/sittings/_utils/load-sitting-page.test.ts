@@ -6,6 +6,7 @@ const m = vi.hoisted(() => ({
   listInvigilatorOptions: vi.fn(),
   getRoster: vi.fn(),
   getRemoved: vi.fn(),
+  resolveSelection: vi.fn(),
   notFound: vi.fn(() => {
     throw new Error('NEXT_NOT_FOUND')
   }),
@@ -18,6 +19,7 @@ vi.mock('../queries', () => ({
 }))
 
 vi.mock('../roster-queries', () => ({ getRoster: m.getRoster, getRemoved: m.getRemoved }))
+vi.mock('../people-queries', () => ({ resolveSelection: m.resolveSelection }))
 
 import { loadSittingPage } from './load-sitting-page'
 
@@ -37,6 +39,7 @@ beforeEach(() => {
   m.listInvigilatorOptions.mockResolvedValue([{ id: 'i1', name: 'Ann' }])
   m.getRoster.mockResolvedValue({ rows: [], total: 0 })
   m.getRemoved.mockResolvedValue({ rows: [], total: 0 })
+  m.resolveSelection.mockResolvedValue({ kind: 'ids', ids: ['u1'], truncated: false })
 })
 
 describe('loadSittingPage', () => {
@@ -132,5 +135,54 @@ describe('loadSittingPage', () => {
       'NEXT_NOT_FOUND',
     )
     expect(m.getRoster).not.toHaveBeenCalled()
+  })
+})
+
+describe('loadSittingPage selection (AC 35, 51, 59)', () => {
+  const sel = { present: true, all: false, ids: ['u1'], truncated: false }
+
+  it('resolves the selection once for an editable sitting with dlg=exams', async () => {
+    const r = await loadSittingPage(SID, { show: 'all', page: 1, dlg: 'exams', selection: sel })
+    expect(m.resolveSelection).toHaveBeenCalledTimes(1)
+    expect(m.resolveSelection).toHaveBeenCalledWith(SID, 'exams', sel)
+    expect(r.selection).toEqual({ kind: 'ids', ids: ['u1'], truncated: false })
+  })
+
+  it('resolves it for dlg=issue', async () => {
+    await loadSittingPage(SID, { show: 'all', page: 1, dlg: 'issue', selection: sel })
+    expect(m.resolveSelection).toHaveBeenCalledWith(SID, 'issue', sel)
+  })
+
+  it.each([undefined, 'people' as const])('does not resolve it for dlg=%s', async (dlg) => {
+    const r = await loadSittingPage(SID, { show: 'all', page: 1, dlg, selection: sel })
+    expect(m.resolveSelection).not.toHaveBeenCalled()
+    expect(r.selection).toEqual({ kind: 'empty' })
+  })
+
+  it.each([
+    ['closed', false],
+    ['cancelled', false],
+    ['scheduled', true],
+  ])(
+    'does not query popup data for a non-editable %s sitting (day ended: %s)',
+    async (status, dayEnded) => {
+      m.getSummary.mockResolvedValue({ status, scheduledAt: '2026-11-20T09:30:00Z', dayEnded })
+      if (status === 'scheduled') {
+        const r = await loadSittingPage(SID, { show: 'all', page: 1, dlg: 'exams', selection: sel })
+        expect(r.editable).toBe(false)
+      } else {
+        await loadSittingPage(SID, { show: 'all', page: 1, dlg: 'exams', selection: sel })
+      }
+      expect(m.resolveSelection).not.toHaveBeenCalled()
+    },
+  )
+
+  it('treats a missing selection param as not present', async () => {
+    await loadSittingPage(SID, { show: 'all', page: 1, dlg: 'issue' })
+    expect(m.resolveSelection).toHaveBeenCalledWith(
+      SID,
+      'issue',
+      expect.objectContaining({ present: false, all: false, ids: [] }),
+    )
   })
 })

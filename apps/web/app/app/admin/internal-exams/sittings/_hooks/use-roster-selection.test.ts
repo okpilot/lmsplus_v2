@@ -31,4 +31,36 @@ describe('useRosterSelection', () => {
     act(() => result.current.clearRoster())
     expect(result.current.rosterIds).toEqual([])
   })
+
+  it('enters all-mode with selectAll and reports it (AC 29)', () => {
+    const { result } = renderHook(() => useRosterSelection())
+    act(() => result.current.setSelectAll(true))
+    expect(result.current.selectAll).toBe(true)
+  })
+
+  it('leaves all-mode and empties ticks on any toggle (AC 29)', () => {
+    const { result } = renderHook(() => useRosterSelection())
+    act(() => result.current.setRosterPage(['a', 'b'], true))
+    act(() => result.current.setSelectAll(true))
+    act(() => result.current.toggleRoster('a'))
+    expect(result.current.selectAll).toBe(false)
+    expect(result.current.rosterIds).toEqual([])
+  })
+
+  it('leaves all-mode on clearRoster (AC 29)', () => {
+    const { result } = renderHook(() => useRosterSelection())
+    act(() => result.current.setSelectAll(true))
+    act(() => result.current.clearRoster())
+    expect(result.current.selectAll).toBe(false)
+  })
+
+  it('seeds ticks from the initial argument (AC 35)', () => {
+    const { result } = renderHook(() => useRosterSelection({ ids: ['x', 'y'], all: false }))
+    expect(result.current.rosterIds).toEqual(['x', 'y'])
+  })
+
+  it('seeds all-mode from the initial argument (AC 35)', () => {
+    const { result } = renderHook(() => useRosterSelection({ ids: [], all: true }))
+    expect(result.current.selectAll).toBe(true)
+  })
 })

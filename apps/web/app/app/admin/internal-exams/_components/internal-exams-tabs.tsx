@@ -60,16 +60,19 @@ export function InternalExamsTabs({
   return (
     <Tabs value={tab} onValueChange={(v) => select(v as string)} className="space-y-section">
       <TabsList aria-label="Internal exam sections">
+        <TabsTab value="sittings" id="tab-sittings" data-testid="tab-sittings">
+          Sittings
+        </TabsTab>
         <TabsTab value="codes" id="tab-codes" data-testid="tab-codes">
           Codes
         </TabsTab>
         <TabsTab value="attempts" id="tab-attempts" data-testid="tab-attempts">
           Attempts
         </TabsTab>
-        <TabsTab value="sittings" id="tab-sittings" data-testid="tab-sittings">
-          Sittings
-        </TabsTab>
       </TabsList>
+      <TabsPanel value="sittings" data-testid="tabpanel-sittings">
+        {sittings && <SittingsTab {...sittings} />}
+      </TabsPanel>
       <TabsPanel value="codes" data-testid="tabpanel-codes">
         <CodesTab
           students={students}
@@ -82,9 +85,6 @@ export function InternalExamsTabs({
       </TabsPanel>
       <TabsPanel value="attempts" data-testid="tabpanel-attempts">
         <AttemptsTable rows={attempts} totalCount={attemptsTotalCount} pageSize={pageSize} />
-      </TabsPanel>
-      <TabsPanel value="sittings" data-testid="tabpanel-sittings">
-        {sittings && <SittingsTab {...sittings} />}
       </TabsPanel>
     </Tabs>
   )

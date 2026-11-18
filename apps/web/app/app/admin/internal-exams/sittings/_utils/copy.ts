@@ -6,6 +6,8 @@ export type ResultBannerData = {
   tone: 'success' | 'caution' | 'danger'
   title: string
   detail?: string
+  /** Extra lines under the detail (Add exams skips); a banner shows at most 50. */
+  lines?: string[]
 }
 
 function notStartedLine(entries: number, students: number): string {

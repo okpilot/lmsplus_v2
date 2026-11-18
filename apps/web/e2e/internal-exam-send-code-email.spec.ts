@@ -51,7 +51,7 @@ type AdminClient = ReturnType<typeof getAdminClient>
 const issuedCodeIds = new Set<string>()
 
 async function issueCodeAsAdmin(adminPage: Page, subjectFragment: string): Promise<string> {
-  await adminPage.goto('/app/admin/internal-exams')
+  await adminPage.goto('/app/admin/internal-exams?tab=codes')
   await expect(adminPage.getByRole('heading', { name: 'Internal Exams' })).toBeVisible()
   const form = adminPage.getByTestId('issue-code-form')
   await form.locator('[aria-label="Student"]').click()

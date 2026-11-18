@@ -6,6 +6,7 @@ import { ResultBanner } from '../_components/result-banner'
 import { SittingCounts } from '../_components/sitting-counts'
 import { SittingHeader } from '../_components/sitting-header'
 import { SittingUiProvider } from '../_hooks/sitting-ui-context'
+import { initialSelectionOf } from '../_utils/initial-selection'
 import { loadSittingPage } from '../_utils/load-sitting-page'
 import { parseSittingParams } from '../parse-sitting-params'
 
@@ -17,10 +18,10 @@ type PageProps = {
 export default async function SittingPage({ params, searchParams }: Readonly<PageProps>) {
   await requireAdmin()
   const sp = parseSittingParams(await searchParams)
-  const { sitting, summary, invigilators, notDue, roster, removed, editable } =
+  const { sitting, summary, invigilators, notDue, roster, removed, editable, selection } =
     await loadSittingPage((await params).sittingId, sp)
   return (
-    <SittingUiProvider key={sitting.id}>
+    <SittingUiProvider key={sitting.id} initialSelection={initialSelectionOf(selection)}>
       <div className="space-y-section">
         <SittingHeader
           sitting={sitting}

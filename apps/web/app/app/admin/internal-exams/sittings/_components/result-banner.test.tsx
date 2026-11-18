@@ -73,4 +73,36 @@ describe('ResultBanner', () => {
     expect(screen.queryByText('First')).toBeNull()
     expect(screen.getByText('Second')).toBeInTheDocument()
   })
+
+  it('renders lines under the title and keeps a success with lines as a banner (AC 54)', () => {
+    ui()
+    act(() =>
+      setBannerRef({ tone: 'success', title: 'Added 2.', lines: ['Ann · FPM: Not enrolled'] }),
+    )
+    expect(screen.getByRole('status').textContent).toContain('Ann · FPM: Not enrolled')
+  })
+
+  it('caps lines at 50 and appends and {r} more. (AC 54)', () => {
+    ui()
+    const lines = Array.from({ length: 53 }, (_, i) => `line-${i}`)
+    act(() => setBannerRef({ tone: 'caution', title: 'Skipped', lines }))
+    expect(screen.getByText('line-49')).toBeInTheDocument()
+    expect(screen.queryByText('line-50')).toBeNull()
+    expect(screen.getByText('and 3 more.')).toBeInTheDocument()
+  })
+
+  it('renders duplicate lines without key warnings and shows both (AC 54)', () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    ui()
+    act(() => setBannerRef({ tone: 'caution', title: 'Skipped', lines: ['same', 'same'] }))
+    expect(screen.getAllByText('same')).toHaveLength(2)
+    expect(err).not.toHaveBeenCalled()
+    err.mockRestore()
+  })
+
+  it('renders no list for empty lines (AC 54)', () => {
+    ui()
+    act(() => setBannerRef({ tone: 'caution', title: 'Skipped', lines: [] }))
+    expect(screen.queryByRole('list')).toBeNull()
+  })
 })

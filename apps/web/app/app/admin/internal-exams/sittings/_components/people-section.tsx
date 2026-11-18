@@ -5,6 +5,7 @@ import { PaginationBar } from '@/app/app/_components/pagination-bar'
 import { ListCard } from '@/components/admin/list-card'
 import { Section } from '@/components/admin/section'
 import { useSittingUi } from '../_hooks/sitting-ui-context'
+import { personNeedsCode } from '../_utils/person-rollup'
 import { plural } from '../_utils/plural'
 import {
   ROSTER_PAGE_SIZE,
@@ -13,6 +14,8 @@ import {
   type SittingStatus,
   type SittingSummary,
 } from '../types'
+import { AddPeopleButton } from './add-people-button'
+import { IssueAllButton } from './issue-all-button'
 import { RemovePeopleDialog } from './remove-people-dialog'
 import { RosterSearch } from './roster-search'
 import { RosterTable } from './roster-table'
@@ -32,13 +35,28 @@ type Props = {
   page: number
 }
 
+/** Section header actions: Add people, and Issue all codes while some exam needs one. */
+function PeopleActions({ issuable }: Readonly<{ issuable: number }>) {
+  return (
+    <>
+      <AddPeopleButton />
+      {issuable > 0 && <IssueAllButton count={issuable} />}
+    </>
+  )
+}
+
 /** The sitting's people as a related list: section header, toolbar or bulk bar, table, pagination. */
 export function PeopleSection(p: Readonly<Props>) {
-  const { rosterIds } = useSittingUi()
+  const { rosterIds, selectAll } = useSittingUi()
   const [removeIds, setRemoveIds] = useState<readonly string[] | null>(null)
-  const bulk = p.editable && rosterIds.length > 0
+  const bulk = p.editable && (selectAll || rosterIds.length > 0)
+  const tickable = p.rows.filter((r) => !r.hasAttempt)
   return (
-    <Section title="People" count={p.summary.candidates}>
+    <Section
+      title="People"
+      count={p.summary.candidates}
+      actions={p.editable && <PeopleActions issuable={p.summary.entriesIssuable} />}
+    >
       <ListCard
         filters={
           <>
@@ -46,7 +64,18 @@ export function PeopleSection(p: Readonly<Props>) {
               <RosterSearch value={p.q} />
               <ShowFilter value={p.show} />
             </div>
-            {bulk && <SittingBulkActions onRemove={setRemoveIds} />}
+            {bulk && (
+              <SittingBulkActions
+                onRemove={setRemoveIds}
+                pageIds={tickable.map((r) => r.userId)}
+                needsCodeIds={
+                  new Set(tickable.filter((r) => personNeedsCode(r.entries)).map((r) => r.userId))
+                }
+                filtered={Boolean(p.q) || p.show !== 'all'}
+                candidates={p.summary.candidates}
+                shown={p.rows.length}
+              />
+            )}
           </>
         }
         summary={plural(p.total, 'person', 'people')}
