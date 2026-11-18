@@ -47,6 +47,31 @@ describe('PeopleFooter', () => {
     expect(onAddGroup).toHaveBeenCalled()
   })
 
+  it('adds the tick count to the group button label only when something is ticked (AC 34)', () => {
+    footer({ ticked: 2, group })
+    expect(
+      screen.getByRole('button', {
+        name: 'Add whole group "Group A" (3 new, 1 deactivated skipped) + 2 selected',
+      }),
+    ).toBeEnabled()
+  })
+
+  it('disables the group button above 500 ticks (AC 33)', () => {
+    footer({ ticked: 501, group })
+    expect(screen.getByRole('button', { name: /Add whole group/ })).toBeDisabled()
+  })
+
+  it('keeps the group button enabled at exactly 500 ticks (AC 33)', () => {
+    footer({ ticked: 500, group })
+    expect(screen.getByRole('button', { name: /Add whole group.*\+ 500 selected/ })).toBeEnabled()
+  })
+
+  it('keeps the group button disabled and Add selected enabled when ticks exist but no one new is in the group', () => {
+    footer({ ticked: 2, group: { ...group, activeNew: 0, deactivatedNew: 2 } })
+    expect(screen.getByRole('button', { name: /Add whole group/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Add selected (2)' })).toBeEnabled()
+  })
+
   it('disables the group button when nobody new would be added', () => {
     footer({ group: { ...group, activeNew: 0, deactivatedNew: 2 } })
     expect(screen.getByRole('button', { name: /Add whole group/ })).toBeDisabled()

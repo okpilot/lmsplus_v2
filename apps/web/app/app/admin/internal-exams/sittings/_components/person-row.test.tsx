@@ -2,8 +2,9 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+const m = vi.hoisted(() => ({ push: vi.fn() }))
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), back: vi.fn() }),
+  useRouter: () => ({ push: m.push, replace: vi.fn(), refresh: vi.fn(), back: vi.fn() }),
   usePathname: () => '/app/admin/internal-exams/sittings/sit-1',
   useSearchParams: () => new URLSearchParams(),
 }))
@@ -124,6 +125,22 @@ describe('PersonRow', () => {
     ui({ row: row({ entries: [entry({ status: 'no_code', codeId: null, code: null })] }) })
     await user.click(screen.getByRole('button', { name: 'Actions for Ann Pilot' }))
     expect(await screen.findByRole('menuitem', { name: 'Issue codes' })).toBeInTheDocument()
+  })
+
+  it('disables every row action while a navigation is refreshing', async () => {
+    m.push.mockImplementation(() => new Promise<void>(() => undefined))
+    const user = userEvent.setup()
+    ui({ row: row({ entries: [entry({ status: 'no_code', codeId: null, code: null })] }) })
+    await user.click(screen.getByRole('button', { name: 'Actions for Ann Pilot' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Issue codes' }))
+    await user.click(screen.getByRole('button', { name: 'Actions for Ann Pilot' }))
+    expect(await screen.findByRole('menuitem', { name: 'Issue codes' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    )
+    for (const name of ['Add exams', 'Remove from sitting']) {
+      expect(screen.getByRole('menuitem', { name })).toHaveAttribute('aria-disabled', 'true')
+    }
   })
 
   it('omits Issue codes when every exam already has a code (AC 44)', async () => {

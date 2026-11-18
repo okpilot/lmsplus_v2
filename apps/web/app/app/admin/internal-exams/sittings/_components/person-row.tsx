@@ -72,7 +72,7 @@ function RowActions({
       {!row.hasAttempt && (
         <>
           <MenuSeparator />
-          <MenuItem tone="danger" onClick={onRemove}>
+          <MenuItem tone="danger" disabled={isRefreshing} onClick={onRemove}>
             Remove from sitting
           </MenuItem>
         </>

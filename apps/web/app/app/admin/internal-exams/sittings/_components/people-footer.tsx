@@ -48,10 +48,11 @@ export function PeopleFooter(p: Readonly<Props>) {
             variant="outline"
             className="h-auto min-h-control max-w-full whitespace-normal"
             loading={p.pending}
-            disabled={p.busy || p.group.activeNew === 0}
+            disabled={p.busy || p.group.activeNew === 0 || p.ticked > MAX_ADD}
             onClick={p.onAddGroup}
           >
             {groupAddLabel(p.group.name, p.group.activeNew, p.group.deactivatedNew)}
+            {!none && ` + ${p.ticked} selected`}
           </LoadingButton>
         )}
         <LoadingButton
