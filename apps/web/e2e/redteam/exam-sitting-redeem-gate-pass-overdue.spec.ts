@@ -6,9 +6,9 @@
  * Expected: `already_passed`; no new session; code unconsumed.
  * CONTROL: the pass's consumed code is voided (annulled attempt) — the same code starts a session.
  *
- * MP attack: the student holds an unfinished overdue same-subject attempt, then redeems the open
- * sitting's code to have the overdue attempt auto-completed by the redeem.
- * Expected: `overdue_attempt_pending`; overdue attempt stays unfinished; code unconsumed.
+ * MP attack: the student holds an unfinished overdue same-subject attempt that grades as a pass,
+ * then redeems the open sitting's code for a fresh attempt before that pass is recorded.
+ * Expected: `already_passed`; the redeem's auto-complete rolls back; code unconsumed.
  * CONTROL: a legacy code (no sitting entry) auto-completes the same overdue attempt.
  *
  * Hermetic: throwaway students; sittings carry EXAM_SITTING_E2E_PREFIX; afterEach soft-deletes the
@@ -231,7 +231,7 @@ test.describe('Red Team: sitting redeem gate — prior pass and overdue attempt 
     expect((await readCode(admin, code.id)).consumed_session_id).toBe(ok?.[0]?.session_id)
   })
 
-  test('MP: a sitting code does not auto-complete an overdue same-subject attempt', async () => {
+  test('MP: an overdue attempt that grades as a pass blocks a sitting code', async () => {
     const code = await openSittingCode(adminClient, admin, adminId, track, mpId, subjectId)
     codeIds.push(code.id)
 
@@ -250,11 +250,35 @@ test.describe('Red Team: sitting redeem gate — prior pass and overdue attempt 
       .select('id')
       .single()
     if (oErr || !overdue) throw new Error(`MP overdue seed: ${oErr?.message}`)
+    const { data: q, error: qErr } = await admin
+      .from('questions')
+      .select('id')
+      .eq('organization_id', orgId)
+      .eq('subject_id', subjectId)
+      .is('deleted_at', null)
+      .limit(1)
+      .single()
+    if (qErr || !q) throw new Error(`MP question: ${qErr?.message}`)
+    const { error: aErr } = await admin.from('quiz_session_answers').insert({
+      session_id: overdue.id,
+      question_id: q.id,
+      selected_option_id: 'a',
+      response_time_ms: 1000,
+      is_correct: true,
+    })
+    if (aErr) throw new Error(`MP answer seed: ${aErr.message}`)
+    const { error: cfgErr } = await admin
+      .from('quiz_sessions')
+      .update({
+        config: { question_ids: [q.id], pass_mark: 75, e2e_marker: E2E_REDTEAM_SIT_REDEEM_MARKER },
+      })
+      .eq('id', overdue.id)
+    if (cfgErr) throw new Error(`MP config seed: ${cfgErr.message}`)
 
     const { data, error } = await mpStudent.rpc('start_internal_exam_session', {
       p_code: code.code,
     })
-    expect(error?.message ?? `started ${JSON.stringify(data)}`).toMatch(/overdue_attempt_pending/)
+    expect(error?.message ?? `started ${JSON.stringify(data)}`).toMatch(/already_passed/)
     expect(await sessionEndedAt(admin, overdue.id)).toBeNull()
     expect((await readCode(admin, code.id)).consumed_at).toBeNull()
 
