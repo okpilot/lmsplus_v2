@@ -214,7 +214,7 @@ describe('RPC: start_internal_exam_session sitting gate, removed entry and overd
       })) as Res,
       'graded answer',
     )
-    expect(msg(await redeem(s, w.code))).toBe('another_session_active')
+    expect(msg(await redeem(s, w.code))).toBe('overdue_attempt_pending')
     expect(await consumedAt(w.codeId)).toBeNull()
     const sessions = await sessionsOf(s.id)
     expect(sessions).toHaveLength(1)
