@@ -199,6 +199,15 @@ describe('getSubjectEligibility', () => {
     })
   })
 
+  it('reads a passed score sent as a numeric string as a number', async () => {
+    mockRpc.mockResolvedValue({
+      data: [{ ...row, state: 'passed', passed_score: '87.5' }],
+      error: null,
+    })
+    const r = await getSubjectEligibility(SID, [U1])
+    expect(Array.isArray(r) && r[0]?.passedScore).toBe(87.5)
+  })
+
   it('maps the per-subject counts and single-person detail columns', async () => {
     mockRpc.mockResolvedValue({
       data: [{ ...row, state: 'passed', passed_at: '2026-11-01T10:00:00Z', passed_score: 88 }],

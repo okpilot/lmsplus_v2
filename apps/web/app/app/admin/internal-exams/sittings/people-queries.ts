@@ -143,7 +143,7 @@ export async function getSubjectEligibility(
     state: r.state,
     attemptCount: r.attempt_count,
     passedAt: r.passed_at,
-    passedScore: r.passed_score,
+    passedScore: r.passed_score === null ? null : Number(r.passed_score),
     elsewhereSittingId: r.elsewhere_sitting_id,
     elsewhereAt: r.elsewhere_at,
   }))
