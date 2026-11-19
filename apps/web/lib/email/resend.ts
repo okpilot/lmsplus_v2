@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto'
 import { Resend } from 'resend'
 
 type SendEmailArgs = {
@@ -101,22 +100,17 @@ type Chunk = {
   from: string
   messages: readonly EmailMessage[]
   offset: number
-  idempotencyKey: string | undefined
 }
-
-type ChunkOptions = { batchValidation: 'permissive'; idempotencyKey?: string }
 
 /** One chunk; retries only a 429 (the SDK does not retry, rate limit 10 req/s per team). */
 async function sendChunk(
   resend: Resend,
-  { from, messages, offset, idempotencyKey }: Readonly<Chunk>,
+  { from, messages, offset }: Readonly<Chunk>,
 ): Promise<BatchResult> {
   const payload = messages.map((m) => ({ from, ...m }))
-  const options: ChunkOptions = { batchValidation: 'permissive' as const }
-  if (idempotencyKey) options.idempotencyKey = idempotencyKey
   for (let attempt = 0; ; attempt++) {
     try {
-      const res = await resend.batch.send(payload, options)
+      const res = await resend.batch.send(payload, { batchValidation: 'permissive' })
       if (!res.error) {
         const bad = new Map((res.data.errors ?? []).map((e) => [e.index, e.message]))
         const rows = all(0, messages.length)
@@ -141,14 +135,10 @@ async function sendChunk(
 
 /**
  * Sends up to any number of emails via Resend batch (100 per request, permissive validation).
- * Same no-key / no-EMAIL_FROM behaviour as `sendEmail`. `ids` (aligned with `messages`) keys each
- * chunk's idempotency by the sha256 of its sorted ids — never code values or addresses.
+ * Same no-key / no-EMAIL_FROM behaviour as `sendEmail`.
  * Indexes in the result are positions in `messages`.
  */
-export async function sendEmailBatch(
-  messages: readonly EmailMessage[],
-  opts?: Readonly<{ ids?: readonly string[] }>,
-): Promise<BatchResult> {
+export async function sendEmailBatch(messages: readonly EmailMessage[]): Promise<BatchResult> {
   const apiKey = process.env.RESEND_API_KEY
   if (!apiKey) {
     if (process.env.NODE_ENV === 'production') {
@@ -166,17 +156,10 @@ export async function sendEmailBatch(
   const resend = new Resend(apiKey)
   const result: BatchResult = { sent: [], failed: [] }
   for (let offset = 0; offset < messages.length; offset += BATCH_SIZE) {
-    const chunkIds = opts?.ids?.slice(offset, offset + BATCH_SIZE)
-    const key = chunkIds?.length
-      ? createHash('sha256')
-          .update([...chunkIds].sort().join(','))
-          .digest('hex')
-      : undefined
     const r = await sendChunk(resend, {
       from,
       messages: messages.slice(offset, offset + BATCH_SIZE),
       offset,
-      idempotencyKey: key,
     })
     result.sent.push(...r.sent)
     result.failed.push(...r.failed)

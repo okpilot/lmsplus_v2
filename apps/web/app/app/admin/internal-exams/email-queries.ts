@@ -11,6 +11,7 @@ export type InternalExamCodeForEmail = {
   voidedAt: string | null
   sittingEntryId: string | null
   /** Null for a legacy code. */
+  sittingId: string | null
   scheduledAt: string | null
   mode: 'remote' | 'in_person' | null
   sittingStatus: string | null
@@ -24,7 +25,7 @@ type CodeRowRaw = {
   consumed_at: string | null
   voided_at: string | null
   sitting_entry_id: string | null
-  exam_sitting_entries?: { exam_sittings: SittingEmbed | null } | null
+  exam_sitting_entries?: { sitting_id: string; exam_sittings: SittingEmbed | null } | null
   easa_subjects: { name: string | null } | null
   users: { full_name: string | null; email: string | null; deleted_at: string | null } | null
 }
@@ -69,7 +70,7 @@ export async function getInternalExamCodeForEmail(
     .from('internal_exam_codes')
     .select(
       `code, expires_at, consumed_at, voided_at, sitting_entry_id,
-       exam_sitting_entries!internal_exam_codes_sitting_entry_fkey(exam_sittings!exam_sitting_entries_sitting_id_organization_id_fkey(scheduled_at, mode, status)),
+       exam_sitting_entries!internal_exam_codes_sitting_entry_fkey(sitting_id, exam_sittings!exam_sitting_entries_sitting_id_organization_id_fkey(scheduled_at, mode, status)),
        easa_subjects!subject_id(name),
        users!student_id(full_name, email, deleted_at)`,
     )
@@ -93,7 +94,8 @@ export async function getInternalExamCodeForEmail(
   const studentEmail = data.users?.email
   if (typeof studentEmail !== 'string' || studentEmail.length === 0) return null
 
-  const sitting = data.exam_sitting_entries?.exam_sittings ?? null
+  const entry = data.exam_sitting_entries
+  const sitting = entry?.exam_sittings ?? null
   return {
     code: data.code,
     studentEmail,
@@ -103,6 +105,7 @@ export async function getInternalExamCodeForEmail(
     consumedAt: data.consumed_at,
     voidedAt: data.voided_at,
     sittingEntryId: data.sitting_entry_id,
+    sittingId: entry?.sitting_id ?? null,
     scheduledAt: sitting?.scheduled_at ?? null,
     mode: sitting?.mode ?? null,
     sittingStatus: sitting?.status ?? null,
@@ -159,26 +162,12 @@ async function readAll<T>(page: (from: number, to: number) => Rows): Promise<T[]
 
 type Db = { from: (t: string) => Q }
 
-async function liveCandidates(db: Db, orgId: string, sittingId: string): Promise<Set<string>> {
-  const candidates = await readAll<{ user_id: string }>((a, b) =>
-    db
-      .from('exam_sitting_candidates')
-      .select('user_id')
-      .eq('organization_id', orgId)
-      .eq('sitting_id', sittingId)
-      .is('deleted_at', null)
-      .order('user_id')
-      .range(a, b),
-  )
-  return new Set(candidates.map((c) => c.user_id))
-}
-
 function unemailedCodes(db: Db, orgId: string, sittingId: string) {
-  return readAll<SittingCodeRaw & { student_id: string }>((a, b) =>
+  return readAll<SittingCodeRaw>((a, b) =>
     db
       .from('internal_exam_codes')
       .select(
-        `id, code, student_id,
+        `id, code,
          exam_sitting_entries!internal_exam_codes_sitting_entry_fkey!inner(sitting_id),
          easa_subjects!subject_id(name),
          users!student_id(full_name, email, deleted_at)`,
@@ -197,7 +186,7 @@ function unemailedCodes(db: Db, orgId: string, sittingId: string) {
 }
 
 /**
- * Unused, unemailed codes of a sitting's live candidates, for the bulk email. Scoped to `orgId` on
+ * Unused, unemailed codes of a sitting, for the bulk email. Scoped to `orgId` on
  * every read (adminClient bypasses RLS; `users` is unreadable across rows). A deactivated or
  * email-less student is counted in `skipped`. `sitting` is null when the sitting is not in `orgId`.
  * Throws on a DB error (a silent empty result would read as "nothing to send").
@@ -219,12 +208,10 @@ export async function getSittingCodesForEmail(
   if (s.error) throw new Error(s.error.message)
   if (!sr) return empty
   const sitting = { status: sr.status, scheduledAt: sr.scheduled_at }
-  const live = await liveCandidates(db, orgId, sittingId)
   const codes = await unemailedCodes(db, orgId, sittingId)
   const rows: SittingEmailRow[] = []
   let skipped = 0
   for (const c of codes) {
-    if (!live.has(c.student_id)) continue
     const email = c.users?.email
     if (c.users?.deleted_at != null || typeof email !== 'string' || email.length === 0) {
       skipped++

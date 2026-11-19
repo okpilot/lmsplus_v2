@@ -70,6 +70,7 @@ describe('getInternalExamCodeForEmail', () => {
       consumedAt: null,
       voidedAt: null,
       sittingEntryId: null,
+      sittingId: null,
       scheduledAt: null,
       mode: null,
       sittingStatus: null,
@@ -178,6 +179,7 @@ describe('getInternalExamCodeForEmail sitting embed (2c-i)', () => {
     ...ROW,
     sitting_entry_id: 'entry-1',
     exam_sitting_entries: {
+      sitting_id: 'sitting-1',
       exam_sittings: {
         scheduled_at: '2026-11-24T09:00:00.000Z',
         mode: 'in_person',
@@ -191,6 +193,7 @@ describe('getInternalExamCodeForEmail sitting embed (2c-i)', () => {
     mockAdminFrom.mockReturnValue(buildChain(SITTING_ROW))
     expect(await getInternalExamCodeForEmail(CODE_ID)).toMatchObject({
       sittingEntryId: 'entry-1',
+      sittingId: 'sitting-1',
       scheduledAt: '2026-11-24T09:00:00.000Z',
       mode: 'in_person',
       sittingStatus: 'scheduled',
@@ -204,6 +207,7 @@ describe('getInternalExamCodeForEmail sitting embed (2c-i)', () => {
     await getInternalExamCodeForEmail(CODE_ID)
     const cols = String(chain.select.mock.calls[0]?.[0])
     expect(cols).toContain('exam_sitting_entries')
+    expect(cols).toMatch(/exam_sitting_entries![^(]*\(sitting_id,/)
     expect(cols).toContain('exam_sittings')
     for (const c of ['scheduled_at', 'mode', 'status']) expect(cols).toContain(c)
   })

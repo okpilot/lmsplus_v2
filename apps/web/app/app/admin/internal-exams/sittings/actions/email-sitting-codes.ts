@@ -61,11 +61,16 @@ export async function emailSittingCodes(
   const examUrl = `${base}/app/internal-exam`
   const messages = rows.map((r) => ({
     to: r.email,
-    ...sittingCodeEmail({ ...r, studentName: r.studentName, examUrl }),
+    ...sittingCodeEmail({
+      studentName: r.studentName,
+      subjectName: r.subjectName,
+      code: r.code,
+      scheduledAt: r.scheduledAt,
+      mode: r.mode,
+      examUrl,
+    }),
   }))
-  const { sent, failed } = rows.length
-    ? await sendEmailBatch(messages, { ids: rows.map((r) => r.codeId) })
-    : { sent: [], failed: [] }
+  const { sent, failed } = rows.length ? await sendEmailBatch(messages) : { sent: [], failed: [] }
   const sentIds = sent.flatMap((i) => rows[i]?.codeId ?? [])
   const unrecorded = await record((fn, args) => supabase.rpc(fn, args), sentIds)
   if (rows.length) revalidateSitting(sittingId)

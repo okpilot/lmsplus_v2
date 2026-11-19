@@ -192,6 +192,7 @@ describe('sendInternalExamCodeEmail sitting codes', () => {
   const sittingPayload = (overrides: Record<string, unknown> = {}) =>
     activePayload({
       sittingEntryId: 'entry-1',
+      sittingId: 'sitting-1',
       scheduledAt: '2999-11-24T09:00:00.000Z',
       mode: 'in_person',
       sittingStatus: 'scheduled',
@@ -215,6 +216,20 @@ describe('sendInternalExamCodeEmail sitting codes', () => {
     expect(mockRpc).toHaveBeenCalledWith('record_internal_exam_code_emailed', {
       p_code_id: CODE_ID,
     })
+  })
+
+  it('revalidates the sitting page and the list after a sitting code is emailed', async () => {
+    mockAdmin()
+    mockGetCode.mockResolvedValue(sittingPayload())
+    mockSendEmail.mockResolvedValue({ ok: true })
+    mockRpc.mockResolvedValue({ data: null, error: null })
+
+    await sendInternalExamCodeEmail(VALID_INPUT)
+
+    expect(mockRevalidatePath.mock.calls.map((c) => c[0])).toEqual([
+      '/app/admin/internal-exams',
+      '/app/admin/internal-exams/sittings/sitting-1',
+    ])
   })
 
   it('keeps the legacy template for a legacy code', async () => {
