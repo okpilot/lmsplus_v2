@@ -10,7 +10,13 @@ export type InternalExamCodeForEmail = {
   consumedAt: string | null
   voidedAt: string | null
   sittingEntryId: string | null
+  /** Null for a legacy code. */
+  scheduledAt: string | null
+  mode: 'remote' | 'in_person' | null
+  sittingStatus: string | null
 }
+
+type SittingEmbed = { scheduled_at: string; mode: 'remote' | 'in_person'; status: string }
 
 type CodeRowRaw = {
   code: string
@@ -18,6 +24,7 @@ type CodeRowRaw = {
   consumed_at: string | null
   voided_at: string | null
   sitting_entry_id: string | null
+  exam_sitting_entries?: { exam_sittings: SittingEmbed | null } | null
   easa_subjects: { name: string | null } | null
   users: { full_name: string | null; email: string | null; deleted_at: string | null } | null
 }
@@ -62,6 +69,7 @@ export async function getInternalExamCodeForEmail(
     .from('internal_exam_codes')
     .select(
       `code, expires_at, consumed_at, voided_at, sitting_entry_id,
+       exam_sitting_entries!internal_exam_codes_sitting_entry_fkey(exam_sittings!exam_sitting_entries_sitting_id_organization_id_fkey(scheduled_at, mode, status)),
        easa_subjects!subject_id(name),
        users!student_id(full_name, email, deleted_at)`,
     )
@@ -85,6 +93,7 @@ export async function getInternalExamCodeForEmail(
   const studentEmail = data.users?.email
   if (typeof studentEmail !== 'string' || studentEmail.length === 0) return null
 
+  const sitting = data.exam_sitting_entries?.exam_sittings ?? null
   return {
     code: data.code,
     studentEmail,
@@ -94,5 +103,142 @@ export async function getInternalExamCodeForEmail(
     consumedAt: data.consumed_at,
     voidedAt: data.voided_at,
     sittingEntryId: data.sitting_entry_id,
+    scheduledAt: sitting?.scheduled_at ?? null,
+    mode: sitting?.mode ?? null,
+    sittingStatus: sitting?.status ?? null,
   }
+}
+
+type Rows = PromiseLike<{ data: unknown; error: { message: string } | null }>
+type Q = Rows & {
+  select: (cols: string) => Q
+  eq: (col: string, val: unknown) => Q
+  is: (col: string, val: null) => Q
+  gt: (col: string, val: string) => Q
+  order: (col: string) => Q
+  range: (from: number, to: number) => Q
+  maybeSingle: () => Rows
+}
+
+export type SittingEmailRow = {
+  codeId: string
+  code: string
+  studentName: string | null
+  email: string
+  subjectName: string
+  scheduledAt: string
+  mode: 'remote' | 'in_person'
+}
+
+export type SittingCodesForEmail = {
+  sitting: { status: string; scheduledAt: string } | null
+  rows: SittingEmailRow[]
+  skipped: number
+}
+
+type SittingCodeRaw = {
+  id: string
+  code: string
+  easa_subjects: { name: string | null } | null
+  users: { full_name: string | null; email: string | null; deleted_at: string | null } | null
+}
+
+const PAGE = 1000
+
+/** Reads every page (PostgREST caps a response at max_rows). Throws on a DB error. */
+async function readAll<T>(page: (from: number, to: number) => Rows): Promise<T[]> {
+  const out: T[] = []
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await page(from, from + PAGE - 1)
+    if (error) throw new Error(error.message)
+    const rows = Array.isArray(data) ? (data as T[]) : []
+    out.push(...rows)
+    if (rows.length < PAGE) return out
+  }
+}
+
+type Db = { from: (t: string) => Q }
+
+async function liveCandidates(db: Db, orgId: string, sittingId: string): Promise<Set<string>> {
+  const candidates = await readAll<{ user_id: string }>((a, b) =>
+    db
+      .from('exam_sitting_candidates')
+      .select('user_id')
+      .eq('organization_id', orgId)
+      .eq('sitting_id', sittingId)
+      .is('deleted_at', null)
+      .order('user_id')
+      .range(a, b),
+  )
+  return new Set(candidates.map((c) => c.user_id))
+}
+
+function unemailedCodes(db: Db, orgId: string, sittingId: string) {
+  return readAll<SittingCodeRaw & { student_id: string }>((a, b) =>
+    db
+      .from('internal_exam_codes')
+      .select(
+        `id, code, student_id,
+         exam_sitting_entries!internal_exam_codes_sitting_entry_fkey!inner(sitting_id),
+         easa_subjects!subject_id(name),
+         users!student_id(full_name, email, deleted_at)`,
+      )
+      .eq('organization_id', orgId)
+      .eq('exam_sitting_entries.sitting_id', sittingId)
+      .is('exam_sitting_entries.deleted_at', null)
+      .is('deleted_at', null)
+      .is('emailed_at', null)
+      .is('consumed_at', null)
+      .is('voided_at', null)
+      .gt('expires_at', new Date().toISOString())
+      .order('id')
+      .range(a, b),
+  )
+}
+
+/**
+ * Unused, unemailed codes of a sitting's live candidates, for the bulk email. Scoped to `orgId` on
+ * every read (adminClient bypasses RLS; `users` is unreadable across rows). A deactivated or
+ * email-less student is counted in `skipped`. `sitting` is null when the sitting is not in `orgId`.
+ * Throws on a DB error (a silent empty result would read as "nothing to send").
+ */
+export async function getSittingCodesForEmail(
+  orgId: string,
+  sittingId: string,
+): Promise<SittingCodesForEmail> {
+  const db = adminClient as unknown as Db
+  const empty = { sitting: null, rows: [], skipped: 0 }
+  const s = await db
+    .from('exam_sittings')
+    .select('status, scheduled_at, mode')
+    .eq('id', sittingId)
+    .eq('organization_id', orgId)
+    .is('deleted_at', null)
+    .maybeSingle()
+  const sr = s.data as { status: string; scheduled_at: string; mode: SittingEmbed['mode'] } | null
+  if (s.error) throw new Error(s.error.message)
+  if (!sr) return empty
+  const sitting = { status: sr.status, scheduledAt: sr.scheduled_at }
+  const live = await liveCandidates(db, orgId, sittingId)
+  const codes = await unemailedCodes(db, orgId, sittingId)
+  const rows: SittingEmailRow[] = []
+  let skipped = 0
+  for (const c of codes) {
+    if (!live.has(c.student_id)) continue
+    const email = c.users?.email
+    if (c.users?.deleted_at != null || typeof email !== 'string' || email.length === 0) {
+      skipped++
+      continue
+    }
+    rows.push({
+      codeId: c.id,
+      code: c.code,
+      studentName: c.users?.full_name ?? null,
+      email,
+      subjectName: c.easa_subjects?.name ?? '',
+      scheduledAt: sr.scheduled_at,
+      mode: sr.mode,
+    })
+  }
+  return { sitting, rows, skipped }
 }

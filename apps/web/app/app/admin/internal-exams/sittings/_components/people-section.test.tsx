@@ -8,7 +8,10 @@ const m = vi.hoisted(() => ({
   toastError: vi.fn(),
   replace: vi.fn(),
 }))
+vi.mock('../../actions/send-code-email', () => ({ sendInternalExamCodeEmail: vi.fn() }))
+vi.mock('../actions/email-sitting-codes', () => ({ emailSittingCodes: vi.fn() }))
 vi.mock('../actions/remove-candidates', () => ({ removeCandidates: m.removeCandidates }))
+vi.mock('../actions/email-sitting-codes', () => ({ emailSittingCodes: vi.fn() }))
 vi.mock('../actions/remove-entries', () => ({ removeSittingEntries: vi.fn() }))
 vi.mock('../actions/issue-sitting-codes', () => ({ issueSittingCodes: vi.fn() }))
 vi.mock('../actions/void-sitting-code', () => ({ voidSittingCode: vi.fn() }))
@@ -541,5 +544,17 @@ describe('PeopleSection section actions', () => {
   it('never renders Email all codes', () => {
     ui({ summary: { ...summary, entriesIssuable: 3 } })
     expect(screen.queryByRole('button', { name: /Email all codes/ })).toBeNull()
+  })
+})
+
+describe('PeopleSection Email codes (2c-i)', () => {
+  it('offers Email codes in the header while the sitting is editable', () => {
+    ui()
+    expect(screen.getByRole('button', { name: 'Email codes' })).toBeInTheDocument()
+  })
+
+  it('hides Email codes when the sitting is closed or cancelled', () => {
+    ui({ editable: false, status: 'closed' })
+    expect(screen.queryByRole('button', { name: 'Email codes' })).toBeNull()
   })
 })

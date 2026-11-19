@@ -63,16 +63,13 @@ export function CodeRow({
         {formatAbsolute(r.expiresAt)}
       </TableCell>
       <TableCell>
-        {/* Only an active code can be (re)emailed — the send action rejects
-            consumed/voided/expired codes ('Code is no longer active'), so
-            disable the button for every non-active code. */}
-        {r.sittingEntryId === null && (
-          <SendCodeEmailButton
-            codeId={r.id}
-            emailedAt={r.emailedAt}
-            disabled={r.status !== 'active'}
-          />
-        )}
+        {/* An active code, or a sitting code not yet opened ('waiting'), can be (re)emailed;
+            the send action rejects every other state. */}
+        <SendCodeEmailButton
+          codeId={r.id}
+          emailedAt={r.emailedAt}
+          disabled={r.status !== 'active' && r.status !== 'waiting'}
+        />
       </TableCell>
       <TableCell>
         {r.sittingEntryId === null && (

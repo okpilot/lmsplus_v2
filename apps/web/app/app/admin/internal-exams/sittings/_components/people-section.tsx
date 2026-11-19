@@ -15,6 +15,7 @@ import {
   type SittingSummary,
 } from '../types'
 import { AddPeopleButton } from './add-people-button'
+import { EmailCodesButton } from './email-codes-button'
 import { IssueAllButton } from './issue-all-button'
 import { RemovePeopleDialog } from './remove-people-dialog'
 import { RosterSearch } from './roster-search'
@@ -35,12 +36,17 @@ type Props = {
   page: number
 }
 
-/** Section header actions: Add people, and Issue all codes while some exam needs one. */
-function PeopleActions({ issuable }: Readonly<{ issuable: number }>) {
+/** Section header actions: Add people, Issue all codes while some exam needs one, Email codes. */
+function PeopleActions({
+  sittingId,
+  issuable,
+  bulk,
+}: Readonly<{ sittingId: string; issuable: number; bulk: boolean }>) {
   return (
     <>
       <AddPeopleButton />
       {issuable > 0 && <IssueAllButton count={issuable} />}
+      {!bulk && <EmailCodesButton sittingId={sittingId} />}
     </>
   )
 }
@@ -61,7 +67,11 @@ export function PeopleSection(p: Readonly<Props>) {
     <Section
       title="People"
       count={p.summary.candidates}
-      actions={p.editable && <PeopleActions issuable={p.summary.entriesIssuable} />}
+      actions={
+        p.editable && (
+          <PeopleActions sittingId={p.sittingId} issuable={p.summary.entriesIssuable} bulk={bulk} />
+        )
+      }
     >
       <ListCard
         filters={

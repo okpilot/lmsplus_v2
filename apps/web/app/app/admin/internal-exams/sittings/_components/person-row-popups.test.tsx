@@ -4,6 +4,8 @@ import { useEffect, useRef } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const m = vi.hoisted(() => ({ push: vi.fn() }))
+vi.mock('../../actions/send-code-email', () => ({ sendInternalExamCodeEmail: vi.fn() }))
+vi.mock('../actions/email-sitting-codes', () => ({ emailSittingCodes: vi.fn() }))
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: m.push, replace: vi.fn(), refresh: vi.fn(), back: vi.fn() }),
   usePathname: () => '/app/admin/internal-exams/sittings/sit-1',

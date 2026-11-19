@@ -186,7 +186,7 @@ test.describe('internal exam — send-code-email pre-send state guard', () => {
     await expect(adminPage.getByText(STALE_CODE_TOAST)).toBeVisible({ timeout: 10_000 })
   })
 
-  test('a sitting code row has no email button', async ({ page: adminPage }) => {
+  test('a sitting code row has the email button', async ({ page: adminPage }) => {
     const { code } = await issueSittingCodeFor({
       studentEmail: INTERNAL_EXAM_STUDENT_EMAIL,
       subjectFragment: SUBJECT_LABEL_FRAGMENT,
@@ -195,7 +195,36 @@ test.describe('internal exam — send-code-email pre-send state guard', () => {
     const row = adminPage.locator('tr', { hasText: code })
     await expect(row).toBeVisible()
     await expect(row.getByRole('link', { name: 'Sitting code' })).toBeVisible()
-    await expect(row.getByRole('button', { name: /send email/i })).toHaveCount(0)
+    await expect(row.getByRole('button', { name: /send email/i })).toHaveCount(1)
+  })
+
+  // Sent path only where an email key exists (local, non-production); CI has no key and
+  // runs production, so the same click reports Failed there (header note above).
+  test('bulk "Email codes" on a sitting reports the outcome, and a re-run emails nothing new', async ({
+    page: adminPage,
+  }) => {
+    const { sittingId } = await seedSittingFor({
+      studentEmail: INTERNAL_EXAM_STUDENT_EMAIL,
+      subjectFragment: SUBJECT_LABEL_FRAGMENT,
+      status: 'scheduled',
+    })
+    const emailAll = async () => {
+      await adminPage.goto(`/app/admin/internal-exams/sittings/${sittingId}`)
+      await adminPage.getByRole('button', { name: 'Email codes' }).click()
+      await expect(
+        adminPage.getByText('Email every unused code not yet emailed to its student.'),
+      ).toBeVisible()
+      await adminPage.getByRole('alertdialog').getByRole('button', { name: 'Email codes' }).click()
+    }
+
+    await emailAll()
+    if (process.env.CI) {
+      await expect(adminPage.getByText(/Failed 1/)).toBeVisible({ timeout: 15_000 })
+    } else {
+      await expect(adminPage.getByText(/Emailed 1/)).toBeVisible({ timeout: 15_000 })
+      await emailAll()
+      await expect(adminPage.getByText(/Emailed 0/)).toBeVisible({ timeout: 15_000 })
+    }
   })
 
   test('a sitting code on a scheduled sitting shows "Waiting for start" and links to the sitting', async ({
