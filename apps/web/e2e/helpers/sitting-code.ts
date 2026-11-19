@@ -175,6 +175,7 @@ async function insertSitting(
   admin: Admin,
   c: Ids,
   status: SeedStatus,
+  scheduledAt?: string,
 ): Promise<{ id: string; scheduledAt: string }> {
   const now = new Date().toISOString()
   const res = await admin
@@ -184,14 +185,14 @@ async function insertSitting(
       mode: 'remote',
       invigilator_id: c.adminId,
       created_by: c.adminId,
-      scheduled_at: now,
+      scheduled_at: scheduledAt ?? now,
       permitted_materials: makeSittingSeedMaterials(),
       ...(status === 'open' ? { started_at: now, started_by: c.adminId } : {}),
     })
     .select('id')
     .single()
   if (res.error || !res.data) fail('sitting', res.error)
-  return { id: res.data.id, scheduledAt: now }
+  return { id: res.data.id, scheduledAt: scheduledAt ?? now }
 }
 
 export type SeedSittingForInput = {
@@ -201,6 +202,8 @@ export type SeedSittingForInput = {
   status?: SeedStatus
   /** Default true; false leaves a no-code entry (issued later through the sitting page popup). */
   withCode?: boolean
+  /** ISO instant for `scheduled_at`; default now. */
+  scheduledAt?: string
 }
 
 /**
@@ -216,7 +219,7 @@ export async function seedSittingFor(
   const admin = getAdminClient()
   const c = await lookupIds(admin, input.studentEmail, input.subjectFragment)
   await ensureEnrolment(admin, c)
-  const sitting = await insertSitting(admin, c, input.status ?? 'open')
+  const sitting = await insertSitting(admin, c, input.status ?? 'open', input.scheduledAt)
   const sittingId = sitting.id
   const cand = await admin
     .from('exam_sitting_candidates')
