@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { randomCode } from './code-gen'
 import {
   EXAM_SITTING_SEED_EMAIL_PREFIX,
   EXAM_SITTING_SEED_GROUP_PREFIX,
@@ -97,10 +98,6 @@ export async function insertPassedSession(
   return res.data.id
 }
 
-function code(): string {
-  return randomUUID().replaceAll('-', '').slice(0, 8).toUpperCase()
-}
-
 const endOfTodayUtc = () => `${new Date().toISOString().slice(0, 10)}T23:59:59.000Z`
 
 async function seedCode(
@@ -111,7 +108,7 @@ async function seedCode(
   if (state === 'no_code') return
   const now = Date.now()
   const base: Record<string, unknown> = {
-    code: code(),
+    code: randomCode(),
     organization_id: c.orgId,
     issued_by: c.adminId,
     sitting_entry_id: c.entryId,
