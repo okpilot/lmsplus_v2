@@ -28,7 +28,6 @@ import { cleanupE2eExamSittings } from './helpers/exam-sitting-cleanup'
 import { insertLegacyCodeFor, issueSittingCodeFor } from './helpers/sitting-code'
 import {
   cleanupInternalExamStudentActiveSessions,
-  getAdminClient,
   INTERNAL_EXAM_STUDENT_EMAIL,
 } from './helpers/supabase'
 
@@ -80,18 +79,20 @@ test.describe('internal exam — no-discard + admin void', () => {
   })
 
   // The void test uses a legacy code: a consumed sitting code has no Void in the Codes tab.
-  let legacyCode: string | null = null
-
   test.afterEach(async () => {
-    await cleanupE2eExamSittings()
-    if (legacyCode === null) return
-    await cleanupInternalExamStudentActiveSessions(await signInAsAdmin())
-    const { error } = await getAdminClient()
-      .from('internal_exam_codes')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('code', legacyCode)
-    legacyCode = null
-    if (error) throw new Error(`afterEach legacy code soft-delete: ${error.message}`)
+    const errors: string[] = []
+    try {
+      await cleanupE2eExamSittings()
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e))
+    }
+    // Voids a redeemed legacy code (ends its session), then soft-deletes legacy codes.
+    try {
+      await cleanupInternalExamStudentActiveSessions(await signInAsAdmin())
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e))
+    }
+    if (errors.length > 0) throw new Error(`afterEach: ${errors.join('; ')}`)
   })
 
   // ── (a) Discard button is hidden in the finish dialog ─────────────────────
@@ -132,7 +133,6 @@ test.describe('internal exam — no-discard + admin void', () => {
       studentEmail: INTERNAL_EXAM_STUDENT_EMAIL,
       subjectFragment: SUBJECT_LABEL_FRAGMENT,
     })
-    legacyCode = code
 
     const { context: studentCtx, page } = await openStudentContext(adminCtx.browser())
     try {

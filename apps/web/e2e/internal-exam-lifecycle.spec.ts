@@ -106,8 +106,6 @@ async function openStudentContext(browser: BrowserContext['browser']): Promise<{
 
 test.describe('internal exam — lifecycle', () => {
   test.setTimeout(120_000)
-  let legacyCode: string | null = null
-
   // Void any active session left over from a prior test before each run.
   // See issue #587 — stale sessions cascade and block start_internal_exam_session.
   test.beforeEach(async () => {
@@ -117,16 +115,19 @@ test.describe('internal exam — lifecycle', () => {
   })
 
   test.afterEach(async () => {
-    await cleanupE2eExamSittings()
-    if (legacyCode === null) return
-    // Void the redeemed legacy code (ends its session) while it is still findable, then hide it.
-    await cleanupInternalExamStudentActiveSessions(await signInAsAdmin())
-    const { error } = await getAdminClient()
-      .from('internal_exam_codes')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('code', legacyCode)
-    legacyCode = null
-    if (error) throw new Error(`afterEach legacy code soft-delete: ${error.message}`)
+    const errors: string[] = []
+    try {
+      await cleanupE2eExamSittings()
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e))
+    }
+    // Voids a redeemed legacy code (ends its session), then soft-deletes legacy codes.
+    try {
+      await cleanupInternalExamStudentActiveSessions(await signInAsAdmin())
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e))
+    }
+    if (errors.length > 0) throw new Error(`afterEach: ${errors.join('; ')}`)
   })
 
   test('admin issues code, student starts + submits, attempt appears in My Reports and the admin report', async ({
@@ -266,7 +267,7 @@ test.describe('internal exam — lifecycle', () => {
   test('a legacy code (no sitting) is still redeemable until it is dropped', async ({
     browser,
   }) => {
-    legacyCode = await insertLegacyCodeFor({
+    const legacyCode = await insertLegacyCodeFor({
       studentEmail: INTERNAL_EXAM_STUDENT_EMAIL,
       subjectFragment: SUBJECT_LABEL_FRAGMENT,
     })
