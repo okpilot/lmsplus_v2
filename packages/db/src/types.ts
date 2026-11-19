@@ -2418,6 +2418,7 @@ export type Database = {
         Args: { p_sitting_id: string }
         Returns: {
           entry_id: string
+          no_notice: boolean
           notice_sent: boolean
           passed_at: string
           removed_at: string

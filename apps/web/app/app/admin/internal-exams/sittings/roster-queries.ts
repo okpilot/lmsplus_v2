@@ -171,6 +171,8 @@ export async function getRemoved(
       passedAt: r.passed_at,
       removedAt: r.removed_at,
       noticeSent: r.notice_sent,
+      // Absent before migration 20261119000800 (deploy window): reads as pending.
+      noNotice: r.no_notice === true,
     })),
     total: Number(rows[0]?.total_count ?? 0),
   }
