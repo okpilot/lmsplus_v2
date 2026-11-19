@@ -106,6 +106,20 @@ export type GdprExportPayload = {
     deleted_at: string | null
     deleted_by: string | null
   }>
+  exam_sitting_candidacies: Array<{
+    sitting_id: string
+    sitting_scheduled_at: string | null
+    sitting_mode: string | null
+    sitting_status: string | null
+    added_at: string
+    deleted_at: string | null
+  }>
+  exam_sitting_entries: Array<{
+    sitting_id: string
+    subject_id: string
+    added_at: string
+    deleted_at: string | null
+  }>
   audit_events: Array<{
     event_type: string
     resource_type: string

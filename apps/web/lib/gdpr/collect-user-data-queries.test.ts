@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   type AnswerRow,
   fetchCourseEnrolments,
+  fetchExamSittingCandidacies,
+  fetchExamSittingEntries,
   fetchStudentGroupMemberships,
   fetchUserAuditEvents,
   fetchUserComments,
@@ -122,6 +124,79 @@ describe('fetchStudentGroupMemberships', () => {
       'student_groups!student_group_members_group_id_organization_id_fkey(name)',
     )
     expect(order).toHaveBeenCalledWith('added_at', { ascending: false })
+  })
+})
+
+function recordingClient() {
+  const eq = vi.fn()
+  const select = vi.fn()
+  const order = vi.fn()
+  const builder: Record<string, unknown> = {}
+  builder.select = (...a: unknown[]) => {
+    select(...a)
+    return builder
+  }
+  builder.eq = (...a: unknown[]) => {
+    eq(...a)
+    return builder
+  }
+  builder.order = (...a: unknown[]) => {
+    order(...a)
+    return builder
+  }
+  builder.range = vi.fn(() => builder)
+  const from = vi.fn(() => builder)
+  const client = { from } as unknown as SupabaseClient<Database>
+  return { client, from, eq, select, order }
+}
+
+function runCountAndPage() {
+  const [getCount, getPage] = mockFetchAllRows.mock.calls[0] as [
+    () => unknown,
+    (a: number, b: number) => unknown,
+  ]
+  getCount()
+  getPage(0, 9)
+}
+
+describe('fetchExamSittingCandidacies', () => {
+  it('reads exam_sitting_candidates for the user with the sitting embed, newest first then by id', async () => {
+    mockFetchAllRows.mockResolvedValueOnce({ data: [], error: null })
+    const { client, from, eq, select, order } = recordingClient()
+
+    await fetchExamSittingCandidacies(client, USER_ID)
+    runCountAndPage()
+
+    expect(from).toHaveBeenCalledWith('exam_sitting_candidates')
+    expect(eq.mock.calls).toEqual([
+      ['user_id', USER_ID],
+      ['user_id', USER_ID],
+    ])
+    const pageSelect = String(select.mock.calls[1]?.[0]).replace(/\s+/g, '')
+    expect(pageSelect).toBe(
+      'sitting_id,added_at,deleted_at,exam_sittings!exam_sitting_candidates_sitting_id_organization_id_fkey(scheduled_at,mode,status)',
+    )
+    expect(order.mock.calls).toEqual([['added_at', { ascending: false }], ['id']])
+  })
+})
+
+describe('fetchExamSittingEntries', () => {
+  it('reads exam_sitting_entries for the user with granted columns only, newest first then by id', async () => {
+    mockFetchAllRows.mockResolvedValueOnce({ data: [], error: null })
+    const { client, from, eq, select, order } = recordingClient()
+
+    await fetchExamSittingEntries(client, USER_ID)
+    runCountAndPage()
+
+    expect(from).toHaveBeenCalledWith('exam_sitting_entries')
+    expect(eq.mock.calls).toEqual([
+      ['user_id', USER_ID],
+      ['user_id', USER_ID],
+    ])
+    expect(String(select.mock.calls[1]?.[0]).replace(/\s+/g, '')).toBe(
+      'sitting_id,subject_id,added_at,deleted_at',
+    )
+    expect(order.mock.calls).toEqual([['added_at', { ascending: false }], ['id']])
   })
 })
 
@@ -255,6 +330,8 @@ describe.each([
   ['fetchUserAuditEvents', fetchUserAuditEvents],
   ['fetchCourseEnrolments', fetchCourseEnrolments],
   ['fetchStudentGroupMemberships', fetchStudentGroupMemberships],
+  ['fetchExamSittingCandidacies', fetchExamSittingCandidacies],
+  ['fetchExamSittingEntries', fetchExamSittingEntries],
 ] as const)('%s', (_name, fetchFn) => {
   it('surfaces a page-fetch error as { data: [], error } when count succeeds but page fails', async () => {
     mockFetchAllRows.mockResolvedValueOnce({ data: [], error: PAGE_ERROR })
