@@ -369,6 +369,7 @@
 | MY | listInternalExamAttempts-adminClient-cross-org-sitting-group-search-filters | MEDIUM | exam-attempts-filters-scope.spec.ts | BLOCKED |  | cross-tenant |
 | MZ | listInternalExamAttempts-search-postgrest-or-breakout | MEDIUM | exam-attempts-filters-scope.spec.ts | BLOCKED |  | input-injection |
 | NA | issue_sitting_exam_codes-parallel-double-issue-per-entry | MEDIUM | exam-sitting-issue-codes-race.spec.ts | BLOCKED |  | race |
+| NB | get_pending_removal_notices-get_exam_sitting_summary-student-moved-foreign-org-or-deactivated | MEDIUM | exam-sitting-pending-notices-foreign-student.spec.ts | BLOCKED |  | cross-tenant |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
