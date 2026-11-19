@@ -84,9 +84,9 @@ export async function ensureEnrolment(
 async function insertSitting(
   admin: Admin,
   c: Ids,
-  status: SeedStatus,
-  scheduledAt?: string,
+  opts: { status: SeedStatus; scheduledAt?: string },
 ): Promise<string> {
+  const { status, scheduledAt } = opts
   const now = new Date().toISOString()
   const res = await admin
     .from('exam_sittings')
@@ -126,7 +126,10 @@ export async function seedSittingFor(
   const admin = getAdminClient()
   const c = await lookupIds(admin, input.studentEmail, input.subjectFragment)
   await ensureEnrolment(admin, c)
-  const sittingId = await insertSitting(admin, c, input.status ?? 'open', input.scheduledAt)
+  const sittingId = await insertSitting(admin, c, {
+    status: input.status ?? 'open',
+    scheduledAt: input.scheduledAt,
+  })
   const cand = await admin
     .from('exam_sitting_candidates')
     .insert({ organization_id: c.orgId, sitting_id: sittingId, user_id: c.userId })

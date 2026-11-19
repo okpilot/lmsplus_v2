@@ -94,6 +94,8 @@ function AttemptRow({ row: r }: Readonly<{ row: InternalExamAttemptRow }>) {
       tabIndex={0}
       onClick={navigate}
       onKeyDown={(e) => {
+        // Keys on a focused link inside the row follow that link.
+        if (e.target !== e.currentTarget) return
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
           navigate()
