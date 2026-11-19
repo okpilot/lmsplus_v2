@@ -714,4 +714,25 @@ describe('pending notices: whole-student cap and deliverable count', () => {
     expect(await summaryCount(sit)).toBe(2)
     expect((await pendingRows(sit)).length).toBe(3)
   })
+
+  it('a student with an empty email is absent from the pending notices and the summary count', async () => {
+    wipeSitting(w)
+    const sit = await w.sitting({ day: 1 })
+    await w.code(await w.enter(sit, w.s1, w.subA), { emailed: true })
+    await w.code(await w.enter(sit, w.s2, w.subA), { emailed: true })
+    must(await w.clients.a1.rpc('cancel_exam_sitting', { p_sitting_id: sit }), 'cancel')
+    const original = must<{ email: string }>(
+      await admin.from('users').select('email').eq('id', w.s1).single(),
+      'email',
+    ).email
+    await w.setUser(w.s1, { email: '' })
+    try {
+      const rows = await pendingRows(sit)
+      expect(rows.some((r) => r.user_id === w.s1)).toBe(false)
+      expect(rows.some((r) => r.user_id === w.s2)).toBe(true)
+      expect(await summaryCount(sit)).toBe(1)
+    } finally {
+      await w.setUser(w.s1, { email: original })
+    }
+  })
 })
