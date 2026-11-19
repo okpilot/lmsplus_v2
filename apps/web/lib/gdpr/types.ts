@@ -110,6 +110,7 @@ export type GdprExportPayload = {
     sitting_id: string
     sitting_scheduled_at: string | null
     sitting_mode: string | null
+    sitting_status: string | null
     added_at: string
     deleted_at: string | null
   }>

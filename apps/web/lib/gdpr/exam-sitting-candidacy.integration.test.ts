@@ -107,6 +107,11 @@ describe('collectUserData sitting candidacy (app-layer integration)', () => {
     liveSitting = await seedSitting('remote', SCHEDULED_LIVE)
     removedSitting = await seedSitting('in_person', SCHEDULED_REMOVED)
     peerSitting = await seedSitting('remote', SCHEDULED_LIVE)
+    const { error: cancelErr } = await admin
+      .from('exam_sittings')
+      .update({ deleted_at: new Date().toISOString(), deleted_by: adminId })
+      .eq('id', removedSitting)
+    if (cancelErr) throw new Error(`cancel sitting: ${cancelErr.message}`)
     await seedRows(liveSitting, studentId, false)
     await seedRows(removedSitting, studentId, true)
     await seedRows(peerSitting, otherStudentId, false)
@@ -131,6 +136,7 @@ describe('collectUserData sitting candidacy (app-layer integration)', () => {
         sitting_id: liveSitting,
         sitting_scheduled_at: null,
         sitting_mode: null,
+        sitting_status: null,
         added_at: expect.any(String),
         deleted_at: null,
       },
@@ -154,9 +160,13 @@ describe('collectUserData sitting candidacy (app-layer integration)', () => {
     expect(bySitting.has(peerSitting)).toBe(false)
     expect(bySitting.get(liveSitting)).toMatchObject({
       sitting_mode: 'remote',
+      sitting_status: 'scheduled',
       deleted_at: null,
     })
-    expect(bySitting.get(removedSitting)).toMatchObject({ sitting_mode: 'in_person' })
+    expect(bySitting.get(removedSitting)).toMatchObject({
+      sitting_mode: 'in_person',
+      sitting_status: 'cancelled',
+    })
     expect(bySitting.get(removedSitting)?.deleted_at).not.toBeNull()
     expect(new Date(bySitting.get(liveSitting)?.sitting_scheduled_at as string).getTime()).toBe(
       new Date(SCHEDULED_LIVE).getTime(),

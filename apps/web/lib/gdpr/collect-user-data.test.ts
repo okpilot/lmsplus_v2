@@ -818,7 +818,11 @@ describe('collectUserData', () => {
         sitting_id: 's0000000-0000-4000-8000-000000000001',
         added_at: '2026-11-01T00:00:00Z',
         deleted_at: null,
-        exam_sittings: { scheduled_at: '2026-12-01T09:00:00Z', mode: 'remote' },
+        exam_sittings: {
+          scheduled_at: '2026-12-01T09:00:00Z',
+          mode: 'remote',
+          status: 'scheduled',
+        },
       },
     ]
 
@@ -838,6 +842,7 @@ describe('collectUserData', () => {
           sitting_id: 's0000000-0000-4000-8000-000000000001',
           sitting_scheduled_at: '2026-12-01T09:00:00Z',
           sitting_mode: 'remote',
+          sitting_status: 'scheduled',
           added_at: '2026-11-01T00:00:00Z',
           deleted_at: null,
         },
@@ -851,6 +856,7 @@ describe('collectUserData', () => {
       expect(result.exam_sitting_candidacies[0]).toMatchObject({
         sitting_scheduled_at: null,
         sitting_mode: null,
+        sitting_status: null,
       })
     })
 

@@ -193,8 +193,11 @@ export async function fetchStudentGroupMemberships(
   }
 }
 
-type CandidacyQueryRow = Omit<ExamSittingCandidacyRow, 'sitting_scheduled_at' | 'sitting_mode'> & {
-  exam_sittings: { scheduled_at: string; mode: string } | null
+type CandidacyQueryRow = Omit<
+  ExamSittingCandidacyRow,
+  'sitting_scheduled_at' | 'sitting_mode' | 'sitting_status'
+> & {
+  exam_sittings: { scheduled_at: string; mode: string; status: string | null } | null
 }
 
 /** Count selects `id`: `authenticated` has column-level SELECT only, so `*` is denied. Self-export (user client) returns live rows with a null sitting embed (no student SELECT policy on exam_sittings); the admin export returns removed rows and resolves the sitting. */
@@ -212,7 +215,7 @@ export async function fetchExamSittingCandidacies(
       supabase
         .from('exam_sitting_candidates')
         .select(
-          'sitting_id, added_at, deleted_at, exam_sittings!exam_sitting_candidates_sitting_id_organization_id_fkey(scheduled_at, mode)',
+          'sitting_id, added_at, deleted_at, exam_sittings!exam_sitting_candidates_sitting_id_organization_id_fkey(scheduled_at, mode, status)',
         )
         .eq('user_id', userId)
         .order('added_at', { ascending: false })
@@ -224,6 +227,7 @@ export async function fetchExamSittingCandidacies(
       ...rest,
       sitting_scheduled_at: exam_sittings?.scheduled_at ?? null,
       sitting_mode: exam_sittings?.mode ?? null,
+      sitting_status: exam_sittings?.status ?? null,
     })),
     error,
   }
