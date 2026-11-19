@@ -219,6 +219,30 @@
       }
     },
     {
+      "includes": ["**/*.integration.test.ts", "**/lib/integration-support/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["next/dist/**"],
+                    "message": "Import from public next/* entry points."
+                  },
+                  {
+                    "group": ["**/e2e/**"],
+                    "message": "e2e is excluded from tsconfig.integration.json; use lib/integration-support."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": ["apps/web/app/globals.css"],
       "linter": {
         "rules": {

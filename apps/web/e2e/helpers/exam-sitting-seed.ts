@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { insertPassedSession } from '../../lib/integration-support/passed-session'
 import { randomCode } from './code-gen'
 import {
   EXAM_SITTING_SEED_EMAIL_PREFIX,
@@ -6,6 +7,8 @@ import {
   EXAM_SITTING_SEED_PREFIX,
 } from './exam-sitting-markers'
 import { getAdminClient } from './supabase'
+
+export { insertPassedSession }
 
 /** The E2E admin (invigilator and creator of every seeded sitting). */
 const ADMIN_EMAIL = 'admin@lmsplus.local'
@@ -71,31 +74,6 @@ export async function createStudents(
     ids.push(...(await Promise.all(batch.map((n) => createStudent(admin, orgId, n, prefix)))))
   }
   return ids
-}
-
-/** A finished, passed internal-exam session with a score for a student and subject (service role, no code). */
-export async function insertPassedSession(
-  admin: Admin,
-  c: { orgId: string; userId: string; subjectId: string; score: number; endedAt: Date },
-): Promise<string> {
-  const res = await admin
-    .from('quiz_sessions')
-    .insert({
-      organization_id: c.orgId,
-      student_id: c.userId,
-      mode: 'internal_exam',
-      subject_id: c.subjectId,
-      config: { pass_mark: 75, question_ids: [] },
-      total_questions: 0,
-      started_at: new Date(c.endedAt.getTime() - 1_800_000).toISOString(),
-      ended_at: c.endedAt.toISOString(),
-      passed: true,
-      score_percentage: c.score,
-    })
-    .select('id')
-    .single()
-  if (res.error || !res.data) fail('quiz session', res.error)
-  return res.data.id
 }
 
 const endOfTodayUtc = () => `${new Date().toISOString().slice(0, 10)}T23:59:59.000Z`
