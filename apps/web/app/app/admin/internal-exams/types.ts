@@ -45,10 +45,28 @@ export type InternalExamAttemptRow = {
   scorePercentage: number | null
   passed: boolean | null
   voidReason: string | null
+  sittingId?: string | null
+  sittingAt?: string | null
 }
 
 export type ListAttemptsFilters = {
   studentId?: string
   subjectId?: string
+  search?: string
+  sittingId?: string
+  groupId?: string
   page?: number
+}
+
+export type AttemptFilterOptions = {
+  subjects: { id: string; name: string }[]
+  sittings: { id: string; label: string }[]
+  groups: { id: string; name: string }[]
+}
+
+export type AttemptUrlFilters = {
+  q?: string
+  subject?: string
+  sitting?: string
+  group?: string
 }

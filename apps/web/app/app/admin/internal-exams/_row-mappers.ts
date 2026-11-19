@@ -33,7 +33,15 @@ export type AttemptRowRaw = {
   passed: boolean | null
   easa_subjects: { name: string | null } | null
   users: { full_name: string | null; email: string | null } | null
-  internal_exam_codes: { void_reason: string | null }[] | null
+  internal_exam_codes:
+    | {
+        void_reason: string | null
+        exam_sitting_entries?: {
+          sitting_id: string
+          exam_sittings: { scheduled_at: string } | null
+        } | null
+      }[]
+    | null
 }
 
 function deriveStatus(
@@ -83,6 +91,8 @@ export function mapCodeRow(r: CodeRowRaw, nowMs: number): InternalExamCodeRow {
 }
 
 export function mapAttemptRow(r: AttemptRowRaw, answeredItems: number): InternalExamAttemptRow {
+  // consumed_session_id has no UNIQUE: take the first code that carries a sitting entry.
+  const entry = r.internal_exam_codes?.find((c) => c.exam_sitting_entries)?.exam_sitting_entries
   return {
     sessionId: r.id,
     studentId: r.student_id,
@@ -100,5 +110,7 @@ export function mapAttemptRow(r: AttemptRowRaw, answeredItems: number): Internal
     scorePercentage: r.score_percentage != null ? Number(r.score_percentage) : null,
     passed: r.passed,
     voidReason: r.internal_exam_codes?.[0]?.void_reason ?? null,
+    sittingId: entry?.sitting_id ?? null,
+    sittingAt: entry?.exam_sittings?.scheduled_at ?? null,
   }
 }
