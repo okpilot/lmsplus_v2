@@ -175,3 +175,6 @@ export const E2E_REDTEAM_SIT_SUBJECT_PREFIX = 'RTSIT-'
 // sitting redeem gate spec (Vectors MO, MP, #1777): internal_exam_codes.code prefix of seeded legacy
 // codes; written into fixture quiz_sessions as `config.e2e_marker`.
 export const E2E_REDTEAM_SIT_REDEEM_MARKER = 'RTMOP'
+
+/** Name prefix of student groups the Attempts-filter spec (MY) creates. */
+export const E2E_REDTEAM_ATT_GROUP_PREFIX = 'RTATT-'
