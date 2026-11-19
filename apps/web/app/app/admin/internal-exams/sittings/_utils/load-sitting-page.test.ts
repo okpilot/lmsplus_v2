@@ -8,7 +8,6 @@ const m = vi.hoisted(() => ({
   getRemoved: vi.fn(),
   resolveSelection: vi.fn(),
   requireAdmin: vi.fn(),
-  deliverable: vi.fn(),
   notFound: vi.fn(() => {
     throw new Error('NEXT_NOT_FOUND')
   }),
@@ -26,7 +25,6 @@ vi.mock('../queries', () => ({
 vi.mock('../roster-queries', () => ({ getRoster: m.getRoster, getRemoved: m.getRemoved }))
 vi.mock('../people-queries', () => ({ resolveSelection: m.resolveSelection }))
 vi.mock('@/lib/auth/require-admin', () => ({ requireAdmin: m.requireAdmin }))
-vi.mock('../../notice-queries', () => ({ getDeliverablePendingNotices: m.deliverable }))
 
 import type { SittingParams } from '../parse-sitting-params'
 import { loadSittingPage } from './load-sitting-page'
@@ -57,30 +55,26 @@ beforeEach(() => {
   m.getRemoved.mockResolvedValue({ rows: [], total: 0 })
   m.resolveSelection.mockResolvedValue({ kind: 'ids', ids: ['u1'], truncated: false })
   m.requireAdmin.mockResolvedValue({ supabase: {}, organizationId: 'org-1', userId: 'a' })
-  m.deliverable.mockResolvedValue([])
 })
 
 describe('loadSittingPage', () => {
-  it('uses the summary pending count and never recounts deliverable notices', async () => {
+  it('uses the summary pending count', async () => {
     m.getSummary.mockResolvedValue({
       status: 'scheduled',
       scheduledAt: '2026-11-20T09:30:00Z',
       pendingRemovalNotices: 5,
     })
-    m.deliverable.mockResolvedValue([{ userId: 'u1' }, { userId: 'u2' }])
     const r = await loadSittingPage(SID, params())
-    expect(m.deliverable).not.toHaveBeenCalled()
     expect(r.summary.pendingRemovalNotices).toBe(5)
   })
 
-  it('keeps a zero summary count without any pending read', async () => {
+  it('keeps a zero summary count', async () => {
     m.getSummary.mockResolvedValue({
       status: 'scheduled',
       scheduledAt: '2026-11-20T09:30:00Z',
       pendingRemovalNotices: 0,
     })
     const r = await loadSittingPage(SID, params())
-    expect(m.deliverable).not.toHaveBeenCalled()
     expect(r.summary.pendingRemovalNotices).toBe(0)
   })
 

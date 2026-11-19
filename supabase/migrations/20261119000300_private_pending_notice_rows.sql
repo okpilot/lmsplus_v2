@@ -1,12 +1,11 @@
 -- A deliverable pending notice: unsent removal / cancellation rows of a sitting whose student is active in the org with an email.
+-- users.email is NOT NULL (001_initial_schema.sql:27); <> '' excludes the only gap. SECURITY INVOKER, references schema-qualified.
 -- Single definition for get_pending_removal_notices and get_exam_sitting_summary.
 CREATE OR REPLACE FUNCTION private.pending_notice_rows(p_org uuid, p_sitting_id uuid, p_cancelled boolean)
 RETURNS TABLE(entry_id uuid, user_id uuid, subject_id uuid, passed_at timestamptz, removed_at timestamptz,
               kind text, code_id uuid)
 LANGUAGE sql
 STABLE
-SECURITY DEFINER
-SET search_path = public, pg_temp
 AS $$
   SELECT r.entry_id, r.user_id, r.subject_id, r.passed_at, r.removed_at, r.kind, r.code_id
     FROM (
@@ -34,6 +33,6 @@ AS $$
                             AND n.metadata ->> 'kind' IN ('cancelled', 'sitting_cancelled')
                             AND n.metadata ->> 'code_id' = c.id::text)
     ) r
-    JOIN public.users u ON u.id = r.user_id AND u.organization_id = p_org AND u.deleted_at IS NULL AND u.email IS NOT NULL;
+    JOIN public.users u ON u.id = r.user_id AND u.organization_id = p_org AND u.deleted_at IS NULL AND u.email <> '';
 $$;
 REVOKE EXECUTE ON FUNCTION private.pending_notice_rows(uuid, uuid, boolean) FROM PUBLIC, anon, authenticated;
