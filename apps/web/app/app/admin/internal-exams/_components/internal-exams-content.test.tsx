@@ -13,6 +13,7 @@ vi.mock('../sittings/queries', () => ({
   getSitting: vi.fn(),
   getSummary: vi.fn(),
 }))
+vi.mock('../notice-queries', () => ({}))
 vi.mock('./internal-exams-tabs', () => ({ InternalExamsTabs: () => null }))
 
 import { InternalExamsContent } from './internal-exams-content'

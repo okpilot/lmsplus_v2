@@ -38,7 +38,7 @@ export function closeConfirmText(s: {
 export const START_CONFIRM_TEXT =
   'Candidates can start with their codes until you close the sitting or the day ends (UTC).'
 export const CANCEL_CONFIRM_TEXT =
-  'Unused codes are voided. A cancelled sitting cannot be restored.'
+  'Unused codes are voided. A cancelled sitting cannot be restored. Students who were emailed a code get a cancellation notice.'
 
 /** Why a single-entry issue produced no code. */
 export function issueSkipText(
@@ -86,4 +86,57 @@ export function emailCodesBanner(d: EmailCodesResult): ResultBannerData {
     title: `Emailed ${d.sent}`,
     ...(lines.length > 0 ? { lines } : {}),
   }
+}
+
+type NoticeCounts = { sent: number; failed: readonly { studentName: string | null }[] }
+
+const names = (failed: NoticeCounts['failed']) =>
+  failed.map((f) => f.studentName ?? 'Unknown').join(', ')
+
+/** Result of Send notices: `Sent N · Failed M`, then the failed names. */
+export function sendNoticesBanner(
+  d: NoticeCounts & { skipped: number; unrecorded: number },
+): ResultBannerData {
+  const lines = [
+    d.failed.length > 0 ? `Failed: ${names(d.failed)}. Send notices tries them again.` : '',
+    d.skipped > 0 ? `Skipped ${d.skipped} (no email or deactivated)` : '',
+    d.unrecorded > 0
+      ? `${d.unrecorded} sent but not recorded. Send notices will send them again.`
+      : '',
+  ].filter(Boolean)
+  return {
+    tone: d.failed.length > 0 || d.unrecorded > 0 ? 'caution' : 'success',
+    title: d.failed.length > 0 ? `Sent ${d.sent} · Failed ${d.failed.length}` : `Sent ${d.sent}`,
+    ...(lines.length > 0 ? { lines } : {}),
+  }
+}
+
+/** Result of Cancel sitting: voided codes, notices sent, failed names. */
+export function cancelledBanner(codesVoided: number, notices?: NoticeCounts): ResultBannerData {
+  const sent = notices && notices.sent > 0 ? ` ${plural(notices.sent, 'notice')} sent.` : ''
+  const detail = `${plural(codesVoided, 'code')} voided.${sent}`
+  if (!notices || notices.failed.length === 0) {
+    return { tone: 'success', title: 'Sitting cancelled.', detail }
+  }
+  return {
+    tone: 'caution',
+    title: `Sitting cancelled. Notice failed for ${names(notices.failed)}.`,
+    detail: `${detail} Failed notices stay pending: use Send notices.`,
+  }
+}
+
+/** Result of saving sitting details; the change notice outcome rides along. */
+export function detailsSavedBanner(notices?: NoticeCounts): ResultBannerData {
+  const sent =
+    notices && notices.sent > 0
+      ? `Change notice sent to ${plural(notices.sent, 'student')}`
+      : undefined
+  if (notices && notices.failed.length > 0) {
+    return {
+      tone: 'caution',
+      title: `Details saved. Change notice failed for ${names(notices.failed)}. Use Resend code on their exams (the code email carries the new time).`,
+      ...(sent ? { detail: sent } : {}),
+    }
+  }
+  return { tone: 'success', title: 'Details saved.', ...(sent ? { detail: sent } : {}) }
 }

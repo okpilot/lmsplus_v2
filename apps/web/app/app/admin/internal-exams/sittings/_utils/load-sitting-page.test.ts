@@ -7,6 +7,8 @@ const m = vi.hoisted(() => ({
   getRoster: vi.fn(),
   getRemoved: vi.fn(),
   resolveSelection: vi.fn(),
+  requireAdmin: vi.fn(),
+  deliverable: vi.fn(),
   notFound: vi.fn(() => {
     throw new Error('NEXT_NOT_FOUND')
   }),
@@ -20,6 +22,8 @@ vi.mock('../queries', () => ({
 
 vi.mock('../roster-queries', () => ({ getRoster: m.getRoster, getRemoved: m.getRemoved }))
 vi.mock('../people-queries', () => ({ resolveSelection: m.resolveSelection }))
+vi.mock('@/lib/auth/require-admin', () => ({ requireAdmin: m.requireAdmin }))
+vi.mock('../../notice-queries', () => ({ getDeliverablePendingNotices: m.deliverable }))
 
 import type { SittingParams } from '../parse-sitting-params'
 import { loadSittingPage } from './load-sitting-page'
@@ -49,9 +53,23 @@ beforeEach(() => {
   m.getRoster.mockResolvedValue({ rows: [], total: 0 })
   m.getRemoved.mockResolvedValue({ rows: [], total: 0 })
   m.resolveSelection.mockResolvedValue({ kind: 'ids', ids: ['u1'], truncated: false })
+  m.requireAdmin.mockResolvedValue({ supabase: {}, organizationId: 'org-1', userId: 'a' })
+  m.deliverable.mockResolvedValue([])
 })
 
 describe('loadSittingPage', () => {
+  it('counts the deliverable pending notices, not the summary count', async () => {
+    m.getSummary.mockResolvedValue({
+      status: 'scheduled',
+      scheduledAt: '2026-11-20T09:30:00Z',
+      pendingRemovalNotices: 5,
+    })
+    m.deliverable.mockResolvedValue([{ userId: 'u1' }, { userId: 'u2' }])
+    const r = await loadSittingPage(SID, params())
+    expect(m.deliverable).toHaveBeenCalledWith({}, 'org-1', SID)
+    expect(r.summary.pendingRemovalNotices).toBe(2)
+  })
+
   it('returns 404 for a non-uuid id without querying', async () => {
     await expect(loadSittingPage('not-a-uuid', params())).rejects.toThrow('NEXT_NOT_FOUND')
     expect(m.getSummary).not.toHaveBeenCalled()

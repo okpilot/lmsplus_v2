@@ -3,7 +3,12 @@
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { useSittingUi } from '../_hooks/sitting-ui-context'
-import { CANCEL_CONFIRM_TEXT, closeConfirmText, START_CONFIRM_TEXT } from '../_utils/copy'
+import {
+  CANCEL_CONFIRM_TEXT,
+  cancelledBanner,
+  closeConfirmText,
+  START_CONFIRM_TEXT,
+} from '../_utils/copy'
 import { plural } from '../_utils/plural'
 import { noCodeLine, startResultBanner } from '../_utils/start-result'
 import { cancelSitting } from '../actions/cancel-sitting'
@@ -142,11 +147,7 @@ function CancelConfirm(props: Readonly<Props>) {
           () => cancelSitting({ sittingId: sitting.id }),
           (d) => {
             dismiss()
-            return {
-              tone: 'success',
-              title: 'Sitting cancelled.',
-              detail: `${plural(d.codesVoided, 'code')} voided.`,
-            }
+            return cancelledBanner(d.codesVoided, d.notices)
           },
         )
       }

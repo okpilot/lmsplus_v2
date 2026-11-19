@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { isoToUtcInput } from '../_components/sitting-labels'
+import { detailsSavedBanner } from '../_utils/copy'
 import type { SittingFormValues } from '../_utils/edit-changes'
 import { defaultWhen, persist, toIsoOrNull } from '../_utils/sitting-form'
 import { SITTING_BASE, type SittingRow } from '../types'
@@ -53,7 +54,7 @@ function useSaveSitting(
       return false
     }
     if (r.id === null || sitting) {
-      if (r.id !== null) setBanner({ tone: 'success', title: 'Details saved.' })
+      if (r.id !== null) setBanner(detailsSavedBanner(r.notices))
       close()
       return false
     }
