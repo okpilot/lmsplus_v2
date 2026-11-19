@@ -118,4 +118,51 @@ describe('updateSitting', () => {
     await updateSitting({ sittingId: SID, mode: 'remote' })
     expect(mockDeliverNotices).not.toHaveBeenCalled()
   })
+
+  describe('change notice errors', () => {
+    const CHANGED = {
+      data: [{ changed: true, codes_restamped: 1, notify_code_ids: ['c1'] }],
+      error: null,
+    }
+    const ERR = { sent: 0, failed: [], error: true }
+
+    it('flags error when the old read returns null', async () => {
+      mockRpc.mockResolvedValue(CHANGED)
+      mockGetSitting.mockResolvedValueOnce(null).mockResolvedValue({
+        scheduledAt: '2999-11-24T09:00:00.000Z',
+        mode: 'remote',
+      })
+      const r = await updateSitting({ sittingId: SID, mode: 'in_person' })
+      expect(r).toMatchObject({ success: true, notices: ERR })
+      expect(mockDeliverNotices).not.toHaveBeenCalled()
+    })
+
+    it('flags error when a notice query throws', async () => {
+      mockRpc.mockResolvedValue(CHANGED)
+      mockChangedCodes.mockRejectedValue(new Error('db down'))
+      const r = await updateSitting({ sittingId: SID, mode: 'in_person' })
+      expect(r).toMatchObject({ success: true, notices: ERR })
+    })
+
+    it('flags error when delivery reports error', async () => {
+      mockRpc.mockResolvedValue(CHANGED)
+      mockChangedCodes.mockResolvedValue([{ codeId: 'c1', userId: 'u1', subjectId: 's1' }])
+      mockDeliverNotices.mockResolvedValue({
+        sent: 0,
+        failed: [],
+        skipped: 0,
+        unrecorded: 0,
+        error: true,
+      })
+      const r = await updateSitting({ sittingId: SID, mode: 'in_person' })
+      expect(r).toMatchObject({ success: true, notices: ERR })
+    })
+
+    it('has no error key when nothing went wrong', async () => {
+      mockRpc.mockResolvedValue(OK)
+      const r = await updateSitting({ sittingId: SID, mode: 'in_person' })
+      expect(r).toMatchObject({ notices: { sent: 0, failed: [] } })
+      expect((r as { notices: object }).notices).not.toHaveProperty('error')
+    })
+  })
 })

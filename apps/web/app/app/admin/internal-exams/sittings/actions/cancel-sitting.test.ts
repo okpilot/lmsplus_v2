@@ -86,4 +86,14 @@ describe('cancelSitting', () => {
     await cancelSitting({ sittingId: SID })
     expect(mockDeliver).not.toHaveBeenCalled()
   })
+
+  it('passes unrecorded and error through', async () => {
+    mockRpc.mockResolvedValue({ data: [{ codes_voided: 1, notify_code_ids: [] }], error: null })
+    mockDeliver.mockResolvedValue({ sent: 1, failed: [], skipped: 0, unrecorded: 2, error: true })
+    const r = await cancelSitting({ sittingId: SID })
+    expect(r).toMatchObject({
+      success: true,
+      notices: { sent: 1, failed: [], unrecorded: 2, error: true },
+    })
+  })
 })

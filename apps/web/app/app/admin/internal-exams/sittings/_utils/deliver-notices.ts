@@ -25,6 +25,8 @@ export type NoticeResult = {
   skipped: number
   /** Sent, but the `notice_emailed` row failed: the next Send emails them again. */
   unrecorded: number
+  /** A read or the app URL failed: some notices were not attempted. */
+  error?: true
 }
 
 type Common = { supabase: UserClient; orgId: string; sittingId: string }
@@ -45,6 +47,7 @@ export type NoticeGroup = {
 
 const RECORD_CHUNK = 50
 const EMPTY: NoticeResult = { sent: 0, failed: [], skipped: 0, unrecorded: 0 }
+const FAILED: NoticeResult = { ...EMPTY, error: true }
 
 /** One group per student for change and cancellation notices, one per entry for a removal. */
 export function groupNotices(items: readonly (ChangedNoticeCode | PendingNotice)[]): NoticeGroup[] {
@@ -164,15 +167,16 @@ async function deliver(args: DeliverArgs, examUrl: string): Promise<NoticeResult
 export async function deliverNotices(args: DeliverArgs): Promise<NoticeResult> {
   if (args.items.length === 0) return EMPTY
   const base = process.env.NEXT_PUBLIC_APP_URL
-  if (!base) {
+  // Only the change notice links to the app.
+  if (!base && args.kind === 'changed') {
     console.error('[deliverNotices] NEXT_PUBLIC_APP_URL is not set')
-    return EMPTY
+    return FAILED
   }
   try {
-    return await deliver(args, `${base}/app/internal-exam`)
+    return await deliver(args, base ? `${base}/app/internal-exam` : '')
   } catch (e) {
     console.error('[deliverNotices] failed:', e instanceof Error ? e.message : String(e))
-    return EMPTY
+    return FAILED
   }
 }
 
@@ -182,6 +186,7 @@ function merge(a: NoticeResult, b: NoticeResult): NoticeResult {
     failed: [...a.failed, ...b.failed],
     skipped: a.skipped + b.skipped,
     unrecorded: a.unrecorded + b.unrecorded,
+    ...(a.error || b.error ? { error: true as const } : {}),
   }
 }
 
@@ -192,7 +197,8 @@ export async function deliverPendingNotices(args: Common): Promise<NoticeResult>
       getSittingForNotice(args.orgId, args.sittingId),
       getDeliverablePendingNotices(args.supabase, args.orgId, args.sittingId),
     ])
-    if (!sitting || items.length === 0) return EMPTY
+    if (items.length === 0) return EMPTY
+    if (!sitting) return FAILED
     let total = EMPTY
     for (const kind of ['sitting_cancelled', 'entry_auto_removed'] as const) {
       const ofKind = items.filter((i) => i.kind === kind)
@@ -202,6 +208,6 @@ export async function deliverPendingNotices(args: Common): Promise<NoticeResult>
     return total
   } catch (e) {
     console.error('[deliverPendingNotices] failed:', e instanceof Error ? e.message : String(e))
-    return EMPTY
+    return FAILED
   }
 }

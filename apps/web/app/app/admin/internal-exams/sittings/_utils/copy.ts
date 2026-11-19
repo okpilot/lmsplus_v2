@@ -83,7 +83,12 @@ export function emailCodesBanner(d: EmailCodesResult): ResultBannerData {
   }
 }
 
-type NoticeCounts = { sent: number; failed: readonly { studentName: string | null }[] }
+type NoticeCounts = {
+  sent: number
+  failed: readonly { studentName: string | null }[]
+  unrecorded?: number
+  error?: boolean
+}
 
 const names = (failed: NoticeCounts['failed']) =>
   failed.map((f) => f.studentName ?? 'Unknown').join(', ')
@@ -98,9 +103,10 @@ export function sendNoticesBanner(
     d.unrecorded > 0
       ? `${d.unrecorded} sent but not recorded. Send notices will send them again.`
       : '',
+    d.error ? 'Some notices could not be sent. Try Send notices again.' : '',
   ].filter(Boolean)
   return {
-    tone: d.failed.length > 0 || d.unrecorded > 0 ? 'caution' : 'success',
+    tone: d.failed.length > 0 || d.unrecorded > 0 || d.error ? 'caution' : 'success',
     title: d.failed.length > 0 ? `Sent ${d.sent} · Failed ${d.failed.length}` : `Sent ${d.sent}`,
     ...(lines.length > 0 ? { lines } : {}),
   }
@@ -110,13 +116,21 @@ export function sendNoticesBanner(
 export function cancelledBanner(codesVoided: number, notices?: NoticeCounts): ResultBannerData {
   const sent = notices && notices.sent > 0 ? ` ${plural(notices.sent, 'notice')} sent.` : ''
   const detail = `${plural(codesVoided, 'code')} voided.${sent}`
-  if (!notices || notices.failed.length === 0) {
+  const unrecorded = notices?.unrecorded ?? 0
+  const extra = [
+    unrecorded > 0 ? `${unrecorded} sent but not recorded. Send notices will send them again.` : '',
+    notices?.error ? 'Notices could not be sent. Use Send notices.' : '',
+  ].filter(Boolean)
+  if (!notices || (notices.failed.length === 0 && extra.length === 0)) {
     return { tone: 'success', title: 'Sitting cancelled.', detail }
+  }
+  if (notices.failed.length === 0) {
+    return { tone: 'caution', title: 'Sitting cancelled.', detail: [detail, ...extra].join(' ') }
   }
   return {
     tone: 'caution',
     title: `Sitting cancelled. Notice failed for ${names(notices.failed)}.`,
-    detail: `${detail} Failed notices stay pending: use Send notices.`,
+    detail: [detail, 'Failed notices stay pending: use Send notices.', ...extra].join(' '),
   }
 }
 
@@ -126,6 +140,13 @@ export function detailsSavedBanner(notices?: NoticeCounts): ResultBannerData {
     notices && notices.sent > 0
       ? `Change notice sent to ${plural(notices.sent, 'student')}`
       : undefined
+  if (notices?.error) {
+    return {
+      tone: 'caution',
+      title: 'Details saved. Change notice could not be sent. Use Resend code on their exams.',
+      ...(sent ? { detail: sent } : {}),
+    }
+  }
   if (notices && notices.failed.length > 0) {
     return {
       tone: 'caution',

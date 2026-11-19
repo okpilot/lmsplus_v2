@@ -53,6 +53,15 @@ test('rescheduling a sitting with an emailed code reports the change notice', as
   await page.getByRole('button', { name: 'Save' }).click()
   if (SENDS) await expect(page.getByText('Change notice sent to 1 student')).toBeVisible()
   else await expect(page.getByText(/Change notice failed for E2E Ann Notice/)).toBeVisible()
+  await page.reload()
+  await expect(page).toHaveURL(`${BASE}/${sittingId}`)
+  const day = date.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  })
+  await expect(page.getByRole('heading', { level: 1 })).toContainText(`${day}, 11:00`)
 })
 
 test('cancelling a sitting with an emailed code reports the cancellation notice', async ({
@@ -72,6 +81,9 @@ test('cancelling a sitting with an emailed code reports the cancellation notice'
   await page.getByRole('alertdialog').getByRole('button', { name: 'Cancel sitting' }).click()
   if (SENDS) await expect(page.getByText(/1 notice sent/)).toBeVisible()
   else await expect(page.getByText(/E2E Bea Notice/)).toBeVisible()
+  await page.reload()
+  await expect(page).toHaveURL(`${BASE}/${sittingId}`)
+  await expect(page.getByText('Cancelled', { exact: false }).first()).toBeVisible()
 })
 
 test('Send notices delivers the auto-removal notice and clears the banner', async ({ page }) => {
