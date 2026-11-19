@@ -138,8 +138,7 @@ export async function backdateSession(admin: AdminClient, sessionId: string): Pr
 
 /**
  * Insert a sitting-less fixture code (service role), add its id to `createdCodeIds`, and return
- * `{ codeId, code }`. Writes no audit row; it keeps fixtures independent of the legacy
- * `issue_internal_exam_code` RPC, which the code_issued test calls once and which is retired in 2e.
+ * `{ codeId, code }`. Writes no audit row.
  */
 export async function insertFixtureCode(
   admin: AdminClient,

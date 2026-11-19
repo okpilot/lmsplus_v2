@@ -14,25 +14,25 @@ import {
 
 type Notices = Pick<NoticeResult, 'sent' | 'failed' | 'error'>
 
-type Before = Awaited<ReturnType<typeof getSittingForNotice>>
-
-/** Cosmetic reads must not fail the update: a failure only drops the notice. */
-async function readBefore(orgId: string, sittingId: string): Promise<Before> {
-  try {
-    return await getSittingForNotice(orgId, sittingId)
-  } catch (e) {
-    unstable_rethrow(e)
-    console.error('[updateSitting] read before failed:', e instanceof Error ? e.message : String(e))
-    return null
-  }
-}
-
 const NOTICE_ERROR: Notices = { sent: 0, failed: [], error: true }
 
 type Ctx = { supabase: UserClient; orgId: string; sittingId: string }
 
-/** Change notice to the emailed students; the old time and mode come from before the RPC. */
-async function noticeChange(ctx: Ctx, old: Before, codeIds: readonly string[]): Promise<Notices> {
+type Old = { scheduledAt: string; mode: 'remote' | 'in_person' }
+
+/** The locked row's pre-update values, as the RPC returns them; null when absent (old DB). */
+function oldValues(row: Record<string, unknown>): Old | null {
+  const { old_scheduled_at: at, old_mode: mode } = row
+  if (typeof at !== 'string' || (mode !== 'remote' && mode !== 'in_person')) return null
+  return { scheduledAt: at, mode }
+}
+
+/** Change notice to the emailed students; the old time and mode come from the RPC row. */
+async function noticeChange(
+  ctx: Ctx,
+  old: Old | null,
+  codeIds: readonly string[],
+): Promise<Notices> {
   try {
     const sitting = await getSittingForNotice(ctx.orgId, ctx.sittingId)
     if (!old || !sitting) return NOTICE_ERROR
@@ -61,7 +61,6 @@ export async function updateSitting(
   if (!parsed.success) return { success: false, error: 'Invalid input' }
   const v = parsed.data
   const { supabase, organizationId } = await requireAdmin()
-  const old = await readBefore(organizationId, v.sittingId)
   const { data, error } = await supabase.rpc('update_exam_sitting', {
     p_sitting_id: v.sittingId,
     ...(v.scheduledAt ? { p_scheduled_at: v.scheduledAt } : {}),
@@ -74,7 +73,11 @@ export async function updateSitting(
   const ids = Array.isArray(row.notify_code_ids) ? (row.notify_code_ids as string[]) : []
   const notices =
     ids.length > 0
-      ? await noticeChange({ supabase, orgId: organizationId, sittingId: v.sittingId }, old, ids)
+      ? await noticeChange(
+          { supabase, orgId: organizationId, sittingId: v.sittingId },
+          oldValues(row),
+          ids,
+        )
       : { sent: 0, failed: [] }
   revalidateSitting(v.sittingId)
   return { success: true, changed: row.changed === true, notices }

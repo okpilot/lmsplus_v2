@@ -165,6 +165,17 @@ describe('voidInternalExamCode', () => {
       expect(mockRpc).toHaveBeenCalledTimes(1)
     })
 
+    it('maps the sitting_code RPC error to "Void sitting codes from their sitting"', async () => {
+      mockAdmin()
+      vi.spyOn(console, 'error').mockImplementation(() => {})
+      mockRpc.mockResolvedValue({ data: null, error: { message: 'sitting_code' } })
+
+      const result = await voidInternalExamCode(VALID_INPUT)
+
+      expect(result).toEqual({ success: false, error: 'Void sitting codes from their sitting' })
+      expect(mockRevalidatePath).not.toHaveBeenCalled()
+    })
+
     it('fails closed when the row is missing, without calling the RPC', async () => {
       mockAdmin()
       mockMaybeSingle.mockResolvedValue({ data: null, error: null })
