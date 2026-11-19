@@ -14,6 +14,44 @@ function check(what: string, error: { message: string } | null) {
   if (error) throw new Error(`cleanupE2eExamSittings ${what}: ${error.message}`)
 }
 
+/**
+ * Sessions of seeded students are deleted (their users go next). A fixture student's session
+ * (e.g. the internal-exam student) may hold immutable answers: it is ended and soft-deleted instead.
+ */
+async function removeSeededSessions(admin: Admin, sessionIds: string[]) {
+  const rows = await admin
+    .from('quiz_sessions')
+    .select('id, users!student_id(email)')
+    .in('id', sessionIds)
+  check('seed sessions lookup', rows.error)
+  const isSeeded = (email: string | undefined) =>
+    email?.startsWith(EXAM_SITTING_SEED_EMAIL_PREFIX) ?? false
+  const seeded = (rows.data ?? []).filter((r) => isSeeded(r.users?.email)).map((r) => r.id)
+  const fixture = (rows.data ?? []).filter((r) => !isSeeded(r.users?.email)).map((r) => r.id)
+  if (seeded.length > 0) {
+    check(
+      'seed sessions delete',
+      (await admin.from('quiz_sessions').delete().in('id', seeded)).error,
+    )
+  }
+  if (fixture.length === 0) return
+  const now = new Date().toISOString()
+  check(
+    'fixture sessions end',
+    (
+      await admin
+        .from('quiz_sessions')
+        .update({ ended_at: now })
+        .in('id', fixture)
+        .is('ended_at', null)
+    ).error,
+  )
+  check(
+    'fixture sessions soft-delete',
+    (await admin.from('quiz_sessions').update({ deleted_at: now }).in('id', fixture)).error,
+  )
+}
+
 /** Ids of the entries, then the codes and sessions of those entries, deleted for the seeded sittings. */
 async function deleteSeededRows(admin: Admin, sittingIds: string[]) {
   const entries = await admin.from('exam_sitting_entries').select('id').in('sitting_id', sittingIds)
@@ -32,12 +70,7 @@ async function deleteSeededRows(admin: Admin, sittingIds: string[]) {
       'seed codes delete',
       (await admin.from('internal_exam_codes').delete().in('sitting_entry_id', entryIds)).error,
     )
-    if (sessionIds.length > 0) {
-      check(
-        'seed sessions delete',
-        (await admin.from('quiz_sessions').delete().in('id', sessionIds)).error,
-      )
-    }
+    if (sessionIds.length > 0) await removeSeededSessions(admin, sessionIds)
   }
   check(
     'seed entries delete',

@@ -19,6 +19,8 @@
 
 import { type BrowserContext, expect, type Page, test } from '@playwright/test'
 import { signInAsAdmin } from './helpers/admin-supabase'
+import { cleanupE2eExamSittings } from './helpers/exam-sitting-cleanup'
+import { issueSittingCodeFor } from './helpers/sitting-code'
 import {
   cleanupInternalExamStudentActiveSessions,
   INTERNAL_EXAM_STUDENT_EMAIL,
@@ -28,26 +30,12 @@ test.use({ storageState: 'e2e/.auth/admin.json' })
 
 const SUBJECT_LABEL_FRAGMENT = 'Meteorology'
 
-async function issueCodeAsAdmin(adminPage: Page, subjectFragment: string): Promise<string> {
-  await adminPage.goto('/app/admin/internal-exams?tab=codes')
-  await expect(adminPage.getByRole('heading', { name: 'Internal Exams' })).toBeVisible()
-  const form = adminPage.getByTestId('issue-code-form')
-  await form.locator('[aria-label="Student"]').click()
-  await adminPage
-    .locator('[data-slot="select-item"]')
-    .filter({ hasText: INTERNAL_EXAM_STUDENT_EMAIL })
-    .first()
-    .click()
-  await form.locator('[aria-label="Subject"]').click()
-  await adminPage
-    .locator('[data-slot="select-item"]')
-    .filter({ hasText: subjectFragment })
-    .first()
-    .click()
-  await form.getByRole('button', { name: 'Issue code' }).click()
-  await expect(adminPage.getByText('Internal exam code issued')).toBeVisible({ timeout: 10_000 })
-  const code = (await adminPage.getByTestId('issued-code-value').textContent())?.trim()
-  if (!code) throw new Error('issued code panel had no value')
+/** Service-role seed: an open sitting holding the student with a live code (no UI, no RPC). */
+async function issueCode(): Promise<string> {
+  const { code } = await issueSittingCodeFor({
+    studentEmail: INTERNAL_EXAM_STUDENT_EMAIL,
+    subjectFragment: SUBJECT_LABEL_FRAGMENT,
+  })
   return code
 }
 
@@ -113,13 +101,17 @@ test.describe('internal exam — reports separation', () => {
   test.beforeEach(async () => {
     const adminClient = await signInAsAdmin()
     await cleanupInternalExamStudentActiveSessions(adminClient)
+    await cleanupE2eExamSittings()
+  })
+
+  test.afterEach(async () => {
+    await cleanupE2eExamSittings()
   })
 
   test('practice attempt shows only on /app/reports; internal attempt only on /app/internal-exam', async ({
-    page: adminPage,
     context: adminCtx,
   }) => {
-    const code = await issueCodeAsAdmin(adminPage, SUBJECT_LABEL_FRAGMENT)
+    const code = await issueCode()
 
     const { context: studentCtx, page } = await openStudentContext(adminCtx.browser())
     try {

@@ -20,6 +20,7 @@ export type SendCodeEmailResult =
         | 'Invalid input'
         | 'Code not found'
         | 'Code is no longer active'
+        | 'Sitting codes are emailed from their sitting'
         | 'Failed to send email'
     }
 
@@ -31,6 +32,10 @@ export async function sendInternalExamCodeEmail(input: unknown): Promise<SendCod
 
   const payload = await getInternalExamCodeForEmail(parsed.data.codeId)
   if (!payload) return { success: false, error: 'Code not found' }
+
+  if (payload.sittingEntryId !== null) {
+    return { success: false, error: 'Sitting codes are emailed from their sitting' }
+  }
 
   const isExpired = new Date(payload.expiresAt).getTime() <= Date.now()
   if (payload.consumedAt || payload.voidedAt || isExpired) {

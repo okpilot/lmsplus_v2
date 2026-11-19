@@ -7,10 +7,11 @@ import {
 } from './_offset-query'
 import { type CodeRowRaw, mapCodeRow } from './_row-mappers'
 import { clampPage, PAGE_SIZE } from './pagination'
-import type { ExamSubjectOption, InternalExamCodeRow, ListCodesFilters } from './types'
+import type { InternalExamCodeRow, ListCodesFilters } from './types'
 
 const CODE_COLS_BASE = `id, code, subject_id, student_id, issued_by, issued_at, expires_at,
-       consumed_at, consumed_session_id, voided_at, voided_by, void_reason, emailed_at,
+       consumed_at, consumed_session_id, voided_at, voided_by, void_reason, emailed_at, sitting_entry_id,
+       exam_sitting_entries!internal_exam_codes_sitting_entry_fkey(sitting_id, exam_sittings!exam_sitting_entries_sitting_id_organization_id_fkey(status)),
        easa_subjects!subject_id(name),
        users!student_id(full_name, email)`
 
@@ -104,27 +105,4 @@ export async function listInternalExamCodes(
   const nowMs = new Date(nowIso).getTime()
   const rows: InternalExamCodeRow[] = raw.map((r) => mapCodeRow(r, nowMs))
   return { rows, totalCount }
-}
-
-type SubjectRowRaw = { id: string; code: string; name: string }
-
-export async function listExamSubjects(): Promise<ExamSubjectOption[]> {
-  const { supabase, organizationId } = await requireAdmin()
-  const { data, error } = await supabase
-    .from('exam_configs')
-    .select('subject_id, easa_subjects!subject_id(id, code, name)')
-    .eq('organization_id', organizationId)
-    .eq('enabled', true)
-    .is('deleted_at', null)
-  if (error) {
-    console.error('[listExamSubjects] DB error:', error.message)
-    throw new Error('Failed to load subjects')
-  }
-  type Joined = { easa_subjects: SubjectRowRaw | null }
-  const rows = (data ?? []) as Joined[]
-  return rows
-    .map((r) => r.easa_subjects)
-    .filter((s): s is SubjectRowRaw => s !== null)
-    .sort((a, b) => a.code.localeCompare(b.code))
-    .map((s) => ({ id: s.id, code: s.code, name: s.name }))
 }

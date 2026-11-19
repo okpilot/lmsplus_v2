@@ -417,7 +417,6 @@
   --session-header-h: 3.375rem;
   --panel-max: calc(100dvh - var(--session-header-h) - 2 * var(--spacing-section));
   --layout-distribution: 1fr 80px 80px;
-  --layout-issue-code: 1fr 1fr auto;
   --layout-label-value: auto 1fr;
   --layout-squares: repeat(auto-fill, minmax(2.25rem, 1fr));
   --layout-squares-panel: repeat(auto-fill, minmax(2rem, 1fr));

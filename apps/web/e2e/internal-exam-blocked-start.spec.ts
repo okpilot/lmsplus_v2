@@ -6,8 +6,9 @@
  * (internal-exam-student.json), as in internal-exam-resume.spec.ts.
  */
 
-import { type BrowserContext, expect, type Page, test } from '@playwright/test'
+import { type BrowserContext, expect, test } from '@playwright/test'
 import { signInAsAdmin } from './helpers/admin-supabase'
+import { cleanupE2eExamSittings } from './helpers/exam-sitting-cleanup'
 import { startStudyQuiz } from './helpers/quiz-session'
 import {
   readSessionRow,
@@ -16,6 +17,7 @@ import {
   SESSION_ID_URL,
   sessionIdFromUrl,
 } from './helpers/quiz-session-id'
+import { issueSittingCodeFor } from './helpers/sitting-code'
 import {
   cleanupInternalExamStudentActiveSessions,
   INTERNAL_EXAM_STUDENT_EMAIL,
@@ -25,26 +27,12 @@ test.use({ storageState: 'e2e/.auth/admin.json' })
 
 const SUBJECT_LABEL_FRAGMENT = 'Meteorology'
 
-async function issueCodeAsAdmin(adminPage: Page): Promise<string> {
-  await adminPage.goto('/app/admin/internal-exams?tab=codes')
-  await expect(adminPage.getByRole('heading', { name: 'Internal Exams' })).toBeVisible()
-  const form = adminPage.getByTestId('issue-code-form')
-  await form.locator('[aria-label="Student"]').click()
-  await adminPage
-    .locator('[data-slot="select-item"]')
-    .filter({ hasText: INTERNAL_EXAM_STUDENT_EMAIL })
-    .first()
-    .click()
-  await form.locator('[aria-label="Subject"]').click()
-  await adminPage
-    .locator('[data-slot="select-item"]')
-    .filter({ hasText: SUBJECT_LABEL_FRAGMENT })
-    .first()
-    .click()
-  await form.getByRole('button', { name: 'Issue code' }).click()
-  await expect(adminPage.getByText('Internal exam code issued')).toBeVisible({ timeout: 10_000 })
-  const code = (await adminPage.getByTestId('issued-code-value').textContent())?.trim()
-  if (!code) throw new Error('issued code panel had no value')
+/** Service-role seed: an open sitting holding the student with a live code (no UI, no RPC). */
+async function issueCode(): Promise<string> {
+  const { code } = await issueSittingCodeFor({
+    studentEmail: INTERNAL_EXAM_STUDENT_EMAIL,
+    subjectFragment: SUBJECT_LABEL_FRAGMENT,
+  })
   return code
 }
 
@@ -58,6 +46,11 @@ async function resetAll(): Promise<void> {
   }
   try {
     await resetStudentQuizSessions(INTERNAL_EXAM_STUDENT_EMAIL)
+  } catch (e) {
+    errors.push(e instanceof Error ? e.message : String(e))
+  }
+  try {
+    await cleanupE2eExamSittings()
   } catch (e) {
     errors.push(e instanceof Error ? e.message : String(e))
   }
@@ -75,11 +68,8 @@ test.describe('internal exam start blocked by an open quiz', () => {
     await resetAll()
   })
 
-  test('saves the open quiz for later and opens the internal exam', async ({
-    page: adminPage,
-    browser,
-  }) => {
-    const code = await issueCodeAsAdmin(adminPage)
+  test('saves the open quiz for later and opens the internal exam', async ({ browser }) => {
+    const code = await issueCode()
     const context: BrowserContext = await browser.newContext({
       storageState: 'e2e/.auth/internal-exam-student.json',
       viewport: { width: 1280, height: 900 },

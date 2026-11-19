@@ -41,6 +41,7 @@ function activePayload(overrides: Record<string, unknown> = {}) {
     expiresAt: FUTURE,
     consumedAt: null,
     voidedAt: null,
+    sittingEntryId: null,
     ...overrides,
   }
 }
@@ -184,5 +185,35 @@ describe('sendInternalExamCodeEmail', () => {
       '[sendInternalExamCodeEmail] NEXT_PUBLIC_APP_URL is not set',
     )
     errorSpy.mockRestore()
+  })
+})
+
+describe('sendInternalExamCodeEmail sitting codes', () => {
+  it('refuses a sitting code and sends no email', async () => {
+    mockAdmin()
+    mockGetCode.mockResolvedValue(activePayload({ sittingEntryId: 'entry-1' }))
+
+    const result = await sendInternalExamCodeEmail(VALID_INPUT)
+
+    expect(result).toEqual({
+      success: false,
+      error: 'Sitting codes are emailed from their sitting',
+    })
+    expect(mockSendEmail).not.toHaveBeenCalled()
+    expect(mockRpc).not.toHaveBeenCalled()
+  })
+
+  it('refuses a voided sitting code with the sitting error, not the inactive one', async () => {
+    mockAdmin()
+    mockGetCode.mockResolvedValue(
+      activePayload({ sittingEntryId: 'entry-1', voidedAt: '2026-01-01T00:00:00.000Z' }),
+    )
+
+    const result = await sendInternalExamCodeEmail(VALID_INPUT)
+
+    expect(result).toEqual({
+      success: false,
+      error: 'Sitting codes are emailed from their sitting',
+    })
   })
 })

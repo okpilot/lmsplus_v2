@@ -8,5 +8,6 @@ export const STATUS_ITEMS = [
 ] as const
 
 export function statusLabel(status: string): string {
+  if (status === 'waiting') return 'Waiting for start'
   return STATUS_ITEMS.find((i) => i.value === status)?.label ?? status
 }

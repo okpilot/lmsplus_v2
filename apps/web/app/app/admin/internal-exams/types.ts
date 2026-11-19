@@ -1,4 +1,4 @@
-export type InternalExamCodeStatus = 'active' | 'consumed' | 'expired' | 'voided'
+export type InternalExamCodeStatus = 'active' | 'waiting' | 'consumed' | 'expired' | 'voided'
 
 export type InternalExamCodeRow = {
   id: string
@@ -18,6 +18,7 @@ export type InternalExamCodeRow = {
   voidReason: string | null
   emailedAt: string | null
   status: InternalExamCodeStatus
+  sittingId: string | null
   sessionEndedAt: string | null
 }
 
@@ -49,16 +50,4 @@ export type ListAttemptsFilters = {
   studentId?: string
   subjectId?: string
   page?: number
-}
-
-export type OrgStudentOption = {
-  id: string
-  fullName: string
-  email: string
-}
-
-export type ExamSubjectOption = {
-  id: string
-  code: string
-  name: string
 }

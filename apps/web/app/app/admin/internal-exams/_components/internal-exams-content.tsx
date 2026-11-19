@@ -1,22 +1,12 @@
 import type { InternalExamsSearchParams } from '../_search-params'
 import { listInternalExamAttempts } from '../attempts-queries'
 import { PAGE_SIZE } from '../pagination'
-import { listExamSubjects, listInternalExamCodes } from '../queries'
+import { listInternalExamCodes } from '../queries'
 import { SittingNewDialog } from '../sittings/_components/sitting-new-dialog'
 import { listInvigilatorOptions, listSittings } from '../sittings/queries'
-import { listOrgStudents } from '../students-queries'
 import { InternalExamsTabs } from './internal-exams-tabs'
 
 const EMPTY = { rows: [], totalCount: 0 }
-
-async function loadCodes({ status, codesPage }: Readonly<InternalExamsSearchParams>) {
-  const [students, subjects, codes] = await Promise.all([
-    listOrgStudents(),
-    listExamSubjects(),
-    listInternalExamCodes({ status, page: codesPage }),
-  ])
-  return { students, subjects, codes }
-}
 
 async function loadSittings({ scope, sittingsPage, dlg }: Readonly<InternalExamsSearchParams>) {
   const [list, invigilators] = await Promise.all([
@@ -29,18 +19,18 @@ async function loadSittings({ scope, sittingsPage, dlg }: Readonly<InternalExams
 export async function InternalExamsContent(params: Readonly<InternalExamsSearchParams>) {
   const { tab, scope, sittingsPage, attemptsPage, dlg } = params
   const [codes, attempts, sittings] = await Promise.all([
-    tab === 'codes' ? loadCodes(params) : { students: [], subjects: [], codes: EMPTY },
+    tab === 'codes'
+      ? listInternalExamCodes({ status: params.status, page: params.codesPage })
+      : EMPTY,
     tab === 'attempts' ? listInternalExamAttempts({ page: attemptsPage }) : EMPTY,
     tab === 'sittings' ? loadSittings(params) : null,
   ])
   return (
     <>
       <InternalExamsTabs
-        students={codes.students}
-        subjects={codes.subjects}
         status={params.status}
-        codes={codes.codes.rows}
-        codesTotalCount={codes.codes.totalCount}
+        codes={codes.rows}
+        codesTotalCount={codes.totalCount}
         attempts={attempts.rows}
         attemptsTotalCount={attempts.totalCount}
         pageSize={PAGE_SIZE}

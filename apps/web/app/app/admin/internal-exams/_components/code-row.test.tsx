@@ -52,6 +52,7 @@ const baseRow: InternalExamCodeRow = {
   emailedAt: null,
   status: 'active',
   sessionEndedAt: null,
+  sittingId: null,
 }
 
 describe('CodeRow status text', () => {
@@ -148,5 +149,49 @@ describe('CodeRow', () => {
       expect(text).toContain('15/03/2026, 23:45')
       expect(text).not.toContain('UTC')
     })
+  })
+})
+
+describe('CodeRow sitting codes', () => {
+  const sitting = { ...baseRow, sittingId: 'sit-9' }
+
+  it('shows a "Sitting code" link to the sitting page', () => {
+    renderRow(sitting)
+    expect(screen.getByRole('link', { name: 'Sitting code' })).toHaveAttribute(
+      'href',
+      '/app/admin/internal-exams/sittings/sit-9',
+    )
+  })
+
+  it('shows the Sitting code link for a voided (removed-entry) code too', () => {
+    renderRow({ ...sitting, status: 'voided', voidedAt: '2026-04-28T12:00:00.000Z' })
+    expect(screen.getByRole('link', { name: 'Sitting code' })).toBeInTheDocument()
+  })
+
+  it('does not render the email button', () => {
+    renderRow(sitting)
+    expect(mockSendButton).not.toHaveBeenCalled()
+  })
+
+  it('does not render Void for a consumed sitting code', () => {
+    renderRow({ ...sitting, status: 'consumed', consumedAt: '2026-04-28T11:00:00.000Z' })
+    expect(screen.queryByRole('button', { name: 'Void' })).not.toBeInTheDocument()
+  })
+
+  it('still renders Void for an active sitting code', () => {
+    renderRow(sitting)
+    expect(screen.getByRole('button', { name: 'Void' })).toBeInTheDocument()
+  })
+
+  it('shows Waiting for start for a waiting sitting code', () => {
+    renderRow({ ...sitting, status: 'waiting' })
+    expect(screen.getByText('Waiting for start')).toBeInTheDocument()
+  })
+
+  it('keeps the email button and Void and no link on a legacy row', () => {
+    renderRow(baseRow)
+    expect(screen.queryByRole('link', { name: 'Sitting code' })).not.toBeInTheDocument()
+    expect(mockSendButton).toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Void' })).toBeInTheDocument()
   })
 })

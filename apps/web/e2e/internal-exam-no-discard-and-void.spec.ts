@@ -24,8 +24,11 @@
 
 import { type BrowserContext, expect, type Page, test } from '@playwright/test'
 import { signInAsAdmin } from './helpers/admin-supabase'
+import { cleanupE2eExamSittings } from './helpers/exam-sitting-cleanup'
+import { insertLegacyCodeFor, issueSittingCodeFor } from './helpers/sitting-code'
 import {
   cleanupInternalExamStudentActiveSessions,
+  getAdminClient,
   INTERNAL_EXAM_STUDENT_EMAIL,
 } from './helpers/supabase'
 
@@ -33,26 +36,12 @@ test.use({ storageState: 'e2e/.auth/admin.json' })
 
 const SUBJECT_LABEL_FRAGMENT = 'Meteorology'
 
-async function issueCodeAsAdmin(adminPage: Page, subjectFragment: string): Promise<string> {
-  await adminPage.goto('/app/admin/internal-exams?tab=codes')
-  await expect(adminPage.getByRole('heading', { name: 'Internal Exams' })).toBeVisible()
-  const form = adminPage.getByTestId('issue-code-form')
-  await form.locator('[aria-label="Student"]').click()
-  await adminPage
-    .locator('[data-slot="select-item"]')
-    .filter({ hasText: INTERNAL_EXAM_STUDENT_EMAIL })
-    .first()
-    .click()
-  await form.locator('[aria-label="Subject"]').click()
-  await adminPage
-    .locator('[data-slot="select-item"]')
-    .filter({ hasText: subjectFragment })
-    .first()
-    .click()
-  await form.getByRole('button', { name: 'Issue code' }).click()
-  await expect(adminPage.getByText('Internal exam code issued')).toBeVisible({ timeout: 10_000 })
-  const code = (await adminPage.getByTestId('issued-code-value').textContent())?.trim()
-  if (!code) throw new Error('issued code panel had no value')
+/** Service-role seed: an open sitting holding the student with a live code (no UI, no RPC). */
+async function issueCode(): Promise<string> {
+  const { code } = await issueSittingCodeFor({
+    studentEmail: INTERNAL_EXAM_STUDENT_EMAIL,
+    subjectFragment: SUBJECT_LABEL_FRAGMENT,
+  })
   return code
 }
 
@@ -87,15 +76,30 @@ test.describe('internal exam — no-discard + admin void', () => {
   test.beforeEach(async () => {
     const adminClient = await signInAsAdmin()
     await cleanupInternalExamStudentActiveSessions(adminClient)
+    await cleanupE2eExamSittings()
+  })
+
+  // The void test uses a legacy code: a consumed sitting code has no Void in the Codes tab.
+  let legacyCode: string | null = null
+
+  test.afterEach(async () => {
+    await cleanupE2eExamSittings()
+    if (legacyCode === null) return
+    await cleanupInternalExamStudentActiveSessions(await signInAsAdmin())
+    const { error } = await getAdminClient()
+      .from('internal_exam_codes')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('code', legacyCode)
+    legacyCode = null
+    if (error) throw new Error(`afterEach legacy code soft-delete: ${error.message}`)
   })
 
   // ── (a) Discard button is hidden in the finish dialog ─────────────────────
 
   test('FinishQuizDialog hides Discard but shows Submit and Return during an active internal exam', async ({
-    page: adminPage,
     context: adminCtx,
   }) => {
-    const code = await issueCodeAsAdmin(adminPage, SUBJECT_LABEL_FRAGMENT)
+    const code = await issueCode()
 
     const { context: studentCtx, page } = await openStudentContext(adminCtx.browser())
     try {
@@ -124,7 +128,11 @@ test.describe('internal exam — no-discard + admin void', () => {
     page: adminPage,
     context: adminCtx,
   }) => {
-    const code = await issueCodeAsAdmin(adminPage, SUBJECT_LABEL_FRAGMENT)
+    const code = await insertLegacyCodeFor({
+      studentEmail: INTERNAL_EXAM_STUDENT_EMAIL,
+      subjectFragment: SUBJECT_LABEL_FRAGMENT,
+    })
+    legacyCode = code
 
     const { context: studentCtx, page } = await openStudentContext(adminCtx.browser())
     try {
