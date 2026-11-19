@@ -60,3 +60,12 @@ describe('issueSkipText', () => {
     )
   })
 })
+
+describe('CANCEL_CONFIRM_TEXT notices line', () => {
+  it('tells the admin that emailed students get a cancellation notice', async () => {
+    const { CANCEL_CONFIRM_TEXT } = await import('./copy')
+    expect(CANCEL_CONFIRM_TEXT).toContain(
+      'Students who were emailed a code get a cancellation notice.',
+    )
+  })
+})

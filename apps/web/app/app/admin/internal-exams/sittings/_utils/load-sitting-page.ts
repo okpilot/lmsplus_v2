@@ -1,5 +1,7 @@
 import { notFound } from 'next/navigation'
 import { z } from 'zod'
+import { requireAdmin } from '@/lib/auth/require-admin'
+import { getDeliverablePendingNotices } from '../../notice-queries'
 import type { SittingParams } from '../parse-sitting-params'
 import { resolveSelection } from '../people-queries'
 import { getSitting, getSummary, listInvigilatorOptions } from '../queries'
@@ -21,14 +23,26 @@ export async function loadSittingPage(rawId: string, params: SittingParams) {
   const editable =
     (summary.status === 'scheduled' || summary.status === 'open') && !summary.dayEnded
   const popup = params.dlg === 'exams' || params.dlg === 'issue' ? params.dlg : null
-  const [sitting, roster, removed, invigilators, selection] = await Promise.all([
+  const { supabase, organizationId } = await requireAdmin()
+  const [sitting, roster, removed, invigilators, selection, notices] = await Promise.all([
     getSitting(id.data),
     getRoster({ sittingId: id.data, q: params.q, show: params.show, page: params.page }),
     getRemoved(id.data),
     editable ? listInvigilatorOptions() : Promise.resolve([]),
     editable && popup ? resolveSelection(id.data, popup, params.selection) : Promise.resolve(EMPTY),
+    getDeliverablePendingNotices(supabase, organizationId, id.data),
   ])
   if (!sitting || !roster || !removed) notFound()
   const notDue = new Date().toISOString().slice(0, 10) < isoDay(sitting.scheduledAt)
-  return { sitting, summary, roster, removed, invigilators, notDue, editable, selection }
+  // The banner counts what Send notices can deliver, not the RPC's raw pending count.
+  return {
+    sitting,
+    summary: { ...summary, pendingRemovalNotices: notices.length },
+    roster,
+    removed,
+    invigilators,
+    notDue,
+    editable,
+    selection,
+  }
 }
