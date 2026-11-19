@@ -83,46 +83,36 @@ describe('voidInternalExamCode', () => {
     })
   })
 
-  describe('sitting code guard', () => {
-    it('refuses a sitting code and does not call the RPC', async () => {
-      mockAdmin()
-      mockMaybeSingle.mockResolvedValue({ data: { sitting_entry_id: 'entry-1' }, error: null })
-
-      const result = await voidInternalExamCode(VALID_INPUT)
-
-      expect(result).toEqual({ success: false, error: 'Void sitting codes from their sitting' })
-      expect(mockRpc).not.toHaveBeenCalled()
-    })
-
-    it('returns a generic error on lookup failure and does not call the RPC', async () => {
-      mockAdmin()
-      vi.spyOn(console, 'error').mockImplementation(() => {})
-      mockMaybeSingle.mockResolvedValue({ data: null, error: { message: 'db down' } })
-
-      const result = await voidInternalExamCode(VALID_INPUT)
-
-      expect(result).toEqual({ success: false, error: 'Failed to void internal exam code' })
-      expect(mockRpc).not.toHaveBeenCalled()
-    })
-
-    it('calls the RPC for a legacy code', async () => {
+  describe('sitting code refusal (DB)', () => {
+    it('does not look up internal_exam_codes before the RPC', async () => {
       mockAdmin()
       mockRpc.mockResolvedValue({ data: [RPC_OK_NO_SESSION], error: null })
 
       await voidInternalExamCode(VALID_INPUT)
 
+      expect(SUPABASE.from).not.toHaveBeenCalled()
+      expect(mockMaybeSingle).not.toHaveBeenCalled()
       expect(mockRpc).toHaveBeenCalledTimes(1)
+    })
+
+    it('maps the sitting_code RPC error to "Void sitting codes from their sitting"', async () => {
+      mockAdmin()
+      vi.spyOn(console, 'error').mockImplementation(() => {})
+      mockRpc.mockResolvedValue({ data: null, error: { message: 'sitting_code' } })
+
+      const result = await voidInternalExamCode(VALID_INPUT)
+
+      expect(result).toEqual({ success: false, error: 'Void sitting codes from their sitting' })
+      expect(mockRevalidatePath).not.toHaveBeenCalled()
     })
 
     it('falls through to the RPC for a missing row and maps code_not_found', async () => {
       mockAdmin()
       vi.spyOn(console, 'error').mockImplementation(() => {})
-      mockMaybeSingle.mockResolvedValue({ data: null, error: null })
       mockRpc.mockResolvedValue({ data: null, error: { message: 'code_not_found' } })
 
       const result = await voidInternalExamCode(VALID_INPUT)
 
-      expect(mockRpc).toHaveBeenCalledTimes(1)
       expect(result).toEqual({ success: false, error: 'Code not found' })
     })
   })

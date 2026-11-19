@@ -438,7 +438,7 @@ describe('exam sitting concurrency', () => {
     const code = await w.code(await w.enter(id, w.s1, w.subA))
     await Promise.all([
       a1().rpc('close_exam_sitting', { p_sitting_id: id }),
-      a1().rpc('void_internal_exam_code', { p_code_id: code, p_reason: 'manual' }),
+      a1().rpc('void_sitting_code', { p_sitting_id: id, p_code_id: code, p_reason: 'manual' }),
     ])
     const rows = must<unknown[]>(
       await admin

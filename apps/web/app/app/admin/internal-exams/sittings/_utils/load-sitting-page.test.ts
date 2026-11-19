@@ -58,7 +58,7 @@ beforeEach(() => {
 })
 
 describe('loadSittingPage', () => {
-  it('counts the deliverable pending notices, not the summary count', async () => {
+  it('uses the summary pending count and never recounts deliverable notices', async () => {
     m.getSummary.mockResolvedValue({
       status: 'scheduled',
       scheduledAt: '2026-11-20T09:30:00Z',
@@ -66,33 +66,11 @@ describe('loadSittingPage', () => {
     })
     m.deliverable.mockResolvedValue([{ userId: 'u1' }, { userId: 'u2' }])
     const r = await loadSittingPage(SID, params())
-    expect(m.deliverable).toHaveBeenCalledWith({}, 'org-1', SID)
-    expect(r.summary.pendingRemovalNotices).toBe(2)
+    expect(m.deliverable).not.toHaveBeenCalled()
+    expect(r.summary.pendingRemovalNotices).toBe(5)
   })
 
-  it('counts one notice per email: per student for cancellations, per entry for removals', async () => {
-    m.getSummary.mockResolvedValue({
-      status: 'scheduled',
-      scheduledAt: '2026-11-20T09:30:00Z',
-      pendingRemovalNotices: 5,
-    })
-    m.deliverable.mockResolvedValue([
-      { userId: 'u1', subjectId: 's1', codeId: 'c1' },
-      { userId: 'u1', subjectId: 's2', codeId: 'c2' },
-      { userId: 'u1', subjectId: 's3', codeId: 'c3' },
-      {
-        kind: 'entry_auto_removed',
-        userId: 'u1',
-        subjectId: 's4',
-        entryId: 'e1',
-        passedAt: '2026-11-01T00:00:00Z',
-      },
-    ])
-    const r = await loadSittingPage(SID, params())
-    expect(r.summary.pendingRemovalNotices).toBe(2)
-  })
-
-  it('skips the pending read when the summary has no pending notices', async () => {
+  it('keeps a zero summary count without any pending read', async () => {
     m.getSummary.mockResolvedValue({
       status: 'scheduled',
       scheduledAt: '2026-11-20T09:30:00Z',
@@ -101,19 +79,6 @@ describe('loadSittingPage', () => {
     const r = await loadSittingPage(SID, params())
     expect(m.deliverable).not.toHaveBeenCalled()
     expect(r.summary.pendingRemovalNotices).toBe(0)
-  })
-
-  it('falls back to the summary count when the pending read throws', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {})
-    m.getSummary.mockResolvedValue({
-      status: 'scheduled',
-      scheduledAt: '2026-11-20T09:30:00Z',
-      pendingRemovalNotices: 5,
-    })
-    m.deliverable.mockRejectedValue(new Error('db down'))
-    const r = await loadSittingPage(SID, params())
-    expect(r.summary.pendingRemovalNotices).toBe(5)
-    expect(console.error).toHaveBeenCalled()
   })
 
   it('returns 404 for a non-uuid id without querying', async () => {

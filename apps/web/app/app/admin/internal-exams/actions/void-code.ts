@@ -24,6 +24,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   cannot_void_finished_attempt: 'Cannot void a finished attempt — record is final',
   code_not_found: 'Code not found',
   code_voided: 'Code is already voided',
+  sitting_code: 'Void sitting codes from their sitting',
   session_state_changed: 'This session was modified by another action — please refresh and retry',
 }
 
@@ -49,19 +50,6 @@ export async function voidInternalExamCode(input: unknown): Promise<VoidCodeResu
 
   const { supabase } = await requireAdmin()
   const { codeId, reason } = parsed.data
-
-  const { data: codeRow, error: lookupError } = await supabase
-    .from('internal_exam_codes')
-    .select('sitting_entry_id')
-    .eq('id', codeId)
-    .maybeSingle()
-  if (lookupError) {
-    console.error('[voidInternalExamCode] lookup error:', lookupError.message)
-    return { success: false, error: 'Failed to void internal exam code' }
-  }
-  if (codeRow?.sitting_entry_id) {
-    return { success: false, error: 'Void sitting codes from their sitting' }
-  }
 
   const { data, error } = await supabase.rpc('void_internal_exam_code', {
     p_code_id: codeId,

@@ -40,7 +40,6 @@ const CLASSIFIED: Record<string, string[]> = {
     'get_exam_sitting_issue_preview',
     'get_exam_sitting_subject_eligibility',
     'get_question_authoring_fields',
-    'issue_internal_exam_code',
     'list_exam_sitting_removed_entries',
     'list_exam_sitting_roster',
     'set_user_enrolments',

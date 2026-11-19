@@ -4,7 +4,7 @@
  *  - LR: a cross-org admin deletes a topic referenced only by another org's live question → in_use.
  *  - LS: an admin moves a question under a deleted subtopic → parent_not_found; a deleted
  *        question under a deleted topic is restored (admin: RLS 0 rows; service role: parent_not_found).
- *  - LT: issue_internal_exam_code on a soft-deleted subject → subject_not_found.
+ *  - LT: RETIRED in 2e (legacy issue RPC dropped).
  *  - LU: concurrent topic delete and question insert → exactly one wins, never both.
  *
  * Every arm carries a control proving the same write succeeds when the parent is live / unused.
@@ -97,13 +97,12 @@ test.describe('Red Team: syllabus soft delete vs dependent rows', () => {
   let orgId: string
   let adminUserId: string
   let crossOrgId: string
-  let studentId: string
   let bankId: string
   let testStart: string
 
   test.beforeAll(async () => {
     admin = getAdminClient()
-    studentId = (await seedRedTeamUsers()).attackerUserId
+    await seedRedTeamUsers()
     const own = await seedRedTeamAdmin()
     orgId = own.orgId
     adminUserId = own.adminUserId
@@ -324,33 +323,6 @@ test.describe('Red Team: syllabus soft delete vs dependent rows', () => {
     expect(okRestore.error).toBeNull()
     expect(okRestore.data).toHaveLength(1)
     expect((await readQuestion(liveOrphanId)).deleted_at).toBeNull()
-  })
-
-  test('LT: an admin cannot issue an internal exam code for a deleted subject', async () => {
-    const deadSubjectId = await seedSubject()
-    const liveSubjectId = await seedSubject()
-    const del = await softDelete(adminClient, 'easa_subjects', deadSubjectId)
-    expect(del.error).toBeNull()
-
-    const dead = await adminClient.rpc('issue_internal_exam_code', {
-      p_subject_id: deadSubjectId,
-      p_student_id: studentId,
-    })
-    expect(dead.error?.message).toMatch(/subject_not_found/)
-
-    // Control: the live subject passes the subject check and stops at the next guard.
-    const live = await adminClient.rpc('issue_internal_exam_code', {
-      p_subject_id: liveSubjectId,
-      p_student_id: studentId,
-    })
-    expect(live.error?.message).toMatch(/exam_config_required/)
-
-    const { count, error } = await admin
-      .from('internal_exam_codes')
-      .select('id', { count: 'exact', head: true })
-      .in('subject_id', [deadSubjectId, liveSubjectId])
-    expect(error).toBeNull()
-    expect(count).toBe(0)
   })
 
   test('LU: a topic delete racing a question insert never leaves a live question on a deleted topic', async () => {

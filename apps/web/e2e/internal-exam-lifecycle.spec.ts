@@ -25,7 +25,7 @@
 import { type BrowserContext, expect, type Page, test } from '@playwright/test'
 import { signInAsAdmin } from './helpers/admin-supabase'
 import { cleanupE2eExamSittings } from './helpers/exam-sitting-cleanup'
-import { insertLegacyCodeFor, seedSittingFor } from './helpers/sitting-code'
+import { seedSittingFor } from './helpers/sitting-code'
 import {
   cleanupInternalExamStudentActiveSessions,
   getAdminClient,
@@ -259,29 +259,6 @@ test.describe('internal exam — lifecycle', () => {
       await page.reload()
       await expect(row().getByText('Works while the sitting is open.')).toBeVisible()
       await expect(row().getByTestId('start-button')).toBeEnabled()
-    } finally {
-      await context.close()
-    }
-  })
-
-  test('a legacy code (no sitting) is still redeemable until it is dropped', async ({
-    browser,
-  }) => {
-    const legacyCode = await insertLegacyCodeFor({
-      studentEmail: INTERNAL_EXAM_STUDENT_EMAIL,
-      subjectFragment: SUBJECT_LABEL_FRAGMENT,
-    })
-    const { context, page } = await openStudentContext(browser)
-    try {
-      await page.goto('/app/internal-exam')
-      const start = page.getByTestId('start-button').first()
-      await expect(start).toBeEnabled()
-      await expect(page.getByText(/^Expires /).first()).toBeVisible()
-      await start.click()
-      await page.getByTestId('code-input').fill(legacyCode)
-      await page.getByRole('button', { name: 'Start exam' }).click()
-      await page.waitForURL(/\/app\/quiz\/session/, { timeout: 15_000 })
-      await expect(page.getByText(/Question \d/)).toBeVisible({ timeout: 10_000 })
     } finally {
       await context.close()
     }

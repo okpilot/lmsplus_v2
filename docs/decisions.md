@@ -255,3 +255,4 @@
 ## 260 — 2026-11-18 — Sitting popups Add people, Add exams and Issue codes are URL-driven Server Components (`?dlg=people|exams|issue`); the selection is validated `ids` (<=100) or `all=1`; no Route Handler or Server Action read (alternative to decision 144's GET handler). #1777
 ## 261 — 2026-11-18 — Internal Exams opens on the Sittings tab (`parseTab` default); legacy deep links to Codes need `?tab=codes`. #1777
 ## 262 — 2026-11-19 — Change (time or mode update), auto-removal and cancel notices go out from the sitting page Send notices button, from the update action on a time or mode change, and from the cancel action; Start, Close, Issue, Add and Remove do not send. #1777
+## 263 — 2026-11-19 — issue_internal_exam_code is dropped; void_internal_exam_code refuses sitting codes; the sitting page banner counts all deliverable emails waiting (one per student for a cancellation, one per entry for a removal) and one Send delivers whole students up to 200 rows. #1777

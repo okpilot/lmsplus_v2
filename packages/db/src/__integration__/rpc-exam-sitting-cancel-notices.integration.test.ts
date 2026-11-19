@@ -649,3 +649,69 @@ describe('pending notices for an auto-cancelled sitting', () => {
     )
   })
 })
+
+/** PR 2e: pending notices are exact (deliverable rows only) and capped by whole students. */
+describe('pending notices: whole-student cap and deliverable count', () => {
+  let w: World
+  beforeAll(async () => {
+    w = await buildWorld('cnl-cap')
+  }, 120_000)
+  afterAll(async () => {
+    await w?.teardown()
+  }, 120_000)
+
+  type Row = { user_id: string; kind: string; code_id: string | null; entry_id: string | null }
+  const pendingRows = async (sit: string) =>
+    must<Row[]>(await w.clients.a1.rpc('get_pending_removal_notices', { p_sitting_id: sit }), 'p')
+  const summaryCount = async (sit: string) =>
+    must<Array<{ pending_removal_notices: number }>>(
+      await w.clients.a1.rpc('get_exam_sitting_summary', { p_sitting_id: sit }),
+      'summary',
+    )[0]?.pending_removal_notices
+
+  it('returns at most 200 rows, whole students only, none for a deactivated student; summary counts emails', async () => {
+    wipeSitting(w)
+    const users = bulkUsers(w, 30, 'cap')
+    const subjects = bulkSubjects(w, 9, 'CPS')
+    try {
+      const sit = await w.sitting({ day: 1 })
+      bulkCandidates(w, sit, users)
+      bulkEntries(w, sit, users, subjects)
+      bulkCodes(w, sit)
+      const em = psql(
+        `UPDATE public.internal_exam_codes SET emailed_at = now() WHERE organization_id = '${w.orgA}' AND sitting_entry_id IS NOT NULL;`,
+      )
+      expect(em.err).toBe('')
+      must(await w.clients.a1.rpc('cancel_exam_sitting', { p_sitting_id: sit }), 'cancel')
+      const dead = users[0] as string
+      await w.setUser(dead, { deleted_at: now() })
+
+      const got = await pendingRows(sit)
+      expect(got.length).toBeGreaterThan(0)
+      expect(got.length).toBeLessThanOrEqual(200)
+      expect(got.some((r) => r.user_id === dead)).toBe(false)
+      const per = new Map<string, number>()
+      for (const r of got) per.set(r.user_id, (per.get(r.user_id) ?? 0) + 1)
+      for (const [u, n] of per) expect(n, `rows of ${u}`).toBe(9)
+      expect(per.size).toBeLessThan(29)
+
+      // cancellation notices: one email per active student (29), not per row (261).
+      expect(await summaryCount(sit)).toBe(29)
+    } finally {
+      wipeSitting(w)
+      dropBulkUsers(users)
+      dropBulkSubjects(subjects)
+    }
+  }, 180_000)
+
+  it('summary counts one email per student for a cancellation and one per entry for a removal', async () => {
+    wipeSitting(w)
+    const sit = await w.sitting({ day: 1 })
+    await w.code(await w.enter(sit, w.s1, w.subA), { emailed: true })
+    await w.code(await w.enter(sit, w.s1, w.subB), { emailed: true })
+    await w.code(await w.enter(sit, w.s2, w.subA), { emailed: true })
+    must(await w.clients.a1.rpc('cancel_exam_sitting', { p_sitting_id: sit }), 'cancel')
+    expect(await summaryCount(sit)).toBe(2)
+    expect((await pendingRows(sit)).length).toBe(3)
+  })
+})

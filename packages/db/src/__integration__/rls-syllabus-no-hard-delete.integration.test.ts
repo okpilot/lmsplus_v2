@@ -7,7 +7,6 @@ import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient }
 /**
  * Syllabus tables are soft-delete only: an authenticated admin can neither hard DELETE
  * nor write deleted_at / deleted_by directly (only soft_delete_syllabus_item can).
- * Also: issue_internal_exam_code refuses a soft-deleted subject.
  */
 describe('syllabus soft delete: privileges and readers', () => {
   const admin = getAdminClient()
@@ -178,36 +177,4 @@ describe('syllabus soft delete: privileges and readers', () => {
       expect(error).toBeNull()
     },
   )
-
-  describe('issue_internal_exam_code', () => {
-    it('refuses a soft-deleted subject even when its exam_config is live', async () => {
-      const { error: cErr } = await admin.from('exam_configs').insert({
-        organization_id: orgId,
-        subject_id: subjectId,
-        enabled: true,
-        total_questions: 5,
-        time_limit_seconds: 600,
-        pass_mark: 75,
-      })
-      expect(cErr).toBeNull()
-      // Positive control: a live subject issues a code.
-      const ok = await adminClient.rpc('issue_internal_exam_code', {
-        p_subject_id: subjectId,
-        p_student_id: studentId,
-      })
-      expect(ok.error).toBeNull()
-      await admin.from('internal_exam_codes').delete().eq('organization_id', orgId)
-
-      const { error: dErr } = await admin
-        .from('easa_subjects')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', subjectId)
-      expect(dErr).toBeNull()
-      const { error } = await adminClient.rpc('issue_internal_exam_code', {
-        p_subject_id: subjectId,
-        p_student_id: studentId,
-      })
-      expect(error?.message).toContain('subject_not_found')
-    })
-  })
 })

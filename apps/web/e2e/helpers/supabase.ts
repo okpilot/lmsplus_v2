@@ -329,7 +329,9 @@ export async function cleanupInternalExamStudentActiveSessions(
   // production pattern in lib/queries.ts where this same join uses `!`.
   const { data: codes, error: codesError } = await admin
     .from('internal_exam_codes')
-    .select('id, consumed_session_id, quiz_sessions!consumed_session_id (ended_at)')
+    .select(
+      'id, sitting_entry_id, consumed_session_id, quiz_sessions!consumed_session_id (ended_at)',
+    )
     .eq('student_id', studentRow.id)
     .not('consumed_session_id', 'is', null)
     .is('voided_at', null)
@@ -339,6 +341,7 @@ export async function cleanupInternalExamStudentActiveSessions(
 
   type CodeRow = {
     id: string
+    sitting_entry_id: string | null
     consumed_session_id: string
     quiz_sessions: { ended_at: string | null } | null
   }
@@ -352,6 +355,20 @@ export async function cleanupInternalExamStudentActiveSessions(
   // by a prior reports-separation run survives, defeating the cleanup #587 set
   // out to provide. The for-loop is a safe no-op when stale is empty.
   for (const row of stale) {
+    if (row.sitting_entry_id) {
+      // void_internal_exam_code refuses sitting codes: end the attempt directly.
+      const { error: endError } = await admin
+        .from('quiz_sessions')
+        .update({ ended_at: new Date().toISOString(), passed: false })
+        .eq('id', row.consumed_session_id)
+        .is('ended_at', null)
+        .select('id')
+      if (endError)
+        throw new Error(
+          `cleanupInternalExamStudentActiveSessions end session ${row.consumed_session_id}: ${endError.message}`,
+        )
+      continue
+    }
     const { error } = await adminAuthedClient.rpc('void_internal_exam_code', {
       p_code_id: row.id,
       p_reason: 'e2e-cleanup',
