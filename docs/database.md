@@ -494,6 +494,8 @@ CREATE INDEX idx_exam_sitting_candidates_user ON exam_sitting_candidates(user_id
 
 **GRANTs to `authenticated`:** `SELECT (id, organization_id, sitting_id, user_id, added_at, deleted_at)` only.
 
+**GDPR export:** key `exam_sitting_candidacies` (`fetchExamSittingCandidacies`): `sitting_id, sitting_scheduled_at, sitting_mode, added_at, deleted_at`; date/mode are `null` in the student self-export (no student SELECT on `exam_sittings`); admin export also returns removed rows and resolves date/mode regardless of the sitting's `deleted_at`.
+
 ### exam_sitting_entries
 
 One row per (candidate, subject) in a sitting (same migration, #1777). Inserted only by `private.add_sitting_entries_core` (called by `add_exam_sitting_entries`, migs `20261117000300` / `20261117000400`); soft-deleted by `remove_exam_sitting_candidates`, `remove_exam_sitting_entries` and the prune helper. Soft delete; product code never hard-deletes (test teardown exception: §2 `exam_sittings`); retention as `exam_sittings`.
@@ -520,6 +522,8 @@ CREATE INDEX idx_exam_sitting_entries_org_subject ON exam_sitting_entries(organi
 **RLS (ENABLED + FORCED):** same shape as `exam_sitting_candidates`: `admin_read_org_exam_sitting_entries` (admin + org + `deleted_at IS NULL`), `user_read_own_exam_sitting_entries`, RESTRICTIVE `exam_sitting_entries_select_active_caller`. No write policy.
 
 **GRANTs to `authenticated`:** `SELECT (id, organization_id, sitting_id, user_id, subject_id, added_at, deleted_at)` only.
+
+**GDPR export:** key `exam_sitting_entries` (`fetchExamSittingEntries`): `sitting_id, subject_id, added_at, deleted_at`; carries no sitting date/mode, join on `sitting_id` to `exam_sitting_candidacies`; admin export also returns removed rows.
 
 ### quiz_sessions
 
