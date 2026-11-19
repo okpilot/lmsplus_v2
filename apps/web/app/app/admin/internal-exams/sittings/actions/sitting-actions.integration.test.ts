@@ -100,10 +100,10 @@ describe('sitting Server Actions (app-layer integration)', () => {
     })
 
     const unchanged = await updateSitting({ sittingId: id, mode: 'remote' })
-    expect(unchanged).toEqual({ success: true, changed: false })
+    expect(unchanged).toEqual({ success: true, changed: false, notices: { sent: 0, failed: [] } })
 
     const changed = await updateSitting({ sittingId: id, mode: 'in_person' })
-    expect(changed).toEqual({ success: true, changed: true })
+    expect(changed).toEqual({ success: true, changed: true, notices: { sent: 0, failed: [] } })
     expect((await readSitting(id)).mode).toBe('in_person')
 
     const started = await startSitting({ sittingId: id })
@@ -141,7 +141,11 @@ describe('sitting Server Actions (app-layer integration)', () => {
 
     const result = await cancelSitting({ sittingId: id })
 
-    expect(result).toEqual({ success: true, codesVoided: 0 })
+    expect(result).toEqual({
+      success: true,
+      codesVoided: 0,
+      notices: { sent: 0, failed: [], unrecorded: 0 },
+    })
     expect((await readSitting(id)).status).toBe('cancelled')
   })
 
