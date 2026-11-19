@@ -494,7 +494,7 @@ CREATE INDEX idx_exam_sitting_candidates_user ON exam_sitting_candidates(user_id
 
 **GRANTs to `authenticated`:** `SELECT (id, organization_id, sitting_id, user_id, added_at, deleted_at)` only.
 
-**GDPR export:** key `exam_sitting_candidacies` (`fetchExamSittingCandidacies`): `sitting_id, sitting_scheduled_at, sitting_mode, added_at, deleted_at`; date/mode are `null` in the student self-export (no student SELECT on `exam_sittings`); admin export also returns removed rows and resolves date/mode regardless of the sitting's `deleted_at`.
+**GDPR export:** key `exam_sitting_candidacies` (`fetchExamSittingCandidacies`): `sitting_id, sitting_scheduled_at, sitting_mode, added_at, deleted_at`; date/mode are `null` in the student self-export (no student SELECT policy on `exam_sittings`); admin export also returns removed rows and resolves date/mode regardless of the sitting's `deleted_at`.
 
 ### exam_sitting_entries
 

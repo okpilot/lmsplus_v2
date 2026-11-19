@@ -1,5 +1,5 @@
 // App-layer integration tier (#925) — GDPR export of sitting candidacies and entries against
-// real Postgres. Self-export runs under RLS (live rows only; students cannot read exam_sittings,
+// real Postgres. Self-export runs under RLS (live rows only; no student SELECT policy on exam_sittings,
 // so the sitting embed is null); admin export under the service role (live + removed, sitting
 // date and mode resolved).
 import { createServerSupabaseClient } from '@repo/db/server'
