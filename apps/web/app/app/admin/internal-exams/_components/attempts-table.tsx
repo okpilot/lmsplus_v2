@@ -16,6 +16,7 @@ import { formatCorrectFraction } from '@/lib/utils/format-correct-fraction'
 import { formatUtc } from '@/lib/utils/format-utc'
 import { parsePageParam } from '@/lib/utils/parse-page-param'
 import { PaginationBar } from '../../../_components/pagination-bar'
+import { SITTING_BASE } from '../sittings/types'
 import type { InternalExamAttemptRow } from '../types'
 
 type Props = {
@@ -117,7 +118,7 @@ function AttemptRow({ row: r }: Readonly<{ row: InternalExamAttemptRow }>) {
       <TableCell className="text-caption">
         {r.sittingId ? (
           <Link
-            href={`/app/admin/internal-exams/sittings/${r.sittingId}`}
+            href={`${SITTING_BASE}/${r.sittingId}`}
             prefetch={false}
             onClick={(e) => e.stopPropagation()}
             className="text-foreground focus-visible:underline"

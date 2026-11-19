@@ -1,5 +1,6 @@
 'use client'
 
+import { startTransition, useOptimistic } from 'react'
 import { FilterSelect } from '@/app/app/_components/filter-select'
 import { useSearchBox } from '@/app/app/_hooks/use-search-box'
 import { useUpdateSearchParams } from '@/app/app/_hooks/use-update-search-params'
@@ -87,16 +88,27 @@ function AttemptFilterSelects({ filters, options, onChange }: Readonly<SelectsPr
 export function AttemptsFilters({ filters, options }: Readonly<Props>) {
   const update = useUpdateSearchParams()
   const search = useSearchBox(filters.q, update, { key: 'q', pageKey: 'attemptsPage' })
-  const onChange = (key: SelectKey, v: string | null) =>
-    update({ [key]: v === ALL ? null : v, ...search.takePending(), attemptsPage: null })
+  // Selects show the chosen value while the navigation is pending (Next guide: interactive-apps).
+  const [shown, setShown] = useOptimistic(filters)
+  const onChange = (key: SelectKey, v: string | null) => {
+    const value = v === ALL ? undefined : (v ?? undefined)
+    const pending = search.takePending()
+    startTransition(() => {
+      setShown({ ...shown, [key]: value })
+      update({ [key]: value ?? null, ...pending, attemptsPage: null })
+    })
+  }
   const clearAll = () => {
     search.reset()
-    update({ q: null, subject: null, sitting: null, group: null, attemptsPage: null })
+    startTransition(() => {
+      setShown({})
+      update({ q: null, subject: null, sitting: null, group: null, attemptsPage: null })
+    })
   }
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <AttemptFilterSelects filters={filters} options={options} onChange={onChange} />
+      <AttemptFilterSelects filters={shown} options={options} onChange={onChange} />
       <Input
         type="search"
         placeholder="Search name or email..."
