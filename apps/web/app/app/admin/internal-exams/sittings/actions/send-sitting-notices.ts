@@ -5,7 +5,7 @@ import { requireAdmin } from '@/lib/auth/require-admin'
 import { deliverPendingNotices, type NoticeResult } from '../_utils/deliver-notices'
 import { revalidateSitting, type SittingActionResult } from './sitting-action-result'
 
-/** Emails every deliverable pending removal and cancellation notice of a sitting. */
+/** Emails the next batch of deliverable pending removal and cancellation notices of a sitting (whole students, up to 200 rows). */
 export async function sendSittingNotices(
   input: unknown,
 ): Promise<SittingActionResult<NoticeResult>> {

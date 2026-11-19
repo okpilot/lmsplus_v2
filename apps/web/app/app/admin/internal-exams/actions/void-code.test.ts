@@ -165,7 +165,7 @@ describe('voidInternalExamCode', () => {
       expect(mockRpc).toHaveBeenCalledTimes(1)
     })
 
-    it('maps the sitting_code RPC error to "Void sitting codes from their sitting"', async () => {
+    it('shows "Void sitting codes from their sitting" when the code belongs to a sitting', async () => {
       mockAdmin()
       vi.spyOn(console, 'error').mockImplementation(() => {})
       mockRpc.mockResolvedValue({ data: null, error: { message: 'sitting_code' } })

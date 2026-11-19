@@ -25,7 +25,7 @@
  *  - finish_quiz_session           → session_not_found
  *      (20261004000300_finish_quiz_session.sql:45)
  *  - void_internal_exam_code       → code_not_found (admin client; p_code_id uuid)
- *      (20260601000003_void_internal_exam_code_failfast_session.sql:84)
+ *      (20261119000200_void_internal_exam_code_refuses_sitting_codes.sql:64)
  *  - get_report_correct_options    → Session not found, not owned, or not completed
  *      (20260316231503_report_correct_options_orderby_and_history.sql:25)
  */
