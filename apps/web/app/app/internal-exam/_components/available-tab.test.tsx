@@ -113,6 +113,11 @@ describe('AvailableTab', () => {
       expect(screen.getByTestId('start-button')).toBeDisabled()
     })
 
+    it('disables Start for a cancelled sitting', () => {
+      render(<AvailableTab rows={[SITTING_ROW('cancelled')]} />)
+      expect(screen.getByTestId('start-button')).toBeDisabled()
+    })
+
     it('enables Start with the open hint when the sitting is open', () => {
       render(<AvailableTab rows={[SITTING_ROW('open')]} />)
       expect(screen.getByTestId('start-button')).toBeEnabled()
