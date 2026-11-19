@@ -11,7 +11,7 @@ import {
   type ReferenceIds,
   seedReferenceData,
 } from '@/lib/integration-support/harness'
-import { insertPassedSession } from '../../../../e2e/helpers/exam-sitting-seed'
+import { insertPassedSession } from '@/lib/integration-support/passed-session'
 import {
   getChangedNoticeCodes,
   getDeliverablePendingNotices,
@@ -143,7 +143,7 @@ describe('notice-queries (app-layer integration)', () => {
     // A consumed code needs a real session; its own sitting keeps cancel_exam_sitting free of attempts.
     usedSittingId = await mkSitting()
     await entryWithCode('used', usedSittingId)
-    const usedSession = await insertPassedSession(admin as never, {
+    const usedSession = await insertPassedSession(admin, {
       orgId,
       userId: userByLabel.used as string,
       subjectId: refs.subjectId,
