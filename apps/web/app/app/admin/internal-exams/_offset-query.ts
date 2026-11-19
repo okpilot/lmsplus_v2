@@ -18,6 +18,7 @@ export type OffsetChainBuilder = {
   eq: (col: string, val: unknown) => OffsetChainBuilder
   is: (col: string, val: null) => OffsetChainBuilder
   not: (col: string, op: string, val: unknown) => OffsetChainBuilder
+  or: (filters: string, opts?: { referencedTable?: string }) => OffsetChainBuilder
   lte: (col: string, val: unknown) => OffsetChainBuilder
   gt: (col: string, val: unknown) => OffsetChainBuilder
   order: (col: string, opts: { ascending: boolean }) => OffsetChainBuilder

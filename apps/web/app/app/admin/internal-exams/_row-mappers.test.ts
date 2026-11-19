@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { type CodeRowRaw, mapCodeRow } from './_row-mappers'
+import { type CodeRowRaw, mapAttemptRow, mapCodeRow } from './_row-mappers'
 
 const NOW = new Date('2026-04-28T12:00:00.000Z').getTime()
 const FUTURE = '2026-04-29T12:00:00.000Z'
@@ -67,5 +67,55 @@ describe('mapCodeRow sitting awareness', () => {
   it('maps a removed-entry voided code to Voided with its sittingId', () => {
     const r = raw({ ...scheduled('cancelled'), voided_at: PAST })
     expect(mapCodeRow(r, NOW)).toMatchObject({ status: 'voided', sittingId: 'sit-1' })
+  })
+})
+
+describe('mapAttemptRow sitting fields', () => {
+  const base = {
+    id: 's1',
+    student_id: 'u1',
+    subject_id: 'sub1',
+    started_at: PAST,
+    ended_at: PAST,
+    total_questions: 10,
+    correct_count: 5,
+    score_percentage: 50,
+    passed: false,
+    easa_subjects: null,
+    users: null,
+  }
+  const sittingCode = {
+    void_reason: null,
+    exam_sitting_entries: {
+      sitting_id: 'sit-9',
+      exam_sittings: { scheduled_at: '2026-05-01T09:00:00.000Z' },
+    },
+  }
+
+  it('maps sittingId and sittingAt from the consuming code embed', () => {
+    const r = mapAttemptRow({ ...base, internal_exam_codes: [sittingCode] } as never, 0)
+    expect(r).toMatchObject({ sittingId: 'sit-9', sittingAt: '2026-05-01T09:00:00.000Z' })
+  })
+
+  it('maps a legacy attempt (no sitting entry) to null sitting fields', () => {
+    const legacy = [{ void_reason: null, exam_sitting_entries: null }]
+    expect(mapAttemptRow({ ...base, internal_exam_codes: legacy } as never, 0)).toMatchObject({
+      sittingId: null,
+      sittingAt: null,
+    })
+    expect(mapAttemptRow({ ...base, internal_exam_codes: null } as never, 0)).toMatchObject({
+      sittingId: null,
+      sittingAt: null,
+    })
+  })
+
+  it('picks the first code with a sitting entry while voidReason keeps the first code', () => {
+    const codes = [
+      { void_reason: 'first', exam_sitting_entries: null },
+      { ...sittingCode, void_reason: 'second' },
+    ]
+    const r = mapAttemptRow({ ...base, internal_exam_codes: codes } as never, 0)
+    expect(r.sittingId).toBe('sit-9')
+    expect(r.voidReason).toBe('first')
   })
 })

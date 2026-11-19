@@ -724,3 +724,115 @@ describe('listInternalExamAttempts single-query pagination', () => {
     }
   })
 })
+
+describe('listInternalExamAttempts: search, sitting and group filters', () => {
+  const row = {
+    id: 'sess-1',
+    student_id: 'stu-1',
+    subject_id: 'sub-1',
+    started_at: PAST,
+    ended_at: PAST,
+    total_questions: 20,
+    correct_count: 15,
+    score_percentage: 75,
+    passed: true,
+    easa_subjects: null,
+    users: null,
+    internal_exam_codes: null,
+  }
+  const GROUP = '11111111-1111-4111-8111-111111111111'
+  const SITTING = '22222222-2222-4222-8222-222222222222'
+
+  const selects = (chain: ChainMock) => (chain.select?.mock.calls ?? []).map(([s]) => String(s))
+  const orCalls = (chain: ChainMock) => chain.or?.mock.calls ?? []
+  const eqCalls = (chain: ChainMock) => chain.eq?.mock.calls ?? []
+
+  async function run(filters: Parameters<typeof listInternalExamAttempts>[0]) {
+    mockAdmin()
+    const chain = buildChain([row], null, 1)
+    mockFrom(chain)
+    await listInternalExamAttempts(filters)
+    return { chain }
+  }
+
+  it('widens the data select with the sitting embed under the consuming code', async () => {
+    const { chain } = await run({})
+    const data = selects(chain).find((s) => s.includes('void_reason')) ?? ''
+    expect(data).toContain('exam_sitting_entries!internal_exam_codes_sitting_entry_fkey(sitting_id')
+    expect(data).toContain(
+      'exam_sittings!exam_sitting_entries_sitting_id_organization_id_fkey(scheduled_at)',
+    )
+  })
+
+  it('adds no filter embeds when no search, group or sitting is set', async () => {
+    const { chain } = await run({})
+    for (const s of selects(chain)) {
+      expect(s).not.toContain('filter_members')
+      expect(s).not.toContain('filter_codes')
+      expect(s).not.toContain('users!student_id!inner')
+    }
+    expect(orCalls(chain)).toHaveLength(0)
+  })
+
+  it('searches name and email with an escaped, quoted ilike on the users embed', async () => {
+    const { chain } = await run({ search: '50%_a,b' })
+    const pattern = '"%50\\\\%\\\\_a,b%"'
+    expect(orCalls(chain)).toContainEqual([
+      `full_name.ilike.${pattern},email.ilike.${pattern}`,
+      { referencedTable: 'users' },
+    ])
+  })
+
+  it('uses an !inner users embed in the data select for a search', async () => {
+    const { chain } = await run({ search: 'alice' })
+    const s = selects(chain)
+    expect(s).toHaveLength(1)
+    expect(s[0]).toContain('users!student_id!inner(')
+  })
+
+  it('restricts to the group by active membership within the organization', async () => {
+    const { chain } = await run({ groupId: GROUP })
+    for (const sel of selects(chain)) {
+      expect(sel).toContain(
+        'filter_members:student_group_members!student_group_members_user_id_fkey!inner(group_id)',
+      )
+      expect(sel).toContain('users!student_id!inner(')
+    }
+    expect(eqCalls(chain)).toContainEqual(['users.filter_members.group_id', GROUP])
+    expect(eqCalls(chain)).toContainEqual(['users.filter_members.organization_id', ORG_ID])
+    expect(chain.is?.mock.calls ?? []).toContainEqual(['users.filter_members.deleted_at', null])
+  })
+
+  it('never filters users on deleted_at (deactivated members stay)', async () => {
+    const { chain } = await run({ groupId: GROUP, search: 'a' })
+    const isCalls = chain.is?.mock.calls ?? []
+    expect(isCalls.filter(([c]) => String(c).startsWith('users.deleted_at'))).toHaveLength(0)
+    expect(isCalls.filter(([c]) => c === 'users.deleted_at')).toHaveLength(0)
+  })
+
+  it('restricts to the sitting through an !inner consuming-code embed in data and count', async () => {
+    const { chain } = await run({ sittingId: SITTING })
+    for (const sel of selects(chain)) {
+      expect(sel).toContain(
+        'filter_codes:internal_exam_codes!consumed_session_id!inner(filter_entry:exam_sitting_entries!internal_exam_codes_sitting_entry_fkey!inner(sitting_id))',
+      )
+    }
+    expect(eqCalls(chain)).toContainEqual(['filter_codes.filter_entry.sitting_id', SITTING])
+  })
+
+  it('applies the filters to the past-end count select as well', async () => {
+    mockAdmin()
+    const chains = [
+      buildChain(null, { message: 'range', code: 'PGRST103' }, null),
+      buildChain(null, null, 40),
+      buildChain([row], null, 40),
+    ]
+    mockFrom(chains)
+    await listInternalExamAttempts({ page: 99, sittingId: SITTING, groupId: GROUP })
+    const recount = chains[1] as ChainMock
+    const sel = (recount.select?.mock.calls ?? []).map(([s]) => String(s)).join('|')
+    expect(sel).toContain('filter_codes')
+    expect(sel).toContain('filter_members')
+    expect(eqCalls(recount)).toContainEqual(['filter_codes.filter_entry.sitting_id', SITTING])
+  })
+})

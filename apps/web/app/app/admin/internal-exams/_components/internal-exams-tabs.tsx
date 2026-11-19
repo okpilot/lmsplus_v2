@@ -7,9 +7,19 @@ import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
 import { parseTab, readTabParam, type TabKey } from '../_search-params'
 import { SittingsTab } from '../sittings/_components/sittings-tab'
 import type { SittingRow, SittingScope } from '../sittings/types'
-import type { InternalExamAttemptRow, InternalExamCodeRow, ListCodesFilters } from '../types'
+import type {
+  AttemptFilterOptions,
+  AttemptUrlFilters,
+  InternalExamAttemptRow,
+  InternalExamCodeRow,
+  ListCodesFilters,
+} from '../types'
+import { AttemptsFilters } from './attempts-filters'
 import { AttemptsTable } from './attempts-table'
 import { CodesTable } from './codes-table'
+
+const NO_FILTERS: AttemptUrlFilters = {}
+const NO_OPTIONS: AttemptFilterOptions = { subjects: [], sittings: [], groups: [] }
 
 type Props = {
   status?: ListCodesFilters['status']
@@ -18,6 +28,8 @@ type Props = {
   attempts: InternalExamAttemptRow[]
   attemptsTotalCount: number
   pageSize: number
+  filters?: AttemptUrlFilters
+  options?: AttemptFilterOptions
   sittings?: { rows: SittingRow[]; totalCount: number; scope: SittingScope; page: number } | null
 }
 
@@ -28,6 +40,8 @@ export function InternalExamsTabs({
   attempts,
   attemptsTotalCount,
   pageSize,
+  filters = NO_FILTERS,
+  options = NO_OPTIONS,
   sittings,
 }: Readonly<Props>) {
   const update = useUpdateSearchParams()
@@ -67,7 +81,10 @@ export function InternalExamsTabs({
         <CodesTable rows={codes} status={status} totalCount={codesTotalCount} pageSize={pageSize} />
       </TabsPanel>
       <TabsPanel value="attempts" data-testid="tabpanel-attempts">
-        <AttemptsTable rows={attempts} totalCount={attemptsTotalCount} pageSize={pageSize} />
+        <div className="space-y-stack">
+          <AttemptsFilters filters={filters} options={options} />
+          <AttemptsTable rows={attempts} totalCount={attemptsTotalCount} pageSize={pageSize} />
+        </div>
       </TabsPanel>
     </Tabs>
   )

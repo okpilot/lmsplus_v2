@@ -1,3 +1,4 @@
+import { z } from 'zod'
 import { parsePageParam } from '@/lib/utils/parse-page-param'
 import { readScopeParam } from './sittings/_utils/scope-url'
 import type { SittingScope } from './sittings/types'
@@ -53,6 +54,18 @@ export function readDlgParam(sp: Pick<URLSearchParams, 'getAll'>): DialogParam |
   return parseDlg(readRaw(sp, 'dlg')) ?? null
 }
 
+const SEARCH_MAX = 200
+
+function parseSearch(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  return value.trim().slice(0, SEARCH_MAX).trim() || undefined
+}
+
+function parseId(value: unknown): string | undefined {
+  const parsed = z.uuid().safeParse(value)
+  return parsed.success ? parsed.data : undefined
+}
+
 export type InternalExamsSearchParams = {
   tab: TabKey
   status: ListCodesFilters['status']
@@ -61,6 +74,10 @@ export type InternalExamsSearchParams = {
   sittingsPage: number
   scope: SittingScope
   dlg: DialogParam | undefined
+  q: string | undefined
+  subject: string | undefined
+  sitting: string | undefined
+  group: string | undefined
 }
 
 /**
@@ -79,5 +96,9 @@ export function parseInternalExamsSearchParams(
     sittingsPage: parsePageParam(sp.page),
     scope: readScopeParam(sp.scope),
     dlg: parseDlg(sp.dlg),
+    q: parseSearch(sp.q),
+    subject: parseId(sp.subject),
+    sitting: parseId(sp.sitting),
+    group: parseId(sp.group),
   }
 }
