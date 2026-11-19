@@ -215,7 +215,7 @@ test.describe('Red Team: sitting code email actions scope (NN)', () => {
     expect(crossSingle).toContain('Code not found')
     expect(await emailState(admin, [codeA, codeB])).toEqual([none, none])
 
-    // CONTROL: the egmont admin's per-code replay stamps A only.
+    // CONTROL: the egmont admin's per-code replay reaches the send (stamps A only when sends work).
     const okSingle = await invoke(adminCtx, cap.single, { codeId: codeA })
     if (process.env.CI) {
       expect(okSingle).toContain('Failed to send email')
@@ -227,7 +227,7 @@ test.describe('Red Team: sitting code email actions scope (NN)', () => {
       expect(await emailState(admin, [codeA, codeB])).toEqual([once, none])
     }
 
-    // CONTROL: the egmont admin's bulk replay sends B only.
+    // CONTROL: the egmont admin's bulk replay reaches the send (B only when sends work; else both fail).
     const okBulk = await invoke(adminCtx, cap.bulk, { sittingId })
     expect(okBulk).toContain('"success":true')
     expect(okBulk).toContain('"skipped":0')
