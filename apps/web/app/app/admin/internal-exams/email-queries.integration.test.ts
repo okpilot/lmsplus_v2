@@ -7,6 +7,7 @@ import {
   createTestUser,
   fixtureSuffix,
   getAdminClient,
+  getAuthenticatedClient,
   type ReferenceIds,
   seedReferenceData,
 } from '@/lib/integration-support/harness'
@@ -24,6 +25,7 @@ let otherAdminId: string
 let instructorId: string
 let refs: ReferenceIds
 let sittingId: string
+let goneUserId: string
 const userIds: string[] = []
 const codeByLabel: Record<string, string> = {}
 
@@ -150,6 +152,17 @@ describe('getSittingCodesForEmail (app-layer integration)', () => {
         deleted_by: adminId,
       },
     )
+    goneUserId = await student('gone')
+    await entryWithCode('GONE', goneUserId)
+    const c = await getAuthenticatedClient({
+      email: `int-sce-admin-${suffix}@test.local`,
+      password,
+    })
+    const rm = await c.rpc('remove_exam_sitting_candidates', {
+      p_sitting_id: sittingId,
+      p_user_ids: [goneUserId],
+    })
+    if (rm.error) throw new Error(`remove candidate: ${rm.error.message}`)
     const dead = await student('dead')
     await entryWithCode('DEAD', dead)
     const { error: deadErr } = await admin
@@ -198,6 +211,11 @@ describe('getSittingCodesForEmail (app-layer integration)', () => {
     expect(r.rows).toEqual([])
     expect(r.skipped).toBe(0)
     expect(r.sitting).toBeNull()
+  })
+
+  it('excludes the code of a candidate removed through remove_exam_sitting_candidates', async () => {
+    const r = await getSittingCodesForEmail(orgId, sittingId)
+    expect(r.rows.map((x) => x.codeId)).not.toContain(codeByLabel.GONE)
   })
 
   it('excludes a code once its emailed_at is set', async () => {

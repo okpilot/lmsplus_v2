@@ -23,6 +23,7 @@ vi.mock('sonner', () => ({ toast: { success: m.toastSuccess, error: m.toastError
 
 import { SittingUiProvider } from '../_hooks/sitting-ui-context'
 import { ExamRowMenu } from './exam-row-menu'
+import { ResultBanner } from './result-banner'
 
 const entry = (over: Record<string, unknown> = {}) => ({
   entryId: 'e1',
@@ -48,6 +49,7 @@ const entry = (over: Record<string, unknown> = {}) => ({
 function ui(over: Record<string, unknown> = {}, entryOver: Record<string, unknown> = {}) {
   return render(
     <SittingUiProvider>
+      <ResultBanner />
       <ExamRowMenu
         sittingId="sit-1"
         personName="Ann Student"

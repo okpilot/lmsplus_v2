@@ -10,6 +10,7 @@ import {
   type SittingEmailRefusal,
   sittingEmailRefusal,
 } from '../sittings/_utils/sitting-email-gate'
+import { revalidateSitting } from '../sittings/actions/sitting-action-result'
 
 const SendCodeEmailSchema = z.object({ codeId: z.uuid() })
 
@@ -80,6 +81,7 @@ export async function sendInternalExamCodeEmail(input: unknown): Promise<SendCod
     return { success: true }
   }
 
-  revalidatePath('/app/admin/internal-exams')
+  if (payload.sittingId) revalidateSitting(payload.sittingId)
+  else revalidatePath('/app/admin/internal-exams')
   return { success: true }
 }
