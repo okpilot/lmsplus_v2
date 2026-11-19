@@ -19,6 +19,7 @@ export type InternalExamCodeRow = {
   emailedAt: string | null
   status: InternalExamCodeStatus
   sittingId: string | null
+  sittingEntryId: string | null
   sessionEndedAt: string | null
 }
 

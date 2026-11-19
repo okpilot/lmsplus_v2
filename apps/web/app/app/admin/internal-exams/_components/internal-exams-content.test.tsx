@@ -3,13 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const m = vi.hoisted(() => ({
   attempts: vi.fn(),
   codes: vi.fn(),
-  students: vi.fn(),
-  subjects: vi.fn(),
   sittings: vi.fn(),
 }))
 vi.mock('../attempts-queries', () => ({ listInternalExamAttempts: m.attempts }))
-vi.mock('../queries', () => ({ listInternalExamCodes: m.codes, listExamSubjects: m.subjects }))
-vi.mock('../students-queries', () => ({ listOrgStudents: m.students }))
+vi.mock('../queries', () => ({ listInternalExamCodes: m.codes }))
 vi.mock('../sittings/queries', () => ({
   listSittings: m.sittings,
   listInvigilatorOptions: vi.fn().mockResolvedValue([]),
@@ -26,8 +23,6 @@ beforeEach(() => {
   vi.resetAllMocks()
   m.attempts.mockResolvedValue(empty)
   m.codes.mockResolvedValue(empty)
-  m.subjects.mockResolvedValue([])
-  m.students.mockResolvedValue([])
   m.sittings.mockResolvedValue(empty)
 })
 
@@ -48,11 +43,9 @@ describe('InternalExamsContent', () => {
     expect(m.attempts).not.toHaveBeenCalled()
   })
 
-  it('loads the codes tab with codes only, no students or subjects', async () => {
+  it('loads the codes tab with a single codes query', async () => {
     await InternalExamsContent({ ...props, tab: 'codes' } as never)
     expect(m.codes).toHaveBeenCalledTimes(1)
-    expect(m.students).not.toHaveBeenCalled()
-    expect(m.subjects).not.toHaveBeenCalled()
   })
 
   it('does not pass students or subjects props to the tabs', async () => {

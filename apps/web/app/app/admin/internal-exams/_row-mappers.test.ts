@@ -49,13 +49,17 @@ describe('mapCodeRow sitting awareness', () => {
     const r = raw({ ...scheduled(), consumed_at: PAST })
     expect(mapCodeRow(r, NOW).status).toBe('consumed')
   })
-  it('lets waiting win over expired', () => {
+  it('derives expired for an expired code of a scheduled sitting', () => {
     const r = raw({ ...scheduled(), expires_at: PAST })
-    expect(mapCodeRow(r, NOW).status).toBe('waiting')
+    expect(mapCodeRow(r, NOW).status).toBe('expired')
   })
   it('leaves legacy codes unchanged: active, expired and sittingId null', () => {
     expect(mapCodeRow(raw(), NOW)).toMatchObject({ status: 'active', sittingId: null })
     expect(mapCodeRow(raw({ expires_at: PAST }), NOW).status).toBe('expired')
+  })
+  it('maps sittingEntryId from the raw column', () => {
+    expect(mapCodeRow(raw(scheduled('open')), NOW).sittingEntryId).toBe('e1')
+    expect(mapCodeRow(raw(), NOW).sittingEntryId).toBeNull()
   })
   it('maps sittingId from the embed', () => {
     expect(mapCodeRow(raw(scheduled('open')), NOW).sittingId).toBe('sit-1')

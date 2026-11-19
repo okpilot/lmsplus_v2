@@ -220,7 +220,7 @@ test.describe('internal exam — lifecycle', () => {
   test('a scheduled sitting shows its date and mode, with Start disabled and the reason', async ({
     browser,
   }) => {
-    await seedSittingFor({
+    const { sittingId } = await seedSittingFor({
       studentEmail: INTERNAL_EXAM_STUDENT_EMAIL,
       subjectFragment: SUBJECT_LABEL_FRAGMENT,
       status: 'scheduled',
@@ -228,10 +228,36 @@ test.describe('internal exam — lifecycle', () => {
     const { context, page } = await openStudentContext(browser)
     try {
       await page.goto('/app/internal-exam')
-      const row = page.getByTestId('available-list').getByRole('listitem').first()
-      await expect(row).toContainText(/UTC.*Remote/)
-      await expect(row.getByText('Opens when your invigilator starts the sitting.')).toBeVisible()
-      await expect(row.getByTestId('start-button')).toBeDisabled()
+      const row = () => page.getByTestId('available-list').getByRole('listitem').first()
+      await expect(row()).toContainText(/UTC.*Remote/)
+      await expect(row().getByText('Opens when your invigilator starts the sitting.')).toBeVisible()
+      await expect(row().getByTestId('start-button')).toBeDisabled()
+
+      // Reload mid-flow: still gated while scheduled.
+      await page.reload()
+      await expect(page).toHaveURL(/\/app\/internal-exam$/)
+      await expect(row().getByTestId('start-button')).toBeDisabled()
+
+      // Invigilator opens the sitting; the student's reload enables Start.
+      const admin = getAdminClient()
+      const sitting = await admin
+        .from('exam_sittings')
+        .select('invigilator_id')
+        .eq('id', sittingId)
+        .single()
+      if (sitting.error) throw new Error(`read sitting: ${sitting.error.message}`)
+      const invigilatorId = sitting.data.invigilator_id
+      const { data, error } = await admin
+        .from('exam_sittings')
+        .update({ started_at: new Date().toISOString(), started_by: invigilatorId })
+        .eq('id', sittingId)
+        .is('started_at', null)
+        .select('id')
+      if (error) throw new Error(`open sitting: ${error.message}`)
+      if (data?.length !== 1) throw new Error('open sitting: expected exactly one row')
+      await page.reload()
+      await expect(row().getByText('Works while the sitting is open.')).toBeVisible()
+      await expect(row().getByTestId('start-button')).toBeEnabled()
     } finally {
       await context.close()
     }
