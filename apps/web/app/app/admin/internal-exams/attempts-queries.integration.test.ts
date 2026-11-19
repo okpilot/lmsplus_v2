@@ -11,7 +11,7 @@ import {
   seedReferenceData,
   signInAs,
 } from '@/lib/integration-support/harness'
-import { insertPassedSession } from '../../../../e2e/helpers/exam-sitting-seed'
+import { insertPassedSession } from '@/lib/integration-support/passed-session'
 import { listInternalExamAttempts } from './attempts-queries'
 
 const admin = getAdminClient()
@@ -46,7 +46,7 @@ async function mkStudent(
 }
 
 async function mkSession(tag: string) {
-  session[tag] = await insertPassedSession(admin as never, {
+  session[tag] = await insertPassedSession(admin, {
     orgId,
     userId: user[tag] as string,
     subjectId: refs.subjectId,
@@ -64,6 +64,15 @@ async function must<T>(
   return r.data
 }
 
+async function mustRow<T>(
+  p: PromiseLike<{ data: T; error: { message: string } | null }>,
+  what: string,
+): Promise<NonNullable<T>> {
+  const row = await must(p, what)
+  if (row == null) throw new Error(`${what}: no row`)
+  return row
+}
+
 async function sittingCodeFor(tag: string, sitting: string) {
   await must(
     admin
@@ -71,7 +80,7 @@ async function sittingCodeFor(tag: string, sitting: string) {
       .insert({ organization_id: orgId, sitting_id: sitting, user_id: user[tag] }),
     'candidate',
   )
-  const entry = await must(
+  const entry = await mustRow(
     admin
       .from('exam_sitting_entries')
       .insert({
@@ -101,7 +110,7 @@ async function sittingCodeFor(tag: string, sitting: string) {
 }
 
 async function mkSittingIn(org: string, by: string) {
-  const s = await must(
+  const s = await mustRow(
     admin
       .from('exam_sittings')
       .insert({
@@ -119,7 +128,7 @@ async function mkSittingIn(org: string, by: string) {
 }
 
 async function mkGroup(org: string, name: string) {
-  const g = await must(
+  const g = await mustRow(
     admin.from('student_groups').insert({ organization_id: org, name }).select('id').single(),
     'group',
   )
