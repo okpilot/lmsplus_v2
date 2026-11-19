@@ -182,4 +182,5 @@ BEGIN
 END;
 $$;
 
+REVOKE EXECUTE ON FUNCTION public.void_internal_exam_code(uuid, text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.void_internal_exam_code(uuid, text) TO authenticated;

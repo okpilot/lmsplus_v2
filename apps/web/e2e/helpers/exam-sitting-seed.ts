@@ -23,7 +23,7 @@ export type SeedInput = {
   /** Extra people without exams, named `E2E Extra NN`. */
   extraPeople?: number
   /** Students removed automatically because they passed: listed in the removed list. */
-  autoRemoved?: { name: string }[]
+  autoRemoved?: { name: string; deactivated?: boolean }[]
   /** Students who are not candidates of the sitting (the Add people list), `e2e-sit-` emails. */
   addable?: { name: string; deactivated?: boolean }[]
   /** Student groups named `E2E-GRP-SIT-<name>`; `members` are names of people or addable people. */
@@ -158,9 +158,21 @@ async function seedEntries(
 async function seedAutoRemoved(
   admin: Admin,
   ctx: { orgId: string; adminId: string; sittingId: string; subjects: Subject[] },
-  names: string[],
+  list: { name: string; deactivated?: boolean }[],
 ): Promise<void> {
-  const ids = await createStudents(admin, ctx.orgId, names)
+  const ids = await createStudents(
+    admin,
+    ctx.orgId,
+    list.map((p) => p.name),
+  )
+  const dead = ids.filter((_, i) => list[i]?.deactivated)
+  if (dead.length > 0) {
+    const off = await admin
+      .from('users')
+      .update({ deleted_at: new Date().toISOString() })
+      .in('id', dead)
+    if (off.error) fail('deactivate', off.error)
+  }
   const rows = ids.map((userId) => ({
     organization_id: ctx.orgId,
     resource_id: ctx.sittingId,
@@ -317,11 +329,7 @@ export async function seedSitting(input: SeedInput): Promise<SeedResult> {
       await enrolInCourse(admin, { orgId, adminId, userId, courseId })
     }
   }
-  await seedAutoRemoved(
-    admin,
-    ctx,
-    (input.autoRemoved ?? []).map((p) => p.name),
-  )
+  await seedAutoRemoved(admin, ctx, input.autoRemoved ?? [])
   const people = input.people.map((p, i) => ({ name: p.name, userId: userIds[i] as string }))
   const addable = await seedAddable(admin, orgId, input.addable ?? [])
   const byName = new Map([...people, ...addable].map((p) => [p.name, p.userId]))
