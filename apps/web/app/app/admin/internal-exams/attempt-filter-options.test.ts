@@ -43,6 +43,25 @@ describe('getAttemptFilterOptions', () => {
     expect(r.sittings[0]?.label).toMatch(/01\/05\/2026.*In person/)
   })
 
+  it('labels a cancelled sitting and leaves a live one unchanged', async () => {
+    h.results.exam_sittings = {
+      data: [
+        { id: 'x1', scheduled_at: '2026-05-01T09:00:00.000Z', mode: 'in_person', deleted_at: null },
+        {
+          id: 'x2',
+          scheduled_at: '2026-05-01T09:00:00.000Z',
+          mode: 'in_person',
+          deleted_at: '2026-05-02T09:00:00.000Z',
+        },
+      ],
+      error: null,
+    }
+    const r = await getAttemptFilterOptions()
+    const live = r.sittings[0]?.label ?? ''
+    expect(live).toBe('01/05/2026, 09:00 UTC In person')
+    expect(r.sittings[1]?.label).toBe(`${live} · Cancelled`)
+  })
+
   it('throws when a read fails', async () => {
     h.results.exam_sittings = { data: null, error: { message: 'boom' } }
     await expect(getAttemptFilterOptions()).rejects.toThrow('Failed to load attempt filter options')

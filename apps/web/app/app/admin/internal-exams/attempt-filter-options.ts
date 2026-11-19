@@ -27,7 +27,7 @@ async function loadSittings(
 ): Promise<AttemptFilterOptions['sittings']> {
   const { data, error } = await supabase
     .from('exam_sittings')
-    .select('id, scheduled_at, mode')
+    .select('id, scheduled_at, mode, deleted_at')
     .eq('organization_id', organizationId)
     .order('scheduled_at', { ascending: false })
     .limit(SITTING_OPTION_LIMIT)
@@ -39,7 +39,7 @@ async function loadSittings(
     id: s.id,
     label: `${formatUtc(s.scheduled_at, { dateStyle: 'short', timeStyle: 'short' })} ${sittingModeLabel(
       s.mode === 'in_person' ? 'in_person' : 'remote',
-    )}`,
+    )}${s.deleted_at ? ' · Cancelled' : ''}`,
   }))
 }
 
