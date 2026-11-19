@@ -363,6 +363,7 @@
 | MS | list_exam_sittings-day-ended-effective-status-unswept-cross-org-admin | MEDIUM | exam-sitting-list-day-ended.spec.ts | BLOCKED |  | cross-tenant |
 | MT | void_sitting_code-cross-org-admin-student-instructor-soft-deleted-admin-and-mismatched-sitting | HIGH | exam-sitting-void-code-scope.spec.ts | BLOCKED |  | cross-tenant |
 | MU | add_exam_sitting_candidates-group_add_counts-list_exam_sitting_people-eligibility-same_day-issue_preview-foreign-group-or-student-in-own-sitting | MEDIUM | exam-sitting-foreign-param-injection.spec.ts | BLOCKED |  | cross-tenant |
+| MV | void_internal_exam_code-direct-rpc-on-sitting-code-bypasses-void_sitting_code | LOW | exam-sitting-legacy-void-refuses-sitting-code.spec.ts | GAP — spec skipped until PR 2e adds the `sitting_entry_id` refusal to `void_internal_exam_code` | #1777 | sibling-guard-gap |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
