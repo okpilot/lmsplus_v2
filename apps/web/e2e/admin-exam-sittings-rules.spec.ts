@@ -1,12 +1,8 @@
 import { expect as baseExpect, test } from '@playwright/test'
 import { cleanupE2eExamSittings } from './helpers/exam-sitting-cleanup'
-import {
-  deleteSeededSessions,
-  firstSeedSubject,
-  runCleanupSteps,
-  seedPassedAttempt,
-} from './helpers/exam-sitting-flow-seed'
-import { seedSitting } from './helpers/exam-sitting-seed'
+import { adminIds } from './helpers/exam-sitting-flow-seed'
+import { insertPassedSession, seedSitting } from './helpers/exam-sitting-seed'
+import { getAdminClient } from './helpers/supabase'
 
 const expect = baseExpect.configure({ timeout: 25_000 })
 
@@ -21,12 +17,19 @@ test.skip(
   'UTC day rollover window',
 )
 
-const sessionIds: string[] = []
-
+// The cleanup also removes the passed sessions of the seeded students (found by student).
 test.afterEach(async () => {
-  const ids = sessionIds.splice(0)
-  await runCleanupSteps([() => deleteSeededSessions(ids), cleanupE2eExamSittings])
+  await cleanupE2eExamSittings()
 })
+
+/** A passed session ended 30 minutes ago for a seeded student. */
+async function seedPassedAttempt(userId: string, subjectId: string, score: number) {
+  const admin = getAdminClient()
+  const { orgId } = await adminIds(admin)
+  const endedAt = new Date(Date.now() - 1_800_000)
+  await insertPassedSession(admin, { orgId, userId, subjectId, score, endedAt })
+  return { endedAt }
+}
 
 /** "17 Nov 2026": the format the app prints a date in (en-GB, UTC). */
 function utcDay(d: Date): string {
@@ -39,17 +42,13 @@ function utcDay(d: Date): string {
 }
 
 test('single-person Add exams shows a passed exam with its date and score', async ({ page }) => {
-  const subject = await firstSeedSubject()
-  const { sittingId, people } = await seedSitting({
+  const { sittingId, people, subjects } = await seedSitting({
     status: 'scheduled',
     people: [{ name: 'E2E Rule Ann', entries: [], enrolled: true }],
   })
-  const attempt = await seedPassedAttempt({
-    userId: people[0]?.userId ?? '',
-    subjectId: subject.id,
-    score: 83,
-  })
-  sessionIds.push(attempt.sessionId)
+  const subject = subjects[0]
+  if (!subject) throw new Error('seedSitting returned no subject')
+  const attempt = await seedPassedAttempt(people[0]?.userId ?? '', subject.id, 83)
 
   await page.goto(`${BASE}/${sittingId}`)
   await page.getByRole('button', { name: 'Actions for E2E Rule Ann' }).click()
@@ -63,17 +62,13 @@ test('single-person Add exams shows a passed exam with its date and score', asyn
 test('a student who passed is removed from the sitting and listed with the pass date', async ({
   page,
 }) => {
-  const subject = await firstSeedSubject()
-  const { sittingId, people } = await seedSitting({
+  const { sittingId, people, subjects } = await seedSitting({
     status: 'scheduled',
     people: [{ name: 'E2E Rule Bea', entries: [{ state: 'live' }] }],
   })
-  const attempt = await seedPassedAttempt({
-    userId: people[0]?.userId ?? '',
-    subjectId: subject.id,
-    score: 91,
-  })
-  sessionIds.push(attempt.sessionId)
+  const subject = subjects[0]
+  if (!subject) throw new Error('seedSitting returned no subject')
+  const attempt = await seedPassedAttempt(people[0]?.userId ?? '', subject.id, 91)
 
   await page.goto(`${BASE}/${sittingId}`)
   await expect(page.getByRole('heading', { name: 'Removed automatically (1)' })).toBeVisible()

@@ -7,6 +7,7 @@
  */
 
 import { expect } from '@playwright/test'
+import { randomCode } from '../../helpers/code-gen'
 import type { getAdminClient } from '../../helpers/supabase'
 
 type AdminClient = ReturnType<typeof getAdminClient>
@@ -135,18 +136,10 @@ export async function backdateSession(admin: AdminClient, sessionId: string): Pr
   }
 }
 
-const CODE_CHARSET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-
-function randomCode(): string {
-  return Array.from(
-    { length: 8 },
-    () => CODE_CHARSET[Math.floor(Math.random() * CODE_CHARSET.length)],
-  ).join('')
-}
-
 /**
  * Insert a sitting-less fixture code (service role), add its id to `createdCodeIds`, and return
- * `{ codeId, code }`. Writes no audit row; sitting-less codes are not issuable through any RPC.
+ * `{ codeId, code }`. Writes no audit row; it keeps fixtures independent of the legacy
+ * `issue_internal_exam_code` RPC, which the code_issued test calls once and which is retired in 2e.
  */
 export async function insertFixtureCode(
   admin: AdminClient,

@@ -16,3 +16,8 @@ export const EXAM_SITTING_SEED_EMAIL_PREFIX = 'e2e-sit-'
 
 /** `student_groups.name` prefix of groups built by `seedSitting`: the cleanup hard-deletes them with their members. */
 export const EXAM_SITTING_SEED_GROUP_PREFIX = 'E2E-GRP-SIT-'
+
+/** Unique `permitted_materials` value of a sitting made through the UI that the seeded cleanup removes with its people and codes. */
+export function makeSittingSeedMaterials(): string {
+  return `${EXAM_SITTING_SEED_PREFIX}${randomUUID()}`
+}

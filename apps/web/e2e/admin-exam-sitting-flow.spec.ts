@@ -9,13 +9,14 @@ import { getAdminOrganizationId, signInAsAdmin } from './helpers/admin-supabase'
 import { cleanupCreatedExamConfigs, ensureExamConfigs } from './helpers/exam-config-cleanup'
 import { cleanupE2eExamSittings, markE2eSitting } from './helpers/exam-sitting-cleanup'
 import {
-  claimSittingForCleanup,
-  ensureEnrolled,
+  adminIds,
   findSubject,
   readSittingCodes,
   runCleanupSteps,
   seedEnrolledStudents,
+  softDeleteEnrolment,
 } from './helpers/exam-sitting-flow-seed'
+import { ensureEnrolment } from './helpers/sitting-code'
 import {
   cleanupInternalExamStudentActiveSessions,
   getAdminClient,
@@ -37,7 +38,11 @@ test.skip(
   'UTC day rollover window',
 )
 
+/** The fixture student's enrolment, when this test created it (an existing one is left alone). */
+let createdEnrolmentId: string | null = null
+
 test.beforeEach(async () => {
+  createdEnrolmentId = null
   await cleanupInternalExamStudentActiveSessions(await signInAsAdmin())
   await cleanupE2eExamSittings()
   await ensureExamConfigs(await getAdminOrganizationId())
@@ -48,6 +53,7 @@ test.afterEach(async () => {
     cleanupE2eExamSittings,
     async () => cleanupInternalExamStudentActiveSessions(await signInAsAdmin()),
     cleanupCreatedExamConfigs,
+    () => softDeleteEnrolment(createdEnrolmentId),
   ])
 })
 
@@ -81,8 +87,7 @@ async function createSittingToday(page: Page): Promise<string> {
   await page.getByRole('button', { name: 'Save' }).click()
   await expect(page).toHaveURL(SITTING_URL, { timeout: 30_000 })
   const id = new URL(page.url()).pathname.split('/').pop() ?? ''
-  await markE2eSitting(id)
-  await claimSittingForCleanup(id)
+  await markE2eSitting(id, 'seeded')
   return id
 }
 
@@ -168,7 +173,13 @@ test('a sitting runs from creation to closing: codes, student attempt, late add,
 }) => {
   const subject = await findSubject('Meteorology')
   const student = await readStudent()
-  await ensureEnrolled(student.id, subject.courseId)
+  const admin = getAdminClient()
+  const enrolment = await ensureEnrolment(admin, {
+    ...(await adminIds(admin)),
+    userId: student.id,
+    courseId: subject.courseId,
+  })
+  if (enrolment.created) createdEnrolmentId = enrolment.id
   const [bea, cy] = await seedEnrolledStudents(['E2E Flow Bea', 'E2E Flow Cy'], subject.courseId)
   if (!bea || !cy) throw new Error('seed students')
   const sittingId = await createSittingToday(page)
