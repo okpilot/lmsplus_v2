@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const m = vi.hoisted(() => ({ requireAdmin: vi.fn(), load: vi.fn() }))
+vi.mock('../../actions/send-code-email', () => ({ sendInternalExamCodeEmail: vi.fn() }))
+vi.mock('../actions/email-sitting-codes', () => ({ emailSittingCodes: vi.fn() }))
 vi.mock('@/lib/auth/require-admin', () => ({ requireAdmin: m.requireAdmin }))
 vi.mock('../_utils/load-sitting-page', () => ({ loadSittingPage: m.load }))
 vi.mock('../_components/sitting-header', () => ({ SittingHeader: () => null }))

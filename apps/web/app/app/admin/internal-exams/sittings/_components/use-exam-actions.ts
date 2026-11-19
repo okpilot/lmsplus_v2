@@ -1,3 +1,5 @@
+import { toast } from 'sonner'
+import { sendInternalExamCodeEmail } from '../../actions/send-code-email'
 import { issueSkipText, type ResultBannerData } from '../_utils/copy'
 import { type IssueCounts, issueSittingCodes } from '../actions/issue-sitting-codes'
 import { removeSittingEntries } from '../actions/remove-entries'
@@ -28,6 +30,16 @@ export function useExamActions({ sittingId, entry, personName, who, onDone }: Re
     run(() => issueSittingCodes({ sittingId, entryIds: [entry.entryId] }), issueBanner, {
       errorAsBanner: true,
     })
+  /** A failure is a toast, not `error` (no dialog shows it); never a success banner. */
+  const sendCode = (codeId: string) =>
+    run(
+      async () => {
+        const r = await sendInternalExamCodeEmail({ codeId })
+        if (!r.success) toast.error(r.error)
+        return { success: true as const, emailed: r.success }
+      },
+      (d) => (d.emailed ? { tone: 'success', title: `Code emailed to ${personName}.` } : null),
+    )
   const voidCode = (codeId: string, reason: string) =>
     run(
       () => voidSittingCode({ sittingId, codeId, reason }),
@@ -48,5 +60,5 @@ export function useExamActions({ sittingId, entry, personName, who, onDone }: Re
         }
       },
     )
-  return { pending, error, clearError, issue, voidCode, remove }
+  return { pending, error, clearError, issue, sendCode, voidCode, remove }
 }

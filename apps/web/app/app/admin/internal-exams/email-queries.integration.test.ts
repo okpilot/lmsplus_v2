@@ -1,0 +1,212 @@
+// App-layer integration tier (#925) — getSittingCodesForEmail against real local Postgres.
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import {
+  cleanupReferenceData,
+  cleanupTestData,
+  createTestOrg,
+  createTestUser,
+  fixtureSuffix,
+  getAdminClient,
+  type ReferenceIds,
+  seedReferenceData,
+} from '@/lib/integration-support/harness'
+import { getSittingCodesForEmail } from './email-queries'
+
+const admin = getAdminClient()
+const suffix = fixtureSuffix()
+const password = 'test-pass-123'
+const HOUR = 3_600_000
+
+let orgId: string
+let otherOrgId: string
+let adminId: string
+let otherAdminId: string
+let instructorId: string
+let refs: ReferenceIds
+let sittingId: string
+const userIds: string[] = []
+const codeByLabel: Record<string, string> = {}
+
+async function student(label: string): Promise<string> {
+  const id = await createTestUser({
+    admin,
+    orgId,
+    email: `int-sce-${label}-${suffix}@test.local`,
+    password,
+    role: 'student',
+    fullName: `Sce ${label} ${suffix}`,
+  })
+  userIds.push(id)
+  const { error } = await admin
+    .from('exam_sitting_candidates')
+    .insert({ organization_id: orgId, sitting_id: sittingId, user_id: id })
+  if (error) throw new Error(`candidate ${label}: ${error.message}`)
+  return id
+}
+
+async function entryWithCode(
+  label: string,
+  userId: string,
+  code: Record<string, unknown> = {},
+  entry: Record<string, unknown> = {},
+) {
+  const ent = await admin
+    .from('exam_sitting_entries')
+    .insert({
+      organization_id: orgId,
+      sitting_id: sittingId,
+      user_id: userId,
+      subject_id: refs.subjectId,
+      ...entry,
+    })
+    .select('id')
+    .single()
+  if (ent.error) throw new Error(`entry ${label}: ${ent.error.message}`)
+  const c = await admin
+    .from('internal_exam_codes')
+    .insert({
+      code: `SC${label}${suffix}`.slice(0, 12).toUpperCase(),
+      subject_id: refs.subjectId,
+      student_id: userId,
+      issued_by: adminId,
+      organization_id: orgId,
+      sitting_entry_id: ent.data.id,
+      expires_at: new Date(Date.now() + 5 * HOUR).toISOString(),
+      ...code,
+    })
+    .select('id')
+    .single()
+  if (c.error) throw new Error(`code ${label}: ${c.error.message}`)
+  codeByLabel[label] = c.data.id
+}
+
+describe('getSittingCodesForEmail (app-layer integration)', () => {
+  beforeAll(async () => {
+    orgId = await createTestOrg({ admin, name: `int-sce ${suffix}`, slug: `int-sce-${suffix}` })
+    otherOrgId = await createTestOrg({
+      admin,
+      name: `int-sce-b ${suffix}`,
+      slug: `int-sce-b-${suffix}`,
+    })
+    adminId = await createTestUser({
+      admin,
+      orgId,
+      email: `int-sce-admin-${suffix}@test.local`,
+      password,
+      role: 'admin',
+    })
+    otherAdminId = await createTestUser({
+      admin,
+      orgId: otherOrgId,
+      email: `int-sce-other-${suffix}@test.local`,
+      password,
+      role: 'admin',
+    })
+    instructorId = await createTestUser({
+      admin,
+      orgId,
+      email: `int-sce-ins-${suffix}@test.local`,
+      password,
+      role: 'instructor',
+    })
+    refs = await seedReferenceData({
+      admin,
+      subjectCode: `SCE_${suffix}`,
+      subjectName: `Email Subject ${suffix}`,
+      topicCode: `SCE_${suffix}_T1`,
+      topicName: `Email Topic ${suffix}`,
+    })
+    const s = await admin
+      .from('exam_sittings')
+      .insert({
+        organization_id: orgId,
+        mode: 'in_person',
+        invigilator_id: instructorId,
+        created_by: adminId,
+        scheduled_at: new Date(Date.now() + 3 * 86_400_000).toISOString(),
+      })
+      .select('id')
+      .single()
+    if (s.error) throw new Error(`sitting: ${s.error.message}`)
+    sittingId = s.data.id
+
+    await entryWithCode('A', await student('a'))
+    await entryWithCode('EMAILED', await student('emailed'), {
+      emailed_at: new Date().toISOString(),
+    })
+    await entryWithCode('VOIDED', await student('voided'), {
+      voided_at: new Date().toISOString(),
+      voided_by: adminId,
+    })
+    await entryWithCode('EXPIRED', await student('expired'), {
+      expires_at: new Date(Date.now() - HOUR).toISOString(),
+    })
+    await entryWithCode(
+      'REMOVED',
+      await student('removed'),
+      {},
+      {
+        deleted_at: new Date().toISOString(),
+        deleted_by: adminId,
+      },
+    )
+    const dead = await student('dead')
+    await entryWithCode('DEAD', dead)
+    const { error: deadErr } = await admin
+      .from('users')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', dead)
+    if (deadErr) throw new Error(`deactivate: ${deadErr.message}`)
+  }, 120_000)
+
+  afterAll(async () => {
+    try {
+      await cleanupTestData({ admin, orgId, userIds: [adminId, instructorId, ...userIds] })
+      await cleanupTestData({ admin, orgId: otherOrgId, userIds: [otherAdminId] })
+      await cleanupReferenceData({ admin, refs: [refs] })
+    } catch (e) {
+      throw new Error(`afterAll: ${e instanceof Error ? e.message : String(e)}`)
+    }
+  }, 120_000)
+
+  it('returns only the unused, unemailed code of an active candidate with its email payload', async () => {
+    const r = await getSittingCodesForEmail(orgId, sittingId)
+    expect(r.rows.map((x) => x.codeId)).toEqual([codeByLabel.A])
+    expect(r.rows[0]).toMatchObject({
+      studentName: `Sce a ${suffix}`,
+      email: `int-sce-a-${suffix}@test.local`,
+      subjectName: `Email Subject ${suffix}`,
+      mode: 'in_person',
+    })
+    expect(typeof r.rows[0]?.code).toBe('string')
+    expect(typeof r.rows[0]?.scheduledAt).toBe('string')
+  })
+
+  it('counts a deactivated student as skipped, not as a row', async () => {
+    const r = await getSittingCodesForEmail(orgId, sittingId)
+    expect(r.rows.map((x) => x.codeId)).not.toContain(codeByLabel.DEAD)
+    expect(r.skipped).toBe(1)
+  })
+
+  it('reads the sitting status with the rows', async () => {
+    const r = await getSittingCodesForEmail(orgId, sittingId)
+    expect(r.sitting).toMatchObject({ status: 'scheduled' })
+  })
+
+  it('returns 0 rows for a sitting id of another organization', async () => {
+    const r = await getSittingCodesForEmail(otherOrgId, sittingId)
+    expect(r.rows).toEqual([])
+    expect(r.skipped).toBe(0)
+    expect(r.sitting).toBeNull()
+  })
+
+  it('excludes a code once its emailed_at is set', async () => {
+    const { error } = await admin
+      .from('internal_exam_codes')
+      .update({ emailed_at: new Date().toISOString() })
+      .eq('id', codeByLabel.A)
+    if (error) throw new Error(`stamp: ${error.message}`)
+    const r = await getSittingCodesForEmail(orgId, sittingId)
+    expect(r.rows).toEqual([])
+  })
+})

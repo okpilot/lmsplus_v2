@@ -189,31 +189,80 @@ describe('sendInternalExamCodeEmail', () => {
 })
 
 describe('sendInternalExamCodeEmail sitting codes', () => {
-  it('refuses a sitting code and sends no email', async () => {
+  const sittingPayload = (overrides: Record<string, unknown> = {}) =>
+    activePayload({
+      sittingEntryId: 'entry-1',
+      scheduledAt: '2999-11-24T09:00:00.000Z',
+      mode: 'in_person',
+      sittingStatus: 'scheduled',
+      ...overrides,
+    })
+
+  it('sends a sitting code with the sitting template and records the audit event', async () => {
     mockAdmin()
-    mockGetCode.mockResolvedValue(activePayload({ sittingEntryId: 'entry-1' }))
+    mockGetCode.mockResolvedValue(sittingPayload())
+    mockSendEmail.mockResolvedValue({ ok: true })
+    mockRpc.mockResolvedValue({ data: null, error: null })
 
     const result = await sendInternalExamCodeEmail(VALID_INPUT)
 
-    expect(result).toEqual({
-      success: false,
-      error: 'Sitting codes cannot be emailed from here yet',
+    expect(result).toEqual({ success: true })
+    const arg = mockSendEmail.mock.calls[0]?.[0] as { to: string; subject: string; text: string }
+    expect(arg.to).toBe('alice@example.com')
+    expect(arg.subject).toMatch(/^Your access code: Meteorology internal exam, /)
+    expect(arg.text).toContain('In person')
+    expect(arg.text).toContain('ABCD2345')
+    expect(mockRpc).toHaveBeenCalledWith('record_internal_exam_code_emailed', {
+      p_code_id: CODE_ID,
     })
-    expect(mockSendEmail).not.toHaveBeenCalled()
-    expect(mockRpc).not.toHaveBeenCalled()
   })
 
-  it('refuses a voided sitting code with the sitting error, not the inactive one', async () => {
+  it('keeps the legacy template for a legacy code', async () => {
     mockAdmin()
-    mockGetCode.mockResolvedValue(
-      activePayload({ sittingEntryId: 'entry-1', voidedAt: '2026-01-01T00:00:00.000Z' }),
-    )
+    mockGetCode.mockResolvedValue(activePayload())
+    mockSendEmail.mockResolvedValue({ ok: true })
+    mockRpc.mockResolvedValue({ data: null, error: null })
+
+    await sendInternalExamCodeEmail(VALID_INPUT)
+
+    const arg = mockSendEmail.mock.calls[0]?.[0] as { subject: string }
+    expect(arg.subject).toBe('Your exam access code for Meteorology')
+  })
+
+  it.each([
+    ['closed', 'This sitting is closed and cannot be changed.'],
+    ['cancelled', 'This sitting is closed and cannot be changed.'],
+  ])(
+    'refuses a sitting code of a %s sitting with the sitting_closed copy',
+    async (status, copy) => {
+      mockAdmin()
+      mockGetCode.mockResolvedValue(sittingPayload({ sittingStatus: status }))
+
+      const result = await sendInternalExamCodeEmail(VALID_INPUT)
+
+      expect(result).toEqual({ success: false, error: copy })
+      expect(mockSendEmail).not.toHaveBeenCalled()
+      expect(mockRpc).not.toHaveBeenCalled()
+    },
+  )
+
+  it('refuses a sitting code once the sitting day has ended', async () => {
+    mockAdmin()
+    mockGetCode.mockResolvedValue(sittingPayload({ scheduledAt: '2000-01-01T09:00:00.000Z' }))
 
     const result = await sendInternalExamCodeEmail(VALID_INPUT)
 
-    expect(result).toEqual({
-      success: false,
-      error: 'Sitting codes cannot be emailed from here yet',
-    })
+    expect(result).toEqual({ success: false, error: "This sitting's day has ended." })
+    expect(mockSendEmail).not.toHaveBeenCalled()
+  })
+
+  it('reports a voided sitting code as no longer active', async () => {
+    mockAdmin()
+    mockGetCode.mockResolvedValue(sittingPayload({ voidedAt: '2026-01-01T00:00:00.000Z' }))
+
+    const result = await sendInternalExamCodeEmail(VALID_INPUT)
+
+    expect(result).toEqual({ success: false, error: 'Code is no longer active' })
+    expect(mockSendEmail).not.toHaveBeenCalled()
   })
 })

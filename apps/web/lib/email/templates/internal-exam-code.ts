@@ -12,7 +12,7 @@ type InternalExamCodeEmailArgs = {
 type EmailContent = { subject: string; html: string; text: string }
 
 /** HTML-encode a value before interpolating it into the HTML body (DB-derived or otherwise). */
-function esc(s: string): string {
+export function esc(s: string): string {
   return s
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
