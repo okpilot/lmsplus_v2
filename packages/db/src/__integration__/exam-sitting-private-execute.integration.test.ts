@@ -63,6 +63,7 @@ describe('exam sitting function privileges', () => {
     'sitting_pair_state',
     'add_sitting_entries_core',
     'sitting_redeem_gate',
+    'pending_notice_rows',
   ]
   const list = (names: string[]) => names.map((n) => `'${n}'`).join(',')
 
@@ -76,6 +77,14 @@ describe('exam sitting function privileges', () => {
       `SELECT count(DISTINCT p.proname) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'private' AND p.proname IN (${list(PRIVATE_FNS)});`,
     )
     expect(Number(present.out)).toBe(PRIVATE_FNS.length)
+  })
+
+  it('AC-48: private.pending_notice_rows is not SECURITY DEFINER', () => {
+    const { out, err } = psql(
+      "SELECT p.prosecdef FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'private' AND p.proname = 'pending_notice_rows';",
+    )
+    expect(err).toBe('')
+    expect(out).toBe('f')
   })
 
   it('AC-48: anon cannot and authenticated can EXECUTE every new public RPC', () => {

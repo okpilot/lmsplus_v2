@@ -7,8 +7,7 @@
  * internal_exam.code_emailed, internal_exam.started, internal_exam.completed,
  * internal_exam.expired.
  *
- * internal_exam.code_issued is asserted twice: through issue_sitting_exam_codes and through the
- * legacy issue_internal_exam_code RPC (the legacy test is removed with the RPC in 2e).
+ * internal_exam.code_issued is asserted through issue_sitting_exam_codes.
  *
  * The 5 auth-event tests (student.login + CT record_auth_event) live in
  * audit-auth-events.spec.ts.
@@ -297,24 +296,6 @@ test.describe('Red Team: Audit Event Completeness', () => {
     tracker.codes.add(codeRow.id)
 
     await expectAuditRow(admin, 'internal_exam.code_issued', adminUserId, testStart, codeRow.id)
-  })
-
-  // Retired with issue_internal_exam_code in 2e (the sitting test above then carries the literal alone).
-  test('writes internal_exam.code_issued when admin issues a legacy code (actor=admin)', async () => {
-    const testStart = new Date().toISOString()
-
-    const { data, error } = await adminAuthedClient.rpc('issue_internal_exam_code', {
-      p_subject_id: subjectId,
-      p_student_id: studentUserId,
-    })
-    expect(error, 'issue_internal_exam_code error').toBeNull()
-    const row = (Array.isArray(data) ? data[0] : undefined) as { code_id?: unknown } | undefined
-    if (!row || typeof row.code_id !== 'string') {
-      throw new Error(`unexpected RPC row: ${JSON.stringify(row)}`)
-    }
-    tracker.codes.add(row.code_id)
-
-    await expectAuditRow(admin, 'internal_exam.code_issued', adminUserId, testStart, row.code_id)
   })
 
   test('writes internal_exam.code_voided when admin voids a code (actor=admin)', async () => {

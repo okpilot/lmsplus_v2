@@ -190,7 +190,7 @@ function merge(a: NoticeResult, b: NoticeResult): NoticeResult {
   }
 }
 
-/** Sends every deliverable pending removal and cancellation notice of the sitting. Never throws. */
+/** Sends the next batch of deliverable pending removal and cancellation notices of the sitting (whole students, up to 200 rows). Never throws. */
 export async function deliverPendingNotices(args: Common): Promise<NoticeResult> {
   try {
     const [sitting, items] = await Promise.all([

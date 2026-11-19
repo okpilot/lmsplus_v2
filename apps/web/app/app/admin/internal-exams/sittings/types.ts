@@ -109,6 +109,8 @@ export type RemovedEntryRow = {
   passedAt: string | null
   removedAt: string
   noticeSent: boolean
+  /** Unsent and the student gets no notice (not active in the org or no email). */
+  noNotice: boolean
 }
 
 /** URL value of the Show filter; `attempts` maps to the RPC value `has_attempts`. */

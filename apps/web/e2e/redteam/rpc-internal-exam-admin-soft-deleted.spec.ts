@@ -2,10 +2,9 @@
  * Red Team Spec: soft-deleted admin — internal-exam admin RPC family (Vector EI)
  *
  * Proves the defense-in-depth property that a soft-deleted admin holding a
- * still-valid JWT is REJECTED (with no side effect) when calling the three
+ * still-valid JWT is REJECTED (with no side effect) when calling the two
  * internal-exam admin-only RPCs:
  *   - record_internal_exam_code_emailed (mig 110)
- *   - issue_internal_exam_code          (mig 087)
  *   - void_internal_exam_code           (mig 084)
  *
  * Two-layer defense (why /not_admin|admin_not_found/):
@@ -14,7 +13,7 @@
  *   soft-deleted admin fails `NOT is_admin()` and the RPC raises `not_admin`.
  *   This is the PRIMARY defense and the one exercised today.
  *
- *   Layer 2 — active-user re-select in each RPC body: all three RPCs also do
+ *   Layer 2 — active-user re-select in each RPC body: both RPCs also do
  *   `SELECT ... FROM users WHERE id = v_admin_id AND deleted_at IS NULL` as an
  *   independent backstop after is_admin(). If a future regression removes the
  *   deleted_at filter from is_admin() but leaves the re-select intact, the RPC
@@ -40,7 +39,6 @@ import { expect, test } from '@playwright/test'
 import { findAuthUserByEmail } from '../helpers/auth-users'
 import { getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
-import { ensureExamConfig, pickSubjectWithQuestions } from './helpers/seed-quiz'
 import { seedRedTeamUsers } from './helpers/seed-users'
 
 // Dedicated throwaway admin — NOT the shared redteam-admin@lmsplus.local.
@@ -55,7 +53,6 @@ test.describe('Red Team: soft-deleted admin cannot call internal-exam admin RPCs
   let softDelAdminId: string
   let softDelAdminClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
   let orgId: string
-  let subjectId: string
 
   test.beforeAll(async () => {
     admin = getAdminClient()
@@ -64,16 +61,6 @@ test.describe('Red Team: soft-deleted admin cannot call internal-exam admin RPCs
     // not needed for this spec (all RPC calls use dummy param UUIDs).
     const seed = await seedRedTeamUsers()
     orgId = seed.orgId
-
-    // Pick a subject that has at least one active question (needed for the
-    // issue_internal_exam_code positive-control call to reach student_not_found).
-    const picked = await pickSubjectWithQuestions(admin, { orgId })
-    subjectId = picked.subjectId
-    const topicId = picked.topicId
-
-    // Ensure an exam_config exists for the subject so issue_internal_exam_code
-    // reaches student_not_found (not exam_config_required) on the positive-control.
-    await ensureExamConfig(orgId, subjectId, topicId)
 
     // Create (or realign) the dedicated throwaway admin user.
     const existing = await findAuthUserByEmail(admin, SOFTDEL_ADMIN_EMAIL)
@@ -155,7 +142,7 @@ test.describe('Red Team: soft-deleted admin cannot call internal-exam admin RPCs
     }
   })
 
-  test('soft-deleted admin JWT is rejected by all three internal-exam admin RPCs with no audit side effect (Vector EI)', async () => {
+  test('soft-deleted admin JWT is rejected by both internal-exam admin RPCs with no audit side effect (Vector EI)', async () => {
     // ── Step 1: Positive controls (non-vacuity) ─────────────────────────────
     //
     // Call each RPC with the ACTIVE (not yet soft-deleted) admin client and
@@ -187,20 +174,6 @@ test.describe('Red Team: soft-deleted admin cannot call internal-exam admin RPCs
     expect(preVoidError).not.toBeNull()
     expect(preVoidError?.message ?? '').toMatch(/code_not_found/i)
 
-    // issue: dummy subject_id + dummy student_id → student_not_found (subject
-    // exists in the seed; the dummy student UUID guarantees student_not_found,
-    // which fires BEFORE exam_config_required in the guard order (mig 087 L288 vs
-    // L307) — so ensureExamConfig in beforeAll is future-proofing, not strictly
-    // required for this assertion. The guard fires at the student-in-same-org lookup).
-    const dummyStudentId = crypto.randomUUID()
-    const { data: preIssueData, error: preIssueError } = await softDelAdminClient.rpc(
-      'issue_internal_exam_code',
-      { p_subject_id: subjectId, p_student_id: dummyStudentId },
-    )
-    expect(preIssueData).toBeNull()
-    expect(preIssueError).not.toBeNull()
-    expect(preIssueError?.message ?? '').toMatch(/student_not_found/i)
-
     // ── Step 2: Capture pre-delete audit_events count scoped to this admin ──
     //
     // Use actor_id scoping so the assertion is non-vacuous: the pre and post
@@ -220,7 +193,6 @@ test.describe('Red Team: soft-deleted admin cannot call internal-exam admin RPCs
     let restoreError: string | null = null
     let recordResult: { data: unknown; error: { message: string } | null } | null = null
     let voidResult: { data: unknown; error: { message: string } | null } | null = null
-    let issueResult: { data: unknown; error: { message: string } | null } | null = null
 
     try {
       const { data: delData, error: delErr } = await admin
@@ -246,12 +218,6 @@ test.describe('Red Team: soft-deleted admin cannot call internal-exam admin RPCs
         p_reason: 'redteam EI probe post-delete',
       })
       voidResult = { data: voi.data, error: voi.error }
-
-      const iss = await softDelAdminClient.rpc('issue_internal_exam_code', {
-        p_subject_id: subjectId,
-        p_student_id: dummyStudentId,
-      })
-      issueResult = { data: iss.data, error: iss.error }
     } finally {
       // Restore the admin so afterAll's hard-delete can proceed cleanly and so
       // that a repeat run finds a clean state. Capture the error — never throw
@@ -294,14 +260,9 @@ test.describe('Red Team: soft-deleted admin cannot call internal-exam admin RPCs
     expect(voidResult?.error?.message ?? '').toMatch(/not_admin|admin_not_found/i)
     expect(voidResult?.data).toBeNull()
 
-    // issue_internal_exam_code must be rejected by the admin gate.
-    expect(issueResult?.error).not.toBeNull()
-    expect(issueResult?.error?.message ?? '').toMatch(/not_admin|admin_not_found/i)
-    expect(issueResult?.data).toBeNull()
-
     // ── Step 5: No-side-effect assertion ────────────────────────────────────
     //
-    // Re-read the scoped audit_events count after all three rejected calls.
+    // Re-read the scoped audit_events count after both rejected calls.
     // Any insertion that fires before the guard raises would increment this.
     const { count: postCount, error: postCountErr } = await admin
       .from('audit_events')

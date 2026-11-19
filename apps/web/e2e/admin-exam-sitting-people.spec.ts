@@ -175,6 +175,26 @@ test('removed list and pending-notices banner appear for an auto-removed entry',
   await expect(page.getByRole('button', { name: 'Send notices' })).toBeVisible()
 })
 
+test('removed list reads "no notice (deactivated)" for a deactivated auto-removed student, survives reload, no banner', async ({
+  page,
+}) => {
+  const { sittingId } = await seedSitting({
+    status: 'open',
+    people: THREE,
+    autoRemoved: [{ name: 'E2E Gus Gone', deactivated: true }],
+  })
+  await page.goto(`${BASE}/${sittingId}`)
+  await expect(page).toHaveURL(`${BASE}/${sittingId}`)
+  await expect(
+    page.getByText(/E2E Gus Gone · .+ · passed .+ · no notice \(deactivated\)/),
+  ).toBeVisible()
+  await expect(page.getByText(/notice waiting to be sent/)).toHaveCount(0)
+  await page.reload()
+  await expect(page).toHaveURL(`${BASE}/${sittingId}`)
+  await expect(page.getByText(/E2E Gus Gone · .+ no notice \(deactivated\)/)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Send notices' })).toHaveCount(0)
+})
+
 test.describe('student session', () => {
   test.use({ storageState: 'e2e/.auth/internal-exam-student.json' })
 
