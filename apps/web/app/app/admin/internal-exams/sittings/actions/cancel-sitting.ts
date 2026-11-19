@@ -11,10 +11,11 @@ import {
   sittingFailure,
 } from './sitting-action-result'
 
-export async function cancelSitting(
-  input: unknown,
-): Promise<
-  SittingActionResult<{ codesVoided: number; notices: Pick<NoticeResult, 'sent' | 'failed'> }>
+export async function cancelSitting(input: unknown): Promise<
+  SittingActionResult<{
+    codesVoided: number
+    notices: Pick<NoticeResult, 'sent' | 'failed' | 'unrecorded' | 'error'>
+  }>
 > {
   const parsed = ExamSittingIdSchema.safeParse(input)
   if (!parsed.success) return { success: false, error: 'Invalid input' }
@@ -25,11 +26,20 @@ export async function cancelSitting(
   if (error) return sittingFailure(error.message, 'Failed to cancel sitting')
   const row = firstRow(data)
   if (!row) return { success: false, error: 'Failed to cancel sitting' }
-  const { sent, failed } = await deliverPendingNotices({
+  const {
+    sent,
+    failed,
+    unrecorded,
+    error: noticeError,
+  } = await deliverPendingNotices({
     supabase,
     orgId: organizationId,
     sittingId: parsed.data.sittingId,
   })
   revalidateSitting(parsed.data.sittingId)
-  return { success: true, codesVoided: num(row, 'codes_voided'), notices: { sent, failed } }
+  return {
+    success: true,
+    codesVoided: num(row, 'codes_voided'),
+    notices: { sent, failed, unrecorded, ...(noticeError ? { error: noticeError } : {}) },
+  }
 }

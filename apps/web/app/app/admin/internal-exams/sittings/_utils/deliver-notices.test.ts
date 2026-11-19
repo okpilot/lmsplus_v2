@@ -206,16 +206,41 @@ describe('deliverNotices', () => {
     expect([...((calls[0]?.[1].p_code_ids ?? []) as string[])].sort()).toEqual(['c1', 'c2'])
   })
 
-  it('does not send when NEXT_PUBLIC_APP_URL is missing', async () => {
+  it.each([
+    ['sitting_cancelled', [cancelled('c1', 'u1', 's1')]],
+    ['entry_auto_removed', [removed('e1', 'u1', 's1')]],
+  ] as const)(
+    'still sends a %s notice when NEXT_PUBLIC_APP_URL is missing',
+    async (kind, items) => {
+      vi.stubEnv('NEXT_PUBLIC_APP_URL', '')
+      const r = await deliverNotices({ ...BASE, kind, items: items as never })
+      expect(mockSendBatch).toHaveBeenCalledTimes(1)
+      expect(r.sent).toBe(1)
+      expect(r.error).toBeUndefined()
+    },
+  )
+
+  it('returns error without sending a change notice when NEXT_PUBLIC_APP_URL is missing', async () => {
     vi.stubEnv('NEXT_PUBLIC_APP_URL', '')
+    const r = await deliverNotices({
+      ...BASE,
+      kind: 'changed',
+      sitting: { ...SITTING, oldScheduledAt: SITTING.scheduledAt, oldMode: 'remote' } as never,
+      items: [{ codeId: 'c1', userId: 'u1', subjectId: 's1' }] as never,
+    })
+    expect(mockSendBatch).not.toHaveBeenCalled()
+    expect(recordCalls()).toHaveLength(0)
+    expect(r).toMatchObject({ sent: 0, error: true })
+  })
+
+  it('returns error when a read throws', async () => {
+    mockRecipients.mockRejectedValue(new Error('db down'))
     const r = await deliverNotices({
       ...BASE,
       kind: 'sitting_cancelled',
       items: [cancelled('c1', 'u1', 's1')],
     })
-    expect(mockSendBatch).not.toHaveBeenCalled()
-    expect(recordCalls()).toHaveLength(0)
-    expect(r.sent).toBe(0)
+    expect(r).toMatchObject({ sent: 0, error: true })
   })
 
   it('never throws when the send throws', async () => {
@@ -260,20 +285,8 @@ describe('deliverPendingNotices', () => {
     expect(r).toMatchObject({ sent: 0, failed: [] })
   })
 
-  it('sends nothing for a sitting outside the organization', async () => {
+  it('returns error and sends nothing when the sitting is not found', async () => {
     mockSitting.mockResolvedValue(null)
-    mockDeliverable.mockResolvedValue([])
-    const r = await deliverPendingNotices({
-      supabase: SUPABASE as never,
-      orgId: 'org-1',
-      sittingId: SID,
-    })
-    expect(mockSendBatch).not.toHaveBeenCalled()
-    expect(r.sent).toBe(0)
-  })
-
-  it('sends nothing when NEXT_PUBLIC_APP_URL is missing', async () => {
-    vi.stubEnv('NEXT_PUBLIC_APP_URL', '')
     mockDeliverable.mockResolvedValue([cancelled('c1', 'u1', 's1')])
     const r = await deliverPendingNotices({
       supabase: SUPABASE as never,
@@ -281,6 +294,41 @@ describe('deliverPendingNotices', () => {
       sittingId: SID,
     })
     expect(mockSendBatch).not.toHaveBeenCalled()
-    expect(r.sent).toBe(0)
+    expect(r).toMatchObject({ sent: 0, error: true })
+  })
+
+  it('sends cancellation and removal notices without NEXT_PUBLIC_APP_URL', async () => {
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', '')
+    mockDeliverable.mockResolvedValue([cancelled('c1', 'u1', 's1'), removed('e2', 'u2', 's2')])
+    const r = await deliverPendingNotices({
+      supabase: SUPABASE as never,
+      orgId: 'org-1',
+      sittingId: SID,
+    })
+    expect(r.sent).toBe(2)
+    expect(r.error).toBeUndefined()
+  })
+
+  it('returns error when the pending read throws', async () => {
+    mockDeliverable.mockRejectedValue(new Error('db down'))
+    const r = await deliverPendingNotices({
+      supabase: SUPABASE as never,
+      orgId: 'org-1',
+      sittingId: SID,
+    })
+    expect(r).toMatchObject({ sent: 0, error: true })
+  })
+
+  it('counts the sent notices and flags error when one kind throws', async () => {
+    mockDeliverable.mockResolvedValue([cancelled('c1', 'u1', 's1'), removed('e2', 'u2', 's2')])
+    mockRecipients
+      .mockRejectedValueOnce(new Error('db down'))
+      .mockResolvedValueOnce(new Map([person(2)]))
+    const r = await deliverPendingNotices({
+      supabase: SUPABASE as never,
+      orgId: 'org-1',
+      sittingId: SID,
+    })
+    expect(r).toMatchObject({ sent: 1, error: true })
   })
 })

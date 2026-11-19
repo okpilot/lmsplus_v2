@@ -30,14 +30,20 @@ export async function loadSittingPage(rawId: string, params: SittingParams) {
     getRemoved(id.data),
     editable ? listInvigilatorOptions() : Promise.resolve([]),
     editable && popup ? resolveSelection(id.data, popup, params.selection) : Promise.resolve(EMPTY),
-    getDeliverablePendingNotices(supabase, organizationId, id.data),
+    getDeliverablePendingNotices(supabase, organizationId, id.data).catch((e: unknown) => {
+      console.error('[loadSittingPage] pending notices failed:', e instanceof Error ? e.message : e)
+      return null
+    }),
   ])
   if (!sitting || !roster || !removed) notFound()
   const notDue = new Date().toISOString().slice(0, 10) < isoDay(sitting.scheduledAt)
-  // The banner counts what Send notices can deliver, not the RPC's raw pending count.
+  // The banner counts what Send notices can deliver; a failed read falls back to the raw RPC count.
   return {
     sitting,
-    summary: { ...summary, pendingRemovalNotices: notices.length },
+    summary: {
+      ...summary,
+      pendingRemovalNotices: notices ? notices.length : summary.pendingRemovalNotices,
+    },
     roster,
     removed,
     invigilators,

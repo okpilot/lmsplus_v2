@@ -70,6 +70,19 @@ describe('loadSittingPage', () => {
     expect(r.summary.pendingRemovalNotices).toBe(2)
   })
 
+  it('falls back to the summary count when the pending read throws', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    m.getSummary.mockResolvedValue({
+      status: 'scheduled',
+      scheduledAt: '2026-11-20T09:30:00Z',
+      pendingRemovalNotices: 5,
+    })
+    m.deliverable.mockRejectedValue(new Error('db down'))
+    const r = await loadSittingPage(SID, params())
+    expect(r.summary.pendingRemovalNotices).toBe(5)
+    expect(console.error).toHaveBeenCalled()
+  })
+
   it('returns 404 for a non-uuid id without querying', async () => {
     await expect(loadSittingPage('not-a-uuid', params())).rejects.toThrow('NEXT_NOT_FOUND')
     expect(m.getSummary).not.toHaveBeenCalled()

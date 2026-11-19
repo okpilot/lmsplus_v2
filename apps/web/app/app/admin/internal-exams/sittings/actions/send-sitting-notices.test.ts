@@ -63,4 +63,21 @@ describe('sendSittingNotices', () => {
     mockDeliver.mockResolvedValue({ sent: 0, failed: [], skipped: 0, unrecorded: 0 })
     expect(await sendSittingNotices({ sittingId: SID })).toMatchObject({ success: true, sent: 0 })
   })
+
+  it('fails when nothing was sent and an error occurred', async () => {
+    mockDeliver.mockResolvedValue({ sent: 0, failed: [], skipped: 0, unrecorded: 0, error: true })
+    expect(await sendSittingNotices({ sittingId: SID })).toEqual({
+      success: false,
+      error: 'Failed to send notices',
+    })
+  })
+
+  it('succeeds with the counts when some were sent despite an error', async () => {
+    mockDeliver.mockResolvedValue({ sent: 1, failed: [], skipped: 0, unrecorded: 0, error: true })
+    expect(await sendSittingNotices({ sittingId: SID })).toMatchObject({
+      success: true,
+      sent: 1,
+      error: true,
+    })
+  })
 })

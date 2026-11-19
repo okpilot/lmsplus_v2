@@ -11,7 +11,7 @@ import {
   sittingFailure,
 } from './sitting-action-result'
 
-type Notices = Pick<NoticeResult, 'sent' | 'failed'>
+type Notices = Pick<NoticeResult, 'sent' | 'failed' | 'error'>
 
 type Before = Awaited<ReturnType<typeof getSittingForNotice>>
 
@@ -25,27 +25,29 @@ async function readBefore(orgId: string, sittingId: string): Promise<Before> {
   }
 }
 
+const NOTICE_ERROR: Notices = { sent: 0, failed: [], error: true }
+
 type Ctx = { supabase: UserClient; orgId: string; sittingId: string }
 
 /** Change notice to the emailed students; the old time and mode come from before the RPC. */
 async function noticeChange(ctx: Ctx, old: Before, codeIds: readonly string[]): Promise<Notices> {
   try {
     const sitting = await getSittingForNotice(ctx.orgId, ctx.sittingId)
-    if (!old || !sitting) return { sent: 0, failed: [] }
+    if (!old || !sitting) return NOTICE_ERROR
     const items = await getChangedNoticeCodes(ctx.orgId, ctx.sittingId, codeIds)
-    const { sent, failed } = await deliverNotices({
+    const { sent, failed, error } = await deliverNotices({
       ...ctx,
       kind: 'changed',
       items,
       sitting: { ...sitting, oldScheduledAt: old.scheduledAt, oldMode: old.mode },
     })
-    return { sent, failed }
+    return error ? { sent, failed, error } : { sent, failed }
   } catch (e) {
     console.error(
       '[updateSitting] change notice failed:',
       e instanceof Error ? e.message : String(e),
     )
-    return { sent: 0, failed: [] }
+    return NOTICE_ERROR
   }
 }
 

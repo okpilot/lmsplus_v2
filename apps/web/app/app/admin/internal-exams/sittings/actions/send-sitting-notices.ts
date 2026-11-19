@@ -15,5 +15,6 @@ export async function sendSittingNotices(
   const { sittingId } = parsed.data
   const result = await deliverPendingNotices({ supabase, orgId: organizationId, sittingId })
   revalidateSitting(sittingId)
+  if (result.error && result.sent === 0) return { success: false, error: 'Failed to send notices' }
   return { success: true, ...result }
 }
