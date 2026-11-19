@@ -10,7 +10,7 @@ vi.mock('@repo/db/admin', () => ({ adminClient: { from: mockAdminFrom } }))
 
 // ---- Subject under test ---------------------------------------------------
 
-import { getInternalExamCodeForEmail } from './email-queries'
+import { getInternalExamCodeForEmail, getSittingCodesForEmail } from './email-queries'
 
 // ---- Helpers ---------------------------------------------------------------
 
@@ -70,6 +70,10 @@ describe('getInternalExamCodeForEmail', () => {
       consumedAt: null,
       voidedAt: null,
       sittingEntryId: null,
+      sittingId: null,
+      scheduledAt: null,
+      mode: null,
+      sittingStatus: null,
     })
   })
 
@@ -167,5 +171,132 @@ describe('getInternalExamCodeForEmail sitting entry', () => {
     mockAdminFrom.mockReturnValue(chain)
     await getInternalExamCodeForEmail(CODE_ID)
     expect(chain.select).toHaveBeenCalledWith(expect.stringContaining('sitting_entry_id'))
+  })
+})
+
+describe('getInternalExamCodeForEmail sitting embed (2c-i)', () => {
+  const SITTING_ROW = {
+    ...ROW,
+    sitting_entry_id: 'entry-1',
+    exam_sitting_entries: {
+      sitting_id: 'sitting-1',
+      exam_sittings: {
+        scheduled_at: '2026-11-24T09:00:00.000Z',
+        mode: 'in_person',
+        status: 'scheduled',
+      },
+    },
+  }
+
+  it('maps the sitting date, mode and status of a sitting code', async () => {
+    mockAdmin()
+    mockAdminFrom.mockReturnValue(buildChain(SITTING_ROW))
+    expect(await getInternalExamCodeForEmail(CODE_ID)).toMatchObject({
+      sittingEntryId: 'entry-1',
+      sittingId: 'sitting-1',
+      scheduledAt: '2026-11-24T09:00:00.000Z',
+      mode: 'in_person',
+      sittingStatus: 'scheduled',
+    })
+  })
+
+  it('selects the entry-to-sitting embed with scheduled_at, mode and status', async () => {
+    mockAdmin()
+    const chain = buildChain(SITTING_ROW) as { select: ReturnType<typeof vi.fn> }
+    mockAdminFrom.mockReturnValue(chain)
+    await getInternalExamCodeForEmail(CODE_ID)
+    const cols = String(chain.select.mock.calls[0]?.[0])
+    expect(cols).toContain('exam_sitting_entries')
+    expect(cols).toMatch(/exam_sitting_entries![^(]*\(sitting_id,/)
+    expect(cols).toContain('exam_sittings')
+    for (const c of ['scheduled_at', 'mode', 'status']) expect(cols).toContain(c)
+  })
+})
+
+// ---- getSittingCodesForEmail ------------------------------------------------
+
+type Call = { table: string; method: string; args: unknown[] }
+
+/** Records every builder call; any await yields an empty list, maybeSingle/single a live sitting. */
+function recordingAdmin() {
+  const calls: Call[] = []
+  mockAdminFrom.mockImplementation((table: string) => {
+    const builder: Record<string, unknown> = new Proxy(
+      {},
+      {
+        get(_t, method: string) {
+          if (method === 'then') {
+            return (resolve: (v: unknown) => unknown) => resolve({ data: [], error: null })
+          }
+          if (method === 'maybeSingle' || method === 'single') {
+            return () => {
+              calls.push({ table, method, args: [] })
+              return Promise.resolve({
+                data: {
+                  id: SITTING_ID,
+                  status: 'scheduled',
+                  scheduled_at: '2999-01-01T00:00:00Z',
+                  mode: 'remote',
+                },
+                error: null,
+              })
+            }
+          }
+          return (...args: unknown[]) => {
+            calls.push({ table, method, args })
+            return builder
+          }
+        },
+      },
+    )
+    return builder
+  })
+  return calls
+}
+
+const SITTING_ID = 'sitting-1'
+
+const usedEq = (calls: Call[], col: string, val: unknown) =>
+  calls.some((c) => c.method === 'eq' && c.args[0] === col && c.args[1] === val)
+const usedIsNull = (calls: Call[], col: string) =>
+  calls.some((c) => c.method === 'is' && c.args[0] === col && c.args[1] === null)
+
+describe('getSittingCodesForEmail', () => {
+  it('scopes every read by organization and the sitting id', async () => {
+    const calls = recordingAdmin()
+    await getSittingCodesForEmail(ORG_ID, SITTING_ID)
+    expect(calls.length).toBeGreaterThan(0)
+    expect(usedEq(calls, 'organization_id', ORG_ID)).toBe(true)
+    expect(
+      calls.some(
+        (c) => c.args[1] === SITTING_ID && (c.args[0] === 'id' || c.args[0] === 'sitting_id'),
+      ),
+    ).toBe(true)
+    const tables = new Set(calls.map((c) => c.table))
+    for (const t of tables) {
+      expect(
+        calls.some((c) => c.table === t && c.method === 'eq' && c.args[0] === 'organization_id'),
+      ).toBe(true)
+    }
+  })
+
+  it('reads only live rows and codes not yet emailed', async () => {
+    const calls = recordingAdmin()
+    await getSittingCodesForEmail(ORG_ID, SITTING_ID)
+    expect(usedIsNull(calls, 'deleted_at')).toBe(true)
+    expect(usedIsNull(calls, 'emailed_at')).toBe(true)
+    expect(usedIsNull(calls, 'consumed_at')).toBe(true)
+    expect(usedIsNull(calls, 'voided_at')).toBe(true)
+    expect(
+      calls.some((c) => (c.method === 'gt' || c.method === 'gte') && c.args[0] === 'expires_at'),
+    ).toBe(true)
+  })
+
+  it('returns no rows and skipped 0 for an empty sitting', async () => {
+    recordingAdmin()
+    expect(await getSittingCodesForEmail(ORG_ID, SITTING_ID)).toMatchObject({
+      rows: [],
+      skipped: 0,
+    })
   })
 })

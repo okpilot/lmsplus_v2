@@ -49,6 +49,7 @@ export function ExamRowMenu({
   const { voidCodeId: codeId, canRemove } = examActions(entry, { editable })
   const step = nextStep(entry, { editable, deactivated })
   if (!step && !codeId && !canRemove) return null
+  const emailable = codeId !== null && !deactivated
   const dismiss = () => {
     setConfirm(null)
     a.clearError()
@@ -57,7 +58,12 @@ export function ExamRowMenu({
     <>
       <RowMenu label={`Actions for ${who}`}>
         {step && <StepItem step={step} busy={a.pending} onIssue={a.issue} />}
-        {step && (codeId || canRemove) && <MenuSeparator />}
+        {emailable && (
+          <MenuItem disabled={a.pending} onClick={() => a.sendCode(codeId)}>
+            {entry.codeEmailedAt === null ? 'Send code' : 'Resend code'}
+          </MenuItem>
+        )}
+        {(step || emailable) && (codeId || canRemove) && <MenuSeparator />}
         {codeId && (
           <MenuItem tone="danger" onClick={() => setConfirm('void')}>
             Void code

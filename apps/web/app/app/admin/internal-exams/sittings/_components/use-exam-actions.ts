@@ -1,3 +1,4 @@
+import { sendInternalExamCodeEmail } from '../../actions/send-code-email'
 import { issueSkipText, type ResultBannerData } from '../_utils/copy'
 import { type IssueCounts, issueSittingCodes } from '../actions/issue-sitting-codes'
 import { removeSittingEntries } from '../actions/remove-entries'
@@ -28,6 +29,15 @@ export function useExamActions({ sittingId, entry, personName, who, onDone }: Re
     run(() => issueSittingCodes({ sittingId, entryIds: [entry.entryId] }), issueBanner, {
       errorAsBanner: true,
     })
+  const sendCode = (codeId: string) =>
+    run(
+      async () => {
+        const r = await sendInternalExamCodeEmail({ codeId })
+        return r.success ? { success: true as const } : { success: false as const, error: r.error }
+      },
+      () => ({ tone: 'success', title: `Code emailed to ${personName}.` }),
+      { errorAsBanner: true },
+    )
   const voidCode = (codeId: string, reason: string) =>
     run(
       () => voidSittingCode({ sittingId, codeId, reason }),
@@ -48,5 +58,5 @@ export function useExamActions({ sittingId, entry, personName, who, onDone }: Re
         }
       },
     )
-  return { pending, error, clearError, issue, voidCode, remove }
+  return { pending, error, clearError, issue, sendCode, voidCode, remove }
 }

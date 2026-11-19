@@ -186,7 +186,7 @@ test.describe('internal exam — send-code-email pre-send state guard', () => {
     await expect(adminPage.getByText(STALE_CODE_TOAST)).toBeVisible({ timeout: 10_000 })
   })
 
-  test('a sitting code row has no email button', async ({ page: adminPage }) => {
+  test('a sitting code row has the email button', async ({ page: adminPage }) => {
     const { code } = await issueSittingCodeFor({
       studentEmail: INTERNAL_EXAM_STUDENT_EMAIL,
       subjectFragment: SUBJECT_LABEL_FRAGMENT,
@@ -195,7 +195,69 @@ test.describe('internal exam — send-code-email pre-send state guard', () => {
     const row = adminPage.locator('tr', { hasText: code })
     await expect(row).toBeVisible()
     await expect(row.getByRole('link', { name: 'Sitting code' })).toBeVisible()
-    await expect(row.getByRole('button', { name: /send email/i })).toHaveCount(0)
+    await expect(row.getByRole('button', { name: /send email/i })).toHaveCount(1)
+  })
+
+  // Sent path only where an email key exists (local, non-production); CI has no key and
+  // runs production, so the same click reports Failed there (header note above).
+  test('bulk "Email codes" on a sitting reports the outcome, and a re-run emails nothing new', async ({
+    page: adminPage,
+  }) => {
+    const { sittingId } = await seedSittingFor({
+      studentEmail: INTERNAL_EXAM_STUDENT_EMAIL,
+      subjectFragment: SUBJECT_LABEL_FRAGMENT,
+      status: 'scheduled',
+    })
+    const emailAll = async () => {
+      await adminPage.goto(`/app/admin/internal-exams/sittings/${sittingId}`)
+      await adminPage.getByRole('button', { name: 'Email codes' }).click()
+      await expect(
+        adminPage.getByText('Email every unused code not yet emailed to its student.'),
+      ).toBeVisible()
+      await adminPage.getByRole('alertdialog').getByRole('button', { name: 'Email codes' }).click()
+    }
+
+    await emailAll()
+    if (process.env.CI) {
+      await expect(adminPage.getByText(/Failed 1/)).toBeVisible({ timeout: 15_000 })
+    } else {
+      await expect(adminPage.getByText(/Emailed 1/)).toBeVisible({ timeout: 15_000 })
+      await emailAll()
+      await expect(adminPage.getByText(/Emailed 0/)).toBeVisible({ timeout: 15_000 })
+    }
+  })
+
+  // The exam row menu sits inside the collapsed person row.
+  async function openExamMenu(page: Page, studentName: string) {
+    await page.getByRole('button', { name: `Show exams for ${studentName}` }).click()
+    const escaped = studentName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    await page.getByRole('button', { name: new RegExp(`^Actions for .+, ${escaped}$`) }).click()
+  }
+
+  // Local only: a successful send needs an email key (header note above).
+  test('row "Send code" on a sitting emails one code, and the row then offers "Resend code" after a reload', async ({
+    page: adminPage,
+  }) => {
+    test.skip(!!process.env.CI, 'no email key in CI')
+    const { sittingId, studentName } = await seedSittingFor({
+      studentEmail: INTERNAL_EXAM_STUDENT_EMAIL,
+      subjectFragment: SUBJECT_LABEL_FRAGMENT,
+      status: 'scheduled',
+    })
+    const sittingUrl = new RegExp(`/app/admin/internal-exams/sittings/${sittingId}$`)
+    await adminPage.goto(`/app/admin/internal-exams/sittings/${sittingId}`)
+    await expect(adminPage).toHaveURL(sittingUrl)
+    await openExamMenu(adminPage, studentName)
+    await adminPage.getByRole('menuitem', { name: 'Send code' }).click()
+    await expect(adminPage.getByText(`Code emailed to ${studentName}.`)).toBeVisible({
+      timeout: 15_000,
+    })
+
+    await adminPage.reload()
+    await expect(adminPage).toHaveURL(sittingUrl)
+    await openExamMenu(adminPage, studentName)
+    await expect(adminPage.getByRole('menuitem', { name: 'Resend code' })).toBeVisible()
+    await expect(adminPage.getByRole('menuitem', { name: 'Send code', exact: true })).toHaveCount(0)
   })
 
   test('a sitting code on a scheduled sitting shows "Waiting for start" and links to the sitting', async ({

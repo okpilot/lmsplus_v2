@@ -6,9 +6,12 @@ const m = vi.hoisted(() => ({
   issue: vi.fn(),
   remove: vi.fn(),
   voidCode: vi.fn(),
+  sendCode: vi.fn(),
   toastError: vi.fn(),
   toastSuccess: vi.fn(),
 }))
+vi.mock('../../actions/send-code-email', () => ({ sendInternalExamCodeEmail: m.sendCode }))
+vi.mock('../actions/email-sitting-codes', () => ({ emailSittingCodes: vi.fn() }))
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn() }),
   usePathname: () => '/app/admin/internal-exams/sittings',
@@ -64,6 +67,34 @@ describe('useExamActions', () => {
     act(() => result.current.issue())
     await waitFor(() => expect(m.toastError).toHaveBeenCalledWith('Nope'))
     expect(result.current.error).toBeNull()
+  })
+
+  it('shows a refused row send as an error banner, not a success banner', async () => {
+    m.sendCode.mockResolvedValue({ success: false, error: 'Code is no longer active' })
+    const { result } = setup()
+    act(() => result.current.sendCode('c1'))
+    await waitFor(() => expect(m.toastError).toHaveBeenCalledWith('Code is no longer active'))
+    expect(m.toastSuccess).not.toHaveBeenCalled()
+    expect(result.current.error).toBeNull()
+  })
+
+  it('shows a thrown row send as an error banner instead of losing it in a closed dialog', async () => {
+    m.sendCode.mockRejectedValue(new Error('boom'))
+    const { result } = setup()
+    act(() => result.current.sendCode('c1'))
+    await waitFor(() =>
+      expect(m.toastError).toHaveBeenCalledWith('Service error. Please try again.'),
+    )
+    expect(result.current.error).toBeNull()
+  })
+
+  it('toasts the success of a row send', async () => {
+    m.sendCode.mockResolvedValue({ success: true })
+    const { result } = setup()
+    act(() => result.current.sendCode('c1'))
+    await waitFor(() =>
+      expect(m.toastSuccess).toHaveBeenCalledWith('Code emailed to Ann Student.', undefined),
+    )
   })
 
   it('voids with the reason, calls onDone and toasts the exam owner', async () => {
