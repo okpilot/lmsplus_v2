@@ -7,7 +7,6 @@ const m = vi.hoisted(() => ({
   getRoster: vi.fn(),
   getRemoved: vi.fn(),
   resolveSelection: vi.fn(),
-  requireAdmin: vi.fn(),
   notFound: vi.fn(() => {
     throw new Error('NEXT_NOT_FOUND')
   }),
@@ -21,7 +20,6 @@ vi.mock('../queries', () => ({
 
 vi.mock('../roster-queries', () => ({ getRoster: m.getRoster, getRemoved: m.getRemoved }))
 vi.mock('../people-queries', () => ({ resolveSelection: m.resolveSelection }))
-vi.mock('@/lib/auth/require-admin', () => ({ requireAdmin: m.requireAdmin }))
 
 import type { SittingParams } from '../parse-sitting-params'
 import { loadSittingPage } from './load-sitting-page'
@@ -51,7 +49,6 @@ beforeEach(() => {
   m.getRoster.mockResolvedValue({ rows: [], total: 0 })
   m.getRemoved.mockResolvedValue({ rows: [], total: 0 })
   m.resolveSelection.mockResolvedValue({ kind: 'ids', ids: ['u1'], truncated: false })
-  m.requireAdmin.mockResolvedValue({ supabase: {}, organizationId: 'org-1', userId: 'a' })
 })
 
 describe('loadSittingPage', () => {

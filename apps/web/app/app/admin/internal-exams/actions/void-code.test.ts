@@ -84,7 +84,7 @@ describe('voidInternalExamCode', () => {
   })
 
   describe('sitting code refusal (DB)', () => {
-    it('does not look up internal_exam_codes before the RPC', async () => {
+    it('voids without reading the code first', async () => {
       mockAdmin()
       mockRpc.mockResolvedValue({ data: [RPC_OK_NO_SESSION], error: null })
 
@@ -95,7 +95,7 @@ describe('voidInternalExamCode', () => {
       expect(mockRpc).toHaveBeenCalledTimes(1)
     })
 
-    it('maps the sitting_code RPC error to "Void sitting codes from their sitting"', async () => {
+    it('shows "Void sitting codes from their sitting" when the code belongs to a sitting', async () => {
       mockAdmin()
       vi.spyOn(console, 'error').mockImplementation(() => {})
       mockRpc.mockResolvedValue({ data: null, error: { message: 'sitting_code' } })
@@ -106,7 +106,7 @@ describe('voidInternalExamCode', () => {
       expect(mockRevalidatePath).not.toHaveBeenCalled()
     })
 
-    it('falls through to the RPC for a missing row and maps code_not_found', async () => {
+    it('shows "Code not found" when the code does not exist', async () => {
       mockAdmin()
       vi.spyOn(console, 'error').mockImplementation(() => {})
       mockRpc.mockResolvedValue({ data: null, error: { message: 'code_not_found' } })
