@@ -456,7 +456,7 @@ CREATE INDEX idx_exam_sittings_org_scheduled ON exam_sittings(organization_id, s
 CREATE INDEX idx_exam_sittings_invigilator ON exam_sittings(invigilator_id) WHERE deleted_at IS NULL;
 ```
 
-Test teardown (`apps/web/e2e/helpers/exam-sitting-cleanup.ts`) hard-deletes marked `E2E-SIT-` sittings with no entries or candidates, and the `E2E-SIT-SEED-` sittings `seedSitting` builds with their codes, sessions, entries, candidates, enrolments and users, and the `E2E-GRP-SIT-` groups with their members; never in product code.
+Test teardown (`apps/web/e2e/helpers/exam-sitting-cleanup.ts`) hard-deletes marked `E2E-SIT-` sittings with no entries or candidates, and the `E2E-SIT-SEED-` sittings `seedSitting` builds with their codes, entries, candidates, enrolments and users, and their sessions (found by code and by student), and the `E2E-GRP-SIT-` groups with their members; never in product code.
 
 CHECKs: started, closed and deleted pairs (`*_at` NULL iff `*_by` NULL); `closed_at IS NOT NULL ⇒ started_at IS NOT NULL`; not both closed and deleted; `ended_automatically ⇒ closed_at IS NOT NULL OR deleted_at IS NOT NULL`. `status` is generated; transitions are one-way and Closed is final.
 

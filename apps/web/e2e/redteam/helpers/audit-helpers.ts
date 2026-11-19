@@ -7,8 +7,8 @@
  */
 
 import { expect } from '@playwright/test'
+import { randomCode } from '../../helpers/code-gen'
 import type { getAdminClient } from '../../helpers/supabase'
-import type { createAuthenticatedClient } from './redteam-client'
 
 type AdminClient = ReturnType<typeof getAdminClient>
 
@@ -137,30 +137,31 @@ export async function backdateSession(admin: AdminClient, sessionId: string): Pr
 }
 
 /**
- * Issue an internal exam code via the RPC as the given admin-authenticated client,
- * add the code id to `createdCodeIds`, and return `{ codeId, code }`.
+ * Insert a sitting-less fixture code (service role), add its id to `createdCodeIds`, and return
+ * `{ codeId, code }`. Writes no audit row; it keeps fixtures independent of the legacy
+ * `issue_internal_exam_code` RPC, which the code_issued test calls once and which is retired in 2e.
  */
-export async function issueCodeViaRpc(
-  adminAuthedClient: Awaited<ReturnType<typeof createAuthenticatedClient>>,
-  subjectId: string,
-  studentUserId: string,
+export async function insertFixtureCode(
+  admin: AdminClient,
+  opts: { orgId: string; subjectId: string; studentId: string; issuedBy: string },
   createdCodeIds: Set<string>,
 ): Promise<{ codeId: string; code: string }> {
-  const { data, error } = await adminAuthedClient.rpc('issue_internal_exam_code', {
-    p_subject_id: subjectId,
-    p_student_id: studentUserId,
-  })
-  expect(error, 'issue_internal_exam_code error').toBeNull()
-  if (!Array.isArray(data)) {
-    throw new Error(`issueCodeViaRpc: unexpected RPC return shape: ${JSON.stringify(data)}`)
+  const code = randomCode()
+  const { data, error } = await admin
+    .from('internal_exam_codes')
+    .insert({
+      code,
+      subject_id: opts.subjectId,
+      student_id: opts.studentId,
+      issued_by: opts.issuedBy,
+      expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      organization_id: opts.orgId,
+    })
+    .select('id')
+    .single()
+  if (error || typeof data?.id !== 'string') {
+    throw new Error(`insertFixtureCode: ${error?.message ?? 'no row'}`)
   }
-  // Pair the cast with runtime field-type guards (code-style §5): the cast
-  // silences TS but guarantees nothing at runtime — a malformed RPC return
-  // must fail loudly, not propagate undefined/non-string ids downstream.
-  const row = data[0] as { code_id?: unknown; code?: unknown } | undefined
-  if (!row || typeof row.code_id !== 'string' || typeof row.code !== 'string') {
-    throw new Error(`issueCodeViaRpc: unexpected row shape: ${JSON.stringify(row)}`)
-  }
-  createdCodeIds.add(row.code_id)
-  return { codeId: row.code_id, code: row.code }
+  createdCodeIds.add(data.id)
+  return { codeId: data.id, code }
 }

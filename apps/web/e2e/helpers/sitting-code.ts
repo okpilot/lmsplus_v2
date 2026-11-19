@@ -1,10 +1,9 @@
 import { randomUUID } from 'node:crypto'
+import { randomCode } from './code-gen'
 import { EXAM_SITTING_SEED_PREFIX } from './exam-sitting-markers'
 import { getAdminClient } from './supabase'
 
 const ADMIN_EMAIL = 'admin@lmsplus.local'
-const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-const CODE_LENGTH = 8
 const EXPIRY_MS = 6 * 3_600_000
 
 type Admin = ReturnType<typeof getAdminClient>
@@ -20,14 +19,6 @@ type Ids = {
 
 function fail(what: string, error: { message: string } | null): never {
   throw new Error(`issueSittingCodeFor ${what}: ${error?.message ?? 'no data'}`)
-}
-
-function randomCode(): string {
-  const bytes = randomUUID().replaceAll('-', '')
-  return Array.from({ length: CODE_LENGTH }, (_, i) => {
-    const n = Number.parseInt(bytes.slice(i * 2, i * 2 + 2), 16)
-    return CODE_ALPHABET[n % CODE_ALPHABET.length]
-  }).join('')
 }
 
 async function lookupIds(admin: Admin, studentEmail: string, subjectFragment: string) {
@@ -61,7 +52,11 @@ async function lookupIds(admin: Admin, studentEmail: string, subjectFragment: st
   }
 }
 
-async function ensureEnrolment(admin: Admin, c: Ids): Promise<void> {
+/** Enrols the user in the course unless already enrolled; `created` says whether this call inserted the row. */
+export async function ensureEnrolment(
+  admin: Admin,
+  c: { orgId: string; adminId: string; userId: string; courseId: string },
+): Promise<{ created: boolean; id: string }> {
   const existing = await admin
     .from('course_enrolments')
     .select('id')
@@ -71,14 +66,19 @@ async function ensureEnrolment(admin: Admin, c: Ids): Promise<void> {
     .limit(1)
     .maybeSingle()
   if (existing.error) fail('enrolment lookup', existing.error)
-  if (existing.data) return
-  const res = await admin.from('course_enrolments').insert({
-    organization_id: c.orgId,
-    user_id: c.userId,
-    course_id: c.courseId,
-    enrolled_by: c.adminId,
-  })
-  if (res.error) fail('enrolment', res.error)
+  if (existing.data) return { created: false, id: existing.data.id }
+  const res = await admin
+    .from('course_enrolments')
+    .insert({
+      organization_id: c.orgId,
+      user_id: c.userId,
+      course_id: c.courseId,
+      enrolled_by: c.adminId,
+    })
+    .select('id')
+    .single()
+  if (res.error || !res.data) fail('enrolment', res.error)
+  return { created: true, id: res.data.id }
 }
 
 async function insertSitting(admin: Admin, c: Ids, status: SeedStatus): Promise<string> {

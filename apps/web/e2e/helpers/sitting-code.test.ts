@@ -5,7 +5,12 @@ vi.mock('./supabase', () => ({ getAdminClient: mockGetAdminClient }))
 vi.mock('./admin-supabase', () => ({ getAdminClient: mockGetAdminClient }))
 
 import { EXAM_SITTING_SEED_PREFIX } from './exam-sitting-markers'
-import { insertLegacyCodeFor, issueSittingCodeFor, seedSittingFor } from './sitting-code'
+import {
+  ensureEnrolment,
+  insertLegacyCodeFor,
+  issueSittingCodeFor,
+  seedSittingFor,
+} from './sitting-code'
 
 type Insert = { table: string; rows: Record<string, unknown>[] }
 
@@ -119,5 +124,54 @@ describe('insertLegacyCodeFor', () => {
     await expect(insertLegacyCodeFor(STUDENT)).rejects.toThrow(
       'issueSittingCodeFor legacy code: boom',
     )
+  })
+})
+
+describe('ensureEnrolment', () => {
+  const ARGS = { orgId: 'o', adminId: 'a', userId: 'u', courseId: 'c' }
+
+  /** Fake whose lookup and insert return the given results. */
+  function enrolAdmin(
+    lookup: { data: { id: string } | null; error: { message: string } | null },
+    insert: { data: { id: string } | null; error: { message: string } | null } = {
+      data: { id: 'new-1' },
+      error: null,
+    },
+  ) {
+    const inserted: unknown[] = []
+    const api: Record<string, unknown> = {}
+    for (const m of ['select', 'eq', 'is', 'limit']) api[m] = () => api
+    api.maybeSingle = () => Promise.resolve(lookup)
+    api.insert = (row: unknown) => {
+      inserted.push(row)
+      return api
+    }
+    api.single = () => Promise.resolve(insert)
+    return { admin: { from: () => api } as never, inserted }
+  }
+
+  it('returns the existing enrolment without inserting', async () => {
+    const { admin, inserted } = enrolAdmin({ data: { id: 'old-1' }, error: null })
+    await expect(ensureEnrolment(admin, ARGS)).resolves.toEqual({ created: false, id: 'old-1' })
+    expect(inserted).toHaveLength(0)
+  })
+
+  it('inserts and reports the new enrolment id when none exists', async () => {
+    const { admin, inserted } = enrolAdmin({ data: null, error: null })
+    await expect(ensureEnrolment(admin, ARGS)).resolves.toEqual({ created: true, id: 'new-1' })
+    expect(inserted[0]).toMatchObject({ user_id: 'u', course_id: 'c', enrolled_by: 'a' })
+  })
+
+  it('fails loudly when the lookup errors', async () => {
+    const { admin } = enrolAdmin({ data: null, error: { message: 'look' } })
+    await expect(ensureEnrolment(admin, ARGS)).rejects.toThrow('enrolment lookup: look')
+  })
+
+  it('fails loudly when the insert errors', async () => {
+    const { admin } = enrolAdmin(
+      { data: null, error: null },
+      { data: null, error: { message: 'ins' } },
+    )
+    await expect(ensureEnrolment(admin, ARGS)).rejects.toThrow('issueSittingCodeFor enrolment: ins')
   })
 })

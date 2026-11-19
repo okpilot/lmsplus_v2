@@ -7,6 +7,9 @@
  * internal_exam.code_emailed, internal_exam.started, internal_exam.completed,
  * internal_exam.expired.
  *
+ * internal_exam.code_issued is asserted twice: through issue_sitting_exam_codes and through the
+ * legacy issue_internal_exam_code RPC (the legacy test is removed with the RPC in 2e).
+ *
  * The 5 auth-event tests (student.login + CT record_auth_event) live in
  * audit-auth-events.spec.ts.
  *
@@ -24,10 +27,15 @@ import {
   expectAuditRow,
   expectCompletionMetadata,
   fetchActiveQuestionIds,
-  issueCodeViaRpc,
+  insertFixtureCode,
   readAuditReason,
 } from './helpers/audit-helpers'
 import { cleanupFixtures, createFixtureTracker } from './helpers/cleanup'
+import {
+  cleanupSittingFixtures,
+  createSittingRpc,
+  type SittingTrack,
+} from './helpers/exam-sitting-seed'
 import {
   buildMcProgressAnswers,
   finishSeedSession,
@@ -100,6 +108,7 @@ test.describe('Red Team: Audit Event Completeness', () => {
 
   // Fixture tracker: sessions and codes cleaned up via afterEach.
   const tracker = createFixtureTracker()
+  const sittingTrack: SittingTrack = { sittingIds: [], subjectIds: [], adminId: '' }
 
   // Set by the login-instructions test before its RPC call; afterEach resets on it (§7).
   let loginInstructionsStamped = false
@@ -113,6 +122,7 @@ test.describe('Red Team: Audit Event Completeness', () => {
 
     const seededAdmin = await seedRedTeamAdmin()
     adminUserId = seededAdmin.adminUserId
+    sittingTrack.adminId = adminUserId
 
     studentClient = await createAuthenticatedClient(ATTACKER_EMAIL, ATTACKER_PASSWORD)
     adminAuthedClient = await createAuthenticatedClient(ADMIN_EMAIL, ADMIN_PASSWORD)
@@ -124,11 +134,16 @@ test.describe('Red Team: Audit Event Completeness', () => {
     await ensureExamConfig(orgId, subjectId, topicId)
   })
 
-  // Two independent steps, isolated so one failing never skips the other (§7).
+  // Independent steps, isolated so one failing never skips the other (§7).
   test.afterEach(async () => {
     const errors: string[] = []
     try {
       await cleanupFixtures(admin, tracker)
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e))
+    }
+    try {
+      await cleanupSittingFixtures(admin, sittingTrack)
     } catch (e) {
       errors.push(e instanceof Error ? e.message : String(e))
     }
@@ -243,26 +258,71 @@ test.describe('Red Team: Audit Event Completeness', () => {
     )
   })
 
-  test('writes internal_exam.code_issued when admin issues a code (actor=admin)', async () => {
+  test('writes internal_exam.code_issued when admin issues sitting codes (actor=admin)', async () => {
     const testStart = new Date().toISOString()
 
-    const { codeId } = await issueCodeViaRpc(
-      adminAuthedClient,
-      subjectId,
-      studentUserId,
-      tracker.codes,
-    )
+    const sittingId = await createSittingRpc(adminAuthedClient, adminUserId)
+    sittingTrack.sittingIds.push(sittingId)
+    const add = await adminAuthedClient.rpc('add_exam_sitting_candidates', {
+      p_sitting_id: sittingId,
+      p_user_ids: [studentUserId],
+    })
+    expect(add.error).toBeNull()
+    const ent = await adminAuthedClient.rpc('add_exam_sitting_entries', {
+      p_sitting_id: sittingId,
+      p_user_ids: [studentUserId],
+      p_subject_ids: [subjectId],
+    })
+    expect(ent.error).toBeNull()
+    expect(ent.data?.[0]?.added).toBe(1)
+    const iss = await adminAuthedClient.rpc('issue_sitting_exam_codes', { p_sitting_id: sittingId })
+    expect(iss.error).toBeNull()
+    expect(iss.data?.[0]?.issued).toBe(1)
 
-    await expectAuditRow(admin, 'internal_exam.code_issued', adminUserId, testStart, codeId)
+    const { data: entry, error: entryErr } = await admin
+      .from('exam_sitting_entries')
+      .select('id')
+      .eq('sitting_id', sittingId)
+      .eq('user_id', studentUserId)
+      .is('deleted_at', null)
+      .single()
+    if (entryErr || !entry) throw new Error(`sitting entry: ${entryErr?.message}`)
+    const { data: codeRow, error: codeErr } = await admin
+      .from('internal_exam_codes')
+      .select('id')
+      .eq('sitting_entry_id', entry.id)
+      .is('deleted_at', null)
+      .single()
+    if (codeErr || !codeRow) throw new Error(`sitting code: ${codeErr?.message}`)
+    tracker.codes.add(codeRow.id)
+
+    await expectAuditRow(admin, 'internal_exam.code_issued', adminUserId, testStart, codeRow.id)
+  })
+
+  // Retired with issue_internal_exam_code in 2e (the sitting test above then carries the literal alone).
+  test('writes internal_exam.code_issued when admin issues a legacy code (actor=admin)', async () => {
+    const testStart = new Date().toISOString()
+
+    const { data, error } = await adminAuthedClient.rpc('issue_internal_exam_code', {
+      p_subject_id: subjectId,
+      p_student_id: studentUserId,
+    })
+    expect(error, 'issue_internal_exam_code error').toBeNull()
+    const row = (Array.isArray(data) ? data[0] : undefined) as { code_id?: unknown } | undefined
+    if (!row || typeof row.code_id !== 'string') {
+      throw new Error(`unexpected RPC row: ${JSON.stringify(row)}`)
+    }
+    tracker.codes.add(row.code_id)
+
+    await expectAuditRow(admin, 'internal_exam.code_issued', adminUserId, testStart, row.code_id)
   })
 
   test('writes internal_exam.code_voided when admin voids a code (actor=admin)', async () => {
     const testStart = new Date().toISOString()
 
-    const { codeId } = await issueCodeViaRpc(
-      adminAuthedClient,
-      subjectId,
-      studentUserId,
+    const { codeId } = await insertFixtureCode(
+      admin,
+      { orgId, subjectId, studentId: studentUserId, issuedBy: adminUserId },
       tracker.codes,
     )
     const { error: voidErr } = await adminAuthedClient.rpc('void_internal_exam_code', {
@@ -277,10 +337,9 @@ test.describe('Red Team: Audit Event Completeness', () => {
   test('writes internal_exam.code_emailed when admin emails a code (actor=admin)', async () => {
     const testStart = new Date().toISOString()
 
-    const { codeId } = await issueCodeViaRpc(
-      adminAuthedClient,
-      subjectId,
-      studentUserId,
+    const { codeId } = await insertFixtureCode(
+      admin,
+      { orgId, subjectId, studentId: studentUserId, issuedBy: adminUserId },
       tracker.codes,
     )
     const { data: emailData, error: emailErr } = await adminAuthedClient.rpc(
@@ -319,10 +378,9 @@ test.describe('Red Team: Audit Event Completeness', () => {
   test('writes internal_exam.started when student redeems a valid code', async () => {
     const testStart = new Date().toISOString()
 
-    const { code } = await issueCodeViaRpc(
-      adminAuthedClient,
-      subjectId,
-      studentUserId,
+    const { code } = await insertFixtureCode(
+      admin,
+      { orgId, subjectId, studentId: studentUserId, issuedBy: adminUserId },
       tracker.codes,
     )
     const { data, error } = await studentClient.rpc('start_internal_exam_session', {
@@ -342,10 +400,9 @@ test.describe('Red Team: Audit Event Completeness', () => {
   test('writes internal_exam.completed when internal_exam finishes within time limit', async () => {
     const testStart = new Date().toISOString()
 
-    const { code } = await issueCodeViaRpc(
-      adminAuthedClient,
-      subjectId,
-      studentUserId,
+    const { code } = await insertFixtureCode(
+      admin,
+      { orgId, subjectId, studentId: studentUserId, issuedBy: adminUserId },
       tracker.codes,
     )
     const { data: startData, error: startErr } = await studentClient.rpc(
@@ -376,10 +433,9 @@ test.describe('Red Team: Audit Event Completeness', () => {
   test('writes internal_exam.expired when internal_exam session is past the grace period', async () => {
     const testStart = new Date().toISOString()
 
-    const { code } = await issueCodeViaRpc(
-      adminAuthedClient,
-      subjectId,
-      studentUserId,
+    const { code } = await insertFixtureCode(
+      admin,
+      { orgId, subjectId, studentId: studentUserId, issuedBy: adminUserId },
       tracker.codes,
     )
     const { data: startData, error: startErr } = await studentClient.rpc(

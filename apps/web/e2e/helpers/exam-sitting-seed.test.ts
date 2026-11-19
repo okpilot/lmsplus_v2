@@ -5,7 +5,7 @@ vi.mock('./supabase', () => ({ getAdminClient: mockGetAdminClient }))
 vi.mock('./admin-supabase', () => ({ getAdminClient: mockGetAdminClient }))
 
 import { EXAM_SITTING_E2E_PREFIX } from './exam-sitting-markers'
-import { seedSitting } from './exam-sitting-seed'
+import { createStudent, insertPassedSession, seedSitting } from './exam-sitting-seed'
 
 type Insert = { table: string; rows: Record<string, unknown>[] }
 
@@ -134,5 +134,47 @@ describe('seedSitting addable people, enrolment and groups', () => {
     await expect(
       seedSitting({ people: [], groups: [{ name: 'Alpha', members: ['Nobody'] }] }),
     ).rejects.toThrow(/unknown member Nobody/)
+  })
+})
+
+describe('seedSitting subjects', () => {
+  it('returns the subjects its exams are drawn from', async () => {
+    fakeAdmin()
+    const r = await seedSitting({ people: [{ name: 'Ann', entries: [] }] })
+    expect(r.subjects[0]).toMatchObject({ short: 'FPM', course_id: 'course-1' })
+  })
+})
+
+describe('insertPassedSession', () => {
+  it('inserts a passed internal-exam session ending at the given time with the score', async () => {
+    const inserts = fakeAdmin()
+    const endedAt = new Date('2026-11-19T10:00:00.000Z')
+    const id = await insertPassedSession(mockGetAdminClient(), {
+      orgId: 'o',
+      userId: 'u',
+      subjectId: 's',
+      score: 83,
+      endedAt,
+    })
+    expect(typeof id).toBe('string')
+    expect(inserts.find((i) => i.table === 'quiz_sessions')?.rows[0]).toMatchObject({
+      student_id: 'u',
+      mode: 'internal_exam',
+      passed: true,
+      score_percentage: 83,
+      ended_at: endedAt.toISOString(),
+      started_at: '2026-11-19T09:30:00.000Z',
+    })
+  })
+})
+
+describe('createStudent', () => {
+  it('heads a failure with the caller prefix', async () => {
+    mockGetAdminClient.mockReturnValue({
+      auth: { admin: { createUser: async () => ({ data: {}, error: { message: 'nope' } }) } },
+    })
+    await expect(createStudent(mockGetAdminClient(), 'o', 'Ann', 'flowSeed')).rejects.toThrow(
+      'flowSeed auth user: nope',
+    )
   })
 })
