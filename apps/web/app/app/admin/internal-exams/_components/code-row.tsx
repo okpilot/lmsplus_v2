@@ -5,6 +5,7 @@ import { StatusText } from '@/components/kit/status-text'
 import { Button } from '@/components/ui/button'
 import { TableCell, TableRow } from '@/components/ui/table'
 import { formatUtc } from '@/lib/utils/format-utc'
+import { SITTING_BASE } from '../sittings/types'
 import type { InternalExamCodeRow } from '../types'
 import { statusLabel } from './code-status-items'
 import { SendCodeEmailButton } from './send-code-email-button'
@@ -47,7 +48,8 @@ export function CodeRow({
         {r.subjectName || '—'}
         {r.sittingId && (
           <Link
-            href={`/app/admin/internal-exams/sittings/${r.sittingId}`}
+            href={`${SITTING_BASE}/${r.sittingId}`}
+            prefetch={false}
             className="block text-caption text-muted-foreground underline"
           >
             Sitting code

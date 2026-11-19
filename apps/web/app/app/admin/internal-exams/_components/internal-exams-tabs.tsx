@@ -9,7 +9,7 @@ import { SittingsTab } from '../sittings/_components/sittings-tab'
 import type { SittingRow, SittingScope } from '../sittings/types'
 import type { InternalExamAttemptRow, InternalExamCodeRow, ListCodesFilters } from '../types'
 import { AttemptsTable } from './attempts-table'
-import { CodesTab } from './codes-tab'
+import { CodesTable } from './codes-table'
 
 type Props = {
   status?: ListCodesFilters['status']
@@ -64,7 +64,7 @@ export function InternalExamsTabs({
         {sittings && <SittingsTab {...sittings} />}
       </TabsPanel>
       <TabsPanel value="codes" data-testid="tabpanel-codes">
-        <CodesTab status={status} codes={codes} totalCount={codesTotalCount} pageSize={pageSize} />
+        <CodesTable rows={codes} status={status} totalCount={codesTotalCount} pageSize={pageSize} />
       </TabsPanel>
       <TabsPanel value="attempts" data-testid="tabpanel-attempts">
         <AttemptsTable rows={attempts} totalCount={attemptsTotalCount} pageSize={pageSize} />

@@ -24,7 +24,7 @@ export type InternalExamCodeRow = {
 }
 
 export type ListCodesFilters = {
-  status?: InternalExamCodeStatus | 'finished'
+  status?: Exclude<InternalExamCodeStatus, 'waiting'> | 'finished'
   studentId?: string
   subjectId?: string
   page?: number

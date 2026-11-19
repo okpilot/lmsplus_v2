@@ -197,7 +197,7 @@ describe('sendInternalExamCodeEmail sitting codes', () => {
 
     expect(result).toEqual({
       success: false,
-      error: 'Sitting codes are emailed from their sitting',
+      error: 'Sitting codes cannot be emailed from here yet',
     })
     expect(mockSendEmail).not.toHaveBeenCalled()
     expect(mockRpc).not.toHaveBeenCalled()
@@ -213,7 +213,7 @@ describe('sendInternalExamCodeEmail sitting codes', () => {
 
     expect(result).toEqual({
       success: false,
-      error: 'Sitting codes are emailed from their sitting',
+      error: 'Sitting codes cannot be emailed from here yet',
     })
   })
 })

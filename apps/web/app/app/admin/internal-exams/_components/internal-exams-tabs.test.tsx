@@ -13,7 +13,13 @@ vi.mock('../sittings/_components/sittings-tab', () => ({
   SittingsTab: () => <div>sittings content</div>,
 }))
 vi.mock('./attempts-table', () => ({ AttemptsTable: () => <div>attempts content</div> }))
-vi.mock('./codes-tab', () => ({ CodesTab: () => <div>codes content</div> }))
+const mockCodesTableProps = vi.hoisted(() => vi.fn())
+vi.mock('./codes-table', () => ({
+  CodesTable: (props: unknown) => {
+    mockCodesTableProps(props)
+    return <div>codes content</div>
+  },
+}))
 
 import { InternalExamsTabs } from './internal-exams-tabs'
 
@@ -31,6 +37,7 @@ function renderTabs() {
 
 beforeEach(() => {
   mockReplace.mockReset()
+  mockCodesTableProps.mockReset()
   mockSearch.value = ''
 })
 
@@ -114,6 +121,23 @@ describe('InternalExamsTabs', () => {
     expect(screen.getByTestId('tab-sittings')).toHaveAttribute('aria-selected', 'true')
     const tabs = screen.getAllByRole('tab').map((t) => t.getAttribute('data-testid'))
     expect(tabs).toEqual(['tab-sittings', 'tab-codes', 'tab-attempts'])
+  })
+
+  it('passes the codes rows, status filter and pagination totals to the codes table', () => {
+    mockSearch.value = 'tab=codes'
+    render(
+      <InternalExamsTabs
+        status="active"
+        codes={[]}
+        codesTotalCount={42}
+        attempts={[]}
+        attemptsTotalCount={0}
+        pageSize={20}
+      />,
+    )
+    expect(mockCodesTableProps).toHaveBeenCalledWith(
+      expect.objectContaining({ rows: [], status: 'active', totalCount: 42, pageSize: 20 }),
+    )
   })
 
   it('styles the active tab with the shared segmented look', () => {

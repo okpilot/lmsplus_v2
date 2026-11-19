@@ -1,7 +1,8 @@
 /**
  * E2E spec — Internal Exam end-to-end lifecycle.
  *
- * Covers: admin issues a code → student starts → submits → views report →
+ * Covers: admin issues a code from the sitting page (a service-role seed creates the open
+ * sitting and its roster entry) → student starts → submits → views report →
  * sees the attempt listed in My Reports → admin opens the attempt report;
  * unknown and missing session ids are refused on the admin report.
  *
@@ -11,8 +12,7 @@
  * (admin@lmsplus.local + INTERNAL_EXAM_STUDENT_EMAIL) are loaded; it does not seed its own users.
  *
  * NOTE: requires migrations 057a..065 (internal_exam_codes table, RPCs
- *       issue_internal_exam_code / start_internal_exam_session /
- *       complete_internal_exam_session) to be applied. Until then the
+ *       start_internal_exam_session / complete_internal_exam_session) to be applied. Until then the
  *       Server Action calls will fail and these specs will not pass.
  *
  * Auth: uses `e2e/.auth/admin.json` and `e2e/.auth/internal-exam-student.json`.

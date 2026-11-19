@@ -397,6 +397,23 @@ describe('listAvailableInternalExams sitting mapping', () => {
     })
   })
 
+  it('maps an unknown sitting status to cancelled so Start stays disabled', async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          ...base,
+          sitting_id: 'sit-1',
+          sitting_scheduled_at: '2026-05-01T09:00:00.000Z',
+          sitting_mode: 'remote',
+          sitting_status: 'paused',
+        },
+      ],
+      error: null,
+    })
+    const result = await listAvailableInternalExams()
+    expect(result.data[0]?.sitting?.status).toBe('cancelled')
+  })
+
   it('maps a legacy code (null sitting_id) to sitting null', async () => {
     mockRpc.mockResolvedValue({
       data: [

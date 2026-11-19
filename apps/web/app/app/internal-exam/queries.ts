@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from '@repo/db/server'
+import type { SittingStatus } from '@/app/app/admin/internal-exams/sittings/types'
 import { getSessionUser } from '@/lib/auth/get-session-user'
 import type { SittingMode } from '@/lib/utils/sitting-mode-label'
 
@@ -11,7 +12,7 @@ export type AvailableInternalExam = {
   subjectShort: string
   expiresAt: string
   issuedAt: string
-  sitting: { id: string; scheduledAt: string; mode: SittingMode; status: string } | null
+  sitting: { id: string; scheduledAt: string; mode: SittingMode; status: SittingStatus } | null
 }
 
 export type InternalExamHistoryEntry = {
@@ -40,6 +41,17 @@ function asNullableString(v: unknown): string | null {
   return typeof v === 'string' ? v : null
 }
 
+const SITTING_STATUSES: ReadonlySet<unknown> = new Set<SittingStatus>([
+  'scheduled',
+  'open',
+  'closed',
+  'cancelled',
+])
+
+function asSittingStatus(v: unknown): SittingStatus {
+  return SITTING_STATUSES.has(v) ? (v as SittingStatus) : 'cancelled'
+}
+
 function mapSitting(row: {
   sitting_id?: unknown
   sitting_scheduled_at?: unknown
@@ -52,7 +64,7 @@ function mapSitting(row: {
     id,
     scheduledAt: asString(row.sitting_scheduled_at),
     mode: row.sitting_mode === 'in_person' ? 'in_person' : 'remote',
-    status: asString(row.sitting_status),
+    status: asSittingStatus(row.sitting_status),
   }
 }
 
