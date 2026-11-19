@@ -173,4 +173,64 @@ test.describe('Attempts tab filters', () => {
     await expect(page).toHaveURL(/q=zzz-no-such-student-zzz/)
     await page.unrouteAll({ behavior: 'wait' })
   })
+  test.describe('pending navigation', () => {
+    test.beforeEach(async ({ page }) => {
+      await page.goto(`${BASE}?tab=attempts`)
+      await page.route('**/*', async (route) => {
+        if (route.request().headers().rsc) await new Promise((r) => setTimeout(r, 1500))
+        await route.continue()
+      })
+    })
+    test.afterEach(async ({ page }) => {
+      await page.unrouteAll({ behavior: 'wait' })
+    })
+
+    test('the Subject select shows the chosen subject while the navigation is pending', async ({
+      page,
+    }) => {
+      await page.getByRole('combobox', { name: 'Subject' }).click()
+      await page.getByRole('option', { name: /Meteorology/ }).click()
+      await expect(page.getByRole('combobox', { name: 'Subject' })).toContainText(/Meteorology/, {
+        timeout: 500,
+      })
+    })
+
+    test('two selects chosen within the pending window both keep their choices', async ({
+      page,
+    }) => {
+      await page.getByRole('combobox', { name: 'Subject' }).click()
+      await page.getByRole('option', { name: /Meteorology/ }).click()
+      await page.getByRole('combobox', { name: 'Sitting' }).click()
+      await page.getByRole('option', { name: sittingLabel(FIRST_AT), exact: true }).click()
+      await expect(page.getByRole('combobox', { name: 'Subject' })).toContainText(/Meteorology/, {
+        timeout: 500,
+      })
+      await expect(page.getByRole('combobox', { name: 'Sitting' })).toContainText(
+        sittingLabel(FIRST_AT),
+        { timeout: 500 },
+      )
+      await expect(page).toHaveURL(/subject=/)
+      await expect(page).toHaveURL(new RegExp(`sitting=${sittingId}`))
+    })
+
+    test('Clear while pending resets every select and the search box at once', async ({ page }) => {
+      await page.getByRole('searchbox').fill('abc')
+      await page.getByRole('combobox', { name: 'Subject' }).click()
+      await page.getByRole('option', { name: /Meteorology/ }).click()
+      await expect(page.getByRole('combobox', { name: 'Subject' })).toContainText(/Meteorology/, {
+        timeout: 500,
+      })
+      await page.getByRole('button', { name: 'Clear' }).click()
+      await expect(page.getByRole('combobox', { name: 'Subject' })).toContainText(/All subjects/, {
+        timeout: 500,
+      })
+      await expect(page.getByRole('combobox', { name: 'Sitting' })).toContainText(/All sittings/, {
+        timeout: 500,
+      })
+      await expect(page.getByRole('combobox', { name: 'Group' })).toContainText(/All groups/, {
+        timeout: 500,
+      })
+      await expect(page.getByRole('searchbox')).toHaveValue('', { timeout: 500 })
+    })
+  })
 })
