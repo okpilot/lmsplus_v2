@@ -173,6 +173,31 @@ test.describe('Attempts tab filters', () => {
     await expect(page).toHaveURL(/q=zzz-no-such-student-zzz/)
     await page.unrouteAll({ behavior: 'wait' })
   })
+  test('the open Sitting select shows every option label unclipped', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.goto(`${BASE}?tab=attempts`)
+    await page.getByRole('combobox', { name: 'Sitting' }).click()
+    const listbox = page.getByRole('listbox')
+    await expect(listbox).toBeVisible()
+    await expect(
+      page.getByRole('option', { name: sittingLabel(FIRST_AT), exact: true }),
+    ).toBeVisible()
+    const clipped = await page
+      .getByRole('option')
+      .evaluateAll((options) =>
+        options
+          .filter((o) =>
+            [o, ...Array.from(o.querySelectorAll('*'))].some(
+              (el) => el.scrollWidth > el.clientWidth,
+            ),
+          )
+          .map((o) => o.textContent),
+      )
+    expect(clipped).toEqual([])
+    const popupClipped = await listbox.evaluate((el) => el.scrollWidth > el.clientWidth)
+    expect(popupClipped).toBe(false)
+  })
+
   test.describe('pending navigation', () => {
     test.beforeEach(async ({ page }) => {
       await page.goto(`${BASE}?tab=attempts`)
