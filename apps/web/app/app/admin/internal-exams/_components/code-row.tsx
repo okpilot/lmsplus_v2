@@ -64,7 +64,7 @@ export function CodeRow({
         {/* Only an active code can be (re)emailed — the send action rejects
             consumed/voided/expired codes ('Code is no longer active'), so
             disable the button for every non-active code. */}
-        {!r.sittingId && (
+        {r.sittingEntryId === null && (
           <SendCodeEmailButton
             codeId={r.id}
             emailedAt={r.emailedAt}
@@ -73,7 +73,7 @@ export function CodeRow({
         )}
       </TableCell>
       <TableCell>
-        {!(r.sittingId && r.status === 'consumed') && (
+        {r.sittingEntryId === null && (
           <Button
             variant="outline"
             size="sm"

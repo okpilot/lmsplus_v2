@@ -53,6 +53,7 @@ const baseRow: InternalExamCodeRow = {
   status: 'active',
   sessionEndedAt: null,
   sittingId: null,
+  sittingEntryId: null,
 }
 
 describe('CodeRow status text', () => {
@@ -153,7 +154,7 @@ describe('CodeRow', () => {
 })
 
 describe('CodeRow sitting codes', () => {
-  const sitting = { ...baseRow, sittingId: 'sit-9' }
+  const sitting = { ...baseRow, sittingId: 'sit-9', sittingEntryId: 'ent-9' }
 
   it('shows a "Sitting code" link to the sitting page', () => {
     renderRow(sitting)
@@ -178,9 +179,19 @@ describe('CodeRow sitting codes', () => {
     expect(screen.queryByRole('button', { name: 'Void' })).not.toBeInTheDocument()
   })
 
-  it('still renders Void for an active sitting code', () => {
-    renderRow(sitting)
-    expect(screen.getByRole('button', { name: 'Void' })).toBeInTheDocument()
+  it.each(['active', 'waiting', 'consumed'] as const)(
+    'does not render Void for a %s sitting code',
+    (status) => {
+      renderRow({ ...sitting, status })
+      expect(screen.queryByRole('button', { name: 'Void' })).not.toBeInTheDocument()
+    },
+  )
+
+  it('hides Void, email and link for a sitting code whose embed is null', () => {
+    renderRow({ ...sitting, sittingId: null })
+    expect(screen.queryByRole('button', { name: 'Void' })).not.toBeInTheDocument()
+    expect(mockSendButton).not.toHaveBeenCalled()
+    expect(screen.queryByRole('link', { name: 'Sitting code' })).not.toBeInTheDocument()
   })
 
   it('shows Waiting for start for a waiting sitting code', () => {

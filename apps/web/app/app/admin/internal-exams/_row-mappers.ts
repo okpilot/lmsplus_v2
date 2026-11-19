@@ -47,8 +47,8 @@ function deriveStatus(
 ): InternalExamCodeStatus {
   if (row.voided_at) return 'voided'
   if (row.consumed_at) return 'consumed'
-  if (row.exam_sitting_entries?.exam_sittings?.status === 'scheduled') return 'waiting'
   if (new Date(row.expires_at).getTime() <= nowMs) return 'expired'
+  if (row.exam_sitting_entries?.exam_sittings?.status === 'scheduled') return 'waiting'
   return 'active'
 }
 
@@ -78,6 +78,7 @@ export function mapCodeRow(r: CodeRowRaw, nowMs: number): InternalExamCodeRow {
     status: deriveStatus(r, nowMs),
     sessionEndedAt: r.quiz_sessions?.ended_at ?? null,
     sittingId: r.exam_sitting_entries?.sitting_id ?? null,
+    sittingEntryId: r.sitting_entry_id,
   }
 }
 

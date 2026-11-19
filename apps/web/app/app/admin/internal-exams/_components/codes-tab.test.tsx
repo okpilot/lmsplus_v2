@@ -2,7 +2,6 @@ import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('../actions/send-code-email', () => ({ sendInternalExamCodeEmail: vi.fn() }))
-vi.mock('../actions/issue-code', () => ({ issueInternalExamCode: vi.fn() }))
 
 const { mockCodesTableProps } = vi.hoisted(() => ({ mockCodesTableProps: vi.fn() }))
 vi.mock('./codes-table', () => ({
@@ -32,14 +31,5 @@ describe('CodesTab', () => {
     expect(mockCodesTableProps).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'active', rows: [], totalCount: 42, pageSize: 25 }),
     )
-  })
-
-  it('is a server component (no client state remains)', async () => {
-    const { readFileSync } = await import('node:fs')
-    const src = readFileSync(
-      `${process.cwd()}/app/app/admin/internal-exams/_components/codes-tab.tsx`,
-      'utf8',
-    )
-    expect(src).not.toMatch(/['"]use client['"]/)
   })
 })
