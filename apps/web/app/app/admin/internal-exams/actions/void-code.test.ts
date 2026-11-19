@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mockRevalidatePath = vi.hoisted(() => vi.fn())
 const mockRequireAdmin = vi.hoisted(() => vi.fn())
 const mockRpc = vi.hoisted(() => vi.fn())
+const mockMaybeSingle = vi.hoisted(() => vi.fn())
 
 vi.mock('next/cache', () => ({ revalidatePath: mockRevalidatePath }))
 vi.mock('@/lib/auth/require-admin', () => ({ requireAdmin: mockRequireAdmin }))
@@ -17,7 +18,13 @@ import { voidInternalExamCode } from './void-code'
 
 const CODE_ID = '00000000-0000-4000-a000-000000000001'
 const SESSION_ID = '00000000-0000-4000-a000-000000000002'
-const SUPABASE = { __marker: 'supabase', rpc: mockRpc }
+const SUPABASE = {
+  __marker: 'supabase',
+  rpc: mockRpc,
+  from: vi.fn(() => ({
+    select: () => ({ eq: () => ({ maybeSingle: mockMaybeSingle }) }),
+  })),
+}
 
 function mockAdmin() {
   mockRequireAdmin.mockResolvedValue({
@@ -25,6 +32,7 @@ function mockAdmin() {
     organizationId: 'org-001',
     userId: 'admin-001',
   })
+  mockMaybeSingle.mockResolvedValue({ data: { sitting_entry_id: null }, error: null })
 }
 
 const VALID_INPUT = { codeId: CODE_ID, reason: 'Student requested rescheduling' }
@@ -72,6 +80,50 @@ describe('voidInternalExamCode', () => {
         reason: 'x'.repeat(501),
       })
       expect(result.success).toBe(false)
+    })
+  })
+
+  describe('sitting code guard', () => {
+    it('refuses a sitting code and does not call the RPC', async () => {
+      mockAdmin()
+      mockMaybeSingle.mockResolvedValue({ data: { sitting_entry_id: 'entry-1' }, error: null })
+
+      const result = await voidInternalExamCode(VALID_INPUT)
+
+      expect(result).toEqual({ success: false, error: 'Void sitting codes from their sitting' })
+      expect(mockRpc).not.toHaveBeenCalled()
+    })
+
+    it('returns a generic error on lookup failure and does not call the RPC', async () => {
+      mockAdmin()
+      vi.spyOn(console, 'error').mockImplementation(() => {})
+      mockMaybeSingle.mockResolvedValue({ data: null, error: { message: 'db down' } })
+
+      const result = await voidInternalExamCode(VALID_INPUT)
+
+      expect(result).toEqual({ success: false, error: 'Failed to void internal exam code' })
+      expect(mockRpc).not.toHaveBeenCalled()
+    })
+
+    it('calls the RPC for a legacy code', async () => {
+      mockAdmin()
+      mockRpc.mockResolvedValue({ data: [RPC_OK_NO_SESSION], error: null })
+
+      await voidInternalExamCode(VALID_INPUT)
+
+      expect(mockRpc).toHaveBeenCalledTimes(1)
+    })
+
+    it('falls through to the RPC for a missing row and maps code_not_found', async () => {
+      mockAdmin()
+      vi.spyOn(console, 'error').mockImplementation(() => {})
+      mockMaybeSingle.mockResolvedValue({ data: null, error: null })
+      mockRpc.mockResolvedValue({ data: null, error: { message: 'code_not_found' } })
+
+      const result = await voidInternalExamCode(VALID_INPUT)
+
+      expect(mockRpc).toHaveBeenCalledTimes(1)
+      expect(result).toEqual({ success: false, error: 'Code not found' })
     })
   })
 

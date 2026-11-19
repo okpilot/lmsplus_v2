@@ -420,3 +420,36 @@ describe('listInternalExamCodes', () => {
     })
   })
 })
+
+describe('listInternalExamCodes sitting embed', () => {
+  it('selects sitting_entry_id and the FK-hinted sitting status embed', async () => {
+    mockAdmin()
+    const chain = buildChain([], null, 1)
+    mockAdminFrom.mockReturnValue(chain)
+
+    await listInternalExamCodes({})
+
+    const selects = chain.select!.mock.calls.map((c) => String(c[0]))
+    const dataSelect = selects.find((q) => q.includes('sitting_entry_id'))
+    expect(dataSelect).toContain(
+      'exam_sitting_entries!internal_exam_codes_sitting_entry_fkey(sitting_id, exam_sittings!exam_sitting_entries_sitting_id_organization_id_fkey(status))',
+    )
+  })
+
+  it('keeps the embed in the consumed (!inner quiz_sessions) select', async () => {
+    mockAdmin()
+    const chain = buildChain([], null, 1)
+    mockAdminFrom.mockReturnValue(chain)
+
+    await listInternalExamCodes({ status: 'consumed' })
+
+    const selects = chain.select!.mock.calls.map((c) => String(c[0]))
+    expect(
+      selects.some(
+        (q) =>
+          q.includes('quiz_sessions!consumed_session_id!inner(ended_at)') &&
+          q.includes('exam_sitting_entries!internal_exam_codes_sitting_entry_fkey('),
+      ),
+    ).toBe(true)
+  })
+})

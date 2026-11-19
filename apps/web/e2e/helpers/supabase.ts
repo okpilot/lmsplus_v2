@@ -305,6 +305,9 @@ export async function ensureInternalExamStudentUser() {
  * the same SECURITY DEFINER path that the admin "Void" button uses in
  * production: writes the audit event, sets ended_at, marks passed=false, and
  * voids the code. No raw UPDATEs.
+ *
+ * Last step: soft-deletes the student's remaining legacy codes
+ * (sitting_entry_id IS NULL) so none leaks into the next spec.
  */
 export async function cleanupInternalExamStudentActiveSessions(
   adminAuthedClient: SupabaseClient,
@@ -381,6 +384,24 @@ export async function cleanupInternalExamStudentActiveSessions(
   if ((discarded?.length ?? 0) > 0) {
     console.log(
       `[cleanupInternalExamStudentActiveSessions] discarded ${discarded?.length} leftover practice/study session(s)`,
+    )
+  }
+
+  // LAST step (after the void loop, so a redeemed legacy code is voided first):
+  // soft-delete the student's legacy codes (sitting_entry_id IS NULL). Sitting
+  // codes are owned by cleanupE2eExamSittings. Zero rows is a valid steady state.
+  const { data: legacy, error: legacyError } = await admin
+    .from('internal_exam_codes')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('student_id', studentRow.id)
+    .is('sitting_entry_id', null)
+    .is('deleted_at', null)
+    .select('id')
+  if (legacyError)
+    throw new Error(`cleanupInternalExamStudentActiveSessions legacy codes: ${legacyError.message}`)
+  if ((legacy?.length ?? 0) > 0) {
+    console.log(
+      `[cleanupInternalExamStudentActiveSessions] soft-deleted ${legacy?.length} legacy code(s)`,
     )
   }
 }

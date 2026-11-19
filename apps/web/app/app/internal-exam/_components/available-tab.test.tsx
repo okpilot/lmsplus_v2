@@ -29,6 +29,7 @@ const ROW: AvailableInternalExam = {
   subjectShort: '010',
   expiresAt: new Date(Date.now() + 60 * 60_000).toISOString(),
   issuedAt: new Date().toISOString(),
+  sitting: null,
 }
 
 describe('AvailableTab', () => {
@@ -71,5 +72,68 @@ describe('AvailableTab', () => {
     expect(modal.getAttribute('data-open')).toBe('false')
     await userEvent.click(screen.getByTestId('start-button'))
     expect(modal.getAttribute('data-open')).toBe('true')
+  })
+
+  describe('sitting rows', () => {
+    const SITTING_ROW = (status: string): AvailableInternalExam => ({
+      ...ROW,
+      sitting: {
+        id: 'sit-1',
+        scheduledAt: '2026-05-01T09:30:00.000Z',
+        mode: 'remote',
+        status,
+      } as AvailableInternalExam['sitting'],
+    })
+
+    it('shows the UTC date, time and mode caption', () => {
+      render(<AvailableTab rows={[SITTING_ROW('scheduled')]} />)
+      expect(screen.getByText(/1 May 2026.*09:30.*UTC.*Remote/)).toBeInTheDocument()
+    })
+
+    it('labels in-person mode', () => {
+      const row = SITTING_ROW('open')
+      render(
+        <AvailableTab
+          rows={[{ ...row, sitting: { ...row.sitting!, mode: 'in_person' } as never }]}
+        />,
+      )
+      expect(screen.getByText(/In person/)).toBeInTheDocument()
+    })
+
+    it('disables Start with a reason hint while the sitting is not open', () => {
+      render(<AvailableTab rows={[SITTING_ROW('scheduled')]} />)
+      const start = screen.getByTestId('start-button')
+      expect(start).toBeDisabled()
+      const hint = screen.getByText('Opens when your invigilator starts the sitting.')
+      expect(start.getAttribute('aria-describedby')).toBe(hint.id)
+    })
+
+    it('disables Start for a closed sitting as well', () => {
+      render(<AvailableTab rows={[SITTING_ROW('closed')]} />)
+      expect(screen.getByTestId('start-button')).toBeDisabled()
+    })
+
+    it('disables Start for a cancelled sitting', () => {
+      render(<AvailableTab rows={[SITTING_ROW('cancelled')]} />)
+      expect(screen.getByTestId('start-button')).toBeDisabled()
+    })
+
+    it('enables Start with the open hint when the sitting is open', () => {
+      render(<AvailableTab rows={[SITTING_ROW('open')]} />)
+      expect(screen.getByTestId('start-button')).toBeEnabled()
+      expect(screen.getByText('Works while the sitting is open.')).toBeInTheDocument()
+    })
+
+    it('shows no Expires line on a sitting row', () => {
+      render(<AvailableTab rows={[SITTING_ROW('open')]} />)
+      expect(screen.queryByText(/Expires/)).not.toBeInTheDocument()
+    })
+
+    it('keeps the legacy row with an Expires line and Start enabled', () => {
+      render(<AvailableTab rows={[ROW]} />)
+      expect(screen.getByText(/Expires/)).toBeInTheDocument()
+      expect(screen.getByTestId('start-button')).toBeEnabled()
+      expect(screen.queryByText(/invigilator starts/)).not.toBeInTheDocument()
+    })
   })
 })

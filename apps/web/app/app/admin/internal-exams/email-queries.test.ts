@@ -43,6 +43,7 @@ const ROW = {
   expires_at: '2026-04-29T00:00:00.000Z',
   consumed_at: null,
   voided_at: null,
+  sitting_entry_id: null,
   easa_subjects: { name: 'Meteorology' },
   users: { full_name: 'Alice', email: 'alice@example.com', deleted_at: null },
 }
@@ -68,6 +69,7 @@ describe('getInternalExamCodeForEmail', () => {
       expiresAt: '2026-04-29T00:00:00.000Z',
       consumedAt: null,
       voidedAt: null,
+      sittingEntryId: null,
     })
   })
 
@@ -140,5 +142,30 @@ describe('getInternalExamCodeForEmail', () => {
     const result = await getInternalExamCodeForEmail(CODE_ID)
 
     expect(result).toMatchObject({ studentName: null, subjectName: '', studentEmail: 'a@b.com' })
+  })
+})
+
+describe('getInternalExamCodeForEmail sitting entry', () => {
+  it('maps a non-null sitting_entry_id to sittingEntryId', async () => {
+    mockAdmin()
+    mockAdminFrom.mockReturnValue(buildChain({ ...ROW, sitting_entry_id: 'entry-1' }))
+    const result = await getInternalExamCodeForEmail(CODE_ID)
+    expect(result).toMatchObject({ sittingEntryId: 'entry-1' })
+  })
+
+  it('returns null when sitting_entry_id is missing (never read as legacy)', async () => {
+    mockAdmin()
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { sitting_entry_id: _omit, ...noField } = ROW
+    mockAdminFrom.mockReturnValue(buildChain(noField))
+    expect(await getInternalExamCodeForEmail(CODE_ID)).toBeNull()
+  })
+
+  it('selects sitting_entry_id', async () => {
+    mockAdmin()
+    const chain = buildChain(ROW) as { select: ReturnType<typeof vi.fn> }
+    mockAdminFrom.mockReturnValue(chain)
+    await getInternalExamCodeForEmail(CODE_ID)
+    expect(chain.select).toHaveBeenCalledWith(expect.stringContaining('sitting_entry_id'))
   })
 })

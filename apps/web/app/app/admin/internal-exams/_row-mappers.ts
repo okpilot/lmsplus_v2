@@ -17,6 +17,8 @@ export type CodeRowRaw = {
   easa_subjects: { name: string | null } | null
   users: { full_name: string | null; email: string | null } | null
   quiz_sessions: { ended_at: string | null } | null
+  sitting_entry_id: string | null
+  exam_sitting_entries: { sitting_id: string; exam_sittings: { status: string } | null } | null
 }
 
 export type AttemptRowRaw = {
@@ -39,12 +41,14 @@ function deriveStatus(
     consumed_at: string | null
     voided_at: string | null
     expires_at: string
+    exam_sitting_entries: CodeRowRaw['exam_sitting_entries']
   },
   nowMs: number,
 ): InternalExamCodeStatus {
   if (row.voided_at) return 'voided'
   if (row.consumed_at) return 'consumed'
   if (new Date(row.expires_at).getTime() <= nowMs) return 'expired'
+  if (row.exam_sitting_entries?.exam_sittings?.status === 'scheduled') return 'waiting'
   return 'active'
 }
 
@@ -73,6 +77,8 @@ export function mapCodeRow(r: CodeRowRaw, nowMs: number): InternalExamCodeRow {
     emailedAt: r.emailed_at,
     status: deriveStatus(r, nowMs),
     sessionEndedAt: r.quiz_sessions?.ended_at ?? null,
+    sittingId: r.exam_sitting_entries?.sitting_id ?? null,
+    sittingEntryId: r.sitting_entry_id,
   }
 }
 

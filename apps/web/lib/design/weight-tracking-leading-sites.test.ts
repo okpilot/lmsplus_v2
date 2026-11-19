@@ -14,7 +14,7 @@ const LABEL_STRONG = [
   `${A}admin/dashboard/_components/weak-topics-list.tsx`,
   `${A}admin/internal-exams/_components/attempts-table.tsx`,
   `${A}admin/syllabus/_components/subject-row.tsx`,
-  `${A}internal-exam/_components/available-tab.tsx`,
+  `${A}internal-exam/_components/available-row.tsx`,
   `${A}internal-exam/_components/my-reports-tab.tsx`,
   `${A}progress/_components/subject-breakdown.tsx`,
   `${A}quiz/_components/question-count.tsx`,
@@ -75,12 +75,6 @@ describe('weight roles', () => {
     expect(src(`${A}quiz/_components/question-tabs.tsx`)).toContain('max-tiny:text-caption-strong')
   })
 
-  it('issued code has no font-semibold beside text-stat', () => {
-    expect(src(`${A}admin/internal-exams/_components/issued-code-panel.tsx`)).not.toContain(
-      'font-semibold',
-    )
-  })
-
   it('score ring text weight is 600', () => {
     const s = src(`${A}quiz/report/_components/score-ring.tsx`)
     expect(s).not.toContain('fontWeight="700"')
@@ -101,7 +95,6 @@ describe('weight roles', () => {
 describe('tracking roles', () => {
   it.each([
     `${A}admin/internal-exams/_components/code-row.tsx`,
-    `${A}admin/internal-exams/_components/issued-code-panel.tsx`,
     `${A}internal-exam/_components/code-entry-modal.tsx`,
   ])('%s uses tracking-code, no tracking-wider/widest', (f) => {
     const s = src(f)

@@ -85,6 +85,8 @@ const baseRow: InternalExamCodeRow = {
   emailedAt: null,
   status: 'active',
   sessionEndedAt: null,
+  sittingId: null,
+  sittingEntryId: null,
 }
 
 beforeEach(() => {

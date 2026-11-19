@@ -1,5 +1,7 @@
 import { createServerSupabaseClient } from '@repo/db/server'
+import type { SittingStatus } from '@/app/app/admin/internal-exams/sittings/types'
 import { getSessionUser } from '@/lib/auth/get-session-user'
+import type { SittingMode } from '@/lib/utils/sitting-mode-label'
 
 // SECURITY: code values are NEVER returned from this query. Admin distributes
 // codes out-of-band; student types via the redemption modal. Shape omits `code`.
@@ -10,6 +12,7 @@ export type AvailableInternalExam = {
   subjectShort: string
   expiresAt: string
   issuedAt: string
+  sitting: { id: string; scheduledAt: string; mode: SittingMode; status: SittingStatus } | null
 }
 
 export type InternalExamHistoryEntry = {
@@ -36,6 +39,33 @@ function asString(v: unknown): string {
 function asNullableString(v: unknown): string | null {
   if (v === null || v === undefined) return null
   return typeof v === 'string' ? v : null
+}
+
+const SITTING_STATUSES: ReadonlySet<unknown> = new Set<SittingStatus>([
+  'scheduled',
+  'open',
+  'closed',
+  'cancelled',
+])
+
+function asSittingStatus(v: unknown): SittingStatus {
+  return SITTING_STATUSES.has(v) ? (v as SittingStatus) : 'cancelled'
+}
+
+function mapSitting(row: {
+  sitting_id?: unknown
+  sitting_scheduled_at?: unknown
+  sitting_mode?: unknown
+  sitting_status?: unknown
+}): AvailableInternalExam['sitting'] {
+  const id = asNullableString(row.sitting_id)
+  if (id === null) return null
+  return {
+    id,
+    scheduledAt: asString(row.sitting_scheduled_at),
+    mode: row.sitting_mode === 'in_person' ? 'in_person' : 'remote',
+    status: asSittingStatus(row.sitting_status),
+  }
 }
 
 function asNumber(v: unknown): number {
@@ -85,6 +115,7 @@ export async function listAvailableInternalExams(): Promise<
       subjectShort: asString(row.subject_short),
       expiresAt: asString(row.expires_at),
       issuedAt: asString(row.issued_at),
+      sitting: mapSitting(row),
     })),
   }
 }

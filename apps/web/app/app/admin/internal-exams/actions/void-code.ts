@@ -50,6 +50,19 @@ export async function voidInternalExamCode(input: unknown): Promise<VoidCodeResu
   const { supabase } = await requireAdmin()
   const { codeId, reason } = parsed.data
 
+  const { data: codeRow, error: lookupError } = await supabase
+    .from('internal_exam_codes')
+    .select('sitting_entry_id')
+    .eq('id', codeId)
+    .maybeSingle()
+  if (lookupError) {
+    console.error('[voidInternalExamCode] lookup error:', lookupError.message)
+    return { success: false, error: 'Failed to void internal exam code' }
+  }
+  if (codeRow?.sitting_entry_id) {
+    return { success: false, error: 'Void sitting codes from their sitting' }
+  }
+
   const { data, error } = await supabase.rpc('void_internal_exam_code', {
     p_code_id: codeId,
     p_reason: reason,

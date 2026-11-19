@@ -3,13 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const m = vi.hoisted(() => ({
   attempts: vi.fn(),
   codes: vi.fn(),
-  subjects: vi.fn(),
-  students: vi.fn(),
   sittings: vi.fn(),
 }))
 vi.mock('../attempts-queries', () => ({ listInternalExamAttempts: m.attempts }))
-vi.mock('../queries', () => ({ listInternalExamCodes: m.codes, listExamSubjects: m.subjects }))
-vi.mock('../students-queries', () => ({ listOrgStudents: m.students }))
+vi.mock('../queries', () => ({ listInternalExamCodes: m.codes }))
 vi.mock('../sittings/queries', () => ({
   listSittings: m.sittings,
   listInvigilatorOptions: vi.fn().mockResolvedValue([]),
@@ -26,8 +23,6 @@ beforeEach(() => {
   vi.resetAllMocks()
   m.attempts.mockResolvedValue(empty)
   m.codes.mockResolvedValue(empty)
-  m.subjects.mockResolvedValue([])
-  m.students.mockResolvedValue([])
   m.sittings.mockResolvedValue(empty)
 })
 
@@ -46,6 +41,26 @@ describe('InternalExamsContent', () => {
     expect(m.codes).toHaveBeenCalled()
     expect(m.sittings).not.toHaveBeenCalled()
     expect(m.attempts).not.toHaveBeenCalled()
+  })
+
+  it('loads the codes tab with a single codes query', async () => {
+    await InternalExamsContent({ ...props, tab: 'codes' } as never)
+    expect(m.codes).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not pass students or subjects props to the tabs', async () => {
+    const el = await InternalExamsContent({ ...props, tab: 'codes' } as never)
+    const keys = new Set<string>()
+    const walk = (v: unknown, depth = 0) => {
+      if (!v || typeof v !== 'object' || depth > 6) return
+      for (const [k, c] of Object.entries(v)) {
+        keys.add(k)
+        walk(c, depth + 1)
+      }
+    }
+    walk(el)
+    expect(keys.has('students')).toBe(false)
+    expect(keys.has('subjects')).toBe(false)
   })
 
   it('fetches only attempts on the attempts tab', async () => {
