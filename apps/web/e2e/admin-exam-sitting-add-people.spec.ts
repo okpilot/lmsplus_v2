@@ -397,6 +397,40 @@ test('Issue codes: bulk popup, Issue all codes, and Issue now from the Start con
   })
 })
 
+test('Add exams and Issue codes popups at 375 px: no sideways scroll, Esc closes, focus returns to the opener', async ({
+  page,
+}) => {
+  const { sittingId } = await seedSitting({
+    status: 'scheduled',
+    people: [{ name: 'E2E Phone Ann', entries: [{ state: 'no_code' }] }],
+  })
+  await page.setViewportSize({ width: 375, height: 667 })
+  await page.goto(`${BASE}/${sittingId}`)
+  await page.getByRole('checkbox', { name: 'Select E2E Phone Ann' }).click()
+
+  for (const [opener, dlg] of [
+    ['Add exams', /dlg=exams/],
+    ['Issue codes', /dlg=issue/],
+  ] as const) {
+    await test.step(`${opener} popup`, async () => {
+      const button = page.getByRole('button', { name: opener, exact: true })
+      await button.click()
+      await expect(page).toHaveURL(dlg)
+      await expect(popup(page).getByRole('heading', { name: opener })).toBeVisible()
+      const pageFits = await page.evaluate(
+        () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+      )
+      expect(pageFits).toBe(true)
+      const dialogFits = await popup(page).evaluate((el) => el.scrollWidth <= el.clientWidth)
+      expect(dialogFits).toBe(true)
+      await page.keyboard.press('Escape')
+      await noPopup(page)
+      await expect(page).not.toHaveURL(/dlg=/)
+      await expect(button).toBeFocused()
+    })
+  }
+})
+
 test('Internal Exams opens on the Sittings tab; Codes and Attempts stay deep-linkable', async ({
   page,
 }) => {
