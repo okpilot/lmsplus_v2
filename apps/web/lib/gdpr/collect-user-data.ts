@@ -2,6 +2,8 @@ import type { Database } from '@repo/db/types'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   fetchCourseEnrolments,
+  fetchExamSittingCandidacies,
+  fetchExamSittingEntries,
   fetchStudentGroupMemberships,
   fetchUserAuditEvents,
   fetchUserComments,
@@ -52,6 +54,8 @@ async function fetchPrimarySections(supabase: SupabaseClient<Database>, userId: 
     consents,
     enrolments,
     groupMemberships,
+    sittingCandidacies,
+    sittingEntries,
     audit,
     progress,
   ] = await Promise.all([
@@ -68,6 +72,8 @@ async function fetchPrimarySections(supabase: SupabaseClient<Database>, userId: 
     fetchUserConsents(supabase, userId),
     fetchCourseEnrolments(supabase, userId),
     fetchStudentGroupMemberships(supabase, userId),
+    fetchExamSittingCandidacies(supabase, userId),
+    fetchExamSittingEntries(supabase, userId),
     fetchUserAuditEvents(supabase, userId),
     fetchUserProgress(supabase, userId),
   ])
@@ -81,6 +87,8 @@ async function fetchPrimarySections(supabase: SupabaseClient<Database>, userId: 
     consents,
     enrolments,
     groupMemberships,
+    sittingCandidacies,
+    sittingEntries,
     audit,
     progress,
   }
@@ -135,6 +143,8 @@ function buildWarnings(r: Primary, scoped: Scoped): GdprExportWarning[] {
     ['user_consents', r.consents],
     ['course_enrolments', r.enrolments],
     ['student_group_memberships', r.groupMemberships],
+    ['exam_sitting_candidacies', r.sittingCandidacies],
+    ['exam_sitting_entries', r.sittingEntries],
     ['audit_events', r.audit],
   ])
   if (scoped.answers.error) {
@@ -170,6 +180,8 @@ function buildPayload(
     user_consents: r.consents.data,
     course_enrolments: r.enrolments.data,
     student_group_memberships: r.groupMemberships.data,
+    exam_sitting_candidacies: r.sittingCandidacies.data,
+    exam_sitting_entries: r.sittingEntries.data,
     audit_events: r.audit.data.map((e) => ({
       ...e,
       ip_address: typeof e.ip_address === 'string' ? e.ip_address : null,
