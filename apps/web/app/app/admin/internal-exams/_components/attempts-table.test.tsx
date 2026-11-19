@@ -222,3 +222,37 @@ describe('AttemptsTable: Sitting column and filtered empty state', () => {
     expect(screen.getByText('No attempts match these filters.')).toBeInTheDocument()
   })
 })
+
+describe('AttemptsTable: row keyboard activation', () => {
+  const sittingRow: InternalExamAttemptRow = {
+    ...baseRow,
+    sittingId: 'sit-7',
+    sittingAt: '2026-05-01T09:00:00.000Z',
+  }
+  const reportUrl = '/app/admin/internal-exams/report?session=sess-1'
+
+  it('does not open the report when Enter is pressed on the Sitting link', () => {
+    mockPush.mockClear()
+    render(<AttemptsTable rows={[sittingRow]} totalCount={0} pageSize={25} />)
+    fireEvent.keyDown(screen.getByRole('link', { name: /01\/05\/2026/ }), { key: 'Enter' })
+    expect(mockPush).not.toHaveBeenCalledWith(reportUrl)
+  })
+
+  it('opens the report when Enter is pressed on the row itself', () => {
+    mockPush.mockClear()
+    render(<AttemptsTable rows={[sittingRow]} totalCount={0} pageSize={25} />)
+    fireEvent.keyDown(screen.getByRole('link', { name: 'Alice' }).closest('tr') as HTMLElement, {
+      key: 'Enter',
+    })
+    expect(mockPush).toHaveBeenCalledWith(reportUrl)
+  })
+
+  it('opens the report when Space is pressed on the row itself', () => {
+    mockPush.mockClear()
+    render(<AttemptsTable rows={[sittingRow]} totalCount={0} pageSize={25} />)
+    fireEvent.keyDown(screen.getByRole('link', { name: 'Alice' }).closest('tr') as HTMLElement, {
+      key: ' ',
+    })
+    expect(mockPush).toHaveBeenCalledWith(reportUrl)
+  })
+})
