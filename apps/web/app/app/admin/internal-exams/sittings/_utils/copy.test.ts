@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { closeConfirmText, issueSkipText } from './copy'
+import {
+  cancelledBanner,
+  closeConfirmText,
+  detailsSavedBanner,
+  issueSkipText,
+  sendNoticesBanner,
+} from './copy'
 
 const base = { attemptsRunning: 0, entriesNotStarted: 0, studentsNotStarted: 0 }
 
@@ -58,5 +64,46 @@ describe('issueSkipText', () => {
     expect(issueSkipText({ ...none, skippedPassed: 1, skippedDeactivated: 2 })).toBe(
       'Skipped: already passed, deactivated.',
     )
+  })
+})
+
+describe('CANCEL_CONFIRM_TEXT notices line', () => {
+  it('tells the admin that emailed students get a cancellation notice', async () => {
+    const { CANCEL_CONFIRM_TEXT } = await import('./copy')
+    expect(CANCEL_CONFIRM_TEXT).toContain(
+      'Students who were emailed a code get a cancellation notice.',
+    )
+  })
+})
+
+describe('notice banners with errors', () => {
+  it('cancelledBanner adds the unrecorded line', () => {
+    const b = cancelledBanner(2, { sent: 1, failed: [], unrecorded: 1 })
+    expect(b.tone).toBe('caution')
+    expect(b.detail).toContain('1 sent but not recorded. Send notices will send them again.')
+  })
+
+  it('cancelledBanner tells the admin to use Send notices on error', () => {
+    const b = cancelledBanner(2, { sent: 0, failed: [], error: true })
+    expect(b.tone).toBe('caution')
+    expect(b.detail).toContain('Notices could not be sent. Use Send notices.')
+  })
+
+  it('cancelledBanner stays a success without problems', () => {
+    expect(cancelledBanner(2, { sent: 1, failed: [] }).tone).toBe('success')
+  })
+
+  it('detailsSavedBanner notes a change notice error', () => {
+    const b = detailsSavedBanner({ sent: 0, failed: [], error: true })
+    expect(b.tone).toBe('caution')
+    expect(JSON.stringify(b)).toContain(
+      'Change notice could not be sent. Use Resend code on their exams.',
+    )
+  })
+
+  it('sendNoticesBanner notes that some notices could not be sent', () => {
+    const b = sendNoticesBanner({ sent: 1, failed: [], skipped: 0, unrecorded: 0, error: true })
+    expect(b.tone).toBe('caution')
+    expect(b.lines).toContain('Some notices could not be sent. Try Send notices again.')
   })
 })

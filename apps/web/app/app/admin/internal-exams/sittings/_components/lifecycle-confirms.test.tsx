@@ -141,6 +141,37 @@ describe('LifecycleConfirms', () => {
     })
   })
 
+  it('toasts the notices sent with the voided code count', async () => {
+    m.cancel.mockResolvedValue({
+      success: true,
+      codesVoided: 5,
+      notices: { sent: 2, failed: [] },
+    })
+    ui('cancel')
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Cancel sitting' }))
+    await waitFor(() =>
+      expect(m.toastSuccess).toHaveBeenCalledWith('Sitting cancelled.', {
+        description: '5 codes voided. 2 notices sent.',
+      }),
+    )
+  })
+
+  it('names the students whose cancellation notice failed', async () => {
+    m.cancel.mockResolvedValue({
+      success: true,
+      codesVoided: 1,
+      notices: { sent: 0, failed: [{ studentName: 'Ann Pilot' }] },
+    })
+    ui('cancel')
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Cancel sitting' }))
+    await waitFor(() => expect(m.setConfirm).toHaveBeenCalledWith(null))
+    const seen = [m.toastSuccess, m.toastError]
+      .flatMap((f) => f.mock.calls.flat())
+      .map((c) => JSON.stringify(c))
+      .join(' ')
+    expect(seen).toContain('Ann Pilot')
+  })
+
   it('keeps the dialog open and shows the error when Start fails', async () => {
     m.start.mockResolvedValue({ success: false, error: 'This sitting has already been started.' })
     ui('start')

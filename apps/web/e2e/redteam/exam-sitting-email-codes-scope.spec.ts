@@ -5,8 +5,11 @@
  * Attack: a cross-org admin replays emailSittingCodes with an egmont sitting id and
  * sendInternalExamCodeEmail with one of its code ids; an egmont student replays emailSittingCodes.
  * Expected: no success; neither code gets `emailed_at`; no `internal_exam.code_emailed` audit row.
- * CONTROL: the egmont admin's identical replays stamp code A (per-code), then code B (bulk; A is
- * already emailed so the bulk sends exactly 1).
+ * CONTROL: the egmont admin's identical replays reach the send. Outside CI (`next dev`, no
+ * RESEND_API_KEY: sends succeed) they stamp code A (per-code), then code B (bulk; A is already
+ * emailed so the bulk sends exactly 1). Under CI (`next start`, no key: every send fails) the
+ * per-code replay returns 'Failed to send email' and the bulk replay fails both codes (`sent` 0,
+ * two failed names); nothing is stamped or audited.
  *
  * Hermetic: throwaway students; sittings carry EXAM_SITTING_E2E_PREFIX; afterAll soft-deletes the
  * created codes, then cleanupSittingFixtures (per-step accumulator).
@@ -42,6 +45,7 @@ const BASE_URL = 'http://localhost:3000'
 const MW_A_EMAIL = 'redteam-mw-student-a@lmsplus.local'
 const MW_B_EMAIL = 'redteam-mw-student-b@lmsplus.local'
 const MW_PASSWORD = 'redteam-mw-student-2026!'
+const SENDS = !process.env.CI
 
 type Captured = { headers: Record<string, string>; bulk: string; single: string }
 
@@ -214,15 +218,27 @@ test.describe('Red Team: sitting code email actions scope (MW)', () => {
     expect(crossSingle).toContain('Code not found')
     expect(await emailState(admin, [codeA, codeB])).toEqual([none, none])
 
-    // CONTROL: the egmont admin's per-code replay stamps A only.
+    // CONTROL: the egmont admin's per-code replay reaches the send (stamps A only when sends work).
     const okSingle = await invoke(adminCtx, cap.single, { codeId: codeA })
-    expect(okSingle).toContain('"success":true')
-    expect(await emailState(admin, [codeA, codeB])).toEqual([once, none])
+    if (SENDS) {
+      expect(okSingle).toContain('"success":true')
+      expect(await emailState(admin, [codeA, codeB])).toEqual([once, none])
+    } else {
+      expect(okSingle).toContain('Failed to send email')
+      expect(okSingle).not.toContain('"success":true')
+      expect(await emailState(admin, [codeA, codeB])).toEqual([none, none])
+    }
 
-    // CONTROL: the egmont admin's bulk replay sends B only.
+    // CONTROL: the egmont admin's bulk replay reaches the send (B only when sends work; else both fail).
     const okBulk = await invoke(adminCtx, cap.bulk, { sittingId })
     expect(okBulk).toContain('"success":true')
-    expect(okBulk).toContain('"sent":1')
-    expect(await emailState(admin, [codeA, codeB])).toEqual([once, once])
+    if (SENDS) {
+      expect(okBulk).toContain('"sent":1')
+      expect(await emailState(admin, [codeA, codeB])).toEqual([once, once])
+    } else {
+      expect(okBulk).toContain('"sent":0')
+      expect(okBulk.match(/"studentName"/g)?.length, okBulk).toBe(2)
+      expect(await emailState(admin, [codeA, codeB])).toEqual([none, none])
+    }
   })
 })

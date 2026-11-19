@@ -30,7 +30,7 @@ export default async function SittingPage({ params, searchParams }: Readonly<Pag
           notDue={notDue}
           dayEnded={summary.dayEnded}
         />
-        <PendingNoticesBanner count={summary.pendingRemovalNotices} />
+        <PendingNoticesBanner count={summary.pendingRemovalNotices} sittingId={sitting.id} />
         <ResultBanner />
         <SittingCounts summary={summary} />
         <PeopleSection

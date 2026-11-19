@@ -5,6 +5,7 @@ const m = vi.hoisted(() => ({ persist: vi.fn(), push: vi.fn(), replace: vi.fn(),
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: m.push, replace: m.replace }),
 }))
+vi.mock('../../notice-queries', () => ({}))
 vi.mock('sonner', () => ({ toast: { success: vi.fn() } }))
 vi.mock('../_utils/sitting-form', async (orig) => ({
   ...(await orig<typeof import('../_utils/sitting-form')>()),

@@ -16,6 +16,7 @@ vi.mock('../_hooks/sitting-ui-context', () => ({
     setBanner: vi.fn(),
   }),
 }))
+vi.mock('../../notice-queries', () => ({}))
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), back: vi.fn() }),
   usePathname: () => '/app/admin/internal-exams/sittings/sit-1',
