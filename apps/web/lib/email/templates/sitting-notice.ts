@@ -115,7 +115,7 @@ export function entryRemovedEmail(a: RemovedArgs): Email {
     studentName: a.studentName,
     lines: [
       `You passed the ${a.subjectName} internal exam on ${formatUtc(a.passedAt, DAY)}, so you have been removed from the sitting on ${formatUtc(a.scheduledAt, DAY)}.`,
-      'Your access code for it no longer works.',
+      'Any access code you had for it no longer works.',
     ],
   })
 }

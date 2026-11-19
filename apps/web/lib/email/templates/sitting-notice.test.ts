@@ -123,7 +123,7 @@ describe('entryRemovedEmail', () => {
       expect(body).toContain('20 Nov 2026')
       expect(body).toContain('you have been removed from the sitting on')
       expect(body).toContain('24 Nov 2026')
-      expect(body).toContain('Your access code for it no longer works.')
+      expect(body).toContain('Any access code you had for it no longer works.')
     }
   })
 

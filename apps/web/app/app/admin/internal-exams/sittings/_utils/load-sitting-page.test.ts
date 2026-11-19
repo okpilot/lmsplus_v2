@@ -70,6 +70,39 @@ describe('loadSittingPage', () => {
     expect(r.summary.pendingRemovalNotices).toBe(2)
   })
 
+  it('counts one notice per email: per student for cancellations, per entry for removals', async () => {
+    m.getSummary.mockResolvedValue({
+      status: 'scheduled',
+      scheduledAt: '2026-11-20T09:30:00Z',
+      pendingRemovalNotices: 5,
+    })
+    m.deliverable.mockResolvedValue([
+      { userId: 'u1', subjectId: 's1', codeId: 'c1' },
+      { userId: 'u1', subjectId: 's2', codeId: 'c2' },
+      { userId: 'u1', subjectId: 's3', codeId: 'c3' },
+      {
+        kind: 'entry_auto_removed',
+        userId: 'u1',
+        subjectId: 's4',
+        entryId: 'e1',
+        passedAt: '2026-11-01T00:00:00Z',
+      },
+    ])
+    const r = await loadSittingPage(SID, params())
+    expect(r.summary.pendingRemovalNotices).toBe(2)
+  })
+
+  it('skips the pending read when the summary has no pending notices', async () => {
+    m.getSummary.mockResolvedValue({
+      status: 'scheduled',
+      scheduledAt: '2026-11-20T09:30:00Z',
+      pendingRemovalNotices: 0,
+    })
+    const r = await loadSittingPage(SID, params())
+    expect(m.deliverable).not.toHaveBeenCalled()
+    expect(r.summary.pendingRemovalNotices).toBe(0)
+  })
+
   it('falls back to the summary count when the pending read throws', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     m.getSummary.mockResolvedValue({
