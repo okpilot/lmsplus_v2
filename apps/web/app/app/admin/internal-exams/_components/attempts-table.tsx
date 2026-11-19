@@ -16,6 +16,7 @@ import { formatCorrectFraction } from '@/lib/utils/format-correct-fraction'
 import { formatUtc } from '@/lib/utils/format-utc'
 import { parsePageParam } from '@/lib/utils/parse-page-param'
 import { PaginationBar } from '../../../_components/pagination-bar'
+import { SITTING_BASE } from '../sittings/types'
 import type { InternalExamAttemptRow } from '../types'
 
 type Props = {
@@ -23,6 +24,8 @@ type Props = {
   totalCount: number
   pageSize: number
 }
+
+const FILTER_KEYS = ['q', 'subject', 'sitting', 'group']
 
 function formatAbsolute(iso: string | null): string {
   if (!iso) return '—'
@@ -37,6 +40,8 @@ function formatScore(score: number | null): string {
 export function AttemptsTable({ rows, totalCount, pageSize }: Readonly<Props>) {
   const searchParams = useSearchParams()
   const page = parsePageParam(searchParams?.get('attemptsPage') ?? undefined)
+  const filtered = FILTER_KEYS.some((k) => searchParams?.get(k))
+  const emptyText = filtered ? 'No attempts match these filters.' : 'No attempts yet'
 
   return (
     <div className="space-y-stack">
@@ -45,6 +50,7 @@ export function AttemptsTable({ rows, totalCount, pageSize }: Readonly<Props>) {
           <TableRow>
             <TableHead className="min-w-col-md">Student</TableHead>
             <TableHead className="min-w-col-sm">Subject</TableHead>
+            <TableHead className="w-col-md">Sitting (UTC)</TableHead>
             <TableHead className="w-col-md">Started (UTC)</TableHead>
             <TableHead className="w-col-md">Ended (UTC)</TableHead>
             <TableHead className="w-col-xs">Score</TableHead>
@@ -55,8 +61,8 @@ export function AttemptsTable({ rows, totalCount, pageSize }: Readonly<Props>) {
         <TableBody>
           {rows.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={7} className="p-section">
-                <EmptyDescription className="text-center">No attempts yet</EmptyDescription>
+              <TableCell colSpan={8} className="p-section">
+                <EmptyDescription className="text-center">{emptyText}</EmptyDescription>
               </TableCell>
             </TableRow>
           ) : (
@@ -89,6 +95,8 @@ function AttemptRow({ row: r }: Readonly<{ row: InternalExamAttemptRow }>) {
       tabIndex={0}
       onClick={navigate}
       onKeyDown={(e) => {
+        // Keys on a focused link inside the row follow that link.
+        if (e.target !== e.currentTarget) return
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
           navigate()
@@ -107,6 +115,20 @@ function AttemptRow({ row: r }: Readonly<{ row: InternalExamAttemptRow }>) {
         </Link>
       </TableCell>
       <TableCell>{r.subjectName || '—'}</TableCell>
+      <TableCell className="text-caption">
+        {r.sittingId ? (
+          <Link
+            href={`${SITTING_BASE}/${r.sittingId}`}
+            prefetch={false}
+            onClick={(e) => e.stopPropagation()}
+            className="text-foreground focus-visible:underline"
+          >
+            {formatAbsolute(r.sittingAt ?? null)}
+          </Link>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        )}
+      </TableCell>
       <TableCell className="text-caption text-muted-foreground">
         {formatAbsolute(r.startedAt)}
       </TableCell>

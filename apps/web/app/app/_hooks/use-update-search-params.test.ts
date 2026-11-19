@@ -68,4 +68,49 @@ describe('useUpdateSearchParams', () => {
     act(() => result.current({ sort: 'name', dir: 'asc', page: null }))
     expect(mockReplace).toHaveBeenCalledWith('/app/admin/dashboard?sort=name&dir=asc')
   })
+
+  describe('while a navigation is in flight (router.replace never commits)', () => {
+    let replaceState: ReturnType<typeof vi.fn>
+
+    beforeEach(() => {
+      // A real browser: replaceState makes the new URL current at once.
+      replaceState = vi.fn((_state: unknown, _title: string, url: string) => {
+        Object.defineProperty(window, 'location', {
+          value: { search: url.includes('?') ? url.slice(url.indexOf('?')) : '' },
+          writable: true,
+        })
+      })
+      Object.defineProperty(window, 'history', {
+        value: { state: { __NA: true }, replaceState },
+        writable: true,
+        configurable: true,
+      })
+    })
+
+    it('writes the new URL to history with the existing state before router.replace', () => {
+      const order: string[] = []
+      replaceState.mockImplementation(() => order.push('history'))
+      mockReplace.mockImplementation(() => order.push('router'))
+      const { result } = renderHook(() => useUpdateSearchParams())
+      act(() => result.current({ q: 'abc' }))
+      expect(replaceState).toHaveBeenCalledWith({ __NA: true }, '', '/app/admin/dashboard?q=abc')
+      expect(mockReplace).toHaveBeenCalledWith('/app/admin/dashboard?q=abc')
+      expect(order).toEqual(['history', 'router'])
+    })
+
+    it('keeps the first update params in the second update', () => {
+      const { result } = renderHook(() => useUpdateSearchParams())
+      act(() => result.current({ q: 'abc' }))
+      act(() => result.current({ subject: 's1' }))
+      expect(mockReplace).toHaveBeenLastCalledWith('/app/admin/dashboard?q=abc&subject=s1')
+    })
+
+    it('keeps the first instance params when a second instance updates', () => {
+      const first = renderHook(() => useUpdateSearchParams())
+      const second = renderHook(() => useUpdateSearchParams())
+      act(() => first.result.current({ q: 'abc' }))
+      act(() => second.result.current({ tab: 'codes' }))
+      expect(mockReplace).toHaveBeenLastCalledWith('/app/admin/dashboard?q=abc&tab=codes')
+    })
+  })
 })

@@ -176,3 +176,83 @@ describe('AttemptsTable — UTC date columns', () => {
     expect(row.textContent).not.toContain('UTC')
   })
 })
+
+describe('AttemptsTable: Sitting column and filtered empty state', () => {
+  const sittingRow: InternalExamAttemptRow = {
+    ...baseRow,
+    sittingId: 'sit-7',
+    sittingAt: '2026-05-01T09:00:00.000Z',
+  }
+  const legacyRow: InternalExamAttemptRow = { ...baseRow, sittingId: null, sittingAt: null }
+
+  it('has a Sitting column header', () => {
+    render(<AttemptsTable rows={[sittingRow]} totalCount={0} pageSize={25} />)
+    expect(screen.getByRole('columnheader', { name: /Sitting/ })).toBeInTheDocument()
+  })
+
+  it('links the sitting date to the sitting page', () => {
+    render(<AttemptsTable rows={[sittingRow]} totalCount={0} pageSize={25} />)
+    const link = screen.getByRole('link', { name: /01\/05\/2026/ })
+    expect(link.getAttribute('href')).toBe('/app/admin/internal-exams/sittings/sit-7')
+  })
+
+  it('does not navigate to the report when the sitting link is clicked', () => {
+    mockPush.mockClear()
+    render(<AttemptsTable rows={[sittingRow]} totalCount={0} pageSize={25} />)
+    fireEvent.click(screen.getByRole('link', { name: /01\/05\/2026/ }))
+    expect(mockPush).not.toHaveBeenCalled()
+  })
+
+  it('renders no sitting link for a legacy attempt', () => {
+    render(<AttemptsTable rows={[legacyRow]} totalCount={0} pageSize={25} />)
+    const hrefs = screen.getAllByRole('link').map((l) => l.getAttribute('href'))
+    expect(hrefs.some((h) => h?.includes('/sittings/'))).toBe(false)
+  })
+
+  it('spans the empty-state cell over all 8 columns', () => {
+    render(<AttemptsTable rows={[]} totalCount={0} pageSize={25} />)
+    const cell = screen.getByText('No attempts yet').closest('td') as HTMLElement
+    expect(cell.getAttribute('colspan')).toBe('8')
+  })
+
+  it('says no attempts match when a filter is set and there are no rows', () => {
+    mockUseSearchParams.mockReturnValue(new URLSearchParams('q=zzz'))
+    render(<AttemptsTable rows={[]} totalCount={0} pageSize={25} />)
+    mockUseSearchParams.mockReturnValue(new URLSearchParams())
+    expect(screen.getByText('No attempts match these filters.')).toBeInTheDocument()
+  })
+})
+
+describe('AttemptsTable: row keyboard activation', () => {
+  const sittingRow: InternalExamAttemptRow = {
+    ...baseRow,
+    sittingId: 'sit-7',
+    sittingAt: '2026-05-01T09:00:00.000Z',
+  }
+  const reportUrl = '/app/admin/internal-exams/report?session=sess-1'
+
+  it('does not open the report when Enter is pressed on the Sitting link', () => {
+    mockPush.mockClear()
+    render(<AttemptsTable rows={[sittingRow]} totalCount={0} pageSize={25} />)
+    fireEvent.keyDown(screen.getByRole('link', { name: /01\/05\/2026/ }), { key: 'Enter' })
+    expect(mockPush).not.toHaveBeenCalledWith(reportUrl)
+  })
+
+  it('opens the report when Enter is pressed on the row itself', () => {
+    mockPush.mockClear()
+    render(<AttemptsTable rows={[sittingRow]} totalCount={0} pageSize={25} />)
+    fireEvent.keyDown(screen.getByRole('link', { name: 'Alice' }).closest('tr') as HTMLElement, {
+      key: 'Enter',
+    })
+    expect(mockPush).toHaveBeenCalledWith(reportUrl)
+  })
+
+  it('opens the report when Space is pressed on the row itself', () => {
+    mockPush.mockClear()
+    render(<AttemptsTable rows={[sittingRow]} totalCount={0} pageSize={25} />)
+    fireEvent.keyDown(screen.getByRole('link', { name: 'Alice' }).closest('tr') as HTMLElement, {
+      key: ' ',
+    })
+    expect(mockPush).toHaveBeenCalledWith(reportUrl)
+  })
+})

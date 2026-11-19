@@ -144,3 +144,22 @@ describe('InternalExamsTabs', () => {
     expect(screen.getByTestId('tab-codes')).toHaveClass('data-active:border-primary')
   })
 })
+
+describe('InternalExamsTabs: attempts filters', () => {
+  it('renders the attempts filter bar above the attempts table on the attempts tab', () => {
+    mockSearch.value = 'tab=attempts'
+    render(
+      <InternalExamsTabs
+        codes={[]}
+        codesTotalCount={0}
+        attempts={[]}
+        attemptsTotalCount={0}
+        pageSize={20}
+        filters={{}}
+        options={{ subjects: [], sittings: [], groups: [] }}
+      />,
+    )
+    expect(screen.getByRole('searchbox')).toBeInTheDocument()
+    expect(screen.getByText('attempts content')).toBeInTheDocument()
+  })
+})

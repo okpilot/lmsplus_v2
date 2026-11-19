@@ -2,6 +2,7 @@ import { adminClient } from '@repo/db/admin'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { escapeLike } from '@/lib/utils/escape-like'
 import { isPastEndPage } from '@/lib/utils/past-end-page'
+import { quoteOrValue } from '@/lib/utils/quote-or-value'
 import type {
   CourseOption,
   GroupOption,
@@ -20,11 +21,6 @@ const GROUP_EMBED = 'student_group_members!student_group_members_user_id_fkey(gr
 // Filter embed: separate alias so the badges keep all groups of a matching row.
 const GROUP_FILTER_EMBED =
   'filter_members:student_group_members!student_group_members_user_id_fkey!inner(group_id)'
-
-/** Quotes a value for a PostgREST `or()` filter so `,` `(` `)` stay literal. */
-function quoteOrValue(value: string): string {
-  return `"${value.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"`
-}
 
 type PageQueryInput = { filters: StudentFilters; organizationId: string }
 
