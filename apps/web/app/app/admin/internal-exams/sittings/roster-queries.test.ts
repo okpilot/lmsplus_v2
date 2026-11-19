@@ -210,7 +210,18 @@ describe('getRemoved', () => {
       subjectShort: 'FPM',
       passedAt: '2026-11-17T10:00:00Z',
       noticeSent: false,
+      noNotice: false,
     })
+  })
+
+  it('maps no_notice true to noNotice true', async () => {
+    mockRpc.mockResolvedValue({ data: [{ ...REMOVED, no_notice: true }], error: null })
+    expect((await getRemoved(SID))?.rows[0]?.noNotice).toBe(true)
+  })
+
+  it('maps an absent no_notice column to noNotice false', async () => {
+    mockRpc.mockResolvedValue({ data: [REMOVED], error: null })
+    expect((await getRemoved(SID))?.rows[0]?.noNotice).toBe(false)
   })
 
   it('returns zero rows and total 0 when nothing was auto-removed', async () => {

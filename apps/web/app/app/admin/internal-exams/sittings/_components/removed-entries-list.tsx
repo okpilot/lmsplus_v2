@@ -4,6 +4,11 @@ import type { RemovedEntryRow } from '../types'
 
 type Props = { rows: readonly RemovedEntryRow[]; total: number }
 
+function noticeLabel(r: RemovedEntryRow): string {
+  if (r.noticeSent) return 'notice sent'
+  return r.noNotice ? 'no notice (deactivated)' : 'notice pending'
+}
+
 /** Exams removed automatically because the student passed; hidden when there are none. */
 export function RemovedEntriesList({ rows, total }: Readonly<Props>) {
   if (rows.length === 0) return null
@@ -15,7 +20,7 @@ export function RemovedEntriesList({ rows, total }: Readonly<Props>) {
           <li key={r.entryId}>
             {r.studentName.trim() || 'Unknown student'} · {r.subjectShort || 'Unknown subject'} ·{' '}
             {r.passedAt ? `passed ${fmtDate(r.passedAt)} · ` : ''}
-            {r.noticeSent ? 'notice sent' : 'notice pending'}
+            {noticeLabel(r)}
           </li>
         ))}
       </ul>
