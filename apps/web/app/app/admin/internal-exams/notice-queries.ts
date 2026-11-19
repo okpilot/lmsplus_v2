@@ -34,7 +34,6 @@ function chunks<T>(items: readonly T[]): T[][] {
 /**
  * Name and email of active users of `orgId` (service role: `users_select` is self-only; scoped by
  * `organization_id` and `id`). A deactivated or email-less user is absent from the map.
- * security.md §15 exception (f).
  */
 export async function getNoticeRecipients(
   orgId: string,
