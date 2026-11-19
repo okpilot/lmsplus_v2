@@ -20,8 +20,6 @@ import { InternalExamsTabs } from './internal-exams-tabs'
 function renderTabs() {
   return render(
     <InternalExamsTabs
-      students={[]}
-      subjects={[]}
       codes={[]}
       codesTotalCount={0}
       attempts={[]}
@@ -71,8 +69,6 @@ describe('InternalExamsTabs', () => {
     mockSearch.value = 'tab=sittings'
     view.rerender(
       <InternalExamsTabs
-        students={[]}
-        subjects={[]}
         codes={[]}
         codesTotalCount={0}
         attempts={[]}
@@ -93,8 +89,6 @@ describe('InternalExamsTabs', () => {
     mockSearch.value = 'page=2'
     view.rerender(
       <InternalExamsTabs
-        students={[]}
-        subjects={[]}
         codes={[]}
         codesTotalCount={0}
         attempts={[]}

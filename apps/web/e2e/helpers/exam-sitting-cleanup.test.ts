@@ -166,6 +166,9 @@ describe('cleanupE2eExamSittings (seeded sittings)', () => {
       ],
       exam_sitting_entries: [{ data: [{ id: 'e1' }], error: null }],
       internal_exam_codes: [{ data: [{ id: 'c1', consumed_session_id: 'q1' }], error: null }],
+      quiz_sessions: [
+        { data: [{ id: 'q1', users: { email: 'e2e-sit-a@lmsplus.local' } }], error: null },
+      ],
     })
     await cleanupE2eExamSittings()
     const likes = calls.filter((c) => c.method === 'like').map((c) => c.args[1])
@@ -178,6 +181,30 @@ describe('cleanupE2eExamSittings (seeded sittings)', () => {
         'exam_sitting_entries',
         'exam_sitting_candidates',
         'exam_sittings',
+      ]),
+    )
+  })
+
+  it("ends and soft-deletes a fixture student's session instead of deleting it", async () => {
+    const { calls } = seededClient({
+      exam_sittings: [
+        { data: [], error: null },
+        { data: [{ id: 's1' }], error: null },
+      ],
+      exam_sitting_entries: [{ data: [{ id: 'e1' }], error: null }],
+      internal_exam_codes: [{ data: [{ id: 'c1', consumed_session_id: 'q1' }], error: null }],
+      quiz_sessions: [
+        { data: [{ id: 'q1', users: { email: 'e2e-internal-exam@lmsplus.local' } }], error: null },
+      ],
+    })
+    await cleanupE2eExamSittings()
+    const sessionCalls = calls.filter((c) => c.table === 'quiz_sessions')
+    expect(sessionCalls.some((c) => c.method === 'delete')).toBe(false)
+    const updates = sessionCalls.filter((c) => c.method === 'update').map((c) => c.args[0])
+    expect(updates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ ended_at: expect.any(String) }),
+        expect.objectContaining({ deleted_at: expect.any(String) }),
       ]),
     )
   })

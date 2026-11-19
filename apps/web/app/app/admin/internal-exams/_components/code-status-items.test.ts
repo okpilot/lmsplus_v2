@@ -14,3 +14,12 @@ describe('statusLabel', () => {
     expect(statusLabel('mystery')).toBe('mystery')
   })
 })
+
+describe('waiting status', () => {
+  it('labels waiting as Waiting for start', () => {
+    expect(statusLabel('waiting')).toBe('Waiting for start')
+  })
+  it('does not offer waiting as a filter item', () => {
+    expect(STATUS_ITEMS.map((i) => i.value)).not.toContain('waiting')
+  })
+})

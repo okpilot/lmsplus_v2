@@ -24,8 +24,11 @@
 
 import { type BrowserContext, expect, type Page, test } from '@playwright/test'
 import { signInAsAdmin } from './helpers/admin-supabase'
+import { cleanupE2eExamSittings } from './helpers/exam-sitting-cleanup'
+import { insertLegacyCodeFor, seedSittingFor } from './helpers/sitting-code'
 import {
   cleanupInternalExamStudentActiveSessions,
+  getAdminClient,
   INTERNAL_EXAM_STUDENT_EMAIL,
 } from './helpers/supabase'
 
@@ -34,39 +37,24 @@ test.use({ storageState: 'e2e/.auth/admin.json' })
 
 const SUBJECT_LABEL_FRAGMENT = 'Meteorology'
 
-async function issueCodeAsAdmin(adminPage: Page, subjectFragment: string): Promise<string> {
-  await adminPage.goto('/app/admin/internal-exams?tab=codes')
-  await expect(adminPage.getByRole('heading', { name: 'Internal Exams' })).toBeVisible()
+const SITTINGS_BASE = '/app/admin/internal-exams/sittings'
 
-  // Open the issue-code form.
-  const form = adminPage.getByTestId('issue-code-form')
-  await expect(form).toBeVisible()
-
-  // Pin selection to the dedicated internal-exam student fixture.
-  const studentSelect = form.locator('[aria-label="Student"]')
-  await studentSelect.click()
-  await adminPage
-    .locator('[data-slot="select-item"]')
-    .filter({ hasText: INTERNAL_EXAM_STUDENT_EMAIL })
-    .first()
-    .click()
-
-  // Pick the subject by name fragment.
-  const subjectSelect = form.locator('[aria-label="Subject"]')
-  await subjectSelect.click()
-  await adminPage
-    .locator('[data-slot="select-item"]')
-    .filter({ hasText: subjectFragment })
-    .first()
-    .click()
-
-  await form.getByRole('button', { name: 'Issue code' }).click()
-  await expect(adminPage.getByText('Internal exam code issued')).toBeVisible({ timeout: 10_000 })
-
-  const issuedCode = adminPage.getByTestId('issued-code-value')
-  await expect(issuedCode).toBeVisible()
-  const code = (await issuedCode.textContent())?.trim()
-  if (!code) throw new Error('issued code panel had no value')
+/** Admin issues the person's code from the sitting page (row menu, Issue codes popup) and reads it from the roster. */
+async function issueCodeFromSittingPage(
+  adminPage: Page,
+  seed: { sittingId: string; studentName: string },
+): Promise<string> {
+  await adminPage.goto(`${SITTINGS_BASE}/${seed.sittingId}`)
+  const row = adminPage.getByRole('row').filter({ hasText: seed.studentName })
+  await expect(row).toBeVisible()
+  await adminPage.getByRole('button', { name: `Actions for ${seed.studentName}` }).click()
+  await adminPage.getByRole('menuitem', { name: 'Issue codes' }).click()
+  const dialog = adminPage.getByRole('dialog')
+  await dialog.getByRole('button', { name: 'Issue 1 code' }).click()
+  await expect(dialog).toHaveCount(0)
+  await adminPage.getByRole('button', { name: `Show exams for ${seed.studentName}` }).click()
+  const code = (await adminPage.locator('code').first().textContent())?.trim()
+  if (!code) throw new Error('roster showed no code after issuing')
   return code
 }
 
@@ -118,20 +106,41 @@ async function openStudentContext(browser: BrowserContext['browser']): Promise<{
 
 test.describe('internal exam — lifecycle', () => {
   test.setTimeout(120_000)
+  let legacyCode: string | null = null
 
   // Void any active session left over from a prior test before each run.
   // See issue #587 — stale sessions cascade and block start_internal_exam_session.
   test.beforeEach(async () => {
     const adminClient = await signInAsAdmin()
     await cleanupInternalExamStudentActiveSessions(adminClient)
+    await cleanupE2eExamSittings()
+  })
+
+  test.afterEach(async () => {
+    await cleanupE2eExamSittings()
+    if (legacyCode === null) return
+    // Void the redeemed legacy code (ends its session) while it is still findable, then hide it.
+    await cleanupInternalExamStudentActiveSessions(await signInAsAdmin())
+    const { error } = await getAdminClient()
+      .from('internal_exam_codes')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('code', legacyCode)
+    legacyCode = null
+    if (error) throw new Error(`afterEach legacy code soft-delete: ${error.message}`)
   })
 
   test('admin issues code, student starts + submits, attempt appears in My Reports and the admin report', async ({
     page: adminPage,
     context: adminCtx,
   }) => {
-    // ── 1. Admin issues a code ──────────────────────────────────────────────
-    const code = await issueCodeAsAdmin(adminPage, SUBJECT_LABEL_FRAGMENT)
+    // ── 1. Admin issues a code from an open sitting holding the student ─────
+    const seed = await seedSittingFor({
+      studentEmail: INTERNAL_EXAM_STUDENT_EMAIL,
+      subjectFragment: SUBJECT_LABEL_FRAGMENT,
+      status: 'open',
+      withCode: false,
+    })
+    const code = await issueCodeFromSittingPage(adminPage, seed)
     expect(code).toMatch(/^[A-HJKLMNPQRSTUVWXYZ23456789]{8}$/)
 
     // ── 2. Student logs in via separate context (internal-exam-student.json) ─
@@ -206,5 +215,48 @@ test.describe('internal exam — lifecycle', () => {
     await expect(page.getByRole('heading', { name: 'Question Breakdown' })).toHaveCount(0)
     await page.goto('/app/admin/internal-exams/report')
     await expectAttemptsTab(page)
+  })
+
+  test('a scheduled sitting shows its date and mode, with Start disabled and the reason', async ({
+    browser,
+  }) => {
+    await seedSittingFor({
+      studentEmail: INTERNAL_EXAM_STUDENT_EMAIL,
+      subjectFragment: SUBJECT_LABEL_FRAGMENT,
+      status: 'scheduled',
+    })
+    const { context, page } = await openStudentContext(browser)
+    try {
+      await page.goto('/app/internal-exam')
+      const row = page.getByTestId('available-list').getByRole('listitem').first()
+      await expect(row).toContainText(/UTC.*Remote/)
+      await expect(row.getByText('Opens when your invigilator starts the sitting.')).toBeVisible()
+      await expect(row.getByTestId('start-button')).toBeDisabled()
+    } finally {
+      await context.close()
+    }
+  })
+
+  test('a legacy code (no sitting) is still redeemable until it is dropped', async ({
+    browser,
+  }) => {
+    legacyCode = await insertLegacyCodeFor({
+      studentEmail: INTERNAL_EXAM_STUDENT_EMAIL,
+      subjectFragment: SUBJECT_LABEL_FRAGMENT,
+    })
+    const { context, page } = await openStudentContext(browser)
+    try {
+      await page.goto('/app/internal-exam')
+      const start = page.getByTestId('start-button').first()
+      await expect(start).toBeEnabled()
+      await expect(page.getByText(/^Expires /).first()).toBeVisible()
+      await start.click()
+      await page.getByTestId('code-input').fill(legacyCode)
+      await page.getByRole('button', { name: 'Start exam' }).click()
+      await page.waitForURL(/\/app\/quiz\/session/, { timeout: 15_000 })
+      await expect(page.getByText(/Question \d/)).toBeVisible({ timeout: 10_000 })
+    } finally {
+      await context.close()
+    }
   })
 })

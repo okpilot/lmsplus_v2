@@ -385,3 +385,134 @@ describe('listInternalExamCodes — cross-org isolation', () => {
     expect(result.rows[0]!.id).not.toBe(isoOrgBCodeId)
   })
 })
+
+describe('listInternalExamCodes — sitting codes (real DB FK hint)', () => {
+  const sfx = `${suffix}s`
+  let sOrg: string
+  let sAdmin: string
+  let sStudent: string
+  let sStudent2: string
+  let sRefs: ReferenceIds
+  let sittingId: string
+  const sCodeValue = `SIT-${sfx}-A`
+  const sConsumedValue = `SIT-${sfx}-C`
+
+  beforeAll(async () => {
+    sOrg = await createTestOrg({ admin, name: `int-iexam-sit ${sfx}`, slug: `ies-${sfx}` })
+    sAdmin = await createTestUser({
+      admin,
+      orgId: sOrg,
+      email: `int-iexam-sit-admin-${sfx}@test.local`,
+      password,
+      role: 'admin',
+    })
+    sStudent = await createTestUser({
+      admin,
+      orgId: sOrg,
+      email: `int-iexam-sit-stu-${sfx}@test.local`,
+      password,
+      role: 'student',
+    })
+    // A second student: the live-entry unique index allows one live code per entry.
+    sStudent2 = await createTestUser({
+      admin,
+      orgId: sOrg,
+      email: `int-iexam-sit-stu2-${sfx}@test.local`,
+      password,
+      role: 'student',
+    })
+    sRefs = await seedReferenceData({
+      admin,
+      subjectCode: `IES_${sfx}`,
+      subjectName: `Sitting Codes Subject ${sfx}`,
+      topicCode: `IES_${sfx}_T1`,
+      topicName: `Sitting Codes Topic ${sfx}`,
+    })
+    const sitting = await admin
+      .from('exam_sittings')
+      .insert({
+        organization_id: sOrg,
+        mode: 'remote',
+        invigilator_id: sAdmin,
+        created_by: sAdmin,
+        scheduled_at: new Date(Date.now() + 86_400_000).toISOString(),
+      })
+      .select('id')
+      .single()
+    if (sitting.error || !sitting.data) throw new Error(`seed sitting: ${sitting.error?.message}`)
+    sittingId = sitting.data.id as string
+    const entries = await admin
+      .from('exam_sitting_entries')
+      .insert([
+        {
+          organization_id: sOrg,
+          sitting_id: sittingId,
+          user_id: sStudent,
+          subject_id: sRefs.subjectId,
+        },
+        {
+          organization_id: sOrg,
+          sitting_id: sittingId,
+          user_id: sStudent2,
+          subject_id: sRefs.subjectId,
+        },
+      ])
+      .select('id, user_id')
+    const entryOf = (uid: string) => entries.data?.find((e) => e.user_id === uid)?.id
+    if (entries.error || !entryOf(sStudent) || !entryOf(sStudent2))
+      throw new Error(`seed entry: ${entries.error?.message}`)
+    const session = await admin
+      .from('quiz_sessions')
+      .insert({
+        organization_id: sOrg,
+        student_id: sStudent2,
+        mode: 'internal_exam',
+        ended_at: null,
+      })
+      .select('id')
+      .single()
+    if (session.error || !session.data) throw new Error(`seed session: ${session.error?.message}`)
+    const base = {
+      subject_id: sRefs.subjectId,
+      student_id: sStudent,
+      issued_by: sAdmin,
+      expires_at: FUTURE,
+      organization_id: sOrg,
+      sitting_entry_id: entryOf(sStudent),
+    }
+    const codes = await admin.from('internal_exam_codes').insert([
+      { ...base, code: sCodeValue },
+      {
+        ...base,
+        student_id: sStudent2,
+        sitting_entry_id: entryOf(sStudent2),
+        code: sConsumedValue,
+        consumed_at: new Date().toISOString(),
+        consumed_session_id: session.data.id,
+      },
+    ])
+    if (codes.error) throw new Error(`seed sitting codes: ${codes.error.message}`)
+  })
+
+  afterAll(async () => {
+    await admin.from('internal_exam_codes').delete().eq('organization_id', sOrg)
+    await admin.from('exam_sitting_entries').delete().eq('organization_id', sOrg)
+    await admin.from('exam_sittings').delete().eq('organization_id', sOrg)
+    await cleanupTestData({ admin, orgId: sOrg, userIds: [sAdmin, sStudent, sStudent2] })
+    await cleanupReferenceData({ admin, refs: [sRefs] })
+  })
+
+  it('returns the sitting id and a waiting status for a sitting code (plain select)', async () => {
+    await signInAs(`int-iexam-sit-admin-${sfx}@test.local`, password)
+    const { rows } = await listInternalExamCodes({ status: 'active' })
+    const row = rows.find((r) => r.code === sCodeValue)
+    expect(row).toMatchObject({ sittingId, status: 'waiting' })
+  })
+
+  it('resolves the sitting embed in the consumed (!inner quiz_sessions) select', async () => {
+    await signInAs(`int-iexam-sit-admin-${sfx}@test.local`, password)
+    const { rows } = await listInternalExamCodes({ status: 'consumed' })
+    const row = rows.find((r) => r.code === sConsumedValue)
+    expect(row).toMatchObject({ sittingId, status: 'consumed' })
+  })
+})
