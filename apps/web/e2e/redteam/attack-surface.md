@@ -1,6 +1,6 @@
 # Red Team — Attack Surface Map
 
-> Last updated: 2026-11-18 (#1777: MH–MR exam sitting rows)
+> Last updated: 2026-11-23 (#1777: MH–MS exam sitting rows)
 
 > `answer_matches`: EXECUTE revoked from PUBLIC, anon, authenticated; granted to service_role.
 
@@ -357,6 +357,7 @@
 | MN | exam-sitting-entry-issue-roster-rpcs-cross-org-admin-student-instructor-soft-deleted-admin | HIGH | exam-sitting-issue-rpc-scope.spec.ts | BLOCKED |  | cross-tenant |
 | MM | start_internal_exam_session-sitting-code-redeemed-before-start_exam_sitting-fix-in-2a-2-redeem-gate | HIGH | exam-sitting-code-redeem-before-start.spec.ts | GAP | #1777 | sibling-guard-gap |
 | MR | start_internal_exam_session-list_my_active_internal_exam_codes-removed-entry-candidate-or-cancelled-sitting-code | HIGH | exam-sitting-removed-code-redeem.spec.ts | BLOCKED |  | soft-delete-bypass |
+| MS | exam_sitting_entries-internal_exam_codes-admin-direct-insert-softdelete-restamp-unvoid | MEDIUM | exam-sitting-admin-direct-dml.spec.ts | BLOCKED |  | rls-bypass |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
