@@ -49,13 +49,14 @@ type Row = {
   entries_finished: number
   entries_absent: number
   ended_automatically: boolean
-  total_count: number
+  // bigint: PostgREST may send it as a string (code-style.md §5); read via Number().
+  total_count: number | string
 }
 
 const SCOPES = ['upcoming', 'open', 'past', 'cancelled'] as const
 const PAGE = 200
 
-// Wire type of every Row field; a trailing '?' allows null.
+// Wire type of every Row field; '|' separates allowed types, a trailing '?' allows null.
 const ROW_SHAPE: Record<keyof Row, string> = {
   id: 'string',
   scheduled_at: 'string',
@@ -73,7 +74,7 @@ const ROW_SHAPE: Record<keyof Row, string> = {
   entries_finished: 'number',
   entries_absent: 'number',
   ended_automatically: 'boolean',
-  total_count: 'number',
+  total_count: 'number|string',
 }
 
 function isRow(r: unknown): r is Row {
@@ -82,7 +83,10 @@ function isRow(r: unknown): r is Row {
   return Object.entries(ROW_SHAPE).every(([key, spec]) => {
     const v = row[key]
     if (spec.endsWith('?') && v === null) return true
-    return typeof v === spec.replace('?', '')
+    return spec
+      .replace('?', '')
+      .split('|')
+      .includes(typeof v)
   })
 }
 
@@ -253,8 +257,8 @@ test.describe('Red Team: list_exam_sittings scopes (MQ)', () => {
     expect(sched?.invigilator_name.length).toBeGreaterThan(0)
     expect(sched?.invigilator_name).not.toBe('Unknown')
     expect(typeof sched?.permitted_materials).toBe('string')
-    expect(sched?.total_count).toBe((byScope.get('upcoming') ?? []).length)
-    expect(sched?.total_count).toBeGreaterThanOrEqual(1)
+    expect(Number(sched?.total_count)).toBe((byScope.get('upcoming') ?? []).length)
+    expect(Number(sched?.total_count)).toBeGreaterThanOrEqual(1)
     for (const scope of SCOPES) {
       const ids = (byScope.get(scope) ?? []).map((r) => r.id)
       for (const id of [crossSittingId, crossOpenId, crossClosedId, crossCancelledId]) {
