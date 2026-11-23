@@ -4,11 +4,11 @@
  * Attack: a cross-org admin pages every scope (upcoming, open, past, cancelled); a student and an
  * instructor call the new scopes; an admin passes scope strings outside the closed set.
  * Expected: no egmont sitting in any cross-org page; `not_admin`; `invalid_input`.
- * CONTROL: the egmont admin sees its scheduled, open and cancelled sittings each in exactly one
- * scope; the cross-org admin sees its own sitting under `upcoming`.
+ * CONTROL: the egmont admin sees its scheduled, open, closed and cancelled sittings each in exactly
+ * one scope; the cross-org admin sees its own sitting of each status in that status's scope.
  *
- * Hermetic: sittings carry EXAM_SITTING_E2E_PREFIX; afterAll soft-deletes the tracked ones
- * (cleanupSittingFixtures, per-step accumulator).
+ * Hermetic: afterAll soft-deletes the tracked unclosed sittings (cleanupSittingFixtures, per-step
+ * accumulator).
  */
 
 import { expect, test } from '@playwright/test'
