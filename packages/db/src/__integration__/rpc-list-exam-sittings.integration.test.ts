@@ -502,13 +502,19 @@ describe('RPC: list_exam_sittings', () => {
       past: ids.otherClosed,
       cancelled: ids.otherCancelled,
     } as const
+    const mineByScope: Record<string, string | undefined> = {
+      upcoming: ids.up1,
+      open: ids.open,
+      past: ids.closed,
+      cancelled: ids.cancelled,
+    }
     for (const [scope, otherId] of Object.entries(otherByScope)) {
-      // CONTROL: org B's own admin sees its fixture in this scope.
+      // CONTROL: each org's admin sees its own fixture in this scope.
       const own = (await rows(scope, {}, w.clients.b1)).map((r) => r.id)
       expect(own, `org B admin ${scope}`).toContain(otherId)
-      expect(own, `org B admin ${scope} sees no org A sitting`).not.toContain(ids.up1)
       const mine = (await rows(scope)).map((r) => r.id)
-      expect(mine.length, `org A ${scope} non-empty`).toBeGreaterThan(0)
+      expect(mine, `org A admin ${scope}`).toContain(mineByScope[scope])
+      expect(own, `org B admin ${scope} sees no org A sitting`).not.toContain(mineByScope[scope])
       expect(mine, `org A ${scope}`).not.toContain(otherId)
     }
     expectToken(await list('upcoming', {}, w.clients.s1), 'not_admin')
