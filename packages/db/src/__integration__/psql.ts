@@ -16,5 +16,6 @@ export function psql(sql: string): { out: string; err: string } {
   }
   if (r.error) throw new Error(`psql unavailable: ${r.error.message}`)
   const err = (r.stderr ?? '').trim()
-  return { out: (r.stdout ?? '').trim(), err: err || (r.status ? `psql exit ${r.status}` : '') }
+  const failed = r.status !== 0 ? `psql exit ${r.status ?? `signal ${r.signal}`}` : ''
+  return { out: (r.stdout ?? '').trim(), err: err || failed }
 }

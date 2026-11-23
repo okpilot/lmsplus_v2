@@ -68,6 +68,7 @@ AS $$
               WHEN ru.student_id IS NOT NULL THEN 'attempt_running'
               WHEN el.eid IS NOT NULL THEN 'entered_elsewhere'
               WHEN NOT EXISTS (SELECT 1 FROM public.course_enrolments ce
+                                 -- security.md §15 exception (d)(i)
                                  JOIN public.easa_subjects es ON es.course_id = ce.course_id
                                 WHERE ce.user_id = pr.uid AND ce.organization_id = p_org
                                   AND ce.deleted_at IS NULL AND es.id = pr.sid) THEN 'not_enrolled'
