@@ -392,32 +392,60 @@ describe('RPC: list_exam_sittings', () => {
     ids.open = await w.sitting({ day: 0, state: 'open' })
     ids.closed = await w.sitting({ day: 0, state: 'closed' })
     ids.cancelled = await w.sitting({ state: 'cancelled' })
+    ids.open2 = await w.sitting({ day: 0, hour: 10, state: 'open' })
+    ids.closed2 = await w.sitting({ day: -1, state: 'closed' })
+    ids.cancelled2 = await w.sitting({ day: 2, state: 'cancelled' })
     ids.other = await w.sitting({ org: w.orgB })
+    ids.otherOpen = await w.sitting({ org: w.orgB, day: 0, state: 'open' })
+    ids.otherClosed = await w.sitting({ org: w.orgB, day: 0, state: 'closed' })
+    ids.otherCancelled = await w.sitting({ org: w.orgB, state: 'cancelled' })
   }
   afterAll(async () => {
     await w?.teardown()
   })
   const list = (scope: string, o: Record<string, unknown> = {}, c = w.clients.a1) =>
     c.rpc('list_exam_sittings', { p_scope: scope, ...o })
-  const rows = async (scope: string, o: Record<string, unknown> = {}) =>
-    must<Record<string, unknown>[]>(await list(scope, o), `list ${scope}`)
+  const rows = async (scope: string, o: Record<string, unknown> = {}, c = w.clients.a1) =>
+    must<Record<string, unknown>[]>(await list(scope, o, c), `list ${scope}`)
 
-  it('AC-42: upcoming holds scheduled (today included) and open, ascending; past holds closed and cancelled, descending', async () => {
+  const ordered = (r: Record<string, unknown>[], dir: 1 | -1) => {
+    const t = r.map((x) => new Date(x.scheduled_at as string).getTime())
+    expect([...t].sort((x, y) => dir * (x - y))).toEqual(t)
+  }
+
+  it('AC-42: upcoming holds scheduled sittings only (today included), ascending', async () => {
     await ensure()
     const up = await rows('upcoming')
-    expect(up.map((r) => r.id).sort()).toEqual([ids.open, ids.today, ids.up1, ids.up2].sort())
-    const upTimes = up.map((r) => new Date(r.scheduled_at as string).getTime())
-    expect([...upTimes].sort((x, y) => x - y)).toEqual(upTimes)
-    const past = await rows('past')
-    expect(past.map((r) => r.id).sort()).toEqual([ids.closed, ids.cancelled].sort())
-    const times = past.map((r) => new Date(r.scheduled_at as string).getTime())
-    expect([...times].sort((a, b) => b - a)).toEqual(times)
-    expect(past.find((r) => r.id === ids.cancelled)?.status).toBe('cancelled')
+    expect(up.map((r) => r.id).sort()).toEqual([ids.today, ids.up1, ids.up2].sort())
+    ordered(up, 1)
   })
 
-  it('AC-42: invalid scope, limit 0 or 201 and offset -1 are invalid_input', async () => {
+  it('AC-42: open holds open sittings only, ascending', async () => {
+    await ensure()
+    const open = await rows('open')
+    expect(open.map((r) => r.id).sort()).toEqual([ids.open, ids.open2].sort())
+    ordered(open, 1)
+  })
+
+  it('AC-42: past holds closed sittings only, descending', async () => {
+    await ensure()
+    const past = await rows('past')
+    expect(past.map((r) => r.id).sort()).toEqual([ids.closed, ids.closed2].sort())
+    ordered(past, -1)
+  })
+
+  it('AC-42: cancelled holds cancelled sittings only, descending', async () => {
+    await ensure()
+    const c = await rows('cancelled')
+    expect(c.map((r) => r.id).sort()).toEqual([ids.cancelled, ids.cancelled2].sort())
+    expect(c.every((r) => r.status === 'cancelled')).toBe(true)
+    ordered(c, -1)
+  })
+
+  it('AC-42: invalid scope, NULL scope, limit 0 or 201 and offset -1 are invalid_input', async () => {
     await ensure()
     expectToken(await list('x'), 'invalid_input')
+    expectToken(await w.clients.a1.rpc('list_exam_sittings', { p_scope: null }), 'invalid_input')
     expectToken(await list('upcoming', { p_limit: 0 }), 'invalid_input')
     expectToken(await list('upcoming', { p_limit: 201 }), 'invalid_input')
     expectToken(await list('upcoming', { p_offset: -1 }), 'invalid_input')
@@ -427,7 +455,7 @@ describe('RPC: list_exam_sittings', () => {
     await ensure()
     const page = await rows('upcoming', { p_limit: 1, p_offset: 1 })
     expect(page).toHaveLength(1)
-    expect(page[0]?.total_count).toBe(4)
+    expect(Number(page[0]?.total_count)).toBe(3)
   })
 
   it('AC-42: count columns, entries_finished, entries_absent and ended_automatically', async () => {
@@ -449,7 +477,7 @@ describe('RPC: list_exam_sittings', () => {
       entries_absent: 2,
       ended_automatically: false,
     })
-    const open = (await rows('upcoming')).find((r) => r.id === ids.open)
+    const open = (await rows('open')).find((r) => r.id === ids.open)
     expect(open?.entries_absent).toBe(0)
   })
 
@@ -468,9 +496,27 @@ describe('RPC: list_exam_sittings', () => {
 
   it('AC-42: results are org-scoped and a student is not_admin', async () => {
     await ensure()
-    expect([...(await rows('upcoming')), ...(await rows('past'))].map((r) => r.id)).not.toContain(
-      ids.other,
-    )
+    const otherByScope = {
+      upcoming: ids.other,
+      open: ids.otherOpen,
+      past: ids.otherClosed,
+      cancelled: ids.otherCancelled,
+    } as const
+    const mineByScope: Record<string, string | undefined> = {
+      upcoming: ids.up1,
+      open: ids.open,
+      past: ids.closed,
+      cancelled: ids.cancelled,
+    }
+    for (const [scope, otherId] of Object.entries(otherByScope)) {
+      // CONTROL: each org's admin sees its own fixture in this scope.
+      const own = (await rows(scope, {}, w.clients.b1)).map((r) => r.id)
+      expect(own, `org B admin ${scope}`).toContain(otherId)
+      const mine = (await rows(scope)).map((r) => r.id)
+      expect(mine, `org A admin ${scope}`).toContain(mineByScope[scope])
+      expect(own, `org B admin ${scope} sees no org A sitting`).not.toContain(mineByScope[scope])
+      expect(mine, `org A ${scope}`).not.toContain(otherId)
+    }
     expectToken(await list('upcoming', {}, w.clients.s1), 'not_admin')
   })
 
