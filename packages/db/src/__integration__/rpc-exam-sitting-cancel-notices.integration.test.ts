@@ -234,6 +234,7 @@ async function buildWorld(tag: string) {
         .eq('sitting_id', sittingId)
         .eq('user_id', userId)
         .is('deleted_at', null)
+      expect(c.error).toBeNull()
       if (!c.data?.length) await world.candidate(sittingId, userId)
       return world.entry(sittingId, userId, subjectId)
     },
