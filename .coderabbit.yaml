@@ -588,6 +588,10 @@ reviews:
           Sitting carve-out (docs/security.md §15 (f)): sitting RPCs may read users without the filter for the purposes §15 (f) lists (admin-gated, org-scoped, named inline).
           Cancelled-sitting carve-out (docs/security.md §15 (g)): sitting reads may reach a cancelled (soft-deleted) exam_sittings row without the filter (admin-gated, org-scoped, named inline).
           (security.md §9 / docs/security.md §15; docs/database.md §3.)
+        - Plaintext exam codes (docs/security.md §11b "Plaintext code storage", "Sitting codes"):
+          flag `internal_exam_codes.code` in a student-callable RPC's result, in any `audit_events`
+          metadata, or in an issue/preview RPC result. Admin-gated reads (e.g. `list_exam_sitting_roster`)
+          may return it.
         - Sibling SECURITY DEFINER RPC guard-set consistency: when a migration adds or
           rewrites a SECURITY DEFINER function, compare its guard set against the siblings
           in its feature family. A guard present in any sibling and absent here is a GAP.
