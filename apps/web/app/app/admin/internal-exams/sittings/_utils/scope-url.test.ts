@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { scopeUrl } from './scope-url'
+import { scopeUrl, sittingListScope } from './scope-url'
 
 describe('scopeUrl', () => {
   it('sets tab=sittings and the scope', () => {
@@ -19,5 +19,18 @@ describe('scopeUrl', () => {
     expect(url).not.toContain('dlg=')
     expect(url).toContain('status=active')
     expect(url).toContain('scope=cancelled')
+  })
+})
+
+describe('sittingListScope', () => {
+  it.each([
+    ['scheduled', false, 'upcoming'],
+    ['open', false, 'open'],
+    ['closed', false, 'past'],
+    ['cancelled', false, 'cancelled'],
+    ['scheduled', true, 'cancelled'],
+    ['open', true, 'past'],
+  ] as const)('lists a %s sitting (day ended: %s) under %s', (status, dayEnded, scope) => {
+    expect(sittingListScope(status, dayEnded)).toBe(scope)
   })
 })

@@ -2,7 +2,8 @@ import Link from 'next/link'
 import { StatusNote } from '@/components/kit/status-note'
 import { PageHeader } from '@/components/ui/heading'
 import { fmtDate, formatTitleDate } from '../_utils/format-dates'
-import type { InvigilatorOption, SittingRow, SittingScope, SittingSummary } from '../types'
+import { sittingListScope } from '../_utils/scope-url'
+import type { InvigilatorOption, SittingRow, SittingSummary } from '../types'
 import { SittingEditDialog } from './sitting-edit-dialog'
 import { modeLabel, statusLabel } from './sitting-labels'
 import { SittingLifecycleButtons } from './sitting-lifecycle-buttons'
@@ -20,13 +21,6 @@ function doneText(s: SittingRow): string {
     return s.endedAutomatically ? 'Closed automatically at the end of its day.' : 'Closed.'
   }
   return s.endedAutomatically ? 'Cancelled automatically: never started.' : 'Cancelled.'
-}
-
-/** The list scope the sitting appears in; a day-ended sitting is listed by its effective status. */
-function listScope(s: SittingRow, dayEnded: boolean): SittingScope {
-  if (s.status === 'scheduled') return dayEnded ? 'cancelled' : 'upcoming'
-  if (s.status === 'open') return dayEnded ? 'past' : 'open'
-  return s.status === 'closed' ? 'past' : 'cancelled'
 }
 
 function subtitle(s: SittingRow): string {
@@ -70,7 +64,7 @@ export function SittingHeader({
     <div className="space-y-stack">
       <nav className="text-caption text-muted-foreground">
         <Link
-          href={`/app/admin/internal-exams?tab=sittings&scope=${listScope(sitting, dayEnded)}`}
+          href={`/app/admin/internal-exams?tab=sittings&scope=${sittingListScope(sitting.status, dayEnded)}`}
           className="hover:text-foreground hover:underline"
         >
           Internal Exams

@@ -53,7 +53,7 @@ function sittingRow(page: import('@playwright/test').Page, id: string) {
 /** Opens the list at `query` and pages forward (50 per page) until the sitting's row shows; older rows can push it off page 1. */
 async function gotoRowPage(page: import('@playwright/test').Page, query: string, id: string) {
   for (let n = 1; n <= 20; n++) {
-    await page.goto(`${LIST}?tab=sittings${query}${n > 1 ? `&sittingsPage=${n}` : ''}`)
+    await page.goto(`${LIST}?tab=sittings${query}${n > 1 ? `&page=${n}` : ''}`)
     await expect(page.getByRole('combobox', { name: 'Status' })).toBeVisible()
     if ((await sittingRow(page, id).count()) > 0) return sittingRow(page, id)
   }
