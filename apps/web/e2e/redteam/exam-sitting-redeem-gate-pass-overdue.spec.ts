@@ -81,6 +81,69 @@ async function openSittingCode(
   return code
 }
 
+type StartRow = {
+  session_id: string
+  question_ids: string[]
+  time_limit_seconds: number
+  total_questions: number
+  pass_mark: number
+  started_at: string
+}
+
+async function expectStartPayload(
+  admin: Admin,
+  orgId: string,
+  subjectId: string,
+  rows: StartRow[] | null,
+): Promise<string> {
+  const { data: cfg, error } = await admin
+    .from('exam_configs')
+    .select('total_questions, time_limit_seconds, pass_mark')
+    .eq('organization_id', orgId)
+    .eq('subject_id', subjectId)
+    .is('deleted_at', null)
+    .single()
+  if (error || !cfg) throw new Error(`exam config read: ${error?.message}`)
+  expect(rows).toHaveLength(1)
+  const row = rows?.[0]
+  if (!row) throw new Error('no start row')
+  expect(typeof row.session_id).toBe('string')
+  expect(Array.isArray(row.question_ids)).toBe(true)
+  expect(row.question_ids.length).toBeGreaterThan(0)
+  expect(row.question_ids.every((q) => typeof q === 'string')).toBe(true)
+  expect(row.total_questions).toBe(cfg.total_questions)
+  expect(row.question_ids).toHaveLength(row.total_questions)
+  expect(row.time_limit_seconds).toBe(cfg.time_limit_seconds)
+  expect(row.pass_mark).toBe(cfg.pass_mark)
+  const startedMs = Date.parse(row.started_at)
+  expect(Number.isNaN(startedMs)).toBe(false)
+  expect(Math.abs(Date.now() - startedMs)).toBeLessThan(5 * 60 * 1000)
+  return row.session_id
+}
+
+async function softDeleteSittingCodes(
+  admin: Admin,
+  sittingIds: string[],
+  now: string,
+): Promise<number> {
+  if (sittingIds.length === 0) return 0
+  const { data: entries, error: eErr } = await admin
+    .from('exam_sitting_entries')
+    .select('id')
+    .in('sitting_id', sittingIds)
+  if (eErr) throw new Error(`sitting entries: ${eErr.message}`)
+  const entryIds = (entries ?? []).map((e) => e.id as string)
+  if (entryIds.length === 0) return 0
+  const { data, error } = await admin
+    .from('internal_exam_codes')
+    .update({ deleted_at: now })
+    .in('sitting_entry_id', entryIds)
+    .is('deleted_at', null)
+    .select('id')
+  if (error) throw new Error(`sitting codes: ${error.message}`)
+  return data?.length ?? 0
+}
+
 async function readCode(
   admin: Admin,
   codeId: string,
@@ -136,27 +199,39 @@ test.describe('Red Team: sitting redeem gate — prior pass and overdue attempt 
   test.afterEach(async () => {
     const errors: string[] = []
     const now = new Date().toISOString()
+    const sittingIds = [...track.sittingIds]
     try {
-      const { error } = await admin
+      const { data, error } = await admin
         .from('quiz_sessions')
         .update({ deleted_at: now })
         .in('student_id', [moId, mpId])
         .eq('mode', 'internal_exam')
         .is('deleted_at', null)
+        .select('id')
       if (error) throw new Error(`sessions: ${error.message}`)
+      if (data && data.length > 0) console.log(`afterEach: soft-deleted ${data.length} session(s)`)
     } catch (e) {
       errors.push(e instanceof Error ? e.message : String(e))
     }
     try {
       if (codeIds.length > 0) {
-        const { error } = await admin
+        const { data, error } = await admin
           .from('internal_exam_codes')
           .update({ deleted_at: now })
           .in('id', codeIds)
           .is('deleted_at', null)
+          .select('id')
         if (error) throw new Error(`codes: ${error.message}`)
+        if (data && data.length > 0) console.log(`afterEach: soft-deleted ${data.length} code(s)`)
       }
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e))
+    } finally {
       codeIds.length = 0
+    }
+    try {
+      const n = await softDeleteSittingCodes(admin, sittingIds, now)
+      if (n > 0) console.log(`afterEach: soft-deleted ${n} sitting code(s)`)
     } catch (e) {
       errors.push(e instanceof Error ? e.message : String(e))
     }
@@ -227,8 +302,8 @@ test.describe('Red Team: sitting redeem gate — prior pass and overdue attempt 
       p_code: code.code,
     })
     expect(okErr).toBeNull()
-    expect(typeof ok?.[0]?.session_id).toBe('string')
-    expect((await readCode(admin, code.id)).consumed_session_id).toBe(ok?.[0]?.session_id)
+    const okSessionId = await expectStartPayload(admin, orgId, subjectId, ok)
+    expect((await readCode(admin, code.id)).consumed_session_id).toBe(okSessionId)
   })
 
   test('MP: an overdue attempt that grades as a pass blocks a sitting code', async () => {
@@ -301,7 +376,7 @@ test.describe('Red Team: sitting redeem gate — prior pass and overdue attempt 
       p_code: legacy.code,
     })
     expect(okErr).toBeNull()
-    expect(typeof ok?.[0]?.session_id).toBe('string')
+    await expectStartPayload(admin, orgId, subjectId, ok)
     expect(await sessionEndedAt(admin, overdue.id)).not.toBeNull()
   })
 })

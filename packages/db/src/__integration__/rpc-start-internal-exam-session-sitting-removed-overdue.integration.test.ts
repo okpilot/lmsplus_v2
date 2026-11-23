@@ -16,6 +16,7 @@ type Res = { data: unknown; error: { message: string; code?: string } | null }
 const msg = (r: Res) => r.error?.message ?? 'ok'
 const must = <T = Record<string, unknown>>(r: Res, label: string): T => {
   expect(r.error, label).toBeNull()
+  expect(r.data, label).not.toBeNull()
   return r.data as T
 }
 
@@ -38,13 +39,14 @@ describe('RPC: start_internal_exam_session sitting gate, removed entry and overd
 
   /** Open sitting + candidate + entry + live code for the student. */
   async function openWorld(s: Stu) {
+    const openedAt = new Date().toISOString()
     const sitting = must<{ id: string }>(
       await admin
         .from('exam_sittings')
         .insert({
           organization_id: orgId,
-          scheduled_at: new Date(Date.now() - 1000).toISOString(),
-          started_at: new Date(Date.now() - 1000).toISOString(),
+          scheduled_at: openedAt,
+          started_at: openedAt,
           started_by: adminId,
           mode: 'remote',
           invigilator_id: adminId,
@@ -205,13 +207,16 @@ describe('RPC: start_internal_exam_session sitting gate, removed entry and overd
       'overdue session',
     )
     must(
-      (await admin.from('quiz_session_answers').insert({
-        session_id: old.id,
-        question_id: questionId,
-        selected_option_id: 'a',
-        response_time_ms: 1000,
-        is_correct: true,
-      })) as Res,
+      (await admin
+        .from('quiz_session_answers')
+        .insert({
+          session_id: old.id,
+          question_id: questionId,
+          selected_option_id: 'a',
+          response_time_ms: 1000,
+          is_correct: true,
+        })
+        .select('id')) as Res,
       'graded answer',
     )
     expect(msg(await redeem(s, w.code))).toBe('already_passed')

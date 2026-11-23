@@ -80,6 +80,29 @@ async function startedSittingCode(
   return { sittingId, codeId: code.id, code: code.code }
 }
 
+async function softDeleteSittingCodes(
+  admin: Admin,
+  sittingIds: string[],
+  now: string,
+): Promise<number> {
+  if (sittingIds.length === 0) return 0
+  const { data: entries, error: eErr } = await admin
+    .from('exam_sitting_entries')
+    .select('id')
+    .in('sitting_id', sittingIds)
+  if (eErr) throw new Error(`sitting entries: ${eErr.message}`)
+  const entryIds = (entries ?? []).map((e) => e.id as string)
+  if (entryIds.length === 0) return 0
+  const { data, error } = await admin
+    .from('internal_exam_codes')
+    .update({ deleted_at: now })
+    .in('sitting_entry_id', entryIds)
+    .is('deleted_at', null)
+    .select('id')
+  if (error) throw new Error(`sitting codes: ${error.message}`)
+  return data?.length ?? 0
+}
+
 async function codeState(admin: Admin, codeId: string) {
   const { data, error } = await admin
     .from('internal_exam_codes')
@@ -142,6 +165,7 @@ test.describe('Red Team: sitting code redeem vs Close race (MU)', () => {
   test.afterEach(async () => {
     const errors: string[] = []
     const now = new Date().toISOString()
+    const sittingIds = [...track.sittingIds]
     try {
       const { error } = await admin
         .from('quiz_sessions')
@@ -162,7 +186,13 @@ test.describe('Red Team: sitting code redeem vs Close race (MU)', () => {
           .is('deleted_at', null)
         if (error) throw new Error(`codes: ${error.message}`)
       }
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e))
+    } finally {
       codeIds.length = 0
+    }
+    try {
+      await softDeleteSittingCodes(admin, sittingIds, now)
     } catch (e) {
       errors.push(e instanceof Error ? e.message : String(e))
     }

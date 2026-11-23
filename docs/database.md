@@ -1501,7 +1501,7 @@ Student-facing. Validates the code, atomically consumes it, and creates a fresh 
 
 **Race-safe consumption:** the row is `SELECT ... FOR UPDATE` locked; consumption is `UPDATE ... WHERE id = v_code_id AND consumed_at IS NULL` and raises `code_already_used` if `ROW_COUNT = 0`. Active duplicate-session guard (migration `20260429000010`): before issuing, the RPC looks up any same-subject `internal_exam` session past `(time_limit_seconds + 30)` seconds and calls `complete_overdue_exam_session` on it (mirrors `start_exam_session`), before the sitting gate. A gate raise rolls that completion back; the next `/app/internal-exam` load commits it.
 
-**Sitting lock:** a code with `sitting_entry_id` is pre-read (unlocked, owner and live unused code only), then its `exam_sittings` row is locked `FOR SHARE` before the code `FOR UPDATE`; non-owners take no sitting lock. Every sitting writer locks sitting, then codes; `void_internal_exam_code` takes no sitting lock. `code_not_found` when the entry is removed or no sitting was locked.
+**Sitting lock:** a code with `sitting_entry_id` is pre-read (unlocked, owner and live unused code only), then its `exam_sittings` row is locked `FOR SHARE` before the code `FOR UPDATE`; non-owners take no sitting lock. Every sitting writer locks sitting, then codes; `void_internal_exam_code` takes no sitting lock. `code_not_found` when the entry or sitting is soft-deleted with its code unvoided (cancel and entry removal void the code: `code_voided`).
 
 **Audit:** `internal_exam.started` with `{ code_id, subject_id, total_questions, pass_mark, sitting_id, sitting_entry_id }` (the last two null for legacy codes).
 

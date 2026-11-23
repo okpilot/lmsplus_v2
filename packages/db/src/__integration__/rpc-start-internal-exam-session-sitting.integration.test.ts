@@ -29,6 +29,7 @@ type Res = { data: unknown; error: { message: string; code?: string } | null }
 const msg = (r: Res) => r.error?.message ?? 'ok'
 const must = <T = Record<string, unknown>>(r: Res, label: string): T => {
   expect(r.error, label).toBeNull()
+  expect(r.data, label).not.toBeNull()
   return r.data as T
 }
 
@@ -102,13 +103,14 @@ describe('RPC: start_internal_exam_session sitting redeem gate (#1777)', () => {
     return must<{ id: string }>(r, 'sitting').id
   }
   async function entry(sittingId: string, userId: string, subjectId: string) {
-    const c = await admin
+    const { data: cands, error: cErr } = await admin
       .from('exam_sitting_candidates')
       .select('id')
       .eq('sitting_id', sittingId)
       .eq('user_id', userId)
       .is('deleted_at', null)
-    if (!c.data?.length) {
+    if (cErr) throw new Error(`candidate lookup: ${cErr.message}`)
+    if (!cands?.length) {
       must(
         await admin
           .from('exam_sitting_candidates')
@@ -662,6 +664,8 @@ describe('RPC: start_internal_exam_session sitting redeem gate (#1777)', () => {
         ])
         noDeadlock(r, l)
         expect(['sitting_not_open', 'code_voided', 'code_expired']).toContain(msg(r))
+        expect(msg(l)).toBe('ok')
+        expect((await codeRow(w.id)).consumed_at).toBeNull()
         await resetSessions(s.id)
       }
     })

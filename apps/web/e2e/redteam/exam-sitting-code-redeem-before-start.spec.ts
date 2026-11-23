@@ -70,6 +70,69 @@ async function issueOneCode(
   return code
 }
 
+type StartRow = {
+  session_id: string
+  question_ids: string[]
+  time_limit_seconds: number
+  total_questions: number
+  pass_mark: number
+  started_at: string
+}
+
+async function expectStartPayload(
+  admin: Admin,
+  orgId: string,
+  subjectId: string,
+  rows: StartRow[] | null,
+): Promise<string> {
+  const { data: cfg, error } = await admin
+    .from('exam_configs')
+    .select('total_questions, time_limit_seconds, pass_mark')
+    .eq('organization_id', orgId)
+    .eq('subject_id', subjectId)
+    .is('deleted_at', null)
+    .single()
+  if (error || !cfg) throw new Error(`exam config read: ${error?.message}`)
+  expect(rows).toHaveLength(1)
+  const row = rows?.[0]
+  if (!row) throw new Error('no start row')
+  expect(typeof row.session_id).toBe('string')
+  expect(Array.isArray(row.question_ids)).toBe(true)
+  expect(row.question_ids.length).toBeGreaterThan(0)
+  expect(row.question_ids.every((q) => typeof q === 'string')).toBe(true)
+  expect(row.total_questions).toBe(cfg.total_questions)
+  expect(row.question_ids).toHaveLength(row.total_questions)
+  expect(row.time_limit_seconds).toBe(cfg.time_limit_seconds)
+  expect(row.pass_mark).toBe(cfg.pass_mark)
+  const startedMs = Date.parse(row.started_at)
+  expect(Number.isNaN(startedMs)).toBe(false)
+  expect(Math.abs(Date.now() - startedMs)).toBeLessThan(5 * 60 * 1000)
+  return row.session_id
+}
+
+async function softDeleteSittingCodes(
+  admin: Admin,
+  sittingIds: string[],
+  now: string,
+): Promise<number> {
+  if (sittingIds.length === 0) return 0
+  const { data: entries, error: eErr } = await admin
+    .from('exam_sitting_entries')
+    .select('id')
+    .in('sitting_id', sittingIds)
+  if (eErr) throw new Error(`sitting entries: ${eErr.message}`)
+  const entryIds = (entries ?? []).map((e) => e.id as string)
+  if (entryIds.length === 0) return 0
+  const { data, error } = await admin
+    .from('internal_exam_codes')
+    .update({ deleted_at: now })
+    .in('sitting_entry_id', entryIds)
+    .is('deleted_at', null)
+    .select('id')
+  if (error) throw new Error(`sitting codes: ${error.message}`)
+  return data?.length ?? 0
+}
+
 async function codeConsumed(admin: Admin, codeId: string): Promise<string | null> {
   const { data, error } = await admin
     .from('internal_exam_codes')
@@ -86,6 +149,7 @@ test.describe('Red Team: sitting code redeemed before Start (MM)', () => {
   let todayStudent: SupabaseClient
   let tomorrowStudent: SupabaseClient
   let adminId: string
+  let orgId: string
   let todayId: string
   let tomorrowId: string
   let subjectId: string
@@ -96,6 +160,7 @@ test.describe('Red Team: sitting code redeemed before Start (MM)', () => {
     admin = getAdminClient()
     const a = await seedRedTeamAdmin()
     adminId = a.adminUserId
+    orgId = a.orgId
     track.adminId = adminId
     todayId = await upsertUser(admin, TODAY_EMAIL, MM_PASSWORD, a.orgId)
     tomorrowId = await upsertUser(admin, TOMORROW_EMAIL, MM_PASSWORD, a.orgId)
@@ -110,6 +175,7 @@ test.describe('Red Team: sitting code redeemed before Start (MM)', () => {
   test.afterEach(async () => {
     const errors: string[] = []
     const now = new Date().toISOString()
+    const sittingIds = [...track.sittingIds]
     try {
       const { error } = await admin
         .from('quiz_sessions')
@@ -130,7 +196,14 @@ test.describe('Red Team: sitting code redeemed before Start (MM)', () => {
           .is('deleted_at', null)
         if (error) throw new Error(`codes: ${error.message}`)
       }
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e))
+    } finally {
       codeIds.length = 0
+    }
+    try {
+      const n = await softDeleteSittingCodes(admin, sittingIds, now)
+      if (n > 0) console.log(`afterEach: soft-deleted ${n} sitting code(s)`)
     } catch (e) {
       errors.push(e instanceof Error ? e.message : String(e))
     }
@@ -176,7 +249,7 @@ test.describe('Red Team: sitting code redeemed before Start (MM)', () => {
       p_code: todayCode.code,
     })
     expect(okErr).toBeNull()
-    expect(typeof ok?.[0]?.session_id).toBe('string')
+    await expectStartPayload(admin, orgId, subjectId, ok)
     expect(await codeConsumed(admin, todayCode.id)).not.toBeNull()
   })
 })
