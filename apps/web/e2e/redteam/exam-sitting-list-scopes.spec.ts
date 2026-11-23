@@ -55,6 +55,37 @@ type Row = {
 const SCOPES = ['upcoming', 'open', 'past', 'cancelled'] as const
 const PAGE = 200
 
+// Wire type of every Row field; a trailing '?' allows null.
+const ROW_SHAPE: Record<keyof Row, string> = {
+  id: 'string',
+  scheduled_at: 'string',
+  mode: 'string',
+  status: 'string',
+  invigilator_id: 'string',
+  invigilator_name: 'string',
+  invigilator_active: 'boolean',
+  permitted_materials: 'string?',
+  started_at: 'string?',
+  closed_at: 'string?',
+  candidates: 'number',
+  entries: 'number',
+  entries_without_code: 'number',
+  entries_finished: 'number',
+  entries_absent: 'number',
+  ended_automatically: 'boolean',
+  total_count: 'number',
+}
+
+function isRow(r: unknown): r is Row {
+  if (typeof r !== 'object' || r === null) return false
+  const row = r as Record<string, unknown>
+  return Object.entries(ROW_SHAPE).every(([key, spec]) => {
+    const v = row[key]
+    if (spec.endsWith('?') && v === null) return true
+    return typeof v === spec.replace('?', '')
+  })
+}
+
 async function listAll(client: SupabaseClient, scope: string): Promise<Row[]> {
   const rows: Row[] = []
   for (let offset = 0; ; offset += PAGE) {
@@ -65,12 +96,11 @@ async function listAll(client: SupabaseClient, scope: string): Promise<Row[]> {
     })
     if (error) throw new Error(`list_exam_sittings ${scope}: ${error.message}`)
     if (!Array.isArray(data)) throw new Error(`list_exam_sittings ${scope}: non-array page`)
+    const page: Row[] = []
     for (const r of data as unknown[]) {
-      const row = (typeof r === 'object' && r !== null ? r : {}) as Record<string, unknown>
-      const ok = typeof row.id === 'string' && row.id !== '' && typeof row.status === 'string'
-      if (!ok) throw new Error(`list_exam_sittings ${scope}: malformed row`)
+      if (!isRow(r) || r.id === '') throw new Error(`list_exam_sittings ${scope}: malformed row`)
+      page.push(r)
     }
-    const page = data as Row[]
     rows.push(...page)
     if (page.length < PAGE) return rows
   }
