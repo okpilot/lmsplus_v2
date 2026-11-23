@@ -49,6 +49,7 @@ BEGIN
      AND c.deleted_at IS NULL AND e.deleted_at IS NULL
      AND CASE p_kind WHEN 'changed' THEN c.voided_at IS NULL
                      WHEN 'sitting_cancelled' THEN c.void_reason = 'sitting_cancelled'
+                                                   AND c.emailed_at IS NOT NULL AND c.consumed_at IS NULL
                      ELSE EXISTS (SELECT 1 FROM public.exam_sittings s
                                    WHERE s.id = p_sitting_id AND s.deleted_at IS NOT NULL) END;
   IF v_n <> cardinality(v_codes) THEN RAISE EXCEPTION 'invalid_input'; END IF;

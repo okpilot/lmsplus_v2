@@ -1,8 +1,8 @@
-import { spawnSync } from 'node:child_process'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { enrolStudent } from '../enrol-students'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
 import { fixtureSuffix } from './fixture-suffix'
+import { psql } from './psql'
 import { seedReferenceData } from './seed'
 import {
   createTestOrg,
@@ -42,23 +42,6 @@ const rowOf = (data: unknown): Record<string, unknown> =>
 const errOf = (r: Res) => r.error?.message
 const expectToken = (r: Res, token: string) => {
   expect(r.error?.message).toBe(token)
-}
-
-/** psql as postgres: host psql, else the supabase db container. */
-function psql(sql: string): { out: string; err: string } {
-  const args = ['-U', 'postgres', '-d', 'postgres', '-tAq', '-v', 'ON_ERROR_STOP=1']
-  let r = spawnSync('psql', ['-h', 'localhost', '-p', '54322', ...args], {
-    input: sql,
-    encoding: 'utf8',
-    env: { ...process.env, PGPASSWORD: 'postgres' },
-  })
-  if (r.error) {
-    r = spawnSync('docker', ['exec', '-i', 'supabase_db_lmsplusv2', 'psql', ...args], {
-      input: sql,
-      encoding: 'utf8',
-    })
-  }
-  return { out: (r.stdout ?? '').trim(), err: (r.stderr ?? '').trim() }
 }
 
 type SittingState = 'scheduled' | 'open' | 'closed' | 'cancelled'
@@ -234,6 +217,7 @@ async function buildWorld(tag: string) {
         .eq('sitting_id', sittingId)
         .eq('user_id', userId)
         .is('deleted_at', null)
+      expect(c.error).toBeNull()
       if (!c.data?.length) await world.candidate(sittingId, userId)
       return world.entry(sittingId, userId, subjectId)
     },
@@ -675,6 +659,7 @@ describe('RPC: issue_sitting_exam_codes', () => {
   }, 120_000)
 
   it('AC-23: every skip reason is counted and the counts sum to the plan rows', async () => {
+    wipeSitting(w)
     const sit = await w.sitting({ day: 0, state: 'open' })
     await w.code(await w.enter(sit, w.s1, w.subA))
     const taken = await w.enter(sit, w.s2, w.subA)

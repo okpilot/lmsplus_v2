@@ -1,8 +1,8 @@
-import { spawnSync } from 'node:child_process'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { enrolStudent } from '../enrol-students'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
 import { fixtureSuffix } from './fixture-suffix'
+import { psql } from './psql'
 import { seedReferenceData } from './seed'
 import {
   createTestOrg,
@@ -42,23 +42,6 @@ const rowOf = (data: unknown): Record<string, unknown> =>
 const errOf = (r: Res) => r.error?.message
 const expectToken = (r: Res, token: string) => {
   expect(r.error?.message).toBe(token)
-}
-
-/** psql as postgres: host psql, else the supabase db container. */
-function psql(sql: string): { out: string; err: string } {
-  const args = ['-U', 'postgres', '-d', 'postgres', '-tAq', '-v', 'ON_ERROR_STOP=1']
-  let r = spawnSync('psql', ['-h', 'localhost', '-p', '54322', ...args], {
-    input: sql,
-    encoding: 'utf8',
-    env: { ...process.env, PGPASSWORD: 'postgres' },
-  })
-  if (r.error) {
-    r = spawnSync('docker', ['exec', '-i', 'supabase_db_lmsplusv2', 'psql', ...args], {
-      input: sql,
-      encoding: 'utf8',
-    })
-  }
-  return { out: (r.stdout ?? '').trim(), err: (r.stderr ?? '').trim() }
 }
 
 type SittingState = 'scheduled' | 'open' | 'closed' | 'cancelled'
@@ -234,6 +217,7 @@ async function buildWorld(tag: string) {
         .eq('sitting_id', sittingId)
         .eq('user_id', userId)
         .is('deleted_at', null)
+      expect(c.error).toBeNull()
       if (!c.data?.length) await world.candidate(sittingId, userId)
       return world.entry(sittingId, userId, subjectId)
     },
@@ -681,12 +665,16 @@ describe('RPC: get_exam_sitting_subject_eligibility', () => {
       expect(rs).toHaveLength(200)
       expect(forSubject(rs, w.subA).course_id).not.toBeNull()
       expect(forSubject(rs, w.subA).course_name).not.toBeNull()
+      const before = rs.map((r) => r.subject_id)
+      const targets = extra.filter((id) => before.includes(id)).slice(0, 3)
+      expect(targets).toHaveLength(3)
+      for (const t of targets) expect(before).toContain(t)
       psql(
-        `UPDATE public.exam_configs SET enabled = false WHERE subject_id = '${extra[0]}' AND organization_id = '${w.orgA}'; UPDATE public.exam_configs SET deleted_at = now() WHERE subject_id = '${extra[1]}' AND organization_id = '${w.orgA}'; UPDATE public.easa_subjects SET deleted_at = now() WHERE id = '${extra[2]}';`,
+        `UPDATE public.exam_configs SET enabled = false WHERE subject_id = '${targets[0]}' AND organization_id = '${w.orgA}'; UPDATE public.exam_configs SET deleted_at = now() WHERE subject_id = '${targets[1]}' AND organization_id = '${w.orgA}'; UPDATE public.easa_subjects SET deleted_at = now() WHERE id = '${targets[2]}';`,
       )
       const after = erows(await elig(x, [w.s1]))
       const ids = after.map((r) => r.subject_id)
-      for (const gone of extra.slice(0, 3)) expect(ids).not.toContain(gone)
+      for (const gone of targets) expect(ids).not.toContain(gone)
       expect(ids).toContain(w.subA)
       const meta = must<Array<{ id: string; sort_order: number; short: string }>>(
         await admin.from('easa_subjects').select('id, sort_order, short').in('id', ids),
@@ -712,6 +700,50 @@ describe('RPC: get_exam_sitting_subject_eligibility', () => {
     }
   }, 180_000)
 
+  it('AC-38: ties on sort order break on short, then on id', async () => {
+    const x = await w.sitting({ day: 1 })
+    await w.candidate(x, w.s1)
+    const [idLo, idHi] = [crypto.randomUUID(), crypto.randomUUID()].sort()
+    const tag = fixtureSuffix()
+    const mk = [
+      { id: crypto.randomUUID(), code: `TQB${tag}`, short: 'TB', sort_order: 50 },
+      { id: crypto.randomUUID(), code: `TQA${tag}`, short: 'TA', sort_order: 50 },
+      { id: idHi as string, code: `TQD${tag}`, short: 'TC', sort_order: 60 },
+      { id: idLo as string, code: `TQC${tag}`, short: 'TC', sort_order: 60 },
+    ]
+    const ids = mk.map((m) => m.id)
+    try {
+      must(
+        await admin
+          .from('easa_subjects')
+          .insert(mk.map((m) => ({ ...m, name: `Tie ${m.code}` })))
+          .select('id'),
+        'tie subjects',
+      )
+      must(
+        await admin
+          .from('exam_configs')
+          .insert(
+            ids.map((subject_id) => ({
+              organization_id: w.orgA,
+              subject_id,
+              enabled: true,
+              total_questions: 10,
+              time_limit_seconds: 1800,
+              pass_mark: 75,
+            })),
+          )
+          .select('id'),
+        'tie configs',
+      )
+      const got = erows(await elig(x, [w.s1])).map((r) => r.subject_id)
+      expect(got[0]).toBe(w.subA)
+      expect(got.filter((id) => ids.includes(id))).toEqual([mk[1]?.id, mk[0]?.id, idLo, idHi])
+    } finally {
+      dropBulkSubjects(ids)
+    }
+  })
+
   it('AC-39: NULL means all live candidates; explicit lists are validated, deduped and filtered', async () => {
     const x = await w.sitting({ day: 1 })
     await w.candidate(x, w.s1)
@@ -720,17 +752,26 @@ describe('RPC: get_exam_sitting_subject_eligibility', () => {
     expect(forSubject(erows(await elig(x)), w.subA).people).toBe(2)
     expect(forSubject(erows(await elig(x, [w.s1, w.s1])), w.subA).people).toBe(1)
     expect(forSubject(erows(await elig(x, [w.s1, w.s4, w.bs1])), w.subA).people).toBe(1)
-    for (const bad of [
-      [null],
-      [],
-      Array.from({ length: 101 }, () => crypto.randomUUID()),
-      [w.s4, w.bs1],
-    ]) {
+    for (const bad of [[null], [], [w.s4, w.bs1]]) {
       expectToken(await elig(x, bad), 'invalid_input')
     }
     const empty = await w.sitting({ day: 2 })
     expect(erows(await elig(empty, null))).toHaveLength(0)
   })
+
+  it('AC-39: an explicit list of 100 live candidates succeeds and 101 is invalid_input', async () => {
+    const users = bulkUsers(w, 101, 'e101')
+    try {
+      const x = await w.sitting({ day: 1 })
+      bulkCandidates(w, x, users)
+      const ok = forSubject(erows(await elig(x, users.slice(0, 100))), w.subA)
+      expect(ok.people).toBe(100)
+      expectToken(await elig(x, users), 'invalid_input')
+    } finally {
+      wipeSitting(w)
+      dropBulkUsers(users)
+    }
+  }, 120_000)
 
   it('AC-39: NULL with 501 candidates is invalid_input', async () => {
     const users = bulkUsers(w, 501, 'e501')
@@ -779,8 +820,10 @@ describe('RPC: get_exam_sitting_subject_eligibility', () => {
       expect(Date.now() - t1).toBeLessThan(1000)
       expect(r1.length).toBeGreaterThanOrEqual(60)
       const t2 = Date.now()
-      erows(await elig(x, null))
+      const r2 = erows(await elig(x, null))
       expect(Date.now() - t2).toBeLessThan(1500)
+      expect(r2.length).toBeGreaterThanOrEqual(60)
+      expect(forSubject(r2, w.subA).people).toBe(500)
     } finally {
       wipeSitting(w)
       dropBulkUsers(users)

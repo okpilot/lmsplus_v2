@@ -1,8 +1,8 @@
-import { spawnSync } from 'node:child_process'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { enrolStudent } from '../enrol-students'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
 import { fixtureSuffix } from './fixture-suffix'
+import { psql } from './psql'
 import { seedReferenceData } from './seed'
 import {
   createTestOrg,
@@ -42,23 +42,6 @@ const rowOf = (data: unknown): Record<string, unknown> =>
 const errOf = (r: Res) => r.error?.message
 const expectToken = (r: Res, token: string) => {
   expect(r.error?.message).toBe(token)
-}
-
-/** psql as postgres: host psql, else the supabase db container. */
-function psql(sql: string): { out: string; err: string } {
-  const args = ['-U', 'postgres', '-d', 'postgres', '-tAq', '-v', 'ON_ERROR_STOP=1']
-  let r = spawnSync('psql', ['-h', 'localhost', '-p', '54322', ...args], {
-    input: sql,
-    encoding: 'utf8',
-    env: { ...process.env, PGPASSWORD: 'postgres' },
-  })
-  if (r.error) {
-    r = spawnSync('docker', ['exec', '-i', 'supabase_db_lmsplusv2', 'psql', ...args], {
-      input: sql,
-      encoding: 'utf8',
-    })
-  }
-  return { out: (r.stdout ?? '').trim(), err: (r.stderr ?? '').trim() }
 }
 
 type SittingState = 'scheduled' | 'open' | 'closed' | 'cancelled'
@@ -234,6 +217,7 @@ async function buildWorld(tag: string) {
         .eq('sitting_id', sittingId)
         .eq('user_id', userId)
         .is('deleted_at', null)
+      expect(c.error).toBeNull()
       if (!c.data?.length) await world.candidate(sittingId, userId)
       return world.entry(sittingId, userId, subjectId)
     },
@@ -909,7 +893,7 @@ describe('RPC: add_exam_sitting_entries', () => {
     for (const e of live) expect(cands.map((c) => c.user_id)).toContain(e.user_id)
   })
 
-  it('AC-16: 1000 pairs over 500 candidates x 60 subjects classify not_candidate first and finish under 1.5 s', async () => {
+  it('AC-16: 1000 pairs over 500 candidates x 60 subjects add the expected entries and finish under 1.5 s', async () => {
     const users = bulkUsers(w, 500, 'perf')
     const more = bulkSubjects(w, 20, 'AE')
     try {
@@ -925,8 +909,10 @@ describe('RPC: add_exam_sitting_entries', () => {
       }
       psql('VACUUM ANALYZE;')
       const t = Date.now()
-      must(await add(sit, pu, ps), 'big add')
+      const big = out(await add(sit, pu, ps))
       expect(Date.now() - t).toBeLessThan(1500)
+      expect(big.added).toBe(1000)
+      expect(skipsOf(big)).toHaveLength(0)
     } finally {
       wipeSitting(w)
       dropBulkUsers(users)

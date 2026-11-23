@@ -1,8 +1,8 @@
-import { spawnSync } from 'node:child_process'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { enrolStudent } from '../enrol-students'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
 import { fixtureSuffix } from './fixture-suffix'
+import { psql } from './psql'
 import { seedReferenceData } from './seed'
 import {
   createTestOrg,
@@ -42,23 +42,6 @@ const rowOf = (data: unknown): Record<string, unknown> =>
 const errOf = (r: Res) => r.error?.message
 const expectToken = (r: Res, token: string) => {
   expect(r.error?.message).toBe(token)
-}
-
-/** psql as postgres: host psql, else the supabase db container. */
-function psql(sql: string): { out: string; err: string } {
-  const args = ['-U', 'postgres', '-d', 'postgres', '-tAq', '-v', 'ON_ERROR_STOP=1']
-  let r = spawnSync('psql', ['-h', 'localhost', '-p', '54322', ...args], {
-    input: sql,
-    encoding: 'utf8',
-    env: { ...process.env, PGPASSWORD: 'postgres' },
-  })
-  if (r.error) {
-    r = spawnSync('docker', ['exec', '-i', 'supabase_db_lmsplusv2', 'psql', ...args], {
-      input: sql,
-      encoding: 'utf8',
-    })
-  }
-  return { out: (r.stdout ?? '').trim(), err: (r.stderr ?? '').trim() }
 }
 
 type SittingState = 'scheduled' | 'open' | 'closed' | 'cancelled'
@@ -234,6 +217,7 @@ async function buildWorld(tag: string) {
         .eq('sitting_id', sittingId)
         .eq('user_id', userId)
         .is('deleted_at', null)
+      expect(c.error).toBeNull()
       if (!c.data?.length) await world.candidate(sittingId, userId)
       return world.entry(sittingId, userId, subjectId)
     },
@@ -678,6 +662,11 @@ describe('RPC: list_exam_sitting_roster', () => {
     await w.code(await w.enter(prior, w.s4, w.subA), {
       consumedBy: await w.session(w.s4, w.subA, { ended: true, passed: false }),
     })
+    const voidedPrior = await w.sitting({ day: 0, state: 'closed' })
+    await w.code(await w.enter(voidedPrior, w.s4, w.subA), {
+      voided: true,
+      consumedBy: await w.session(w.s4, w.subA, { ended: true, passed: false }),
+    })
     const open = await w.sitting({ day: 0, state: 'open' })
     await w.code(await w.enter(open, w.s4, w.subA))
     await w.code(await w.enter(open, w.s3, w.subA), {
@@ -702,7 +691,17 @@ describe('RPC: list_exam_sitting_roster', () => {
     const voided = await w.code(await w.enter(open, w.s2, w.subB), { voided: true })
     const sess = await w.session(w.s3, w.subA, { ended: true, passed: true })
     await w.code(await w.enter(open, w.s3, w.subA), { consumedBy: sess })
+    await w.code(await w.enter(open, w.s1, w.subB), {
+      expired: true,
+      consumedBy: await w.session(w.s1, w.subB, { ended: true, passed: false }),
+    })
+    await w.code(await w.enter(open, w.s4, w.subB), {
+      voided: true,
+      consumedBy: await w.session(w.s4, w.subB, { ended: true, passed: false }),
+    })
     const rs = rrows(await roster(open))
+    expect(entryOf(rs, w.s1, w.subB).code).not.toBeNull()
+    expect(entryOf(rs, w.s4, w.subB).code).toBeNull()
     const l = entryOf(rs, w.s1, w.subA)
     expect(Object.keys(l).sort()).toEqual([...ENTRY_KEYS].sort())
     expect(l.code).toBe((await w.codeRow(live)).code)

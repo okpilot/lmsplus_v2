@@ -1,8 +1,8 @@
-import { spawnSync } from 'node:child_process'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { enrolStudent } from '../enrol-students'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
 import { fixtureSuffix } from './fixture-suffix'
+import { psql } from './psql'
 import { seedReferenceData } from './seed'
 import {
   createTestOrg,
@@ -42,23 +42,6 @@ const rowOf = (data: unknown): Record<string, unknown> =>
 const errOf = (r: Res) => r.error?.message
 const expectToken = (r: Res, token: string) => {
   expect(r.error?.message).toBe(token)
-}
-
-/** psql as postgres: host psql, else the supabase db container. */
-function psql(sql: string): { out: string; err: string } {
-  const args = ['-U', 'postgres', '-d', 'postgres', '-tAq', '-v', 'ON_ERROR_STOP=1']
-  let r = spawnSync('psql', ['-h', 'localhost', '-p', '54322', ...args], {
-    input: sql,
-    encoding: 'utf8',
-    env: { ...process.env, PGPASSWORD: 'postgres' },
-  })
-  if (r.error) {
-    r = spawnSync('docker', ['exec', '-i', 'supabase_db_lmsplusv2', 'psql', ...args], {
-      input: sql,
-      encoding: 'utf8',
-    })
-  }
-  return { out: (r.stdout ?? '').trim(), err: (r.stderr ?? '').trim() }
 }
 
 type SittingState = 'scheduled' | 'open' | 'closed' | 'cancelled'
@@ -234,6 +217,7 @@ async function buildWorld(tag: string) {
         .eq('sitting_id', sittingId)
         .eq('user_id', userId)
         .is('deleted_at', null)
+      expect(c.error).toBeNull()
       if (!c.data?.length) await world.candidate(sittingId, userId)
       return world.entry(sittingId, userId, subjectId)
     },
@@ -670,9 +654,20 @@ describe('private.sitting_pair_state', () => {
 
   it('AC-5: an org B sitting id never yields entered_here', async () => {
     const bs = await w.sitting({ day: 1, org: w.orgB })
-    await w.entry(bs, w.bs1, w.subA, w.orgB)
+    const bEntry = await w.entry(bs, w.s1, w.subA, w.orgB)
+    const fixture = must<{ id: string; organization_id: string; sitting_id: string }>(
+      await admin
+        .from('exam_sitting_entries')
+        .select('id, organization_id, sitting_id')
+        .eq('id', bEntry)
+        .single(),
+      'org B entry',
+    )
+    expect(fixture).toMatchObject({ organization_id: w.orgB, sitting_id: bs })
     const x = await w.sitting({ day: 1 })
-    expect(run(bs, [w.s1], [w.subA]).every((p) => p.state !== 'entered_here')).toBe(true)
+    const inB = run(bs, [w.s1], [w.subA])
+    expect(inB).toHaveLength(1)
+    expect(inB[0]?.state).toBe('eligible')
     expect(run(x, [w.s1], [w.subA])[0]?.state).toBe('eligible')
   })
 })

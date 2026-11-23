@@ -35,6 +35,7 @@ BEGIN
       SELECT e.id, c.student_id, c.subject_id, NULL::timestamptz, c.voided_at, 'sitting_cancelled'::text, c.id
         FROM public.internal_exam_codes c
         JOIN public.exam_sitting_entries e ON e.id = c.sitting_entry_id AND e.organization_id = v_g.org_id
+                         AND e.deleted_at IS NULL
        WHERE v_s.status = 'cancelled' AND e.sitting_id = p_sitting_id AND c.organization_id = v_g.org_id
          AND c.deleted_at IS NULL AND c.consumed_at IS NULL AND c.voided_at IS NOT NULL
          AND c.void_reason = 'sitting_cancelled' AND c.emailed_at IS NOT NULL

@@ -1,8 +1,8 @@
-import { spawnSync } from 'node:child_process'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { enrolStudent } from '../enrol-students'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
 import { fixtureSuffix } from './fixture-suffix'
+import { psql } from './psql'
 import { seedReferenceData } from './seed'
 import {
   createTestOrg,
@@ -42,23 +42,6 @@ const rowOf = (data: unknown): Record<string, unknown> =>
 const errOf = (r: Res) => r.error?.message
 const expectToken = (r: Res, token: string) => {
   expect(r.error?.message).toBe(token)
-}
-
-/** psql as postgres: host psql, else the supabase db container. */
-function psql(sql: string): { out: string; err: string } {
-  const args = ['-U', 'postgres', '-d', 'postgres', '-tAq', '-v', 'ON_ERROR_STOP=1']
-  let r = spawnSync('psql', ['-h', 'localhost', '-p', '54322', ...args], {
-    input: sql,
-    encoding: 'utf8',
-    env: { ...process.env, PGPASSWORD: 'postgres' },
-  })
-  if (r.error) {
-    r = spawnSync('docker', ['exec', '-i', 'supabase_db_lmsplusv2', 'psql', ...args], {
-      input: sql,
-      encoding: 'utf8',
-    })
-  }
-  return { out: (r.stdout ?? '').trim(), err: (r.stderr ?? '').trim() }
 }
 
 type SittingState = 'scheduled' | 'open' | 'closed' | 'cancelled'
@@ -234,6 +217,7 @@ async function buildWorld(tag: string) {
         .eq('sitting_id', sittingId)
         .eq('user_id', userId)
         .is('deleted_at', null)
+      expect(c.error).toBeNull()
       if (!c.data?.length) await world.candidate(sittingId, userId)
       return world.entry(sittingId, userId, subjectId)
     },
@@ -439,8 +423,14 @@ describe('private.insert_internal_exam_code', () => {
   afterAll(async () => {
     await w?.teardown()
   })
-  const call = (entry: string, subject: string, student: string, prefix = '') =>
-    `${prefix}SELECT private.insert_internal_exam_code('${w.orgA}'::uuid, '${entry}'::uuid, '${subject}'::uuid, '${student}'::uuid, '${w.a1}'::uuid, now() + interval '1 hour');`
+  const call = (
+    entry: string,
+    subject: string,
+    student: string,
+    prefix = '',
+    expiry = `now() + interval '1 hour'`,
+  ) =>
+    `${prefix}SELECT private.insert_internal_exam_code('${w.orgA}'::uuid, '${entry}'::uuid, '${subject}'::uuid, '${student}'::uuid, '${w.a1}'::uuid, ${expiry});`
   const plant = async (entry: string, code: string) => {
     const e = must<{ user_id: string; subject_id: string }>(
       await admin
@@ -470,7 +460,8 @@ describe('private.insert_internal_exam_code', () => {
   it('AC-17: returns a code row with 8 charset chars and the entry, org, subject, student and expiry set', async () => {
     const sit = await w.sitting({ day: 1 })
     const e = await w.enter(sit, w.s1, w.subA)
-    const r = psql(call(e, w.subA, w.s1))
+    const expiry = '2031-03-04T05:06:07.000Z'
+    const r = psql(call(e, w.subA, w.s1, '', `'${expiry}'::timestamptz`))
     expect(r.err).toBe('')
     const id = r.out.split('\n').pop() as string
     const row = must<Record<string, unknown>>(
@@ -484,7 +475,7 @@ describe('private.insert_internal_exam_code', () => {
       subject_id: w.subA,
       student_id: w.s1,
     })
-    expect(row.expires_at).not.toBeNull()
+    expect(new Date(row.expires_at as string).toISOString()).toBe(expiry)
   })
 
   it('AC-18: a second live code for the same entry raises 23505 and is not retried', async () => {

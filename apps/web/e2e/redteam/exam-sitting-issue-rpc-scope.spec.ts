@@ -205,7 +205,16 @@ test.describe('Red Team: sitting entry/issue/roster RPC scope (MN)', () => {
     expect(ent.data?.[0]?.added).toBe(1)
     const iss = await egmontAdmin.rpc('issue_sitting_exam_codes', { p_sitting_id: sittingId })
     expect(iss.error).toBeNull()
-    expect(iss.data?.[0]).toMatchObject({ issued: 1, skipped_already_issued: 1 })
+    expect(iss.data?.[0]).toEqual({
+      issued: 1,
+      reissued_after_expiry: 0,
+      skipped_already_issued: 1,
+      skipped_attempt_taken: 0,
+      skipped_deactivated: 0,
+      skipped_not_enrolled: 0,
+      skipped_no_config: 0,
+      skipped_passed: 0,
+    })
     const after = await liveState(admin, sittingId)
     expect(after.entries).toHaveLength(2)
     expect(after.codes).toHaveLength(2)

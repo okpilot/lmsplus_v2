@@ -78,6 +78,7 @@ BEGIN
   IF v_s.status = 'cancelled' THEN
     v_pending := v_pending + (SELECT count(*) FROM public.internal_exam_codes c
       JOIN public.exam_sitting_entries e ON e.id = c.sitting_entry_id AND e.organization_id = v_g.org_id
+                                           AND e.deleted_at IS NULL
      WHERE e.sitting_id = p_sitting_id AND c.organization_id = v_g.org_id
        AND c.deleted_at IS NULL AND c.consumed_at IS NULL AND c.voided_at IS NOT NULL
        AND c.void_reason = 'sitting_cancelled' AND c.emailed_at IS NOT NULL

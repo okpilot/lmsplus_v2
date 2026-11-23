@@ -1,8 +1,8 @@
-import { spawnSync } from 'node:child_process'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { enrolStudent } from '../enrol-students'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
 import { fixtureSuffix } from './fixture-suffix'
+import { psql } from './psql'
 import { seedReferenceData } from './seed'
 import {
   createTestOrg,
@@ -42,23 +42,6 @@ const rowOf = (data: unknown): Record<string, unknown> =>
 const errOf = (r: Res) => r.error?.message
 const expectToken = (r: Res, token: string) => {
   expect(r.error?.message).toBe(token)
-}
-
-/** psql as postgres: host psql, else the supabase db container. */
-function psql(sql: string): { out: string; err: string } {
-  const args = ['-U', 'postgres', '-d', 'postgres', '-tAq', '-v', 'ON_ERROR_STOP=1']
-  let r = spawnSync('psql', ['-h', 'localhost', '-p', '54322', ...args], {
-    input: sql,
-    encoding: 'utf8',
-    env: { ...process.env, PGPASSWORD: 'postgres' },
-  })
-  if (r.error) {
-    r = spawnSync('docker', ['exec', '-i', 'supabase_db_lmsplusv2', 'psql', ...args], {
-      input: sql,
-      encoding: 'utf8',
-    })
-  }
-  return { out: (r.stdout ?? '').trim(), err: (r.stderr ?? '').trim() }
 }
 
 type SittingState = 'scheduled' | 'open' | 'closed' | 'cancelled'
@@ -129,9 +112,17 @@ async function buildWorld(tag: string) {
     topicCode: `SB${suffix}-01`,
     topicName: `Sit B Topic ${suffix}`,
   })
+  const refsC = await seedReferenceData({
+    admin,
+    subjectCode: `SK${suffix}`,
+    subjectName: `Sit C ${suffix}`,
+    topicCode: `SK${suffix}-01`,
+    topicName: `Sit C Topic ${suffix}`,
+  })
   const subA = refs.subjectId
   const subB = refsB.subjectId
-  for (const subject_id of [subA, subB]) {
+  const subC = refsC.subjectId
+  for (const subject_id of [subA, subB, subC]) {
     const r = await admin.from('exam_configs').insert({
       organization_id: orgA,
       subject_id,
@@ -156,13 +147,14 @@ async function buildWorld(tag: string) {
     bs1,
     subA,
     subB,
+    subC,
     clients,
     userIds,
     bUserIds,
     async teardown() {
       await cleanupTestData({ admin, orgId: orgA, userIds })
       await cleanupTestData({ admin, orgId: orgB, userIds: bUserIds })
-      await cleanupReferenceData({ admin, refs: [refs, refsB] })
+      await cleanupReferenceData({ admin, refs: [refs, refsB, refsC] })
     },
     /** Service-role seeded sitting. day = UTC day offset from today (negative = past). */
     async sitting(
@@ -234,6 +226,7 @@ async function buildWorld(tag: string) {
         .eq('sitting_id', sittingId)
         .eq('user_id', userId)
         .is('deleted_at', null)
+      expect(c.error).toBeNull()
       if (!c.data?.length) await world.candidate(sittingId, userId)
       return world.entry(sittingId, userId, subjectId)
     },
@@ -591,8 +584,9 @@ describe('RPC: get_exam_sitting_issue_preview', () => {
   it('AC-31: returns count rows per reason or action, one students_to_issue row and detail rows without already_issued', async () => {
     const sit = await w.sitting({ day: 1 })
     await mixed(sit)
+    await w.enter(sit, w.s1, w.subC)
     const rs = prows(await preview(sit))
-    expect(countOfReason(rs, 'issue')).toBe(1)
+    expect(countOfReason(rs, 'issue')).toBe(2)
     expect(countOfReason(rs, 'reissue_after_expiry')).toBe(1)
     expect(countOfReason(rs, 'already_issued')).toBe(1)
     expect(countOfReason(rs, 'attempt_taken')).toBe(1)
@@ -600,6 +594,7 @@ describe('RPC: get_exam_sitting_issue_preview', () => {
     expect(countOfReason(rs, 'no_longer_enrolled')).toBe(1)
     const std = rs.filter((r) => r.row_kind === 'students_to_issue')
     expect(std).toHaveLength(1)
+    // 3 issuable entries (s1/subB, s1/subC, s2/subB) across 2 distinct students
     expect(std[0]?.n).toBe(2)
     const detail = rs.filter((r) => r.row_kind === 'detail')
     expect(detail.map((d) => d.reason).sort()).toEqual([

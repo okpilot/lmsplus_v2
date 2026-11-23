@@ -187,8 +187,11 @@ describe('AC-65 AddSittingEntriesSchema', () => {
   })
   it('rejects unequal lengths and empty arrays', () => {
     expect(
-      parse('AddSittingEntriesSchema', { sittingId: SID, userIds: [uid(10)], subjectIds: [] })
-        .success,
+      parse('AddSittingEntriesSchema', {
+        sittingId: SID,
+        userIds: [uid(10), uid(11)],
+        subjectIds: [uid(20)],
+      }).success,
     ).toBe(false)
     expect(
       parse('AddSittingEntriesSchema', { sittingId: SID, userIds: [], subjectIds: [] }).success,

@@ -110,7 +110,7 @@ BEGIN
                       (lc.consumed_at IS NOT NULL) AS consumed,
                       q.id AS session_id, q.started_at AS session_started_at
                  FROM public.exam_sitting_entries e
-                 -- security.md §15 exception (d): easa_subjects is the FK parent of this live entry
+                 -- security.md §15 exception (d)(ii): easa_subjects is the FK parent of this live entry
                  JOIN public.easa_subjects sj ON sj.id = e.subject_id
                  LEFT JOIN public.courses co ON co.id = sj.course_id
                  LEFT JOIN LATERAL (

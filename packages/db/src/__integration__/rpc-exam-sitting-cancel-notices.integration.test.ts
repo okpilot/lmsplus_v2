@@ -649,3 +649,83 @@ describe('pending notices for an auto-cancelled sitting', () => {
     )
   })
 })
+
+/** #1803 CR fixup: the sitting_cancelled branch needs emailed/unconsumed codes on live entries. */
+describe('sitting_cancelled notice scope (cr fixup)', () => {
+  let w: World
+  beforeAll(async () => {
+    w = await buildWorld('cnl-scope')
+  }, 120_000)
+  afterAll(async () => {
+    await w?.teardown()
+  }, 120_000)
+
+  /** Cancelled sitting with one code voided sitting_cancelled, seeded directly. */
+  async function seedCancelled(o: { emailed: boolean; entryDeleted?: boolean }) {
+    const sit = await w.sitting({ day: 1, state: 'cancelled' })
+    const entry = await w.enter(sit, w.s1, w.subA)
+    const code = await w.code(entry, { emailed: o.emailed, voided: true })
+    must(
+      await admin
+        .from('internal_exam_codes')
+        .update({ void_reason: 'sitting_cancelled' })
+        .eq('id', code)
+        .select('id'),
+      'void reason',
+    )
+    if (o.entryDeleted) {
+      must(
+        await admin
+          .from('exam_sitting_entries')
+          .update({ deleted_at: now() })
+          .eq('id', entry)
+          .select('id'),
+        'delete entry',
+      )
+    }
+    return { sit, code }
+  }
+  const pending = async (sit: string) =>
+    JSON.stringify(
+      must(await w.clients.a1.rpc('get_pending_removal_notices', { p_sitting_id: sit }), 'pending'),
+    )
+  const pendingCount = async (sit: string) =>
+    must<Array<{ pending_removal_notices: number }>>(
+      await w.clients.a1.rpc('get_exam_sitting_summary', { p_sitting_id: sit }),
+      'summary',
+    )[0]?.pending_removal_notices
+
+  it('a sitting_cancelled notice for a code that was never emailed is invalid_input and writes no audit row', async () => {
+    const { sit, code } = await seedCancelled({ emailed: false })
+    expectToken(
+      await w.clients.a1.rpc('record_exam_sitting_notice', {
+        p_sitting_id: sit,
+        p_kind: 'sitting_cancelled',
+        p_code_ids: [code],
+      }),
+      'invalid_input',
+    )
+    expect(await auditCount(w.orgA, 'exam_sitting.notice_emailed', sit)).toBe(0)
+  })
+
+  it('a sitting_cancelled code on a deleted entry is absent from the pending read and the summary count', async () => {
+    const { sit } = await seedCancelled({ emailed: true, entryDeleted: true })
+    expect(await pending(sit)).not.toContain(w.s1)
+    expect(await pendingCount(sit)).toBe(0)
+  })
+
+  it('control: a sitting_cancelled code on a live entry is listed, counted and recordable', async () => {
+    const { sit, code } = await seedCancelled({ emailed: true })
+    expect(await pending(sit)).toContain(w.s1)
+    expect(await pendingCount(sit)).toBe(1)
+    must(
+      await w.clients.a1.rpc('record_exam_sitting_notice', {
+        p_sitting_id: sit,
+        p_kind: 'sitting_cancelled',
+        p_code_ids: [code],
+      }),
+      'record',
+    )
+    expect(await auditCount(w.orgA, 'exam_sitting.notice_emailed', sit)).toBe(1)
+  })
+})
