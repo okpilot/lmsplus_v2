@@ -455,7 +455,7 @@ describe('RPC: list_exam_sittings', () => {
     await ensure()
     const page = await rows('upcoming', { p_limit: 1, p_offset: 1 })
     expect(page).toHaveLength(1)
-    expect(page[0]?.total_count).toBe(3)
+    expect(Number(page[0]?.total_count)).toBe(3)
   })
 
   it('AC-42: count columns, entries_finished, entries_absent and ended_automatically', async () => {
