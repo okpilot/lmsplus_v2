@@ -1,5 +1,5 @@
 /**
- * Red Team Spec: list_exam_sittings day-ended effective status (Vector MS, #1777)
+ * Red Team Spec: list_exam_sittings day-ended effective status (Vector MW, #1777)
  *
  * Attack: egmont holds four day-ended open sittings and one day-ended scheduled sitting, more than
  * the lazy close sweeps per call (3), so some are listed through the effective-status path while
@@ -55,7 +55,7 @@ async function storedStatus(admin: Admin, ids: string[]): Promise<Map<string, st
   return new Map(data.map((r) => [r.id as string, r.status as string]))
 }
 
-test.describe('Red Team: list_exam_sittings day-ended effective status (MS)', () => {
+test.describe('Red Team: list_exam_sittings day-ended effective status (MW)', () => {
   let admin: Admin
   let egmontAdmin: SupabaseClient
   let crossAdmin: SupabaseClient
@@ -99,7 +99,7 @@ test.describe('Red Team: list_exam_sittings day-ended effective status (MS)', ()
     return { openIds, scheduledId }
   }
 
-  test('MS: cross-org admin pages no unswept day-ended egmont sitting in any scope', async () => {
+  test('MW: cross-org admin pages no unswept day-ended egmont sitting in any scope', async () => {
     const { openIds, scheduledId } = await seedDayEnded()
     const egmont = [...openIds, scheduledId]
     for (const scope of SCOPES) {
@@ -111,7 +111,7 @@ test.describe('Red Team: list_exam_sittings day-ended effective status (MS)', ()
     expect(st.get(scheduledId)).toBe('scheduled')
   })
 
-  test('MS: egmont admin lists unswept day-ended sittings by effective status (control)', async () => {
+  test('MW: egmont admin lists unswept day-ended sittings by effective status (control)', async () => {
     const { openIds, scheduledId } = await seedDayEnded()
     const egmont = [...openIds, scheduledId]
     const past = await listAll(egmontAdmin, 'past')
