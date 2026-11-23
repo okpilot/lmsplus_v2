@@ -34,6 +34,7 @@ BEGIN
   SELECT iec.id, iec.subject_id, s.name, s.short, iec.expires_at, iec.issued_at,
          es.id, es.scheduled_at, es.mode, es.status, es.permitted_materials
   FROM public.internal_exam_codes iec
+  -- security.md §15 exception (d)(ii): subject name lookup for an exam code
   LEFT JOIN public.easa_subjects s ON s.id = iec.subject_id
   LEFT JOIN public.exam_sitting_entries e ON e.id = iec.sitting_entry_id AND e.deleted_at IS NULL
   LEFT JOIN public.exam_sittings es ON es.id = e.sitting_id AND es.deleted_at IS NULL
