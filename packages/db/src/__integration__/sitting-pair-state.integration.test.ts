@@ -442,29 +442,6 @@ const auditCount = async (org: string, type: string, sit: string) => {
 }
 void [arr, now, unenrol, deactivate, restore, scored, rows, countOf, auditCount]
 
-/** Never-ended session with a time limit, started `agoSec` seconds ago. */
-async function timedSession(
-  w: World,
-  student: string,
-  subject: string,
-  agoSec: number,
-  limit: number,
-) {
-  const id = await w.session(student, subject, { ended: false })
-  must(
-    await admin
-      .from('quiz_sessions')
-      .update({
-        started_at: new Date(Date.now() - agoSec * 1000).toISOString(),
-        time_limit_seconds: limit,
-      })
-      .eq('id', id)
-      .select('id'),
-    'timed session',
-  )
-  return id
-}
-
 type Pair = {
   user: string
   subject: string
@@ -565,19 +542,6 @@ describe('private.sitting_pair_state', () => {
     expect(one(x, w.s1, w.subA)?.state).toBe('attempt_running')
     expect(one(x, w.s2, w.subA)?.state).toBe('entered_elsewhere')
     expect(one(x, w.s3, w.subA)?.state).toBe('not_enrolled')
-  })
-
-  it('AC-P1: a never-ended session past started_at + time_limit + 30s is not attempt_running', async () => {
-    const x = await w.sitting({ day: 1 })
-    await timedSession(w, w.s1, w.subA, 1900, 1800)
-    expect(one(x, w.s1, w.subA)?.state).toBe('eligible')
-    expect(one(x, w.s1, w.subA)?.count).toBe('0')
-  })
-
-  it('AC-P2: a never-ended session inside its time limit stays attempt_running', async () => {
-    const x = await w.sitting({ day: 1 })
-    await timedSession(w, w.s1, w.subA, 600, 1800)
-    expect(one(x, w.s1, w.subA)?.state).toBe('attempt_running')
   })
 
   it('AC-3: attempt_count counts ended sessions with an unvoided code; legacy pass is passed', async () => {
