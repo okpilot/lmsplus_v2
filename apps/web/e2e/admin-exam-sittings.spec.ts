@@ -50,6 +50,16 @@ function sittingRow(page: import('@playwright/test').Page, id: string) {
   return page.getByRole('row').filter({ has: page.locator(`a[href$="/sittings/${id}"]`) })
 }
 
+/** Opens the list at `query` and pages forward (50 per page) until the sitting's row shows; older rows can push it off page 1. */
+async function gotoRowPage(page: import('@playwright/test').Page, query: string, id: string) {
+  for (let n = 1; n <= 20; n++) {
+    await page.goto(`${LIST}?tab=sittings${query}${n > 1 ? `&sittingsPage=${n}` : ''}`)
+    await expect(page.getByRole('combobox', { name: 'Status' })).toBeVisible()
+    if ((await sittingRow(page, id).count()) > 0) return sittingRow(page, id)
+  }
+  throw new Error(`sitting ${id} not found in the first 20 pages of ${query || 'upcoming'}`)
+}
+
 test('admin creates a sitting, refuses a past date, and lands on its page', async ({ page }) => {
   await page.goto(`${LIST}?tab=sittings`)
   await page.getByRole('button', { name: /New sitting/ }).click()
@@ -98,8 +108,7 @@ test('a scheduled sitting appears under Upcoming and opens by row click and Ente
     time: '09:30',
     materials: makeSittingE2eMaterials(),
   })
-  await page.goto(`${LIST}?tab=sittings`)
-  const row = sittingRow(page, id)
+  const row = await gotoRowPage(page, '', id)
   await expect(row).toContainText('Scheduled')
   await page.reload()
   await expect(page.getByRole('combobox', { name: 'Status' })).toContainText('Upcoming')
@@ -125,9 +134,9 @@ test('admin starts and closes a sitting dated today', async ({ page }) => {
   await page.reload()
   await expect(page.getByText(/^Open · /)).toBeVisible()
 
-  await page.goto(`${LIST}?tab=sittings&scope=open`)
-  await expect(sittingRow(page, id)).toContainText('Open')
-  await sittingRow(page, id).click()
+  const openRow = await gotoRowPage(page, '&scope=open', id)
+  await expect(openRow).toContainText('Open')
+  await openRow.click()
   await page.getByRole('button', { name: 'More actions' }).click()
   await page.getByRole('menuitem', { name: 'Edit details' }).click()
   await expect(page).toHaveURL(/dlg=edit/)
@@ -147,8 +156,7 @@ test('admin starts and closes a sitting dated today', async ({ page }) => {
   await page.reload()
   await expect(page.getByText(/^Closed · /)).toBeVisible()
 
-  await page.goto(`${LIST}?tab=sittings&scope=past`)
-  await expect(sittingRow(page, id)).toContainText('Closed')
+  await expect(await gotoRowPage(page, '&scope=past', id)).toContainText('Closed')
 })
 
 test('admin cancels a sitting and finds it under Cancelled', async ({ page }) => {
@@ -164,8 +172,7 @@ test('admin cancels a sitting and finds it under Cancelled', async ({ page }) =>
   await expect(page.getByText(/^Cancelled · /)).toBeVisible()
   await page.reload()
   await expect(page.getByText(/^Cancelled · /)).toBeVisible()
-  await page.goto(`${LIST}?tab=sittings&scope=cancelled`)
-  await expect(sittingRow(page, id)).toContainText('Cancelled')
+  await expect(await gotoRowPage(page, '&scope=cancelled', id)).toContainText('Cancelled')
 })
 
 test('Start is disabled for a future sitting and says when it can start', async ({ page }) => {

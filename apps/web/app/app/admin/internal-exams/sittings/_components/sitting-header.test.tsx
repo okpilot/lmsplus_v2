@@ -63,13 +63,23 @@ describe('SittingHeader', () => {
     ).toBeInTheDocument()
   })
 
-  it('links the breadcrumb back to the Sittings tab', () => {
-    ui()
-    expect(screen.getByRole('link', { name: 'Internal Exams' })).toHaveAttribute(
-      'href',
-      '/app/admin/internal-exams?tab=sittings',
-    )
-  })
+  it.each([
+    ['scheduled', false, 'upcoming'],
+    ['open', false, 'open'],
+    ['closed', false, 'past'],
+    ['cancelled', false, 'cancelled'],
+    ['scheduled', true, 'cancelled'],
+    ['open', true, 'past'],
+  ])(
+    'links the breadcrumb to the list a %s sitting (day ended: %s) is in: %s',
+    (status, dayEnded, scope) => {
+      ui({ status }, { dayEnded })
+      expect(screen.getByRole('link', { name: 'Internal Exams' })).toHaveAttribute(
+        'href',
+        `/app/admin/internal-exams?tab=sittings&scope=${scope}`,
+      )
+    },
+  )
 
   it('shows Can start on {date} (UTC). when the sitting is not yet due', () => {
     ui({}, { notDue: true })

@@ -250,3 +250,4 @@
 ## 255 — 2026-11-17 — `list_exam_sitting_roster` returns the plaintext code to admins only, and only while it is unvoided and consumed or unexpired; students never. #1777
 ## 256 — 2026-11-17 — security.md §15 exception (g): sitting reads of cancelled (soft-deleted) `exam_sittings` omit `deleted_at IS NULL`; admin-gated, org-scoped, named inline. #1777
 ## 257 — 2026-11-17 — `start_internal_exam_session` locks the sitting `FOR SHARE` before the code `FOR UPDATE`; every sitting writer locks sitting then codes. #1777
+## 258 — 2026-11-23 — `list_exam_sittings` lists day-ended sittings the lazy close has not reached by their effective status (scheduled → cancelled, open → closed) for the scope filter, `total_count` and `entries_absent`; counts converge as the lazy close (at most 3 per call, Decision 244) catches up. #1777
