@@ -531,6 +531,29 @@ void [
   bareSubject,
 ]
 
+/** Never-ended session with a time limit, started `agoSec` seconds ago. */
+async function timedSession(
+  w: World,
+  student: string,
+  subject: string,
+  agoSec: number,
+  limit: number,
+) {
+  const id = await w.session(student, subject, { ended: false })
+  must(
+    await admin
+      .from('quiz_sessions')
+      .update({
+        started_at: new Date(Date.now() - agoSec * 1000).toISOString(),
+        time_limit_seconds: limit,
+      })
+      .eq('id', id)
+      .select('id'),
+    'timed session',
+  )
+  return id
+}
+
 type Elig = {
   subject_id: string
   subject_name: string
@@ -631,6 +654,24 @@ describe('RPC: get_exam_sitting_subject_eligibility', () => {
     const s3 = erows(await elig(x, [w.s3]))
     expect(forSubject(s3, w.subA).state).toBe('deactivated')
     expect(forSubject(s3, w.subA).deactivated).toBe(1)
+  })
+
+  it('AC-P1: a never-ended session past its time limit + 30s is not attempt_running', async () => {
+    const x = await w.sitting({ day: 1 })
+    await w.candidate(x, w.s1)
+    await timedSession(w, w.s1, w.subA, 1900, 1800)
+    const r = forSubject(erows(await elig(x, [w.s1])), w.subA)
+    expect(r.state).not.toBe('attempt_running')
+    expect(r.attempt_running).toBe(0)
+  })
+
+  it('AC-P2: a never-ended session inside its time limit stays attempt_running', async () => {
+    const x = await w.sitting({ day: 1 })
+    await w.candidate(x, w.s1)
+    await timedSession(w, w.s1, w.subA, 600, 1800)
+    const r = forSubject(erows(await elig(x, [w.s1])), w.subA)
+    expect(r.state).toBe('attempt_running')
+    expect(r.attempt_running).toBe(1)
   })
 
   it('AC-37: two users null the detail columns, counts sum to people and eligible equals what add would add', async () => {

@@ -20,6 +20,7 @@ AS $$
   ),
   sess AS (
     SELECT qs.id, qs.student_id, qs.subject_id, qs.ended_at, qs.passed, qs.score_percentage,
+           qs.started_at, qs.time_limit_seconds,
            EXISTS (SELECT 1 FROM public.internal_exam_codes c
                     WHERE c.consumed_session_id = qs.id AND c.voided_at IS NOT NULL
                       AND c.deleted_at IS NULL) AS voided
@@ -33,7 +34,10 @@ AS $$
      ORDER BY x.student_id, x.subject_id, x.ended_at DESC, x.id
   ),
   running AS (
+    -- overdue (limit + 30s grace, as start_internal_exam_session) is abandoned, not running
     SELECT DISTINCT x.student_id, x.subject_id FROM sess x WHERE x.ended_at IS NULL
+       AND NOT (x.time_limit_seconds IS NOT NULL AND x.started_at IS NOT NULL
+                AND now() > x.started_at + ((x.time_limit_seconds + 30) || ' seconds')::interval)
   ),
   attempts AS (
     SELECT x.student_id, x.subject_id, count(*)::int AS n

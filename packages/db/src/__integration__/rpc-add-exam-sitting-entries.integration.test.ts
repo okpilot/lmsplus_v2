@@ -543,6 +543,29 @@ void [
   bareSubject,
 ]
 
+/** Never-ended session with a time limit, started `agoSec` seconds ago. */
+async function timedSession(
+  w: World,
+  student: string,
+  subject: string,
+  agoSec: number,
+  limit: number,
+) {
+  const id = await w.session(student, subject, { ended: false })
+  must(
+    await admin
+      .from('quiz_sessions')
+      .update({
+        started_at: new Date(Date.now() - agoSec * 1000).toISOString(),
+        time_limit_seconds: limit,
+      })
+      .eq('id', id)
+      .select('id'),
+    'timed session',
+  )
+  return id
+}
+
 const COUNT_KEYS = [
   'added',
   'skipped_existing',
@@ -667,6 +690,27 @@ describe('RPC: add_exam_sitting_entries', () => {
     expect(reasonOf(o, w.bs1, w.subA)?.reason).toBe('not_candidate')
     expect(reasonOf(o, s5.id, w.subA)).toBeUndefined()
     expect(o.skipped as unknown[]).toHaveLength(9)
+  })
+
+  it('AC-P1: a never-ended session past its time limit + 30s does not block the add', async () => {
+    const x = await w.sitting({ day: 1 })
+    await w.candidate(x, w.s1)
+    await timedSession(w, w.s1, w.subA, 1900, 1800)
+    const o = out(await add(x, [w.s1], [w.subA]))
+    expect(o.added).toBe(1)
+    expect(o.skipped_attempt_running).toBe(0)
+    expect(o.skipped).toEqual([])
+    expect(await countOf('exam_sitting_entries', w.orgA, x)).toBe(1)
+  })
+
+  it('AC-P2: a never-ended session inside its time limit is skipped as attempt_running', async () => {
+    const x = await w.sitting({ day: 1 })
+    await w.candidate(x, w.s1)
+    await timedSession(w, w.s1, w.subA, 600, 1800)
+    const o = out(await add(x, [w.s1], [w.subA]))
+    expect(o.added).toBe(0)
+    expect(o.skipped_attempt_running).toBe(1)
+    expect(reasonOf(o, w.s1, w.subA)?.reason).toBe('attempt_running')
   })
 
   it('AC-8: passed and entered_elsewhere together count as skipped_passed', async () => {

@@ -194,6 +194,15 @@ describe('AC-65 AddSittingEntriesSchema', () => {
       parse('AddSittingEntriesSchema', { sittingId: SID, userIds: [], subjectIds: [] }).success,
     ).toBe(false)
   })
+  it('rejects a duplicate pair whose uuids differ only in case', () => {
+    expect(
+      parse('AddSittingEntriesSchema', {
+        sittingId: SID,
+        userIds: [uid(10), uid(10).toUpperCase()],
+        subjectIds: [uid(20).toUpperCase(), uid(20)],
+      }).success,
+    ).toBe(false)
+  })
   it('rejects 1001 pairs, duplicate pairs and non-uuid ids', () => {
     expect(parse('AddSittingEntriesSchema', { sittingId: SID, ...pairs(1001) }).success).toBe(false)
     expect(

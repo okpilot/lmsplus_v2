@@ -1187,7 +1187,7 @@ verb_noun pattern:
   list_exam_sitting_people   ← read, admin-only: addable students (not live candidates) filterable by name/email, group, course, status; paged (SECURITY DEFINER, mig 20261116002300 #1777)
   get_exam_sitting_group_add_counts ← read, admin-only: active and deactivated members of a group not yet candidates (SECURITY DEFINER, mig 20261116002400 #1777)
   get_exam_sitting_same_day_people ← read, admin-only: candidates with a live entry in another scheduled or open sitting on the same UTC day (SECURITY DEFINER, mig 20261116002500 #1777)
-  record_exam_sitting_notice ← write, admin-only: one `exam_sitting.notice_emailed` audit row per emailed code or entry ; kinds `changed` (unvoided codes), `cancelled` (cancelled sitting), `sitting_cancelled` (codes voided `sitting_cancelled`), `entry_auto_removed` (SECURITY DEFINER, mig 20261116002600, kind `sitting_cancelled` mig 20261117001100 #1777)
+  record_exam_sitting_notice ← write, admin-only: one `exam_sitting.notice_emailed` audit row per emailed code or entry; kinds `changed` (unvoided codes), `cancelled` (cancelled sitting), `sitting_cancelled` (codes voided `sitting_cancelled`), `entry_auto_removed` (SECURITY DEFINER, mig 20261116002600, kind `sitting_cancelled` mig 20261117001100 #1777)
   add_exam_sitting_entries   ← write, admin-only: explicit student x subject pairs (<=1000 distinct per call, <=2000 live per sitting) into a scheduled or open sitting; returns counts per skip reason and `skipped` (<=50, `detail_at`); audit `exam_sitting.entries_added` (SECURITY DEFINER, mig 20261117000400 #1777)
   issue_sitting_exam_codes   ← write, admin-only: one code per entry from the issue plan, prunes passed entries first, voids and replaces expired unused codes (`reissued_after_expiry`); returns counts only; audit `internal_exam.code_issued` (SECURITY DEFINER, mig 20261117000500 #1777)
   get_exam_sitting_issue_preview ← read, admin-only: what issue would do (`count`, `students_to_issue`, <=200 `detail` rows); no prune, no write (SECURITY DEFINER, mig 20261117000600 #1777)
@@ -1667,7 +1667,7 @@ Every public sitting admin RPC is SECURITY DEFINER, `SET search_path = public, p
 - `list_exam_sitting_removed_entries`: `student_name` is `''` for a user outside the caller's org; `subject_short` is NULL for a soft-deleted subject.
 - Audit: ids, counts and reason counts only; no names, emails or code values.
 
-##### `list_my_active_internal_exam_codes()` (migrations `20260521000002`, `20260824000200`, `20261116002900`, `20261117000050`)
+##### `list_my_active_internal_exam_codes()` (migrations `20260521000002`, `20260824000200`, `20261116002900`, `20261117001250`)
 
 Student-facing read. Returns the caller's currently usable internal-exam codes without the plaintext `code` column — the value is single-use and meaningful only at issuance time, so it is omitted from every subsequent read. Replaces the direct `SELECT FROM internal_exam_codes` path previously gated by the `student_read_active_codes` RLS policy (dropped in migration `20260521000004` so plaintext never leaves the issuance RPC). Closes issue #577.
 
@@ -1681,7 +1681,7 @@ Extended by migration `20261116002900` (#1777): appends `sitting_id, sitting_sch
 - `iec.voided_at IS NULL` — not voided by admin
 - `iec.expires_at > now()` OR sitting status `scheduled` — within validity window, or waiting for its sitting
 - no sitting, or sitting day not ended
-- a sitting code is listed only while its entry and its sitting are live (`deleted_at IS NULL` on both joins; `20261117000050`)
+- a sitting code is listed only while its entry and its sitting are live (`deleted_at IS NULL` on both joins; `20261117001250`)
 - `iec.deleted_at IS NULL` — not soft-deleted
 
 `easa_subjects` is joined without a `deleted_at` predicate: `soft_delete_syllabus_item` refuses a subject while an unconsumed, unvoided, unexpired code references it.
