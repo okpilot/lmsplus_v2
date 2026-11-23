@@ -360,7 +360,7 @@
 | MP | start_internal_exam_session-sitting-code-before-overdue-pass-recorded | MEDIUM | exam-sitting-redeem-gate-pass-overdue.spec.ts | BLOCKED |  | sibling-guard-gap |
 | MR | start_internal_exam_session-list_my_active_internal_exam_codes-removed-entry-candidate-or-cancelled-sitting-code | HIGH | exam-sitting-removed-code-redeem.spec.ts | BLOCKED |  | soft-delete-bypass |
 | MS | exam_sitting_entries-internal_exam_codes-admin-direct-insert-softdelete-restamp-unvoid | MEDIUM | exam-sitting-admin-direct-dml.spec.ts | BLOCKED |  | rls-bypass |
-| MT | remove_exam_sitting_entries-vs-start_internal_exam_session-consumed-code-entry-removed-race-fix-in-2a-2-redeem-gate | MEDIUM | exam-sitting-redeem-remove-race.spec.ts | GAP | #1777 | race |
+| MT | remove_exam_sitting_entries-vs-start_internal_exam_session-consumed-code-entry-removed-race | MEDIUM | exam-sitting-redeem-remove-race.spec.ts | BLOCKED |  | race |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 

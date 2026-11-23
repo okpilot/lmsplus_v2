@@ -168,8 +168,7 @@ test.describe('Red Team: sitting code redeem vs entry removal race (MT)', () => 
     if (errors.length > 0) throw new Error(`MT afterEach: ${errors.join('; ')}`)
   })
 
-  // .skip until remove_exam_sitting_entries locks the codes before its entry_has_attempt check (#1777).
-  test.skip('MT: concurrent redeem and remove never leave a removed entry with a consumed code', async () => {
+  test('MT: concurrent redeem and remove never leave a removed entry with a consumed code', async () => {
     const sitting = await createSittingRpc(adminClient, adminId)
     track.sittingIds.push(sitting)
     const st = await adminClient.rpc('start_exam_sitting', { p_sitting_id: sitting })
