@@ -64,7 +64,12 @@ async function listAll(client: SupabaseClient, scope: string): Promise<Row[]> {
       p_offset: offset,
     })
     if (error) throw new Error(`list_exam_sittings ${scope}: ${error.message}`)
-    const page = (data ?? []) as Row[]
+    if (!Array.isArray(data)) throw new Error(`list_exam_sittings ${scope}: non-array page`)
+    for (const r of data as unknown[]) {
+      const ok = typeof r === 'object' && r !== null && 'id' in r && 'status' in r
+      if (!ok) throw new Error(`list_exam_sittings ${scope}: malformed row`)
+    }
+    const page = data as Row[]
     rows.push(...page)
     if (page.length < PAGE) return rows
   }
