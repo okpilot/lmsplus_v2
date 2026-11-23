@@ -1667,7 +1667,7 @@ Every public sitting admin RPC is SECURITY DEFINER, `SET search_path = public, p
 - `list_exam_sitting_removed_entries`: `student_name` is `''` for a user outside the caller's org; `subject_short` is NULL for a soft-deleted subject.
 - Audit: ids, counts and reason counts only; no names, emails or code values.
 
-##### `list_my_active_internal_exam_codes()` (migrations `20260521000002`, `20260824000200`, `20261116002900`)
+##### `list_my_active_internal_exam_codes()` (migrations `20260521000002`, `20260824000200`, `20261116002900`, `20261117000050`)
 
 Student-facing read. Returns the caller's currently usable internal-exam codes without the plaintext `code` column — the value is single-use and meaningful only at issuance time, so it is omitted from every subsequent read. Replaces the direct `SELECT FROM internal_exam_codes` path previously gated by the `student_read_active_codes` RLS policy (dropped in migration `20260521000004` so plaintext never leaves the issuance RPC). Closes issue #577.
 
@@ -1681,6 +1681,7 @@ Extended by migration `20261116002900` (#1777): appends `sitting_id, sitting_sch
 - `iec.voided_at IS NULL` — not voided by admin
 - `iec.expires_at > now()` OR sitting status `scheduled` — within validity window, or waiting for its sitting
 - no sitting, or sitting day not ended
+- a sitting code is listed only while its entry and its sitting are live (`deleted_at IS NULL` on both joins; `20261117000050`)
 - `iec.deleted_at IS NULL` — not soft-deleted
 
 `easa_subjects` is joined without a `deleted_at` predicate: `soft_delete_syllabus_item` refuses a subject while an unconsumed, unvoided, unexpired code references it.
