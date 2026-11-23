@@ -82,6 +82,9 @@ test.describe('Red Team: list_exam_sittings scopes (MQ)', () => {
   let closedId: string
   let adminUserId: string
   let crossSittingId: string
+  let crossOpenId: string
+  let crossClosedId: string
+  let crossCancelledId: string
   const track: SittingTrack = { sittingIds: [], subjectIds: [], adminId: '' }
 
   test.beforeAll(async () => {
@@ -116,6 +119,20 @@ test.describe('Red Team: list_exam_sittings scopes (MQ)', () => {
     if (cl.error) throw new Error(`close: ${cl.error.message}`)
     crossSittingId = await createSittingRpc(crossAdmin, cross.adminUserId)
     track.sittingIds.push(crossSittingId)
+    crossOpenId = await createSittingRpc(crossAdmin, cross.adminUserId)
+    track.sittingIds.push(crossOpenId)
+    const xst = await crossAdmin.rpc('start_exam_sitting', { p_sitting_id: crossOpenId })
+    if (xst.error) throw new Error(`cross start: ${xst.error.message}`)
+    crossClosedId = await createSittingRpc(crossAdmin, cross.adminUserId)
+    track.sittingIds.push(crossClosedId)
+    const xst2 = await crossAdmin.rpc('start_exam_sitting', { p_sitting_id: crossClosedId })
+    if (xst2.error) throw new Error(`cross start closed: ${xst2.error.message}`)
+    const xcl = await crossAdmin.rpc('close_exam_sitting', { p_sitting_id: crossClosedId })
+    if (xcl.error) throw new Error(`cross close: ${xcl.error.message}`)
+    crossCancelledId = await createSittingRpc(crossAdmin, cross.adminUserId)
+    track.sittingIds.push(crossCancelledId)
+    const xcn = await crossAdmin.rpc('cancel_exam_sitting', { p_sitting_id: crossCancelledId })
+    if (xcn.error) throw new Error(`cross cancel: ${xcn.error.message}`)
   })
 
   test.afterAll(async () => {
@@ -124,12 +141,18 @@ test.describe('Red Team: list_exam_sittings scopes (MQ)', () => {
 
   test('MQ: cross-org admin pages no egmont sitting in any scope', async () => {
     const egmont = [scheduledId, openId, cancelledId, closedId]
+    const own: Record<(typeof SCOPES)[number], string> = {
+      upcoming: crossSittingId,
+      open: crossOpenId,
+      past: crossClosedId,
+      cancelled: crossCancelledId,
+    }
     for (const scope of SCOPES) {
       const ids = (await listAll(crossAdmin, scope)).map((r) => r.id)
+      // CONTROL: the cross-org admin sees its own fixture for this scope.
+      expect(ids, `${scope} own fixture`).toContain(own[scope])
       for (const id of egmont) expect(ids, `${scope} ${id}`).not.toContain(id)
     }
-    // CONTROL: the cross-org admin's own scheduled sitting is listed.
-    expect((await listAll(crossAdmin, 'upcoming')).map((r) => r.id)).toContain(crossSittingId)
   })
 
   test('MQ: each egmont sitting appears in exactly its own scope (control)', async () => {
@@ -196,10 +219,12 @@ test.describe('Red Team: list_exam_sittings scopes (MQ)', () => {
     expect(typeof sched?.permitted_materials).toBe('string')
     expect(sched?.total_count).toBe((byScope.get('upcoming') ?? []).length)
     expect(sched?.total_count).toBeGreaterThanOrEqual(1)
-    expect(
-      (byScope.get('cancelled') ?? []).map((r) => r.id),
-      'cross-org sitting in egmont cancelled scope',
-    ).not.toContain(crossSittingId)
+    for (const scope of SCOPES) {
+      const ids = (byScope.get(scope) ?? []).map((r) => r.id)
+      for (const id of [crossSittingId, crossOpenId, crossClosedId, crossCancelledId]) {
+        expect(ids, `cross-org ${id} in egmont ${scope}`).not.toContain(id)
+      }
+    }
   })
 
   test('MQ: student and instructor are refused on every scope', async () => {
