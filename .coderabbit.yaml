@@ -588,6 +588,10 @@ reviews:
           Sitting carve-out (docs/security.md §15 (f)): sitting RPCs may read users without the filter for the purposes §15 (f) lists (admin-gated, org-scoped, named inline).
           Cancelled-sitting carve-out (docs/security.md §15 (g)): sitting reads may reach a cancelled (soft-deleted) exam_sittings row without the filter (admin-gated, org-scoped, named inline).
           (security.md §9 / docs/security.md §15; docs/database.md §3.)
+        - Plaintext exam codes (docs/security.md §11b "Plaintext code storage", "Sitting codes"):
+          flag `internal_exam_codes.code` in a student-callable RPC's result, in any `audit_events`
+          metadata, or in an issue/preview RPC result. Admin-gated reads (e.g. `list_exam_sitting_roster`)
+          may return it.
         - Sibling SECURITY DEFINER RPC guard-set consistency: when a migration adds or
           rewrites a SECURITY DEFINER function, compare its guard set against the siblings
           in its feature family. A guard present in any sibling and absent here is a GAP.
@@ -1003,6 +1007,9 @@ reviews:
           courses is recreated without deleted_at, and course_enrolments is added.
           As of 2026-11-08 (UTC, mig 20261107000100) easa_subjects, easa_topics and
           easa_subtopics are added (soft-deleted via soft_delete_syllabus_item).
+          As of 2026-11-15 (UTC, mig 20261115000100, #1776) student_groups and
+          student_group_members are added. As of 2026-11-17 (UTC, mig 20261116000100, #1777)
+          exam_sittings, exam_sitting_candidates and exam_sitting_entries are added.
           Hard-delete-by-design (docs/database.md §3): quiz_drafts,
           exam_config_distributions, question_comments — the last of these DOES have a
           deleted_at column, so it is absent from the set above by policy, not by oversight;

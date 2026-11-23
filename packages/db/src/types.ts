@@ -1932,6 +1932,24 @@ export type Database = {
           skipped_existing: number
         }[]
       }
+      add_exam_sitting_entries: {
+        Args: {
+          p_sitting_id: string
+          p_subject_ids: string[]
+          p_user_ids: string[]
+        }
+        Returns: {
+          added: number
+          skipped: Json
+          skipped_attempt_running: number
+          skipped_deactivated: number
+          skipped_entered_elsewhere: number
+          skipped_existing: number
+          skipped_not_candidate: number
+          skipped_not_enrolled: number
+          skipped_passed: number
+        }[]
+      }
       add_student_group_members: {
         Args: { p_group_id: string; p_user_ids: string[] }
         Returns: number
@@ -2106,6 +2124,17 @@ export type Database = {
           deactivated_new: number
         }[]
       }
+      get_exam_sitting_issue_preview: {
+        Args: { p_sitting_id: string; p_user_ids?: string[] }
+        Returns: {
+          entry_id: string
+          n: number
+          reason: string
+          row_kind: string
+          student_name: string
+          subject_short: string
+        }[]
+      }
       get_exam_sitting_same_day_people: {
         Args: { p_sitting_id: string; p_user_ids?: string[] }
         Returns: {
@@ -2113,6 +2142,30 @@ export type Database = {
           scheduled_at: string
           sitting_id: string
           user_id: string
+        }[]
+      }
+      get_exam_sitting_subject_eligibility: {
+        Args: { p_sitting_id: string; p_user_ids?: string[] }
+        Returns: {
+          attempt_count: number
+          attempt_running: number
+          course_id: string
+          course_name: string
+          deactivated: number
+          eligible: number
+          elsewhere_at: string
+          elsewhere_sitting_id: string
+          entered_elsewhere: number
+          entered_here: number
+          not_enrolled: number
+          passed: number
+          passed_at: string
+          passed_score: number
+          people: number
+          state: string
+          subject_id: string
+          subject_name: string
+          subject_short: string
         }[]
       }
       get_exam_sitting_summary: {
@@ -2153,7 +2206,9 @@ export type Database = {
       get_pending_removal_notices: {
         Args: { p_sitting_id: string }
         Returns: {
+          code_id: string
           entry_id: string
+          kind: string
           passed_at: string
           removed_at: string
           subject_id: string
@@ -2330,6 +2385,23 @@ export type Database = {
           expires_at: string
         }[]
       }
+      issue_sitting_exam_codes: {
+        Args: {
+          p_entry_ids?: string[]
+          p_sitting_id: string
+          p_user_ids?: string[]
+        }
+        Returns: {
+          issued: number
+          reissued_after_expiry: number
+          skipped_already_issued: number
+          skipped_attempt_taken: number
+          skipped_deactivated: number
+          skipped_no_config: number
+          skipped_not_enrolled: number
+          skipped_passed: number
+        }[]
+      }
       list_exam_sitting_people: {
         Args: {
           p_course_id?: string
@@ -2346,6 +2418,37 @@ export type Database = {
           email: string
           full_name: string
           groups: string
+          total_count: number
+          user_id: string
+        }[]
+      }
+      list_exam_sitting_removed_entries: {
+        Args: { p_sitting_id: string }
+        Returns: {
+          entry_id: string
+          notice_sent: boolean
+          passed_at: string
+          removed_at: string
+          student_name: string
+          subject_short: string
+          total_count: number
+          user_id: string
+        }[]
+      }
+      list_exam_sitting_roster: {
+        Args: {
+          p_limit?: number
+          p_offset?: number
+          p_q?: string
+          p_show?: string
+          p_sitting_id: string
+        }
+        Returns: {
+          deactivated: boolean
+          email: string
+          entries: Json
+          full_name: string
+          has_attempt: boolean
           total_count: number
           user_id: string
         }[]
