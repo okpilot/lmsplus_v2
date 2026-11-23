@@ -424,7 +424,7 @@ reviews:
     - path: "packages/db/src/**/*.ts"
       instructions: |
         Database utility (SECURITY CRITICAL). Enforce:
-        - SECURITY DEFINER RPCs must have manual auth.uid() check + SET search_path = public, pg_temp.
+        - SECURITY DEFINER RPCs must have manual auth.uid() check + SET search_path = public, pg_temp (trigger functions with EXECUTE revoked from PUBLIC, anon and authenticated: search_path only).
         - No hard DELETE anywhere — always UPDATE SET deleted_at = now().
           EXCEPTION: packages/db/src/__integration__/** teardown helpers
           (cleanupTestData/cleanupReferenceData) MAY hard-DELETE ephemeral
@@ -529,7 +529,7 @@ reviews:
         - audit_events is append-only. No PERMITTING UPDATE/DELETE policy. Ever. (It does carry
           audit_no_update / audit_no_delete USING (false); those match zero rows and are not the
           denial mechanism — the absence of a permitting policy is.)
-        - SECURITY DEFINER functions: auth.uid() check + SET search_path = public, pg_temp.
+        - SECURITY DEFINER functions: auth.uid() check + SET search_path = public, pg_temp (trigger functions with EXECUTE revoked from PUBLIC, anon and authenticated: search_path only).
         - Max 300 lines per migration file. EXCEPTION: a migration whose entire content is a
           single CREATE OR REPLACE FUNCTION (or another single, atomic, unsplittable DDL object)
           may exceed 300 lines — a plpgsql function body cannot be split across files, and our
@@ -583,8 +583,10 @@ reviews:
           (iv) private.accessible_subject_ids() membership; it names the case inline, and a read that
           LISTS syllabus rows still filters; (a)-(c) above do not apply to it. Flag any SECURITY DEFINER
           SELECT on a soft-deletable table missing AND deleted_at IS NULL that lacks a cited
-          write-once carve-out or a named §15 (d)/(e) case, and flag any write-once carve-out missing the docs/database.md §3 cross-reference.
+          write-once carve-out or a named §15 (d)/(e)/(f)/(g) case, and flag any write-once carve-out missing the docs/database.md §3 cross-reference.
           Member-count carve-out (docs/security.md §15 (e)): get_student_groups_with_counts may read users without the filter to count deactivated group members (admin-gated, org-scoped, aggregate counts only, named inline).
+          Sitting carve-out (docs/security.md §15 (f)): sitting RPCs may read users without the filter for the purposes §15 (f) lists (admin-gated, org-scoped, named inline).
+          Cancelled-sitting carve-out (docs/security.md §15 (g)): sitting reads may reach a cancelled (soft-deleted) exam_sittings row without the filter (admin-gated, org-scoped, named inline).
           (security.md §9 / docs/security.md §15; docs/database.md §3.)
         - Sibling SECURITY DEFINER RPC guard-set consistency: when a migration adds or
           rewrites a SECURITY DEFINER function, compare its guard set against the siblings

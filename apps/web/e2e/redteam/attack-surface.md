@@ -1,6 +1,6 @@
 # Red Team — Attack Surface Map
 
-> Last updated: 2026-11-16 (#1776: MC, MD, ME student-group race and column-oracle rows; MF, MG group counts RPC rows)
+> Last updated: 2026-11-17 (#1777: MH–ML exam sitting rows)
 
 > `answer_matches`: EXECUTE revoked from PUBLIC, anon, authenticated; granted to service_role.
 
@@ -349,6 +349,11 @@
 | ME | student_groups-revoked-column-filter-order-oracle | LOW | student-groups-column-oracle.spec.ts | BLOCKED |  | rls-bypass |
 | MF | get_student_groups_with_counts-non-admin-soft-deleted-admin-cross-org-admin | HIGH | student-groups-counts-rpc.spec.ts | BLOCKED |  | cross-tenant |
 | MG | get_student_groups_with_counts-forged-membership-and-deleted-group-count-inflation | LOW | student-groups-counts-rpc.spec.ts | BLOCKED |  | soft-delete-bypass |
+| MI | exam-sitting-rpcs-cross-org-admin-read-write-and-foreign-invigilator-or-student | HIGH | exam-sitting-rpc-scope.spec.ts | BLOCKED |  | cross-tenant |
+| MJ | exam-sitting-rpcs-student-instructor-soft-deleted-admin | HIGH | exam-sitting-rpc-scope.spec.ts | BLOCKED |  | privilege-escalation |
+| MK | exam_sittings-candidates-entries-student-peer-read-and-direct-dml | MEDIUM | exam-sitting-student-surface.spec.ts | BLOCKED |  | rls-bypass |
+| MH | exam_configs-admin-subject_id-move-bypasses-sitting-in-use-block | LOW | exam-config-sitting-block-subject-move.spec.ts | BLOCKED |  | sibling-guard-gap |
+| ML | list_my_active_internal_exam_codes-list_exam_sittings-cross-org-lazy-close | MEDIUM | exam-sitting-student-surface.spec.ts | BLOCKED |  | cross-tenant |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 

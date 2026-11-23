@@ -4,6 +4,7 @@ import { UpsertExamConfigSchema } from '@repo/db/schema'
 import { revalidatePath } from 'next/cache'
 import type { ActionResult } from '@/lib/action-result'
 import { requireAdmin } from '@/lib/auth/require-admin'
+import { examConfigWriteError } from './exam-config-in-use'
 
 export async function upsertExamConfig(input: unknown): Promise<ActionResult> {
   const parsed = UpsertExamConfigSchema.safeParse(input)
@@ -28,7 +29,10 @@ export async function upsertExamConfig(input: unknown): Promise<ActionResult> {
 
   if (error) {
     console.error('[upsertExamConfig] RPC error:', error.message)
-    return { success: false, error: 'Failed to save exam configuration' }
+    return {
+      success: false,
+      error: examConfigWriteError(error.message, 'Failed to save exam configuration'),
+    }
   }
   if (!data) {
     console.error('[upsertExamConfig] RPC returned no config_id')

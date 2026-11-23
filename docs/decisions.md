@@ -29,7 +29,7 @@
 ## 34 — 2026-04-04 — All paginated lists use server-side `.range()` pagination with URL-driven, server-side sort/filter; client-side sort/filter on a paginated subset is disallowed. #472
 ## 35 — 2026-04-27 — An expired zero-answer Practice Exam session completes via `complete_empty_exam_session` (0%, FAIL) and redirects to the report page, falling back to discard only if that RPC fails. #523 Superseded by 124.
 ## 36 — 2026-04-27 — `getActiveExamSession` reads the frozen `question_ids` from `quiz_sessions.config` server-side so `ResumeExamBanner` can rehydrate a cold-started resume with real IDs. #523
-## 37 — 2026-04-29 — Internal Exam Mode ships as admin-issued single-use 8-character codes (Crockford alphabet, 24h expiry, plaintext storage), with dedicated start/void RPCs and no discard or flagging during the exam. #576
+## 37 — 2026-04-29 — Internal Exam Mode ships as admin-issued single-use 8-character codes (Crockford alphabet, 24h expiry, plaintext storage), with dedicated start/void RPCs and no discard or flagging during the exam. #576 Amended by 243.
 ## 38 — 2026-04-30 — Every Playwright spec that mutates shared seed data must restore it in `afterEach`/`afterAll`, codified as E2E Spec Hermiticity with a required marker/cleanup-helper shape. #594
 ## 39 — 2026-06-06 — A GDPR export sub-read failure appends a machine-readable `warnings` field to the payload instead of silently returning an incomplete export or hard-failing. #783
 ## 40 — 2026-06-08 — Adopt Socket.dev (GitHub App) for behavioral supply-chain detection and remove the redundant Snyk integration; `pnpm audit`/Dependabot/CodeQL remain the CVE layer. #805
@@ -233,3 +233,14 @@
 ## 238 — 2026-11-16 — Biome noRestrictedElements also bans raw `<select>` and `<textarea>` (use Select, Textarea). #1797
 ## 239 — 2026-11-17 — No chips anywhere: attributes are plain text, status is text (`StatusText`), colour only on a symbol (CircleCheck goal, CircleAlert attention); `Badge`, `CodeChip`, `ChoicePills`, `TabCount` and the `h-chip` size are deleted; interactive pills are existing controls (Switch, FilterSelect). #1433
 ## 240 — 2026-11-17 — A list's status filter is a dropdown in the list toolbar, not tabs or pills. #1777
+## 241 — 2026-11-17 — Sitting model: `exam_sittings` + candidates + entries; codes link by `sitting_entry_id`; one invigilator; one UTC day. #1777
+## 242 — 2026-11-17 — Sitting status is a generated column; transitions are one-way; Closed is final; `sitting_closed` is checked first. #1777
+## 243 — 2026-11-17 — Sitting code validity ends at 23:59:59.999999 UTC of the sitting day; re-stamped on reschedule and Start. #1777
+## 244 — 2026-11-17 — Auto-close of open and auto-cancel of never-started sittings happen lazily inside admin and student reads; no scheduler; at most 3 per call, plus the summary's own sitting. #1777
+## 245 — 2026-11-17 — Pass is permanent; a passed pair's entries are auto-removed on read paths with an audited notice record; entered-elsewhere blocks only until a finished attempt. #1777
+## 246 — 2026-11-17 — Absent is derived (no stored state); attempt number excludes voided attempts. #1777
+## 247 — 2026-11-17 — Disabling, deleting or moving an exam config is blocked while a scheduled or open sitting uses it; soft-deleting a subject stays blocked through its live exam config. #1777
+## 248 — 2026-11-17 — Start is refused before the sitting's UTC day (`sitting_not_due`); a past UTC day is refused at create/reschedule (`scheduled_in_past`). #1777
+## 249 — 2026-11-17 — Candidates are an explicit snapshot; group expansion is server-side at add time; a candidate with an attempt cannot be removed. #1777
+## 250 — 2026-11-17 — Group and sitting reads that must show deactivated users read `users` without `deleted_at` (security.md §15 (f)). #1777
+## 251 — 2026-11-17 — SECURITY DEFINER trigger functions (`RETURNS trigger`) with EXECUTE revoked from PUBLIC, anon and authenticated need no `auth.uid()` check; they still set `search_path`. #1777
