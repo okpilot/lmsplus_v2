@@ -18,6 +18,8 @@ export const START_INTERNAL_EXAM_ERROR_MESSAGES: Record<string, string> = {
   exam_config_required:
     'No exam configuration available for this subject. Please contact your administrator.',
   not_enrolled: 'You are not enrolled in this course.',
+  sitting_not_open: 'This exam is not open. Your invigilator will tell you when to start.',
+  already_passed: 'You have already passed this exam.',
   'user not found or inactive':
     'Your account is no longer active. Please contact your administrator.',
 }

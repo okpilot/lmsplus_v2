@@ -559,7 +559,7 @@ reviews:
           are owned by postgres, which holds BYPASSRLS, so RLS is not evaluated at all and the
           soft-delete filter must be replicated manually in every query. (SECURITY DEFINER ALONE
           does not bypass RLS — it re-runs as the owner, and under FORCE ROW LEVEL SECURITY not
-          even the owner is exempt; the bypass comes from the owner's BYPASSRLS attribute.) Three carve-outs. Write-once carve-out: SELECTs fetching records by IDs
+          even the owner is exempt; the bypass comes from the owner's BYPASSRLS attribute.) Write-once carve-out: SELECTs fetching records by IDs
           stored in an immutable, write-once column may omit the filter. Examples include
           (docs/security.md §15 is the authoritative list, not this enumeration): (a) finish_quiz_session (via _grade_session_progress and _score_graded_session),
           check_quiz_answer, check_non_mc_answer, and save_quiz_answer reading
@@ -592,6 +592,13 @@ reviews:
           flag `internal_exam_codes.code` in a student-callable RPC's result, in any `audit_events`
           metadata, or in an issue/preview RPC result. Admin-gated reads (e.g. `list_exam_sitting_roster`)
           may return it.
+        - Sitting lock and redeem-gate order (docs/security.md §11b): flag a sitting writer that touches
+          `internal_exam_codes` without first locking its `exam_sittings` row FOR UPDATE
+          (`void_internal_exam_code` takes no sitting lock by design; the redeem
+          `start_internal_exam_session` takes it FOR SHARE), and a
+          `start_internal_exam_session` that locks the code FOR UPDATE before the sitting FOR SHARE.
+          Flag a sitting redeem that checks `already_passed` (`private.sitting_pass_gate`) before the
+          `active_session_exists` guard.
         - Sibling SECURITY DEFINER RPC guard-set consistency: when a migration adds or
           rewrites a SECURITY DEFINER function, compare its guard set against the siblings
           in its feature family. A guard present in any sibling and absent here is a GAP.

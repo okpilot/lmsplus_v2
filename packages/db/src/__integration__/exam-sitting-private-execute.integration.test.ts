@@ -53,6 +53,7 @@ describe('exam sitting function privileges', () => {
     'sitting_lock',
     'resolve_sitting_students',
     'sitting_resolve_user_ids',
+    'sitting_pass_gate',
     'sitting_issue_plan',
     'void_unused_sitting_codes',
     'prune_passed_entries',
@@ -62,6 +63,7 @@ describe('exam sitting function privileges', () => {
     'insert_internal_exam_code',
     'sitting_pair_state',
     'add_sitting_entries_core',
+    'sitting_redeem_gate',
   ]
   const list = (names: string[]) => names.map((n) => `'${n}'`).join(',')
 
