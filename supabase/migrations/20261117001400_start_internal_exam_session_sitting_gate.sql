@@ -125,7 +125,7 @@ BEGIN
     PERFORM public.complete_overdue_exam_session(v_old_session_id);
   END IF;
 
-  -- After the overdue auto-complete so its pass counts; a raise rolls the completion back.
+  -- A raise here rolls back the overdue auto-complete above.
   PERFORM private.sitting_redeem_gate(v_code_entry, v_sitting_status, v_sitting_at);
 
   -- Single-active-session invariant (#1011, mig 136): at most one active session
@@ -162,7 +162,7 @@ BEGIN
     RAISE EXCEPTION 'active_session_exists';
   END IF;
 
-  -- After the active guard: a pass committed before it is seen here; one committed after it was refused above.
+  -- After the active-session guard: closes the redeem vs finish-with-pass race.
   IF v_code_entry IS NOT NULL THEN
     PERFORM private.sitting_pass_gate(v_org_id, v_student_id, v_code_subject);
   END IF;
