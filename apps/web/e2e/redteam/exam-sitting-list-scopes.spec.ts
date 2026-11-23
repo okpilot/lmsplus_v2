@@ -32,7 +32,25 @@ import {
 } from './helpers/seed-users'
 
 type Admin = ReturnType<typeof getAdminClient>
-type Row = { id: string; status: string; total_count: number }
+type Row = {
+  id: string
+  scheduled_at: string
+  mode: string
+  status: string
+  invigilator_id: string
+  invigilator_name: string
+  invigilator_active: boolean
+  permitted_materials: string | null
+  started_at: string | null
+  closed_at: string | null
+  candidates: number
+  entries: number
+  entries_without_code: number
+  entries_finished: number
+  entries_absent: number
+  ended_automatically: boolean
+  total_count: number
+}
 
 const SCOPES = ['upcoming', 'open', 'past', 'cancelled'] as const
 const PAGE = 200
@@ -61,6 +79,8 @@ test.describe('Red Team: list_exam_sittings scopes (MQ)', () => {
   let scheduledId: string
   let openId: string
   let cancelledId: string
+  let closedId: string
+  let adminUserId: string
   let crossSittingId: string
   const track: SittingTrack = { sittingIds: [], subjectIds: [], adminId: '' }
 
@@ -71,6 +91,7 @@ test.describe('Red Team: list_exam_sittings scopes (MQ)', () => {
     const ins = await seedRedTeamInstructor()
     const cross = await seedCrossOrgAdmin()
     track.adminId = a.adminUserId
+    adminUserId = a.adminUserId
 
     egmontAdmin = await createAuthenticatedClient(ADMIN_EMAIL, ADMIN_PASSWORD)
     crossAdmin = await createAuthenticatedClient(cross.email, cross.password)
@@ -87,6 +108,12 @@ test.describe('Red Team: list_exam_sittings scopes (MQ)', () => {
     track.sittingIds.push(cancelledId)
     const cn = await egmontAdmin.rpc('cancel_exam_sitting', { p_sitting_id: cancelledId })
     if (cn.error) throw new Error(`cancel: ${cn.error.message}`)
+    closedId = await createSittingRpc(egmontAdmin, a.adminUserId)
+    track.sittingIds.push(closedId)
+    const st2 = await egmontAdmin.rpc('start_exam_sitting', { p_sitting_id: closedId })
+    if (st2.error) throw new Error(`start closed: ${st2.error.message}`)
+    const cl = await egmontAdmin.rpc('close_exam_sitting', { p_sitting_id: closedId })
+    if (cl.error) throw new Error(`close: ${cl.error.message}`)
     crossSittingId = await createSittingRpc(crossAdmin, cross.adminUserId)
     track.sittingIds.push(crossSittingId)
   })
@@ -96,7 +123,7 @@ test.describe('Red Team: list_exam_sittings scopes (MQ)', () => {
   })
 
   test('MQ: cross-org admin pages no egmont sitting in any scope', async () => {
-    const egmont = [scheduledId, openId, cancelledId]
+    const egmont = [scheduledId, openId, cancelledId, closedId]
     for (const scope of SCOPES) {
       const ids = (await listAll(crossAdmin, scope)).map((r) => r.id)
       for (const id of egmont) expect(ids, `${scope} ${id}`).not.toContain(id)
@@ -110,6 +137,7 @@ test.describe('Red Team: list_exam_sittings scopes (MQ)', () => {
       [scheduledId]: 'upcoming',
       [openId]: 'open',
       [cancelledId]: 'cancelled',
+      [closedId]: 'past',
     }
     const byScope = new Map<string, Row[]>()
     for (const scope of SCOPES) byScope.set(scope, await listAll(egmontAdmin, scope))
@@ -123,7 +151,51 @@ test.describe('Red Team: list_exam_sittings scopes (MQ)', () => {
     expect([...statusOf('upcoming')]).toEqual(['scheduled'])
     expect([...statusOf('open')]).toEqual(['open'])
     expect([...statusOf('cancelled')]).toEqual(['cancelled'])
-    for (const s of statusOf('past')) expect(s).toBe('closed')
+    expect([...statusOf('past')]).toEqual(['closed'])
+    // Full output contract of the scheduled fixture.
+    const sched = (byScope.get('upcoming') ?? []).find((r) => r.id === scheduledId)
+    expect(Object.keys(sched ?? {}).sort()).toEqual(
+      [
+        'id',
+        'scheduled_at',
+        'mode',
+        'status',
+        'invigilator_id',
+        'invigilator_name',
+        'invigilator_active',
+        'permitted_materials',
+        'started_at',
+        'closed_at',
+        'candidates',
+        'entries',
+        'entries_without_code',
+        'entries_finished',
+        'entries_absent',
+        'ended_automatically',
+        'total_count',
+      ].sort(),
+    )
+    expect(sched).toMatchObject({
+      id: scheduledId,
+      status: 'scheduled',
+      invigilator_id: adminUserId,
+      invigilator_active: true,
+      started_at: null,
+      closed_at: null,
+      candidates: 0,
+      entries: 0,
+      entries_without_code: 0,
+      entries_finished: 0,
+      entries_absent: 0,
+      ended_automatically: false,
+    })
+    expect(sched?.mode).toBe('remote')
+    expect(Number.isNaN(Date.parse(sched?.scheduled_at ?? ''))).toBe(false)
+    expect(sched?.invigilator_name.length).toBeGreaterThan(0)
+    expect(sched?.invigilator_name).not.toBe('Unknown')
+    expect(typeof sched?.permitted_materials).toBe('string')
+    expect(sched?.total_count).toBe((byScope.get('upcoming') ?? []).length)
+    expect(sched?.total_count).toBeGreaterThanOrEqual(1)
     expect(
       (byScope.get('cancelled') ?? []).map((r) => r.id),
       'cross-org sitting in egmont cancelled scope',

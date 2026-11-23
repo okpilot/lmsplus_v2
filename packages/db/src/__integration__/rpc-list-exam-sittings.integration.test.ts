@@ -392,18 +392,21 @@ describe('RPC: list_exam_sittings', () => {
     ids.open = await w.sitting({ day: 0, state: 'open' })
     ids.closed = await w.sitting({ day: 0, state: 'closed' })
     ids.cancelled = await w.sitting({ state: 'cancelled' })
-    ids.open2 = await w.sitting({ day: 1, state: 'open' })
+    ids.open2 = await w.sitting({ day: 0, hour: 10, state: 'open' })
     ids.closed2 = await w.sitting({ day: 2, state: 'closed' })
     ids.cancelled2 = await w.sitting({ day: 2, state: 'cancelled' })
     ids.other = await w.sitting({ org: w.orgB })
+    ids.otherOpen = await w.sitting({ org: w.orgB, day: 0, state: 'open' })
+    ids.otherClosed = await w.sitting({ org: w.orgB, day: 0, state: 'closed' })
+    ids.otherCancelled = await w.sitting({ org: w.orgB, state: 'cancelled' })
   }
   afterAll(async () => {
     await w?.teardown()
   })
   const list = (scope: string, o: Record<string, unknown> = {}, c = w.clients.a1) =>
     c.rpc('list_exam_sittings', { p_scope: scope, ...o })
-  const rows = async (scope: string, o: Record<string, unknown> = {}) =>
-    must<Record<string, unknown>[]>(await list(scope, o), `list ${scope}`)
+  const rows = async (scope: string, o: Record<string, unknown> = {}, c = w.clients.a1) =>
+    must<Record<string, unknown>[]>(await list(scope, o, c), `list ${scope}`)
 
   const ordered = (r: Record<string, unknown>[], dir: 1 | -1) => {
     const t = r.map((x) => new Date(x.scheduled_at as string).getTime())
@@ -493,14 +496,21 @@ describe('RPC: list_exam_sittings', () => {
 
   it('AC-42: results are org-scoped and a student is not_admin', async () => {
     await ensure()
-    expect(
-      [
-        ...(await rows('upcoming')),
-        ...(await rows('open')),
-        ...(await rows('past')),
-        ...(await rows('cancelled')),
-      ].map((r) => r.id),
-    ).not.toContain(ids.other)
+    const otherByScope = {
+      upcoming: ids.other,
+      open: ids.otherOpen,
+      past: ids.otherClosed,
+      cancelled: ids.otherCancelled,
+    } as const
+    for (const [scope, otherId] of Object.entries(otherByScope)) {
+      // CONTROL: org B's own admin sees its fixture in this scope.
+      const own = (await rows(scope, {}, w.clients.b1)).map((r) => r.id)
+      expect(own, `org B admin ${scope}`).toContain(otherId)
+      expect(own, `org B admin ${scope} sees no org A sitting`).not.toContain(ids.up1)
+      const mine = (await rows(scope)).map((r) => r.id)
+      expect(mine.length, `org A ${scope} non-empty`).toBeGreaterThan(0)
+      expect(mine, `org A ${scope}`).not.toContain(otherId)
+    }
     expectToken(await list('upcoming', {}, w.clients.s1), 'not_admin')
   })
 
