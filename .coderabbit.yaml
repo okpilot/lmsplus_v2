@@ -594,7 +594,8 @@ reviews:
           may return it.
         - Sitting lock and redeem-gate order (docs/security.md §11b): flag a sitting writer that touches
           `internal_exam_codes` without first locking its `exam_sittings` row FOR UPDATE
-          (`void_internal_exam_code` takes no sitting lock by design), and a
+          (`void_internal_exam_code` takes no sitting lock by design; the redeem
+          `start_internal_exam_session` takes it FOR SHARE), and a
           `start_internal_exam_session` that locks the code FOR UPDATE before the sitting FOR SHARE.
           Flag a sitting redeem that checks `already_passed` (`private.sitting_pass_gate`) before the
           `active_session_exists` guard.
