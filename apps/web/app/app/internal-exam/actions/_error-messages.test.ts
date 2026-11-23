@@ -8,9 +8,9 @@ describe('START_INTERNAL_EXAM_ERROR_MESSAGES', () => {
     )
   })
 
-  it('tells the student the exam has not been opened yet', () => {
+  it('tells the student the exam is not open', () => {
     expect(START_INTERNAL_EXAM_ERROR_MESSAGES.sitting_not_open).toBe(
-      'This exam has not been opened yet. Your invigilator will tell you when to start.',
+      'This exam is not open. Your invigilator will tell you when to start.',
     )
   })
 

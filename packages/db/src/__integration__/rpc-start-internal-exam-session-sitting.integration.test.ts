@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
 import { fixtureSuffix } from './fixture-suffix'
+import { psql } from './psql'
 import { seedQuestions, seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 
@@ -32,21 +33,6 @@ const must = <T = Record<string, unknown>>(r: Res, label: string): T => {
 }
 
 const PSQL_ARGS = ['-U', 'postgres', '-d', 'postgres', '-tAq', '-v', 'ON_ERROR_STOP=1']
-function psql(sql: string): { out: string; err: string } {
-  let r = spawnSync('psql', ['-h', 'localhost', '-p', '54322', ...PSQL_ARGS], {
-    input: sql,
-    encoding: 'utf8',
-    env: { ...process.env, PGPASSWORD: 'postgres' },
-  })
-  if (r.error) {
-    r = spawnSync('docker', ['exec', '-i', 'supabase_db_lmsplusv2', 'psql', ...PSQL_ARGS], {
-      input: sql,
-      encoding: 'utf8',
-    })
-  }
-  if (r.error) throw new Error(`psql unavailable: ${r.error.message}`)
-  return { out: (r.stdout ?? '').trim(), err: (r.stderr ?? '').trim() }
-}
 
 /** Hold a lock in a background psql session for `seconds`; resolves when it commits. */
 function holdLock(lockSql: string, seconds: number): Promise<void> {
@@ -248,6 +234,25 @@ describe('RPC: start_internal_exam_session sitting redeem gate (#1777)', () => {
     return must<{ id: string }>(r, 'passed session').id
   }
 
+  async function seedRunningSession(studentId: string, subjectId: string) {
+    const r = await admin
+      .from('quiz_sessions')
+      .insert({
+        organization_id: orgA,
+        student_id: studentId,
+        mode: 'internal_exam',
+        subject_id: subjectId,
+        config: { pass_mark: 75, question_ids: [] },
+        total_questions: 0,
+        started_at: new Date(Date.now() - 60_000).toISOString(),
+        ended_at: null,
+        time_limit_seconds: null,
+      })
+      .select('id')
+      .single()
+    return must<{ id: string }>(r, 'running session').id
+  }
+
   beforeAll(async () => {
     orgA = await createTestOrg({ admin, name: `Redeem Gate A ${suffix}`, slug: `rg-a-${suffix}` })
     orgB = await createTestOrg({ admin, name: `Redeem Gate B ${suffix}`, slug: `rg-b-${suffix}` })
@@ -415,7 +420,27 @@ describe('RPC: start_internal_exam_session sitting redeem gate (#1777)', () => {
       const s = await student('red-passed')
       const w = await world(s, { day: 0, state: 'open' })
       await seedPassedSession(s.id, subA)
+      const before = (await sessionsOf(s.id)).length
       expect(msg(await redeem(s, w.code))).toBe('already_passed')
+      expect((await codeRow(w.id)).consumed_at).toBeNull()
+      expect(await sessionsOf(s.id)).toHaveLength(before)
+    })
+
+    it('AC-3: a passed student with a running same-subject session gets active_session_exists', async () => {
+      const s = await student('red-passed-running')
+      const w = await world(s, { day: 0, state: 'open' })
+      await seedPassedSession(s.id, subA)
+      await seedRunningSession(s.id, subA)
+      expect(msg(await redeem(s, w.code))).toBe('active_session_exists')
+      expect((await codeRow(w.id)).consumed_at).toBeNull()
+    })
+
+    it('AC-4: a passed student with a running session in another subject gets another_session_active', async () => {
+      const s = await student('red-passed-other')
+      const w = await world(s, { day: 0, state: 'open', subject: subA })
+      await seedPassedSession(s.id, subA)
+      await seedRunningSession(s.id, subB)
+      expect(msg(await redeem(s, w.code))).toBe('another_session_active')
       expect((await codeRow(w.id)).consumed_at).toBeNull()
     })
 
@@ -607,6 +632,26 @@ describe('RPC: start_internal_exam_session sitting redeem gate (#1777)', () => {
       }
     })
 
+    it('AC-1: redeem || finish-with-pass never starts a session while the same-subject pass lands', async () => {
+      const s = await student('race-pass')
+      for (let i = 0; i < RACE_N; i++) {
+        const running = await seedRunningSession(s.id, subA)
+        const w = await world(s, { day: 0, state: 'open' })
+        const [r, f] = await Promise.all([
+          redeem(s, w.code),
+          admin
+            .from('quiz_sessions')
+            .update({ ended_at: new Date().toISOString(), passed: true })
+            .eq('id', running)
+            .select('id, passed') as unknown as Promise<Res>,
+        ])
+        noDeadlock(r, f)
+        expect(['active_session_exists', 'already_passed']).toContain(msg(r))
+        expect(msg(f)).toBe('ok')
+        await resetSessions(s.id)
+      }
+    })
+
     it('AC-RACE: redeem || lazy close of a day-ended sitting never deadlocks', async () => {
       const s = await student('race-lazy')
       for (let i = 0; i < RACE_N; i++) {
@@ -616,7 +661,7 @@ describe('RPC: start_internal_exam_session sitting redeem gate (#1777)', () => {
           adminClient.rpc('list_exam_sittings', { p_scope: 'past' }) as unknown as Promise<Res>,
         ])
         noDeadlock(r, l)
-        expect(['sitting_not_open', 'code_voided', 'code_expired', 'ok']).toContain(msg(r))
+        expect(['sitting_not_open', 'code_voided', 'code_expired']).toContain(msg(r))
         await resetSessions(s.id)
       }
     })
@@ -624,12 +669,15 @@ describe('RPC: start_internal_exam_session sitting redeem gate (#1777)', () => {
 })
 
 /** AC-PRIV is asserted in exam-sitting-private-execute.integration.test.ts (PRIVATE_FNS). */
-describe('private.sitting_redeem_gate privileges', () => {
-  it('AC-PRIV: exists, SECURITY INVOKER, search_path pinned, not executable by authenticated', () => {
-    const { out, err } = psql(
-      `SELECT p.prosecdef || ':' || coalesce(array_to_string(p.proconfig, ','), '') || ':' || has_function_privilege('authenticated', p.oid, 'EXECUTE') FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'private' AND p.proname = 'sitting_redeem_gate';`,
-    )
-    expect(err).toBe('')
-    expect(out).toMatch(/^false:search_path="?public"?, "?pg_temp"?:false$/)
-  })
+describe('private sitting gate helpers privileges', () => {
+  it.each(['sitting_redeem_gate', 'sitting_pass_gate'])(
+    'AC-PRIV: %s exists, SECURITY INVOKER, search_path pinned, not executable by authenticated',
+    (fn) => {
+      const { out, err } = psql(
+        `SELECT p.prosecdef || ':' || coalesce(array_to_string(p.proconfig, ','), '') || ':' || has_function_privilege('authenticated', p.oid, 'EXECUTE') FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'private' AND p.proname = '${fn}';`,
+      )
+      expect(err).toBe('')
+      expect(out).toMatch(/^false:search_path="?public"?, "?pg_temp"?:false$/)
+    },
+  )
 })

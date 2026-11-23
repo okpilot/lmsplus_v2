@@ -1,5 +1,5 @@
 -- start_internal_exam_session: sitting redeem gate, sitting FOR SHARE before code FOR UPDATE. #1777
--- Body copied from 20261109000200; edits: sitting pre-read, entry id, gate call, audit keys.
+-- Body copied from 20261109000200; edits: sitting pre-read, entry id, redeem gate call, pass gate call after the active_session_exists guard, audit keys.
 CREATE OR REPLACE FUNCTION public.start_internal_exam_session(p_code text)
  RETURNS TABLE(session_id uuid, question_ids uuid[], time_limit_seconds integer, total_questions integer, pass_mark integer, started_at timestamp with time zone)
  LANGUAGE plpgsql
@@ -126,7 +126,7 @@ BEGIN
   END IF;
 
   -- After the overdue auto-complete so its pass counts; a raise rolls the completion back.
-  PERFORM private.sitting_redeem_gate(v_org_id, v_code_entry, v_student_id, v_code_subject, v_sitting_status, v_sitting_at);
+  PERFORM private.sitting_redeem_gate(v_code_entry, v_sitting_status, v_sitting_at);
 
   -- Single-active-session invariant (#1011, mig 136): at most one active session
   -- per student across all modes.
@@ -160,6 +160,11 @@ BEGIN
       AND qs.deleted_at IS NULL
   ) THEN
     RAISE EXCEPTION 'active_session_exists';
+  END IF;
+
+  -- After the active guard: a pass committed before it is seen here; one committed after it was refused above.
+  IF v_code_entry IS NOT NULL THEN
+    PERFORM private.sitting_pass_gate(v_org_id, v_student_id, v_code_subject);
   END IF;
 
   SELECT ec.id, ec.total_questions, ec.time_limit_seconds, ec.pass_mark
