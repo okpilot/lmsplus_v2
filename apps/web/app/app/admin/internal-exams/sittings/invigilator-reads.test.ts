@@ -3,6 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mockFrom = vi.hoisted(() => vi.fn())
 vi.mock('@repo/db/admin', () => ({ adminClient: { from: mockFrom } }))
 
+const mockRequireAdmin = vi.hoisted(() => vi.fn())
+vi.mock('@/lib/auth/require-admin', () => ({ requireAdmin: mockRequireAdmin }))
+
 import { readInvigilatorOptions } from './invigilator-reads'
 
 type Result = { data: unknown; error: { message: string } | null }
@@ -18,6 +21,7 @@ function chain(result: Result) {
 
 beforeEach(() => {
   vi.resetAllMocks()
+  mockRequireAdmin.mockResolvedValue({ organizationId: 'org-1', userId: 'admin-1' })
   vi.spyOn(console, 'error').mockImplementation(() => undefined)
 })
 
@@ -32,7 +36,7 @@ describe('readInvigilatorOptions', () => {
       error: null,
     })
     mockFrom.mockReturnValue(b)
-    expect(await readInvigilatorOptions('org-1')).toEqual([
+    expect(await readInvigilatorOptions()).toEqual([
       { id: 'u1', name: 'Ann (instructor)' },
       { id: 'u2', name: 'b@x.io (admin)' },
       { id: 'u3', name: 'Unknown (admin)' },
@@ -42,13 +46,28 @@ describe('readInvigilatorOptions', () => {
     expect(b.is).toHaveBeenCalledWith('deleted_at', null)
   })
 
+  it('scopes the read by the organization requireAdmin returned', async () => {
+    mockRequireAdmin.mockResolvedValue({ organizationId: 'org-9', userId: 'admin-1' })
+    const b = chain({ data: [], error: null })
+    mockFrom.mockReturnValue(b)
+    await readInvigilatorOptions()
+    expect(mockRequireAdmin).toHaveBeenCalledTimes(1)
+    expect(b.eq).toHaveBeenCalledWith('organization_id', 'org-9')
+  })
+
+  it('rejects without touching the database when requireAdmin rejects', async () => {
+    mockRequireAdmin.mockRejectedValue(new Error('forbidden'))
+    await expect(readInvigilatorOptions()).rejects.toThrow('forbidden')
+    expect(mockFrom).not.toHaveBeenCalled()
+  })
+
   it('returns an empty list when there are no rows', async () => {
     mockFrom.mockReturnValue(chain({ data: null, error: null }))
-    expect(await readInvigilatorOptions('org-1')).toEqual([])
+    expect(await readInvigilatorOptions()).toEqual([])
   })
 
   it('throws when the read fails', async () => {
     mockFrom.mockReturnValue(chain({ data: null, error: { message: 'boom' } }))
-    await expect(readInvigilatorOptions('org-1')).rejects.toThrow('Failed to load invigilators')
+    await expect(readInvigilatorOptions()).rejects.toThrow('Failed to load invigilators')
   })
 })

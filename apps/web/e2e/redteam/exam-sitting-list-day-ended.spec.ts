@@ -129,9 +129,9 @@ test.describe('Red Team: list_exam_sittings day-ended effective status (MW)', ()
     const egmont = [...openIds, scheduledId]
     const subjectId = await insertMarkedSubject(admin)
     track.subjectIds.push(subjectId)
-    const entryOpenId = openIds[0] as string
+    const entryOpenId = [...openIds].sort().at(-1) as string
     await insertEntry(admin, { orgId, sittingId: entryOpenId, userId: adminId, subjectId })
-    // One list call sweeps at most 3 sittings, so at least two of the five stay unswept after it.
+    // One list call sweeps at most 3 sittings (ORDER BY id); the max-id open sitting stays unswept.
     const first = await egmontAdmin.rpc('list_exam_sittings', {
       p_scope: 'past',
       p_limit: PAGE,
@@ -139,6 +139,18 @@ test.describe('Red Team: list_exam_sittings day-ended effective status (MW)', ()
     })
     if (first.error) throw new Error(`list_exam_sittings past: ${first.error.message}`)
     const st = await storedStatus(admin, egmont)
+    expect(st.get(entryOpenId), 'entry sitting unswept').toBe('open')
+    const row = (first.data as { id: string }[]).find((r) => r.id === entryOpenId)
+    expect(row).toBeDefined()
+    expect(row).toMatchObject({
+      candidates: 0,
+      entries: 1,
+      entries_without_code: 1,
+      entries_finished: 0,
+      entries_absent: 1,
+      status: 'closed',
+      ended_automatically: true,
+    })
     const past = await listAll(egmontAdmin, 'past')
     const unswept = egmont.filter((id) => ['open', 'scheduled'].includes(st.get(id) ?? ''))
     expect(unswept.length, 'unswept after one call').toBeGreaterThanOrEqual(2)
@@ -149,15 +161,6 @@ test.describe('Red Team: list_exam_sittings day-ended effective status (MW)', ()
       expect(hit[0]?.ended_automatically).toBe(true)
       expect(hit[0]?.closed_at).not.toBeNull()
     }
-    const withEntry = past.find((r) => r.id === entryOpenId)
-    expect(withEntry).toMatchObject({
-      candidates: 0,
-      entries: 1,
-      entries_without_code: 1,
-      entries_finished: 0,
-      entries_absent: 1,
-      total_count: past.length,
-    })
     for (const id of openIds.filter((i) => i !== entryOpenId)) {
       expect(past.find((r) => r.id === id)).toMatchObject({ entries: 0, entries_absent: 0 })
     }

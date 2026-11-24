@@ -1,9 +1,11 @@
 import { adminClient } from '@repo/db/admin'
+import { requireAdmin } from '@/lib/auth/require-admin'
 import { staffName } from './invigilator-lookup'
 import type { InvigilatorOption } from './types'
 
-/** Service role: `users_select` is self-only; org-scoped; `deleted_at IS NULL` applied. */
-export async function readInvigilatorOptions(organizationId: string): Promise<InvigilatorOption[]> {
+/** Service role: `users_select` is self-only; scoped to the organization from `requireAdmin()`; `deleted_at IS NULL` applied. */
+export async function readInvigilatorOptions(): Promise<InvigilatorOption[]> {
+  const { organizationId } = await requireAdmin()
   const { data, error } = await adminClient
     .from('users')
     .select('id, full_name, email, role')

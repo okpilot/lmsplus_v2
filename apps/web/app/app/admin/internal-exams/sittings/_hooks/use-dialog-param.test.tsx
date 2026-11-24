@@ -45,6 +45,10 @@ describe('useDialogParam', () => {
     mockSearch.value = 'tab=sittings&scope=open&dlg=new'
     rerender()
     act(() => result.current.close())
+    expect(mockPush).toHaveBeenCalledTimes(1)
+    expect(mockPush).toHaveBeenCalledWith(
+      '/app/admin/internal-exams?tab=sittings&scope=open&dlg=new',
+    )
     expect(mockBack).toHaveBeenCalledTimes(1)
     expect(mockReplace).not.toHaveBeenCalled()
   })
@@ -99,6 +103,8 @@ describe('useDialogParam', () => {
     act(() => result.current.close())
     expect(mockReplace).toHaveBeenCalledTimes(1)
     expect(mockReplace).toHaveBeenCalledWith('/app/admin/internal-exams?tab=sittings')
+    expect(mockPush).toHaveBeenCalledTimes(1)
+    expect(mockPush).toHaveBeenCalledWith('/app/admin/internal-exams?tab=sittings&dlg=new')
     expect(mockBack).toHaveBeenCalledTimes(1)
   })
 

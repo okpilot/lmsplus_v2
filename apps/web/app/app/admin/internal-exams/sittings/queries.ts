@@ -121,7 +121,7 @@ export async function getSitting(id: string): Promise<SittingRow | null> {
     throw new Error('Failed to load sitting')
   }
   if (!data) return null
-  const inv = await readInvigilator(organizationId, data.invigilator_id)
+  const inv = await readInvigilator(data.invigilator_id)
   return {
     id: data.id,
     scheduledAt: data.scheduled_at,
@@ -144,6 +144,5 @@ export async function getSitting(id: string): Promise<SittingRow | null> {
 
 /** Active admins and instructors of the caller's organization. Names need the service role (users RLS is self-only). */
 export async function listInvigilatorOptions(): Promise<InvigilatorOption[]> {
-  const { organizationId } = await requireAdmin()
-  return readInvigilatorOptions(organizationId)
+  return readInvigilatorOptions()
 }
