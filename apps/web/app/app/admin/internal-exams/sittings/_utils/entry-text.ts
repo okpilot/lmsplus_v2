@@ -40,7 +40,6 @@ export function showsCode(e: Pick<RosterEntry, 'status' | 'code'>): boolean {
 
 function attemptText(e: RosterEntry): string {
   const n = e.attemptNumber ? `Attempt ${e.attemptNumber}` : ''
-  if (e.status === 'voided_attempt') return n
   if (e.status === 'running') {
     const started = e.sessionStartedAt ? `Started ${formatTitleDate(e.sessionStartedAt)}` : ''
     return [n, started].filter(Boolean).join(' · ')

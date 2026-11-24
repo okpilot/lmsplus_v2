@@ -427,7 +427,7 @@ CREATE INDEX idx_student_group_members_organization_id ON student_group_members(
 
 ### exam_sittings
 
-Scheduled invigilated sittings (migs `20261116000100`, provisional; #1777). Written only by the sitting RPCs (`create_exam_sitting`, `update_exam_sitting`, `start_exam_sitting`, `close_exam_sitting`, `cancel_exam_sitting` and the lazy-close core). Cancel is a soft delete (`deleted_at`/`deleted_by`); product code never hard-deletes rows and they are kept at least 3 years after training completion (ORA.ATO.120).
+Scheduled invigilated sittings (migs `20261116000100`, provisional; #1777). Product code writes only through the sitting RPCs (`create_exam_sitting`, `update_exam_sitting`, `start_exam_sitting`, `close_exam_sitting`, `cancel_exam_sitting` and the lazy-close core); the service-role e2e seed and marker helpers (test teardown note below) write directly. Cancel is a soft delete (`deleted_at`/`deleted_by`); product code never hard-deletes rows and they are kept at least 3 years after training completion (ORA.ATO.120).
 
 ```sql
 CREATE TABLE exam_sittings (
@@ -456,7 +456,7 @@ CREATE INDEX idx_exam_sittings_org_scheduled ON exam_sittings(organization_id, s
 CREATE INDEX idx_exam_sittings_invigilator ON exam_sittings(invigilator_id) WHERE deleted_at IS NULL;
 ```
 
-Test teardown (`apps/web/e2e/helpers/exam-sitting-cleanup.ts`) soft-deletes the open marked `E2E-SIT-` sittings with no entries or candidates, and hard-deletes the `E2E-SIT-SEED-` sittings `seedSitting` builds with their codes, sessions, entries, candidates, enrolments and users; never in product code.
+Test teardown (`apps/web/e2e/helpers/exam-sitting-cleanup.ts`) soft-deletes the unclosed marked `E2E-SIT-` sittings with no entries or candidates, and hard-deletes the `E2E-SIT-SEED-` sittings `seedSitting` builds with their codes, sessions, entries, candidates, enrolments and users; never in product code.
 
 CHECKs: started, closed and deleted pairs (`*_at` NULL iff `*_by` NULL); `closed_at IS NOT NULL ⇒ started_at IS NOT NULL`; not both closed and deleted; `ended_automatically ⇒ closed_at IS NOT NULL OR deleted_at IS NOT NULL`. `status` is generated; transitions are one-way and Closed is final.
 

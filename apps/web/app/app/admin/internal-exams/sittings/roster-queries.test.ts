@@ -149,6 +149,40 @@ describe('getRoster', () => {
     expect(last[1].p_offset).toBe(100)
   })
 
+  it('keeps the probe total when the snapped page comes back empty', async () => {
+    mockRpc
+      .mockResolvedValueOnce({ data: [], error: null })
+      .mockResolvedValueOnce({ data: [rosterRow({ total_count: 60 })], error: null })
+      .mockResolvedValueOnce({ data: [], error: null })
+    const r = await getRoster({ sittingId: SID, page: 9 })
+    expect(r).toEqual({ rows: [], total: 60 })
+  })
+
+  it('returns null when the snapped page reports sitting_not_found', async () => {
+    mockRpc
+      .mockResolvedValueOnce({ data: [], error: null })
+      .mockResolvedValueOnce({ data: [rosterRow({ total_count: 120 })], error: null })
+      .mockResolvedValueOnce({ data: null, error: { message: 'sitting_not_found' } })
+    expect(await getRoster({ sittingId: SID, page: 9 })).toBeNull()
+  })
+
+  it('returns null when the probe reports sitting_not_found', async () => {
+    mockRpc
+      .mockResolvedValueOnce({ data: [], error: null })
+      .mockResolvedValueOnce({ data: null, error: { message: 'sitting_not_found' } })
+    expect(await getRoster({ sittingId: SID, page: 9 })).toBeNull()
+  })
+
+  it('reuses the probe page when the last page is page 1', async () => {
+    mockRpc
+      .mockResolvedValueOnce({ data: [], error: null })
+      .mockResolvedValueOnce({ data: [rosterRow({ total_count: 10 })], error: null })
+    const r = await getRoster({ sittingId: SID, page: 4 })
+    expect(r?.total).toBe(10)
+    expect(r?.rows).toHaveLength(1)
+    expect(mockRpc).toHaveBeenCalledTimes(2)
+  })
+
   it('returns null for sitting_not_found', async () => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'sitting_not_found' } })
     expect(await getRoster({ sittingId: SID, page: 1 })).toBeNull()

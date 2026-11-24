@@ -41,6 +41,7 @@ async function createSitting(
   await page.getByRole('button', { name: 'Save' }).click()
   await expect(page).toHaveURL(SITTING_URL, { timeout: 30_000 })
   const id = new URL(page.url()).pathname.split('/').pop() ?? ''
+  // Known limit: a Save that commits while this assertion times out leaves an unmarked row.
   await markE2eSitting(id)
   return id
 }

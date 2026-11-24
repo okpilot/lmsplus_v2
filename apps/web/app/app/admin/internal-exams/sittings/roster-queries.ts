@@ -105,14 +105,21 @@ export async function getRoster(a: {
   const base = { sittingId: a.sittingId, q: a.q, show: a.show, limit: ROSTER_PAGE_SIZE }
   let rows = await fetchRoster(supabase, { ...base, page: a.page })
   if (rows === null) return null
+  let total = totalOf(rows)
   if (rows.length === 0 && a.page > 1) {
     const first = await fetchRoster(supabase, { ...base, page: 1 })
-    const total = totalOf(first ?? [])
+    if (first === null) return null
+    total = totalOf(first)
     if (total === 0) return { rows: [], total: 0 }
     const last = Math.max(1, Math.ceil(total / ROSTER_PAGE_SIZE))
-    rows = last === 1 ? (first ?? []) : await fetchRoster(supabase, { ...base, page: last })
+    if (last === 1) rows = first
+    else {
+      const snapped = await fetchRoster(supabase, { ...base, page: last })
+      if (snapped === null) return null
+      rows = snapped
+    }
   }
-  return { rows: (rows ?? []).map(mapRow), total: totalOf(rows ?? []) }
+  return { rows: rows.map(mapRow), total }
 }
 
 const ALL_PAGE_SIZE = 100

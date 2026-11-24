@@ -135,13 +135,7 @@ describe('entryFacts', () => {
 })
 
 describe('entryFacts voided_attempt', () => {
-  it('shows the attempt number only', () => {
-    expect(
-      entryFacts(entry({ status: 'voided_attempt', attemptNumber: 3 }), { sharedExpiry: false }),
-    ).toBe('Attempt 3')
-  })
-
-  it('is empty without an attempt number', () => {
+  it('has no caption: list_exam_sitting_roster returns a null attempt number for this status', () => {
     expect(
       entryFacts(entry({ status: 'voided_attempt', attemptNumber: null }), { sharedExpiry: false }),
     ).toBe('')
