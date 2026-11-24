@@ -34,7 +34,7 @@ function Head({ rows, editable }: Readonly<Pick<Props, 'rows' | 'editable'>>) {
         {editable && (
           <TableHead className="w-10">
             <Checkbox
-              aria-label={`Select all ${pageIds.length} shown`}
+              aria-label={`Select all ${pageIds.length} selectable`}
               checked={all}
               disabled={pageIds.length === 0}
               indeterminate={ticked > 0 && !all}

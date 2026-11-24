@@ -79,8 +79,10 @@ test('Remove exam updates the row and persists; an exam with an attempt has no R
   await page.goto(`${BASE}/${sittingId}`)
   await page.getByRole('button', { name: 'Show exams for E2E Cy Attempt' }).click()
   await page.getByRole('button', { name: /^Actions for .*, E2E Cy Attempt$/ }).click()
+  await expect(page.getByRole('menuitem', { name: 'View attempt' })).toBeVisible()
   await expect(page.getByRole('menuitem', { name: 'Remove exam' })).toHaveCount(0)
   await page.keyboard.press('Escape')
+  await expect(page.getByRole('menu')).toBeHidden()
 
   await page.getByRole('button', { name: 'Show exams for E2E Ann Needs' }).click()
   await page.getByRole('button', { name: /^Actions for .*, E2E Ann Needs$/ }).click()

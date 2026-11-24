@@ -67,7 +67,7 @@ describe('RosterTable', () => {
       row({ userId: 'u2', name: 'Bob' }),
       row({ userId: 'u3', name: 'Cy', hasAttempt: true }),
     ])
-    await userEvent.click(screen.getByRole('checkbox', { name: 'Select all 2 shown' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Select all 2 selectable' }))
     expect(screen.getByRole('checkbox', { name: 'Select Ann' })).toBeChecked()
     expect(screen.getByRole('checkbox', { name: 'Select Bob' })).toBeChecked()
     expect(screen.getByRole('checkbox', { name: 'Select Cy' })).not.toBeChecked()
@@ -75,7 +75,7 @@ describe('RosterTable', () => {
 
   it('select-all unticks everyone on a second click', async () => {
     ui([row({ userId: 'u1', name: 'Ann' }), row({ userId: 'u2', name: 'Bob' })])
-    const all = screen.getByRole('checkbox', { name: 'Select all 2 shown' })
+    const all = screen.getByRole('checkbox', { name: 'Select all 2 selectable' })
     await userEvent.click(all)
     await userEvent.click(all)
     expect(screen.getByRole('checkbox', { name: 'Select Ann' })).not.toBeChecked()
@@ -84,7 +84,7 @@ describe('RosterTable', () => {
 
   it('disables select-all when every person has an attempt', () => {
     ui([row({ userId: 'u1', name: 'Ann', hasAttempt: true })])
-    expect(screen.getByRole('checkbox', { name: 'Select all 0 shown' })).toHaveAttribute(
+    expect(screen.getByRole('checkbox', { name: 'Select all 0 selectable' })).toHaveAttribute(
       'aria-disabled',
       'true',
     )

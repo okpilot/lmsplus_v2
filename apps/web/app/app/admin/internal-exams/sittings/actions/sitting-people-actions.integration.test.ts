@@ -74,9 +74,10 @@ describe('sitting people Server Actions (app-layer integration)', () => {
       .single()
     if (error) throw new Error(`sitting: ${error.message}`)
     sittingId = data.id
-    await admin
+    const cand = await admin
       .from('exam_sitting_candidates')
       .insert([s1, s2].map((u) => ({ organization_id: orgId, sitting_id: sittingId, user_id: u })))
+    if (cand.error) throw new Error(`candidates: ${cand.error.message}`)
     const ent = await admin
       .from('exam_sitting_entries')
       .insert({

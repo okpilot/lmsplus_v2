@@ -347,7 +347,7 @@ describe('PeopleSection selection', () => {
   it('ticks every shown row from the header checkbox', async () => {
     ui()
     const user = userEvent.setup()
-    await user.click(screen.getByRole('checkbox', { name: 'Select all 2 shown' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Select all 2 selectable' }))
     expect(screen.getByRole('checkbox', { name: 'Select Person 1' })).toBeChecked()
     expect(screen.getByRole('checkbox', { name: 'Select Person 2' })).toBeChecked()
   })
@@ -355,7 +355,7 @@ describe('PeopleSection selection', () => {
   it('shows the header checkbox as mixed when only some rows are ticked', async () => {
     ui()
     await userEvent.setup().click(screen.getByRole('checkbox', { name: 'Select Person 1' }))
-    expect(screen.getByRole('checkbox', { name: 'Select all 2 shown' })).toHaveAttribute(
+    expect(screen.getByRole('checkbox', { name: 'Select all 2 selectable' })).toHaveAttribute(
       'aria-checked',
       'mixed',
     )
@@ -385,14 +385,14 @@ describe('PeopleSection selection', () => {
       'aria-disabled',
       'true',
     )
-    await userEvent.setup().click(screen.getByRole('checkbox', { name: 'Select all 1 shown' }))
+    await userEvent.setup().click(screen.getByRole('checkbox', { name: 'Select all 1 selectable' }))
     expect(screen.getByRole('checkbox', { name: 'Select Person 1' })).toBeChecked()
     expect(screen.getByRole('checkbox', { name: 'Select Person 2' })).not.toBeChecked()
   })
 
   it('disables select all when nobody on the page can be ticked', () => {
     ui({ rows: [person(1, { hasAttempt: true })], total: 1 })
-    expect(screen.getByRole('checkbox', { name: 'Select all 0 shown' })).toHaveAttribute(
+    expect(screen.getByRole('checkbox', { name: 'Select all 0 selectable' })).toHaveAttribute(
       'aria-disabled',
       'true',
     )
@@ -409,7 +409,9 @@ describe('PeopleSection selection', () => {
   it('disables Remove above 100 ticks with Tick at most 100.', async () => {
     const rows = Array.from({ length: 101 }, (_, i) => person(i + 1))
     ui({ rows, total: 101 })
-    await userEvent.setup().click(screen.getByRole('checkbox', { name: 'Select all 101 shown' }))
+    await userEvent
+      .setup()
+      .click(screen.getByRole('checkbox', { name: 'Select all 101 selectable' }))
     expect(screen.getByRole('button', { name: 'Remove' })).toBeDisabled()
     expect(screen.getByText(/Tick at most 100/)).toBeInTheDocument()
   })
