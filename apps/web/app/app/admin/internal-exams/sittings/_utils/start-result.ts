@@ -23,7 +23,7 @@ export function startResultBanner(
     title: 'Sitting started.',
     detail:
       d.codesRestamped > 0
-        ? `${plural(d.codesRestamped, 'code')} will work until you close the sitting.`
+        ? `${plural(d.codesRestamped, 'code')} will work until you close the sitting or the day ends (UTC).`
         : undefined,
   }
 }

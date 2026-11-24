@@ -30,7 +30,7 @@ describe('startResultBanner', () => {
       'Jane Doe',
     )
     expect(r.tone).toBe('success')
-    expect(r.detail).toBe('3 codes will work until you close the sitting.')
+    expect(r.detail).toBe('3 codes will work until you close the sitting or the day ends (UTC).')
   })
 
   it('warns with only the no-code line when the invigilator is active', () => {

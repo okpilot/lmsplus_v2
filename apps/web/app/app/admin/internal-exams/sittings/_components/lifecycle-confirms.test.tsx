@@ -63,7 +63,7 @@ describe('LifecycleConfirms', () => {
     expect(m.start).toHaveBeenCalledWith({ sittingId: 'sit-1' })
     expect(m.setConfirm).toHaveBeenCalledWith(null)
     expect(m.toastSuccess).toHaveBeenCalledWith('Sitting started.', {
-      description: '3 codes will work until you close the sitting.',
+      description: '3 codes will work until you close the sitting or the day ends (UTC).',
     })
   })
 
