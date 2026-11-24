@@ -58,7 +58,7 @@ function Head({ rows, editable }: Readonly<Pick<Props, 'rows' | 'editable'>>) {
   )
 }
 
-/** One row per person; the exams expand in place. The open set survives filters, not a page change (`key`). */
+/** One row per person; the exams expand in place. The open set is dropped whenever the page changes (`key={p.page}`), and a filter from page > 1 resets the page. */
 export function RosterTable({ rows, q, show, ...rest }: Readonly<Props>) {
   const [openIds, setOpenIds] = useState<ReadonlySet<string>>(new Set())
   const toggle = (id: string) =>

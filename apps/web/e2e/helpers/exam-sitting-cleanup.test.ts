@@ -239,6 +239,22 @@ describe('cleanupE2eExamSittings (per-step isolation)', () => {
     expect(deleteUser).toHaveBeenCalledWith('u1')
   })
 
+  it('deletes the seeded users when a seeded row delete fails and reports the error', async () => {
+    const deleteUser = vi.fn().mockResolvedValue({ error: null })
+    mockTables({
+      exam_sittings: [
+        { data: [], error: null },
+        { data: [{ id: 's1' }], error: null },
+      ],
+      exam_sitting_entries: [{ data: null, error: { message: 'entries boom' } }],
+      users: [{ data: [{ id: 'u1' }], error: null }],
+    })
+    const client = mockGetAdminClient() as Record<string, unknown>
+    mockGetAdminClient.mockReturnValue({ ...client, auth: { admin: { deleteUser } } })
+    await expect(cleanupE2eExamSittings()).rejects.toThrow(/afterEach: .*entries boom/)
+    expect(deleteUser).toHaveBeenCalledWith('u1')
+  })
+
   it('deletes later users when one user delete fails and reports the error', async () => {
     const deleteUser = vi.fn().mockResolvedValue({ error: null })
     mockTables({

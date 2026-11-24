@@ -57,7 +57,7 @@ type RosterRpcRow = {
   deactivated: boolean
   has_attempt: boolean
   entries: unknown
-  total_count: number
+  total_count: number | string
 }
 
 function mapRow(r: RosterRpcRow): RosterRow {

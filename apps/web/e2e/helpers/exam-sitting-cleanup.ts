@@ -85,8 +85,20 @@ async function cleanupSeededExamSittings(): Promise<void> {
     .like('permitted_materials', `${EXAM_SITTING_SEED_PREFIX}%`)
   check('seed lookup', error)
   const ids = (data ?? []).map((r) => r.id)
-  if (ids.length > 0) await deleteSeededRows(admin, ids)
-  await deleteSeededUsers(admin)
+  const errors: string[] = []
+  if (ids.length > 0) {
+    try {
+      await deleteSeededRows(admin, ids)
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e))
+    }
+  }
+  try {
+    await deleteSeededUsers(admin)
+  } catch (e) {
+    errors.push(e instanceof Error ? e.message : String(e))
+  }
+  if (errors.length > 0) throw new Error(errors.join('; '))
 }
 
 /** Soft-deletes the open marked exam_sittings that have no entries or candidates, then hard-deletes the sittings `seedSitting` built with their people, codes and users (service role, test data only); closed sittings (CHECK exam_sittings_closed_not_cancelled) and red-team seeds with people are left alone. */
