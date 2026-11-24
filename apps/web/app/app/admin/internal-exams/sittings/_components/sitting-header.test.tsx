@@ -78,9 +78,9 @@ describe('SittingHeader', () => {
     },
   )
 
-  it('shows Can start on {date} (UTC). when the sitting is not yet due', () => {
+  it('shows Can start on {date} UTC. when the sitting is not yet due', () => {
     ui({}, { notDue: true })
-    expect(screen.getByText('Can start on 18 Nov 2026 (UTC).')).toBeInTheDocument()
+    expect(screen.getByText('Can start on 18 Nov 2026 UTC.')).toBeInTheDocument()
   })
 
   it('shows the closed notice, plain and automatic variants', () => {

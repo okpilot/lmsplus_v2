@@ -24,6 +24,11 @@ describe('RemovedEntriesList', () => {
     expect(screen.getByText(/Ann Student · FPM · passed /)).toBeInTheDocument()
   })
 
+  it('marks the pass date as UTC', () => {
+    render(<RemovedEntriesList rows={[row() as never]} total={1} />)
+    expect(screen.getByText(/passed 17 Nov 2026 UTC · /)).toBeInTheDocument()
+  })
+
   it('omits the pass date segment when passedAt is null', () => {
     render(<RemovedEntriesList rows={[row({ passedAt: null }) as never]} total={1} />)
     expect(screen.getByText('Ann Student · FPM · notice pending')).toBeInTheDocument()

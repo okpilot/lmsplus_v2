@@ -174,7 +174,7 @@ test('admin cancels a sitting and finds it under Cancelled', async ({ page }) =>
 test('Start is disabled for a future sitting and says when it can start', async ({ page }) => {
   await createSitting(page, { daysAhead: 5, time: '09:30' })
   await expect(page.getByRole('button', { name: 'Start sitting' })).toBeDisabled()
-  await expect(page.getByText(/^Can start on .* \(UTC\)\.$/)).toBeVisible()
+  await expect(page.getByText(/^Can start on .* UTC\.$/)).toBeVisible()
 })
 
 test.describe('student access', () => {

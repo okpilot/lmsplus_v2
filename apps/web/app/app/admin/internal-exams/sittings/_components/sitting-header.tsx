@@ -44,7 +44,7 @@ function Notice({
   if (sitting.status === 'scheduled' && notDue) {
     return (
       <p className="text-caption text-muted-foreground">
-        Can start on {fmtDate(sitting.scheduledAt)} (UTC).
+        Can start on {fmtDate(sitting.scheduledAt)}.
       </p>
     )
   }
