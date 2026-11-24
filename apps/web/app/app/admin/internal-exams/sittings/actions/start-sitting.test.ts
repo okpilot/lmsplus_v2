@@ -29,24 +29,27 @@ describe('startSitting', () => {
     expect(mockRpc).not.toHaveBeenCalled()
   })
 
-  it('returns entriesWithoutCode and invigilatorActive and revalidates', async () => {
-    mockRpc.mockResolvedValue({
-      data: [
-        {
-          started_at: '2026-11-18T09:00:00Z',
-          codes_restamped: 2,
-          invigilator_active: false,
-          entries_without_code: 3,
-        },
-      ],
-      error: null,
-    })
-    const r = await startSitting({ sittingId: SID })
-    expect(mockRpc).toHaveBeenCalledWith('start_exam_sitting', { p_sitting_id: SID })
-    expect(r).toMatchObject({ success: true, entriesWithoutCode: 3, invigilatorActive: false })
-    expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/internal-exams')
-    expect(mockRevalidatePath).toHaveBeenCalledWith(`/app/admin/internal-exams/sittings/${SID}`)
-  })
+  it.each([true, false])(
+    'returns entriesWithoutCode and invigilatorActive=%s and revalidates',
+    async (active) => {
+      mockRpc.mockResolvedValue({
+        data: [
+          {
+            started_at: '2026-11-18T09:00:00Z',
+            codes_restamped: 2,
+            invigilator_active: active,
+            entries_without_code: 3,
+          },
+        ],
+        error: null,
+      })
+      const r = await startSitting({ sittingId: SID })
+      expect(mockRpc).toHaveBeenCalledWith('start_exam_sitting', { p_sitting_id: SID })
+      expect(r).toMatchObject({ success: true, entriesWithoutCode: 3, invigilatorActive: active })
+      expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/internal-exams')
+      expect(mockRevalidatePath).toHaveBeenCalledWith(`/app/admin/internal-exams/sittings/${SID}`)
+    },
+  )
 
   it.each([
     [

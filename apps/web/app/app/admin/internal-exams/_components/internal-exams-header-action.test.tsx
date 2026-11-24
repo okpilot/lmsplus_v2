@@ -23,9 +23,12 @@ describe('InternalExamsHeaderAction', () => {
     expect(m.open).toHaveBeenCalledWith('new', button)
   })
 
-  it.each(['tab=codes', 'tab=attempts', '', 'tab=bogus'])('renders nothing for "%s"', (qs) => {
-    m.search = qs
-    const { container } = render(<InternalExamsHeaderAction />)
-    expect(container).toBeEmptyDOMElement()
-  })
+  it.each(['tab=codes', 'tab=attempts', '', 'tab=bogus', 'tab=sittings&tab=codes'])(
+    'renders nothing for "%s"',
+    (qs) => {
+      m.search = qs
+      const { container } = render(<InternalExamsHeaderAction />)
+      expect(container).toBeEmptyDOMElement()
+    },
+  )
 })

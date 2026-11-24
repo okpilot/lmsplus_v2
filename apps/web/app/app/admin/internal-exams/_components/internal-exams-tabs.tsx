@@ -4,7 +4,7 @@ import { useSearchParams } from 'next/navigation'
 import { useEffect, useRef } from 'react'
 import { useUpdateSearchParams } from '@/app/app/_hooks/use-update-search-params'
 import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
-import { parseTab, type TabKey } from '../_search-params'
+import { parseTab, readTabParam, type TabKey } from '../_search-params'
 import { SittingsTab } from '../sittings/_components/sittings-tab'
 import type { SittingRow, SittingScope } from '../sittings/types'
 import type {
@@ -42,7 +42,7 @@ export function InternalExamsTabs({
 }: Readonly<Props>) {
   const update = useUpdateSearchParams()
   const sp = useSearchParams()
-  const tab = parseTab(sp.get('tab'))
+  const tab = readTabParam(sp)
   const search = sp.toString()
   // Tabs activate on focus and on click: one request per target until the URL changes.
   const pending = useRef<TabKey | null>(null)

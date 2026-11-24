@@ -19,6 +19,12 @@ export function parseTab(value: string | string[] | null | undefined): TabKey {
   return value === 'sittings' || value === 'attempts' ? value : 'codes'
 }
 
+/** Client-side tab read; a repeated `tab` param resolves exactly as the server's `parseTab`. */
+export function readTabParam(sp: Pick<URLSearchParams, 'getAll'>): TabKey {
+  const values = sp.getAll('tab')
+  return parseTab(values.length > 1 ? values : (values[0] ?? null))
+}
+
 function parseDlg(value: string | string[] | undefined): DialogParam | undefined {
   return value === 'new' || value === 'edit' ? value : undefined
 }

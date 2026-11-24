@@ -30,6 +30,16 @@ describe('defaultWhen', () => {
   it('is tomorrow 09:00 UTC in datetime-local form', () => {
     expect(defaultWhen()).toMatch(/^\d{4}-\d{2}-\d{2}T09:00$/)
   })
+
+  it('rolls over the month and year boundary', () => {
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(new Date('2026-12-31T23:30:00.000Z'))
+      expect(defaultWhen()).toBe('2027-01-01T09:00')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })
 
 describe('toIsoOrNull', () => {

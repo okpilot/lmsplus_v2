@@ -69,3 +69,20 @@ describe('parseInternalExamsSearchParams: tab, scope, dlg', () => {
     expect(parseInternalExamsSearchParams({ dlg: ['new', 'edit'] }).dlg).toBeUndefined()
   })
 })
+
+describe('readTabParam', () => {
+  it('returns codes for a repeated tab param, matching the server', async () => {
+    const { readTabParam } = await import('./_search-params')
+    expect(readTabParam(new URLSearchParams('tab=sittings&tab=codes'))).toBe('codes')
+  })
+
+  it('returns the tab for a single tab param', async () => {
+    const { readTabParam } = await import('./_search-params')
+    expect(readTabParam(new URLSearchParams('tab=sittings'))).toBe('sittings')
+  })
+
+  it('returns codes when tab is absent', async () => {
+    const { readTabParam } = await import('./_search-params')
+    expect(readTabParam(new URLSearchParams(''))).toBe('codes')
+  })
+})

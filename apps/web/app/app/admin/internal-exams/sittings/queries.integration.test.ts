@@ -271,6 +271,15 @@ describe('sittings reads (app-layer integration)', () => {
       expect(row?.entries).toBe(1)
       expect(row?.entriesWithoutCode).toBe(1)
     })
+
+    it('reports zero candidates and entries for a sitting that has none', async () => {
+      await signInAs(adminEmail, password)
+      const row = (await listSittings('open')).rows.find((r) => r.id === openId)
+      expect(row).toBeDefined()
+      expect(row?.candidates).toBe(0)
+      expect(row?.entries).toBe(0)
+      expect(row?.entriesWithoutCode).toBe(0)
+    })
   })
 
   describe('getSummary', () => {

@@ -148,8 +148,10 @@ describe('SittingFormDialog', () => {
     await user.click(screen.getByRole('button', { name: 'Save' }))
     expect(m.update).not.toHaveBeenCalled()
     await waitFor(() =>
-      expect(m.back.mock.calls.length + m.replace.mock.calls.length).toBeGreaterThan(0),
+      expect(m.replace).toHaveBeenCalledWith('/app/admin/internal-exams?tab=sittings'),
     )
+    expect(m.replace).toHaveBeenCalledTimes(1)
+    expect(m.back).not.toHaveBeenCalled()
   })
 
   it('offers the inactive assigned invigilator as an option', async () => {
@@ -218,8 +220,10 @@ describe('SittingFormDialog', () => {
     edit('scheduled')
     await user.keyboard('{Escape}')
     await waitFor(() =>
-      expect(m.back.mock.calls.length + m.replace.mock.calls.length).toBeGreaterThan(0),
+      expect(m.replace).toHaveBeenCalledWith('/app/admin/internal-exams?tab=sittings'),
     )
+    expect(m.replace).toHaveBeenCalledTimes(1)
+    expect(m.back).not.toHaveBeenCalled()
     expect(m.update).not.toHaveBeenCalled()
   })
 })

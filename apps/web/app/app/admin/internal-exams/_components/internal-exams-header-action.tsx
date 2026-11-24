@@ -3,11 +3,12 @@
 import { Plus } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { readTabParam } from '../_search-params'
 import { useSittingUi } from '../sittings/_hooks/sitting-ui-context'
 
 /** The page's one primary action; shown on the Sittings tab only. */
 export function InternalExamsHeaderAction() {
-  const tab = useSearchParams().get('tab')
+  const tab = readTabParam(useSearchParams())
   const { open } = useSittingUi()
   if (tab !== 'sittings') return null
   return (

@@ -97,6 +97,7 @@ describe('InternalExamsTabs', () => {
     )
     await user.click(screen.getByTestId('tab-attempts'))
     expect(mockReplace).toHaveBeenCalledTimes(2)
+    expect(mockReplace.mock.calls[1]?.[0]).toBe('/app/admin/internal-exams?tab=attempts')
   })
 
   it('selects the attempts tab from ?tab=attempts', () => {

@@ -120,7 +120,11 @@ describe('SittingsTable', () => {
   })
 
   it('shows only the count for a cancelled sitting', () => {
-    render(<SittingsTable rows={[row({ status: 'cancelled', entries: 2 })] as never} />)
+    render(
+      <SittingsTable
+        rows={[row({ status: 'cancelled', entries: 2, entriesWithoutCode: 1 })] as never}
+      />,
+    )
     expect(screen.getByText('2 exams')).toBeInTheDocument()
   })
 

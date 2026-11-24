@@ -3,6 +3,7 @@
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { CANCEL_CONFIRM_TEXT, closeConfirmText, START_CONFIRM_TEXT } from '../_utils/copy'
 import { plural } from '../_utils/plural'
+import { noCodeLine, startResultBanner } from '../_utils/start-result'
 import { cancelSitting } from '../actions/cancel-sitting'
 import { closeSitting } from '../actions/close-sitting'
 import { startSitting } from '../actions/start-sitting'
@@ -38,10 +39,6 @@ function useConfirm(which: Exclude<Confirm, null>, { setConfirm }: Props) {
   return { ...action, dismiss, onOpenChange }
 }
 
-function noCodeLine(n: number): string {
-  return `${plural(n, 'exam')} ${n === 1 ? 'has' : 'have'} no code yet. They cannot start until you issue codes.`
-}
-
 function StartConfirm(props: Readonly<Props>) {
   const { sitting, summary, confirm } = props
   const { pending, error, run, dismiss, onOpenChange } = useConfirm('start', props)
@@ -73,20 +70,7 @@ function StartConfirm(props: Readonly<Props>) {
           () => startSitting({ sittingId: sitting.id }),
           (d) => {
             dismiss()
-            if (d.entriesWithoutCode > 0)
-              return {
-                tone: 'caution',
-                title: 'Sitting started.',
-                detail: noCodeLine(d.entriesWithoutCode),
-              }
-            return {
-              tone: 'success',
-              title: 'Sitting started.',
-              detail:
-                d.codesRestamped > 0
-                  ? `${plural(d.codesRestamped, 'code')} will work until you close the sitting.`
-                  : undefined,
-            }
+            return startResultBanner(d, sitting.invigilatorName)
           },
         )
       }

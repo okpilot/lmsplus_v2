@@ -17,6 +17,8 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { getAdminClient } from '../helpers/supabase'
 import {
   cleanupSittingFixtures,
+  insertEntry,
+  insertMarkedSubject,
   insertSittingRow,
   type SittingTrack,
 } from './helpers/exam-sitting-seed'
@@ -29,7 +31,18 @@ import {
 } from './helpers/seed-users'
 
 type Admin = ReturnType<typeof getAdminClient>
-type Row = { id: string; status: string; closed_at: string | null; ended_automatically: boolean }
+type Row = {
+  id: string
+  status: string
+  closed_at: string | null
+  ended_automatically: boolean
+  candidates: number
+  entries: number
+  entries_without_code: number
+  entries_finished: number
+  entries_absent: number
+  total_count: number
+}
 
 const SCOPES = ['upcoming', 'open', 'past', 'cancelled'] as const
 const PAGE = 200
@@ -114,9 +127,19 @@ test.describe('Red Team: list_exam_sittings day-ended effective status (MW)', ()
   test('MW: egmont admin lists unswept day-ended sittings by effective status (control)', async () => {
     const { openIds, scheduledId } = await seedDayEnded()
     const egmont = [...openIds, scheduledId]
-    const past = await listAll(egmontAdmin, 'past')
-    // The call swept at most 3 sittings, so at least two of the five are listed while unswept.
+    const subjectId = await insertMarkedSubject(admin)
+    track.subjectIds.push(subjectId)
+    const entryOpenId = openIds[0] as string
+    await insertEntry(admin, { orgId, sittingId: entryOpenId, userId: adminId, subjectId })
+    // One list call sweeps at most 3 sittings, so at least two of the five stay unswept after it.
+    const first = await egmontAdmin.rpc('list_exam_sittings', {
+      p_scope: 'past',
+      p_limit: PAGE,
+      p_offset: 0,
+    })
+    if (first.error) throw new Error(`list_exam_sittings past: ${first.error.message}`)
     const st = await storedStatus(admin, egmont)
+    const past = await listAll(egmontAdmin, 'past')
     const unswept = egmont.filter((id) => ['open', 'scheduled'].includes(st.get(id) ?? ''))
     expect(unswept.length, 'unswept after one call').toBeGreaterThanOrEqual(2)
     for (const id of openIds) {
@@ -125,6 +148,18 @@ test.describe('Red Team: list_exam_sittings day-ended effective status (MW)', ()
       expect(hit[0]?.status).toBe('closed')
       expect(hit[0]?.ended_automatically).toBe(true)
       expect(hit[0]?.closed_at).not.toBeNull()
+    }
+    const withEntry = past.find((r) => r.id === entryOpenId)
+    expect(withEntry).toMatchObject({
+      candidates: 0,
+      entries: 1,
+      entries_without_code: 1,
+      entries_finished: 0,
+      entries_absent: 1,
+      total_count: past.length,
+    })
+    for (const id of openIds.filter((i) => i !== entryOpenId)) {
+      expect(past.find((r) => r.id === id)).toMatchObject({ entries: 0, entries_absent: 0 })
     }
     expect(past.map((r) => r.id)).not.toContain(scheduledId)
     const cancelled = await listAll(egmontAdmin, 'cancelled')

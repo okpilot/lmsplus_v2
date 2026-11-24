@@ -45,7 +45,7 @@ describe('useDialogParam', () => {
     mockSearch.value = 'tab=sittings&scope=open&dlg=new'
     rerender()
     act(() => result.current.close())
-    expect(mockBack).toHaveBeenCalled()
+    expect(mockBack).toHaveBeenCalledTimes(1)
     expect(mockReplace).not.toHaveBeenCalled()
   })
 
@@ -54,9 +54,8 @@ describe('useDialogParam', () => {
     const { result } = renderHook(() => useDialogParam())
     act(() => result.current.close())
     expect(mockBack).not.toHaveBeenCalled()
-    const url = mockReplace.mock.calls[0]?.[0] as string
-    expect(url).not.toContain('dlg=')
-    expect(url).toContain('scope=open')
+    expect(mockReplace).toHaveBeenCalledTimes(1)
+    expect(mockReplace).toHaveBeenCalledWith('/app/admin/internal-exams?tab=sittings&scope=open')
   })
 
   it('collapses two close() calls into one router.back()', () => {
@@ -84,6 +83,8 @@ describe('useDialogParam', () => {
       result.current.close()
     })
     expect(mockReplace).toHaveBeenCalledTimes(1)
+    expect(mockReplace).toHaveBeenCalledWith('/app/admin/internal-exams?tab=sittings')
+    expect(mockBack).not.toHaveBeenCalled()
   })
 
   it('closes again after the dialog was closed and reopened', () => {
@@ -97,6 +98,7 @@ describe('useDialogParam', () => {
     rerender()
     act(() => result.current.close())
     expect(mockReplace).toHaveBeenCalledTimes(1)
+    expect(mockReplace).toHaveBeenCalledWith('/app/admin/internal-exams?tab=sittings')
     expect(mockBack).toHaveBeenCalledTimes(1)
   })
 
