@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { type RefObject, useCallback, useEffect, useRef, useTransition } from 'react'
-import type { DialogParam } from '../../_search-params'
+import { type DialogParam, readDlgParam } from '../../_search-params'
 
 /** Refs a provider shares so every consumer of one page sees the same open/close history. */
 export type DialogRefs = {
@@ -51,7 +51,7 @@ export function useDialogParam(shared?: DialogRefs) {
   const pathname = usePathname()
   const sp = useSearchParams()
   const [isRefreshing, startTransition] = useTransition()
-  const dlg = sp.get('dlg') ?? null
+  const dlg = readDlgParam(sp)
   const { openedHere, openerRef, closing, consumeOpenedHere } = useDialogRefs(shared, dlg)
   const search = sp.toString()
   const open = useCallback(

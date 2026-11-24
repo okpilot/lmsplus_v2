@@ -130,3 +130,11 @@ describe('dialogHref', () => {
     expect(dialogHref('/p', 'dlg=edit', null)).toBe('/p')
   })
 })
+
+describe('useDialogParam with a repeated dlg', () => {
+  it('reports no open dialog for ?dlg=new&dlg=new, as the server does', () => {
+    mockSearch.value = 'tab=sittings&dlg=new&dlg=new'
+    const { result } = renderHook(() => useDialogParam())
+    expect(result.current.dlg).toBeNull()
+  })
+})

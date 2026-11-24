@@ -103,7 +103,8 @@ export async function getSummary(sittingId: string): Promise<SittingSummary | nu
 
 /**
  * Sitting row by id and org (cancelled included). Counts come from getSummary.
- * security.md §15 exception (g): cancelled sittings stay readable.
+ * Read with the caller's client under RLS, filtered by `organization_id` and `id`; no `deleted_at`
+ * filter, so cancelled sittings are returned (`status` is generated from `deleted_at`).
  */
 export async function getSitting(id: string): Promise<SittingRow | null> {
   const { supabase, organizationId } = await requireAdmin()

@@ -86,3 +86,22 @@ describe('readTabParam', () => {
     expect(readTabParam(new URLSearchParams(''))).toBe('codes')
   })
 })
+
+describe('readDlgParam', () => {
+  it('reads each recognised dlg value', async () => {
+    const { readDlgParam } = await import('./_search-params')
+    expect(readDlgParam(new URLSearchParams('dlg=new'))).toBe('new')
+    expect(readDlgParam(new URLSearchParams('dlg=edit'))).toBe('edit')
+  })
+
+  it('returns null for a repeated dlg, as the server drops an array', async () => {
+    const { readDlgParam } = await import('./_search-params')
+    expect(readDlgParam(new URLSearchParams('dlg=new&dlg=new'))).toBeNull()
+  })
+
+  it('returns null for an unknown or absent dlg', async () => {
+    const { readDlgParam } = await import('./_search-params')
+    expect(readDlgParam(new URLSearchParams('dlg=bogus'))).toBeNull()
+    expect(readDlgParam(new URLSearchParams(''))).toBeNull()
+  })
+})

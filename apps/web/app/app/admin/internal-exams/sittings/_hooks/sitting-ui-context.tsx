@@ -12,6 +12,7 @@ import {
   useState,
 } from 'react'
 import { toast } from 'sonner'
+import { readDlgParam } from '../../_search-params'
 import type { ResultBannerData } from '../_utils/copy'
 import { type DialogRefs, useDialogParam } from './use-dialog-param'
 
@@ -55,7 +56,7 @@ export function SittingUiProvider({ children }: Readonly<{ children: ReactNode }
   const openedHere = useRef(false)
   const openerRef = useRef<HTMLElement | null>(null)
   const closing = useRef(false)
-  const dlg = useSearchParams().get('dlg')
+  const dlg = readDlgParam(useSearchParams())
   useEffect(() => {
     if (dlg === null) {
       closing.current = false

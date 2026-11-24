@@ -19,14 +19,24 @@ export function parseTab(value: string | string[] | null | undefined): TabKey {
   return value === 'sittings' || value === 'attempts' ? value : 'codes'
 }
 
+/** `getAll(key)` in the server's `string | string[] | undefined` shape: a repeated key is an array. */
+function readRaw(sp: Pick<URLSearchParams, 'getAll'>, key: string): string | string[] | undefined {
+  const values = sp.getAll(key)
+  return values.length > 1 ? values : values[0]
+}
+
 /** Client-side tab read; a repeated `tab` param resolves exactly as the server's `parseTab`. */
 export function readTabParam(sp: Pick<URLSearchParams, 'getAll'>): TabKey {
-  const values = sp.getAll('tab')
-  return parseTab(values.length > 1 ? values : (values[0] ?? null))
+  return parseTab(readRaw(sp, 'tab'))
 }
 
 function parseDlg(value: string | string[] | undefined): DialogParam | undefined {
   return value === 'new' || value === 'edit' ? value : undefined
+}
+
+/** Client-side dialog read; a repeated or unknown `dlg` resolves exactly as the server's `parseDlg`. */
+export function readDlgParam(sp: Pick<URLSearchParams, 'getAll'>): DialogParam | null {
+  return parseDlg(readRaw(sp, 'dlg')) ?? null
 }
 
 export type InternalExamsSearchParams = {

@@ -119,3 +119,16 @@ describe('useSittingUi without a provider', () => {
     expect(m.toastSuccess).not.toHaveBeenCalled()
   })
 })
+
+describe('provider with a repeated dlg', () => {
+  it('re-arms the close guard when dlg becomes a repeated value the server ignores', () => {
+    m.search.value = 'dlg=new'
+    const { result, rerender } = renderHook(() => useSittingUi(), { wrapper })
+    act(() => result.current.open('new'))
+    m.search.value = 'dlg=new&dlg=new'
+    rerender()
+    act(() => result.current.close())
+    expect(m.back).not.toHaveBeenCalled()
+    expect(m.replace).toHaveBeenCalledTimes(1)
+  })
+})
