@@ -2,11 +2,11 @@
  * Red Team Spec: sitting detail page IDOR (Vector MX, #1777)
  *
  * Attack: GET /app/admin/internal-exams/sittings/<id> for an egmont live sitting and an egmont
- * cancelled (soft-deleted) sitting, as a cross-org admin and as an egmont student. The page reads
- * the sitting with the user client and the invigilator with the service role (readInvigilator).
- * Expected: no response carries either sitting's permitted_materials marker; the cross-org admin
- * gets the admin not-found boundary, the student gets requireAdmin's redirect.
- * CONTROL: the egmont admin receives both markers on the same paths.
+ * cancelled (soft-deleted) sitting, as a cross-org admin and as an egmont student. Each sitting
+ * carries one marked candidate, whose email the roster renders.
+ * Expected: no response carries either sitting's candidate email; the cross-org admin gets the admin
+ * not-found boundary, the student gets requireAdmin's redirect.
+ * CONTROL: the egmont admin receives both candidate emails on the same paths.
  *
  * Hermetic: sittings carry EXAM_SITTING_E2E_PREFIX; afterEach soft-deletes the tracked unclosed
  * sittings (cleanupSittingFixtures, per-step accumulator).
@@ -22,6 +22,7 @@ import {
   type SittingTrack,
 } from './helpers/exam-sitting-seed'
 import { createAuthenticatedClient } from './helpers/redteam-client'
+import { upsertUser } from './helpers/seed-core'
 import {
   ADMIN_EMAIL,
   ADMIN_PASSWORD,
@@ -37,9 +38,11 @@ const SITTING_PATH = '/app/admin/internal-exams/sittings'
 // notFound() after the shell streamed: Next appends a noindex robots meta; the boundary markup itself
 // ships in every admin payload.
 const NOT_FOUND = /<meta name="robots" content="noindex"\/>/
+const CANDIDATE_EMAIL_PREFIX = 'redteam-mx-candidate-'
+const CANDIDATE_PASSWORD = 'redteam-mx-candidate-2026!'
 
 type Credentials = { email: string; password: string; userId: string }
-type Fixture = { id: string; materials: string }
+type Fixture = { id: string; probe: string }
 
 async function signIn(browser: Browser, creds: Credentials): Promise<BrowserContext> {
   const context = await browser.newContext({ storageState: undefined })
@@ -77,12 +80,14 @@ test.describe('Red Team: sitting detail page IDOR (MX)', () => {
   let egmontAdmin: Credentials
   let crossAdmin: Credentials
   let student: Credentials
+  let orgId: string
 
   test.beforeAll(async () => {
     const users = await seedRedTeamUsers()
     const a = await seedRedTeamAdmin()
     const ca = await seedCrossOrgAdmin()
     track.adminId = a.adminUserId
+    orgId = a.orgId
     egmontAdmin = { email: ADMIN_EMAIL, password: ADMIN_PASSWORD, userId: a.adminUserId }
     crossAdmin = { email: ca.email, password: ca.password, userId: ca.adminUserId }
     student = { email: ATTACKER_EMAIL, password: ATTACKER_PASSWORD, userId: users.attackerUserId }
@@ -99,15 +104,14 @@ test.describe('Red Team: sitting detail page IDOR (MX)', () => {
     for (let i = 0; i < 2; i++) {
       const id = await createSittingRpc(client, egmontAdmin.userId, tomorrow)
       track.sittingIds.push(id)
-      const { data, error } = await admin
-        .from('exam_sittings')
-        .select('permitted_materials')
-        .eq('id', id)
-        .single()
-      if (error || typeof data?.permitted_materials !== 'string') {
-        throw new Error(`read ${id}: ${error?.message}`)
-      }
-      out.push({ id, materials: data.permitted_materials })
+      const email = `${CANDIDATE_EMAIL_PREFIX}${i}@lmsplus.local`
+      const userId = await upsertUser(admin, email, CANDIDATE_PASSWORD, orgId)
+      const add = await client.rpc('add_exam_sitting_candidates', {
+        p_sitting_id: id,
+        p_user_ids: [userId],
+      })
+      if (add.error) throw new Error(`add candidates ${id}: ${add.error.message}`)
+      out.push({ id, probe: email })
     }
     const [live, cancelled] = out as [Fixture, Fixture]
     const cx = await client.rpc('cancel_exam_sitting', { p_sitting_id: cancelled.id })
@@ -134,14 +138,14 @@ test.describe('Red Team: sitting detail page IDOR (MX)', () => {
         const c = await fetchPage(cross, f.id)
         expect(c.status, `cross ${f.id}`).toBeLessThan(300)
         expect(c.body, `cross not-found ${f.id}`).toMatch(NOT_FOUND)
-        expect(c.body, `cross marker ${f.id}`).not.toContain(f.materials)
+        expect(c.body, `cross marker ${f.id}`).not.toContain(f.probe)
         const s = await fetchPage(stu, f.id)
         // The admin layout shell streams first, so requireAdmin's redirect travels in a 200 body.
         expect(s.status, `student ${f.id}`).toBe(200)
         expect(s.body, `student redirect ${f.id}`).toMatch(
           /NEXT_REDIRECT;(?:replace|push);\/app\/dashboard;/,
         )
-        expect(s.body, `student marker ${f.id}`).not.toContain(f.materials)
+        expect(s.body, `student marker ${f.id}`).not.toContain(f.probe)
       }
     } finally {
       await cross.close()
@@ -156,7 +160,7 @@ test.describe('Red Team: sitting detail page IDOR (MX)', () => {
       for (const f of [fx.live, fx.cancelled]) {
         const r = await fetchPage(ctx, f.id)
         expect(r.status, `admin ${f.id}`).toBe(200)
-        expect(r.body, `admin marker ${f.id}`).toContain(f.materials)
+        expect(r.body, `admin marker ${f.id}`).toContain(f.probe)
         expect(r.body, `admin not-found ${f.id}`).not.toMatch(NOT_FOUND)
       }
     } finally {
