@@ -5,6 +5,7 @@ const mockPush = vi.hoisted(() => vi.fn())
 const mockReplace = vi.hoisted(() => vi.fn())
 const mockBack = vi.hoisted(() => vi.fn())
 const mockSearch = vi.hoisted(() => ({ value: 'tab=sittings&scope=open' }))
+const history = vi.hoisted(() => ({ stack: [] as string[] }))
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush, replace: mockReplace, back: mockBack }),
   usePathname: () => '/app/admin/internal-exams',
@@ -15,8 +16,19 @@ import { type DialogRefs, dialogHref, useDialogParam } from './use-dialog-param'
 
 beforeEach(() => {
   vi.resetAllMocks()
-  mockSearch.value = 'tab=sittings&scope=open'
+  seedHistory(['tab=sittings&scope=open'])
+  mockPush.mockImplementation((url: string) => history.stack.push(url))
+  mockReplace.mockImplementation((url: string) => history.stack.splice(-1, 1, url))
+  mockBack.mockImplementation(() => history.stack.pop())
 })
+
+/** Seeds the browser history with these searches; the last is the current URL and what `useSearchParams` reads. */
+function seedHistory(searches: string[]) {
+  history.stack = searches.map((q) => `/app/admin/internal-exams?${q}`)
+  mockSearch.value = searches.at(-1) ?? ''
+}
+
+const currentUrl = () => history.stack.at(-1)
 
 describe('useDialogParam', () => {
   it('opens by pushing dlg onto the current URL', () => {
@@ -51,10 +63,11 @@ describe('useDialogParam', () => {
     )
     expect(mockBack).toHaveBeenCalledTimes(1)
     expect(mockReplace).not.toHaveBeenCalled()
+    expect(currentUrl()).toBe('/app/admin/internal-exams?tab=sittings&scope=open')
   })
 
   it('closes by replacing the URL without dlg when deep-linked', () => {
-    mockSearch.value = 'tab=sittings&scope=open&dlg=edit'
+    seedHistory(['tab=sittings&scope=open&dlg=edit'])
     const { result } = renderHook(() => useDialogParam())
     act(() => result.current.close())
     expect(mockBack).not.toHaveBeenCalled()
@@ -68,7 +81,7 @@ describe('useDialogParam', () => {
       openerRef: { current: null },
       closing: { current: false },
     }
-    mockSearch.value = 'tab=sittings&dlg=new'
+    seedHistory(['tab=sittings', 'tab=sittings&dlg=new'])
     const a = renderHook(() => useDialogParam(refs))
     const b = renderHook(() => useDialogParam(refs))
     act(() => {
@@ -77,10 +90,11 @@ describe('useDialogParam', () => {
     })
     expect(mockBack).toHaveBeenCalledTimes(1)
     expect(mockReplace).not.toHaveBeenCalled()
+    expect(history.stack).toEqual(['/app/admin/internal-exams?tab=sittings'])
   })
 
   it('collapses two close() calls on a deep link into one replace', () => {
-    mockSearch.value = 'tab=sittings&dlg=edit'
+    seedHistory(['tab=sittings&dlg=edit'])
     const { result } = renderHook(() => useDialogParam())
     act(() => {
       result.current.close()
@@ -92,7 +106,7 @@ describe('useDialogParam', () => {
   })
 
   it('closes again after the dialog was closed and reopened', () => {
-    mockSearch.value = 'tab=sittings&dlg=edit'
+    seedHistory(['tab=sittings&dlg=edit'])
     const { result, rerender } = renderHook(() => useDialogParam())
     act(() => result.current.close())
     mockSearch.value = 'tab=sittings'
@@ -106,6 +120,7 @@ describe('useDialogParam', () => {
     expect(mockPush).toHaveBeenCalledTimes(1)
     expect(mockPush).toHaveBeenCalledWith('/app/admin/internal-exams?tab=sittings&dlg=new')
     expect(mockBack).toHaveBeenCalledTimes(1)
+    expect(currentUrl()).toBe('/app/admin/internal-exams?tab=sittings')
   })
 
   it('consumeOpenedHere reports a session open once, then false', () => {

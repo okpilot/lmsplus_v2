@@ -41,7 +41,7 @@ type Row = {
   entries_without_code: number
   entries_finished: number
   entries_absent: number
-  total_count: number
+  total_count: number | string
 }
 
 const SCOPES = ['upcoming', 'open', 'past', 'cancelled'] as const
@@ -140,7 +140,7 @@ test.describe('Red Team: list_exam_sittings day-ended effective status (MW)', ()
     if (first.error) throw new Error(`list_exam_sittings past: ${first.error.message}`)
     const st = await storedStatus(admin, egmont)
     expect(st.get(entryOpenId), 'entry sitting unswept').toBe('open')
-    const row = (first.data as { id: string }[]).find((r) => r.id === entryOpenId)
+    const row = (first.data as Row[]).find((r) => r.id === entryOpenId)
     expect(row).toBeDefined()
     expect(row).toMatchObject({
       candidates: 0,
@@ -152,6 +152,7 @@ test.describe('Red Team: list_exam_sittings day-ended effective status (MW)', ()
       ended_automatically: true,
     })
     const past = await listAll(egmontAdmin, 'past')
+    expect(Number(row?.total_count)).toBe(past.length)
     const unswept = egmont.filter((id) => ['open', 'scheduled'].includes(st.get(id) ?? ''))
     expect(unswept.length, 'unswept after one call').toBeGreaterThanOrEqual(2)
     for (const id of openIds) {

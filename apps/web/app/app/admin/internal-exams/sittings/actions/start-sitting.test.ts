@@ -53,12 +53,12 @@ describe('startSitting', () => {
 
   it.each([
     [
-      'sitting_not_due',
       'Too early: a sitting can start from its UTC day. Edit the date to run it earlier.',
+      'sitting_not_due',
     ],
-    ['sitting_not_scheduled', 'This sitting has already been started.'],
-    ['sitting_day_ended', "This sitting's day has ended."],
-  ])('maps %s to its copy', async (token, copy) => {
+    ['This sitting has already been started.', 'sitting_not_scheduled'],
+    ["This sitting's day has ended.", 'sitting_day_ended'],
+  ])('shows "%s" when the sitting cannot be started', async (copy, token) => {
     mockRpc.mockResolvedValue({ data: null, error: { message: token } })
     expect(await startSitting({ sittingId: SID })).toEqual({ success: false, error: copy })
   })

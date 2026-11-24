@@ -38,7 +38,7 @@ describe('cancelSitting', () => {
     expect(mockRevalidatePath).toHaveBeenCalledWith(`/app/admin/internal-exams/sittings/${SID}`)
   })
 
-  it('maps sitting_has_attempts to its copy', async () => {
+  it('tells the admin a candidate has already taken an exam when cancelling', async () => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'sitting_has_attempts' } })
     expect(await cancelSitting({ sittingId: SID })).toEqual({
       success: false,

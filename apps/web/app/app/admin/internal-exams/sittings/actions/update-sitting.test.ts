@@ -51,12 +51,12 @@ describe('updateSitting', () => {
 
   it.each([
     [
-      'sitting_not_editable',
       'Time, mode and materials cannot be changed once the sitting is open.',
+      'sitting_not_editable',
     ],
-    ['sitting_closed', 'This sitting is closed and cannot be changed.'],
-    ['sitting_day_ended', "This sitting's day has ended."],
-  ])('maps %s to its copy', async (token, copy) => {
+    ['This sitting is closed and cannot be changed.', 'sitting_closed'],
+    ["This sitting's day has ended.", 'sitting_day_ended'],
+  ])('shows "%s" when the sitting cannot be updated', async (copy, token) => {
     mockRpc.mockResolvedValue({ data: null, error: { message: token } })
     expect(await updateSitting({ sittingId: SID, mode: 'remote' })).toEqual({
       success: false,

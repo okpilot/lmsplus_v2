@@ -22,8 +22,10 @@ const COPY: Record<string, string> = {
 }
 
 describe('SITTING_RPC_ERRORS', () => {
-  it.each(Object.entries(COPY))('maps token %s to its spec copy', (token, copy) => {
-    expect(SITTING_RPC_ERRORS[token]).toBe(copy)
+  it('gives every sitting error its spec copy', () => {
+    for (const [token, copy] of Object.entries(COPY)) {
+      expect(SITTING_RPC_ERRORS[token], token).toBe(copy)
+    }
   })
 
   it('has a copy line for every token the sitting migrations raise', () => {

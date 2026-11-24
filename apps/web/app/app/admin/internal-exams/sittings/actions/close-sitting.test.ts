@@ -48,9 +48,9 @@ describe('closeSitting', () => {
   })
 
   it.each([
-    ['sitting_not_open', 'This sitting is not open.'],
-    ['sitting_closed', 'This sitting is closed and cannot be changed.'],
-  ])('maps %s to its copy', async (token, copy) => {
+    ['This sitting is not open.', 'sitting_not_open'],
+    ['This sitting is closed and cannot be changed.', 'sitting_closed'],
+  ])('shows "%s" when the sitting cannot be closed', async (copy, token) => {
     mockRpc.mockResolvedValue({ data: null, error: { message: token } })
     expect(await closeSitting({ sittingId: SID })).toEqual({ success: false, error: copy })
   })

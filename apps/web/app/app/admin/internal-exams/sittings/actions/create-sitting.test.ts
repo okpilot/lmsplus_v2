@@ -56,13 +56,13 @@ describe('createSitting', () => {
   })
 
   it.each([
-    ['scheduled_in_past', 'The sitting date must be today or later (UTC).'],
+    ['The sitting date must be today or later (UTC).', 'scheduled_in_past'],
     [
-      'invigilator_not_found',
       'The invigilator must be an active admin or instructor of your organization',
+      'invigilator_not_found',
     ],
-    ['not_admin', 'Not authorized'],
-  ])('maps %s to its copy and does not revalidate', async (token, copy) => {
+    ['Not authorized', 'not_admin'],
+  ])('shows "%s" and does not revalidate when creation is refused', async (copy, token) => {
     mockRpc.mockResolvedValue({ data: null, error: { message: token } })
     expect(await createSitting(VALID)).toEqual({ success: false, error: copy })
     expect(mockRevalidatePath).not.toHaveBeenCalled()
