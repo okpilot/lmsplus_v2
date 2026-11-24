@@ -1,3 +1,4 @@
+import type { IssueCounts } from '../actions/issue-sitting-codes'
 import { plural } from './plural'
 
 /** One banner shown at a time; its tone follows the outcome. */
@@ -35,3 +36,26 @@ export const START_CONFIRM_TEXT =
   'Candidates can start with their codes until you close the sitting or the day ends (UTC).'
 export const CANCEL_CONFIRM_TEXT =
   'Unused codes are voided. A cancelled sitting cannot be restored.'
+
+/** Why a single-entry issue produced no code. */
+export function issueSkipText(
+  d: Pick<
+    IssueCounts,
+    | 'skippedAlreadyIssued'
+    | 'skippedAttemptTaken'
+    | 'skippedDeactivated'
+    | 'skippedNoConfig'
+    | 'skippedNotEnrolled'
+    | 'skippedPassed'
+  >,
+): string {
+  const reasons = [
+    d.skippedAlreadyIssued > 0 ? 'already has a code' : '',
+    d.skippedAttemptTaken > 0 ? 'attempt already taken' : '',
+    d.skippedPassed > 0 ? 'already passed' : '',
+    d.skippedNotEnrolled > 0 ? 'no longer enrolled' : '',
+    d.skippedDeactivated > 0 ? 'deactivated' : '',
+    d.skippedNoConfig > 0 ? 'exam disabled' : '',
+  ].filter(Boolean)
+  return reasons.length > 0 ? `Skipped: ${reasons.join(', ')}.` : ''
+}

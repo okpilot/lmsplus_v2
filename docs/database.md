@@ -427,7 +427,7 @@ CREATE INDEX idx_student_group_members_organization_id ON student_group_members(
 
 ### exam_sittings
 
-Scheduled invigilated sittings (migs `20261116000100`, provisional; #1777). Written only by the sitting RPCs (`create_exam_sitting`, `update_exam_sitting`, `start_exam_sitting`, `close_exam_sitting`, `cancel_exam_sitting` and the lazy-close core). Cancel is a soft delete (`deleted_at`/`deleted_by`); rows are never hard-deleted and are kept at least 3 years after training completion (ORA.ATO.120).
+Scheduled invigilated sittings (migs `20261116000100`, provisional; #1777). Written only by the sitting RPCs (`create_exam_sitting`, `update_exam_sitting`, `start_exam_sitting`, `close_exam_sitting`, `cancel_exam_sitting` and the lazy-close core). Cancel is a soft delete (`deleted_at`/`deleted_by`); product code never hard-deletes rows and they are kept at least 3 years after training completion (ORA.ATO.120).
 
 ```sql
 CREATE TABLE exam_sittings (
@@ -436,7 +436,7 @@ CREATE TABLE exam_sittings (
   scheduled_at         TIMESTAMPTZ NOT NULL,
   mode                 TEXT NOT NULL CHECK (mode IN ('remote', 'in_person')),
   invigilator_id       UUID NOT NULL REFERENCES users(id),
-  permitted_materials  TEXT NULL CHECK (permitted_materials IS NULL OR char_length(permitted_materials) BETWEEN 1 AND 1000),
+  permitted_materials  TEXT NULL CHECK (permitted_materials IS NULL OR char_length(permitted_materials) BETWEEN 1 AND 1000), -- no app code sends or reads it (Decision 260); e2e/red-team marker; `list_my_active_internal_exam_codes` returns it
   started_at           TIMESTAMPTZ NULL,
   started_by           UUID NULL REFERENCES users(id),
   closed_at            TIMESTAMPTZ NULL,
@@ -456,6 +456,8 @@ CREATE INDEX idx_exam_sittings_org_scheduled ON exam_sittings(organization_id, s
 CREATE INDEX idx_exam_sittings_invigilator ON exam_sittings(invigilator_id) WHERE deleted_at IS NULL;
 ```
 
+Test teardown (`apps/web/e2e/helpers/exam-sitting-cleanup.ts`) soft-deletes the open marked `E2E-SIT-` sittings with no entries or candidates, and hard-deletes the `E2E-SIT-SEED-` sittings `seedSitting` builds with their codes, sessions, entries, candidates, enrolments and users; never in product code.
+
 CHECKs: started, closed and deleted pairs (`*_at` NULL iff `*_by` NULL); `closed_at IS NOT NULL ⇒ started_at IS NOT NULL`; not both closed and deleted; `ended_automatically ⇒ closed_at IS NOT NULL OR deleted_at IS NOT NULL`. `status` is generated; transitions are one-way and Closed is final.
 
 **RLS (ENABLED + FORCED):**
@@ -467,7 +469,7 @@ CHECKs: started, closed and deleted pairs (`*_at` NULL iff `*_by` NULL); `closed
 
 ### exam_sitting_candidates
 
-Explicit candidate snapshot of a sitting (same migration, #1777). Written only by `add_exam_sitting_candidates`, `remove_exam_sitting_candidates`. Group expansion is server-side at add time. Removal is a soft delete; a candidate with an attempt cannot be removed. Never hard-deleted; retention as `exam_sittings`.
+Explicit candidate snapshot of a sitting (same migration, #1777). Written only by `add_exam_sitting_candidates`, `remove_exam_sitting_candidates`. Group expansion is server-side at add time. Removal is a soft delete; a candidate with an attempt cannot be removed. Product code never hard-deletes (test teardown exception: §2 `exam_sittings`); retention as `exam_sittings`.
 
 ```sql
 CREATE TABLE exam_sitting_candidates (
@@ -494,7 +496,7 @@ CREATE INDEX idx_exam_sitting_candidates_user ON exam_sitting_candidates(user_id
 
 ### exam_sitting_entries
 
-One row per (candidate, subject) in a sitting (same migration, #1777). Inserted only by `private.add_sitting_entries_core` (called by `add_exam_sitting_entries`, migs `20261117000300` / `20261117000400`); soft-deleted by `remove_exam_sitting_candidates`, `remove_exam_sitting_entries` and the prune helper. Soft delete; never hard-deleted; retention as `exam_sittings`.
+One row per (candidate, subject) in a sitting (same migration, #1777). Inserted only by `private.add_sitting_entries_core` (called by `add_exam_sitting_entries`, migs `20261117000300` / `20261117000400`); soft-deleted by `remove_exam_sitting_candidates`, `remove_exam_sitting_entries` and the prune helper. Soft delete; product code never hard-deletes (test teardown exception: §2 `exam_sittings`); retention as `exam_sittings`.
 
 ```sql
 CREATE TABLE exam_sitting_entries (
@@ -933,7 +935,7 @@ Single-use 8-character codes for starting `internal_exam` mode sessions. Admins 
 - No INSERT or DELETE policies — issuance/consumption/void happen via SECURITY DEFINER RPCs only.
 - GRANTs to `authenticated`: `SELECT` only (UPDATE revoked in mig `20260521000004`).
 
-**Pattern:** Student reads and all writes are RPC-mediated; admin direct SELECT remains RLS-scoped (`admin_read_org_codes`). Four writer RPCs (`issue_internal_exam_code()` admin, `start_internal_exam_session()` student, `void_internal_exam_code()` admin, `record_internal_exam_code_emailed()` admin — stamps `emailed_at` + writes the send audit event) plus sitting writers `update_exam_sitting()` and `start_exam_sitting()` (re-stamp `expires_at`), `issue_sitting_exam_codes()` (INSERT via `private.insert_internal_exam_code()`) and `private.void_unused_sitting_codes()` (void; also called by the cancel, close, prune and remove paths), and two student readers (`list_my_active_internal_exam_codes()` for unconsumed/unvoided codes that are unexpired or belong to a scheduled sitting whose day has not ended, `list_my_internal_exam_history()` for session history). The `start_internal_exam_session` RPC additionally guards against duplicate active sessions via the `WHERE consumed_at IS NULL` race-clause on the consumption UPDATE (migration `20260429000010`). The `list_my_active_internal_exam_codes` reader omits the plaintext `code` column from its return signature so that even a leaked PostgREST request cannot harvest active codes.
+**Pattern:** Student reads and all writes are RPC-mediated; admin direct SELECT remains RLS-scoped (`admin_read_org_codes`). Four writer RPCs (`issue_internal_exam_code()` admin, `start_internal_exam_session()` student, `void_internal_exam_code()` admin, `record_internal_exam_code_emailed()` admin — stamps `emailed_at` + writes the send audit event) plus sitting writers `update_exam_sitting()` and `start_exam_sitting()` (re-stamp `expires_at`), `issue_sitting_exam_codes()` (INSERT via `private.insert_internal_exam_code()`) and `private.void_unused_sitting_codes()` (void; also called by `void_sitting_code` and the cancel, close, prune and remove paths), and two student readers (`list_my_active_internal_exam_codes()` for unconsumed/unvoided codes that are unexpired or belong to a scheduled sitting whose day has not ended, `list_my_internal_exam_history()` for session history). The `start_internal_exam_session` RPC additionally guards against duplicate active sessions via the `WHERE consumed_at IS NULL` race-clause on the consumption UPDATE (migration `20260429000010`). The `list_my_active_internal_exam_codes` reader omits the plaintext `code` column from its return signature so that even a leaked PostgREST request cannot harvest active codes.
 
 ---
 
@@ -1104,9 +1106,9 @@ ORDER BY deleted_at DESC;
 | `course_enrolments` | Yes | Removed enrolments kept as history; `set_user_enrolments` sets `deleted_at`/`deleted_by`, re-adding inserts a new active row |
 | `student_groups` | Yes | Retired groups kept as history; `delete_student_group` sets `deleted_at`/`deleted_by`; the name becomes reusable |
 | `student_group_members` | Yes | Removed memberships kept as history; `remove_student_group_members` / `delete_student_group` set `deleted_at`/`deleted_by`, re-adding inserts a new active row |
-| `exam_sittings` | Yes | Cancel sets `deleted_at`/`deleted_by`; never hard-deleted; kept at least 3 years after training completion (ORA.ATO.120) |
-| `exam_sitting_candidates` | Yes | Removal sets `deleted_at`/`deleted_by`; never hard-deleted; kept at least 3 years after training completion (ORA.ATO.120) |
-| `exam_sitting_entries` | Yes | Removal sets `deleted_at`/`deleted_by`; never hard-deleted; kept at least 3 years after training completion (ORA.ATO.120) |
+| `exam_sittings` | Yes | Cancel sets `deleted_at`/`deleted_by`; never hard-deleted in product code (test teardown exception: §2 `exam_sittings`); kept at least 3 years after training completion (ORA.ATO.120) |
+| `exam_sitting_candidates` | Yes | Removal sets `deleted_at`/`deleted_by`; never hard-deleted in product code (test teardown exception: §2 `exam_sittings`); kept at least 3 years after training completion (ORA.ATO.120) |
+| `exam_sitting_entries` | Yes | Removal sets `deleted_at`/`deleted_by`; never hard-deleted in product code (test teardown exception: §2 `exam_sittings`); kept at least 3 years after training completion (ORA.ATO.120) |
 | `quiz_sessions` | Yes | Sessions can be discarded (soft-deleted via `deleted_at`). A saved-for-later quiz is a soft-deleted row with `saved_at` set; `resume_saved_quiz` clears both, `discard_saved_quiz` clears `saved_at`; `set_user_enrolments` soft-deletes a student's open sessions and clears `saved_at` of their saved quizzes outside the final enrolment set |
 | `quiz_session_answers` | No | Immutable |
 | `quiz_session_progress` | No | Rows are never deleted; lifecycle follows `quiz_sessions` (soft delete). `ON DELETE CASCADE` on `session_id` serves test-teardown hard-deletes only |
@@ -1121,9 +1123,9 @@ ORDER BY deleted_at DESC;
 | `exam_configs` | Yes | Per-subject exam configuration; soft-deleted when org removes exam mode |
 | `exam_config_distributions` | Hard DELETE (approved exception) | No `deleted_at`; replaced atomically by `upsert_exam_config` RPC. Also cascades from parent `exam_configs` via `ON DELETE CASCADE`. RLS policies (admin SELECT/INSERT/DELETE) filter `ec.deleted_at IS NULL` on the parent join (mig 083), so direct PostgREST access to distributions of a soft-deleted exam config is blocked at the policy layer; `upsert_exam_config` runs as owner `postgres` (BYPASSRLS), so the replace-on-save flow is unaffected |
 | `question_comments` | Hard DELETE (explicit exception — low audit value) | deleted_at exists as safety net but not used by application code |
-| `internal_exam_codes` | Yes | Issued codes form an audit trail; admin void uses `voided_at`/`void_reason`, soft-delete reserved for compliance archival |
+| `internal_exam_codes` | Yes | Issued codes form an audit trail; admin void uses `voided_at`/`void_reason`, soft-delete reserved for compliance archival; test teardown exception: §2 `exam_sittings` |
 
-**Service-role integration-test teardown — sanctioned hard-delete exception.** The `packages/db/src/__integration__/**` cleanup helpers (`cleanupTestData` / `cleanupReferenceData`) hard-DELETE ephemeral per-suite fixtures — including the immutable tables above (`audit_events`, `student_responses`, `quiz_session_answers`) — via the service-role client, to reset the disposable local integration DB between runs (a soft-delete can't reset accumulating fixtures). This is **test-infra only**: the no-hard-DELETE + immutable-table rules still govern the production app (enforced via RLS) and all non-`__integration__` `packages/db/src` code. The local `.claude/hooks/check-soft-delete-guard.mjs` excludes `__integration__`, and `.coderabbit.yaml` carries the matching exception scoped to `packages/db/src/__integration__/` teardown helpers only (declared within its `packages/db/src/**` path-instruction block).
+**Service-role integration-test teardown — sanctioned hard-delete exception.** The `packages/db/src/__integration__/**` cleanup helpers (`cleanupTestData` / `cleanupReferenceData`) hard-DELETE ephemeral per-suite fixtures — including the immutable tables above (`audit_events`, `student_responses`, `quiz_session_answers`) — via the service-role client, to reset the disposable local integration DB between runs (a soft-delete can't reset accumulating fixtures). This is **test-infra only**: the no-hard-DELETE + immutable-table rules still govern the production app (enforced via RLS) and all non-`__integration__` `packages/db/src` code. The local `.claude/hooks/check-soft-delete-guard.mjs` excludes `__integration__` and `e2e/`, and `.coderabbit.yaml` carries the matching exception scoped to `packages/db/src/__integration__/` teardown helpers only (declared within its `packages/db/src/**` path-instruction block). The e2e helper `apps/web/e2e/helpers/exam-sitting-cleanup.ts` applies the same test-only exception to the `E2E-SIT-SEED-` sittings `seedSitting` builds, whose users and auth users a soft-delete cannot reset; scope in §2 `exam_sittings`.
 
 > **Admin write access (migration 039):** `easa_subjects`, `easa_topics`, and `easa_subtopics` have RLS policies granting INSERT/UPDATE to users where `is_admin()` returns `true` (the DELETE policies were dropped by mig `20261107000100`; delete is `soft_delete_syllabus_item`). All other users have SELECT-only access. These policies exist to support the Admin Syllabus Manager feature. Column grants: see **Column grants** in §2 (`easa_subjects` / `easa_topics` / `easa_subtopics`). SELECT is enrolment-scoped for students.
 
@@ -1174,7 +1176,7 @@ verb_noun pattern:
   remove_student_group_members ← write, admin-only: soft-delete the active memberships of 1..500 distinct ids (deactivated users allowed), returns rows removed, audit `student_group.members_removed` (SECURITY DEFINER, mig 20261115000300 #1776)
   get_student_groups_with_counts ← read, admin-only: active same-org groups with `description`, `active_count` / `deactivated_count` of active-membership students (deactivated students keep memberships; `users.deleted_at` read per §15 (e)), ordered by `lower(name)`, then `id`; no audit row (SECURITY DEFINER, mig 20261115000500 #1776)
   create_exam_sitting        ← write, admin-only: create a scheduled sitting (details only; UTC day not in the past, same-org active admin/instructor invigilator), audit `exam_sitting.created` (SECURITY DEFINER, mig 20261116001200 #1777)
-  update_exam_sitting        ← write, admin-only: change time, mode, materials (scheduled only) or invigilator (scheduled or open); re-stamps unused codes on a time change, returns `notify_code_ids`; audit `exam_sitting.updated` / `exam_sitting.invigilator_reassigned` (SECURITY DEFINER, mig 20261116001300 #1777)
+  update_exam_sitting        ← write, admin-only: change time, mode, materials (scheduled only; materials not sent by product code, Decision 260) or invigilator (scheduled or open); re-stamps unused codes on a time change, returns `notify_code_ids`; audit `exam_sitting.updated` / `exam_sitting.invigilator_reassigned` (SECURITY DEFINER, mig 20261116001300 #1777)
   start_exam_sitting         ← write, admin-only: scheduled to open; `sitting_not_due` before the sitting's UTC day; lazy-closes expired sittings, prunes, re-stamps codes; audit `exam_sitting.started` (SECURITY DEFINER, mig 20261116001400 #1777)
   close_exam_sitting         ← write, admin-only: open to closed, voids unused codes (`sitting_closed`); audit `exam_sitting.closed` (SECURITY DEFINER, mig 20261116001500 #1777)
   cancel_exam_sitting        ← write, admin-only: soft-delete a scheduled or open sitting with no attempts, voids unused codes (`sitting_cancelled`), returns `notify_code_ids`; audit `exam_sitting.cancelled` (SECURITY DEFINER, mig 20261116001600 #1777)
@@ -1190,6 +1192,7 @@ verb_noun pattern:
   record_exam_sitting_notice ← write, admin-only: one `exam_sitting.notice_emailed` audit row per emailed code or entry; kinds `changed` (unvoided codes), `cancelled` (cancelled sitting), `sitting_cancelled` (emailed, unconsumed codes voided `sitting_cancelled`), `entry_auto_removed` (SECURITY DEFINER, mig 20261116002600, kind `sitting_cancelled` mig 20261117001100 #1777)
   add_exam_sitting_entries   ← write, admin-only: explicit student x subject pairs (<=1000 distinct per call, <=2000 live per sitting) into a scheduled or open sitting; returns counts per skip reason and `skipped` (<=50, `detail_at`); audit `exam_sitting.entries_added` (SECURITY DEFINER, mig 20261117000400 #1777)
   issue_sitting_exam_codes   ← write, admin-only: one code per entry from the issue plan, prunes passed entries first, voids and replaces expired unused codes (`reissued_after_expiry`); returns counts only; audit `internal_exam.code_issued` (SECURITY DEFINER, mig 20261117000500 #1777)
+  void_sitting_code          ← write, admin-only: voids ONE unused code of an editable sitting (sitting lock `true`); reason btrim 1..500 else `invalid_input`; `code_not_found` (unknown, foreign sitting, removed entry), `code_voided`, `code_in_use` (consumed); returns `code_id`; audit `internal_exam.code_voided` via `private.void_unused_sitting_codes` (SECURITY DEFINER, mig 20261118000300 #1777)
   get_exam_sitting_issue_preview ← read, admin-only: what issue would do (`count`, `students_to_issue`, <=200 `detail` rows); no prune, no write (SECURITY DEFINER, mig 20261117000600 #1777)
   get_exam_sitting_subject_eligibility ← read, admin-only: one row per subject with a live enabled exam config, counts per pair state over the picked people, detail columns for one person (SECURITY DEFINER, mig 20261117000700 #1777)
   list_exam_sitting_roster   ← read, admin-only: live candidates with entries, codes and attempts as jsonb; `p_show` all, needs_code, not_emailed (unused, unexpired code never emailed), has_attempts; paged; any sitting status (SECURITY DEFINER, mig 20261117000800 #1777)
@@ -1659,7 +1662,7 @@ Every public sitting admin RPC is SECURITY DEFINER, `SET search_path = public, p
 - Guard order for the sitting writes (those calling `private.sitting_lock`) through `private.sitting_admin_guard()` and `private.sitting_lock(p_org, p_sitting_id, p_check_day)`: `not_authenticated`, `not_admin`, `admin_not_found`, `invalid_input`, `sitting_not_found` (row `FOR UPDATE`), `sitting_closed`, `sitting_day_ended`, then the specific token.
 - Private helpers (EXECUTE revoked): every `private.*sitting*` function plus `private.prune_passed_entries` and `private.close_expired_sittings` (derive with `git grep -nE 'FUNCTION private\.' -- supabase/migrations`). `sitting_code_expiry` = 23:59:59.999999 UTC of the sitting day.
 - Lazy close: `list_exam_sittings`, `get_exam_sitting_summary`, `start_exam_sitting` and `list_my_active_internal_exam_codes` call `close_expired_sittings(org)`: day-ended open sittings close automatically, day-ended never-started scheduled sittings auto-cancel; `private.close_expired_sittings` closes at most 3 per call (`LIMIT 3 … FOR UPDATE SKIP LOCKED`), no scheduler. `get_exam_sitting_summary` additionally closes its own requested sitting through `private.close_exam_sitting_core` when that sitting's day has ended, so it can close up to 4 per call.
-- `private.sitting_redeem_gate(p_entry_id, p_sitting_status, p_scheduled_at)` (SECURITY INVOKER, EXECUTE revoked, mig `20261117001300`): no-op for NULL entry; raises `sitting_not_open` unless status `open` and the UTC day has not ended. Called after the overdue auto-complete. The pre-read skips soft-deleted entries and sittings; a code left unvoided there raises `code_not_found` (cancel and entry removal void the code, so `code_voided`). `private.void_unused_sitting_codes` takes no sitting lock; its callers hold the sitting `FOR UPDATE`.
+- `private.sitting_redeem_gate(p_entry_id, p_sitting_status, p_scheduled_at)` (SECURITY INVOKER, EXECUTE revoked, mig `20261117001300`): no-op for NULL entry; raises `sitting_not_open` unless status `open` and the UTC day has not ended. Called after the overdue auto-complete. The pre-read skips soft-deleted entries and sittings; a code left unvoided there raises `code_not_found` (cancel and entry removal void the code, so `code_voided`). `private.void_unused_sitting_codes` takes no sitting lock; its callers (cancel, close, prune, remove, `void_sitting_code`) hold the sitting `FOR UPDATE`.
 - `private.sitting_pass_gate(p_org_id, p_student_id, p_subject_id)` (SECURITY INVOKER, EXECUTE revoked, mig `20261117001300`): raises `already_passed` if the student has an ended, passed internal-exam session for the subject whose code is not voided. Called for sitting codes after the `active_session_exists` guard.
 - Prune: `get_exam_sitting_summary` (scheduled or open sittings only) and `start_exam_sitting` call `prune_passed_entries` for the sitting, and `private.close_exam_sitting_core` calls it for an open sitting (`close_exam_sitting` and every lazy close); entries whose student passed the subject elsewhere are soft-deleted, unused codes voided (`passed_elsewhere`), audit `exam_sitting.entry_auto_removed`.
 - `private.sitting_pair_state(p_org, p_sitting_id, p_user_ids, p_subject_ids)` (STABLE, not guarded; callers guard): one row per same-org student x live subject. First match wins: `entered_here`, `passed` (ended `internal_exam` session with `passed IS TRUE`, consuming code not voided, legacy codes included), `attempt_running`, `entered_elsewhere` (live entry in another scheduled or open sitting of the org whose day has not ended and whose entry has no finished attempt; earliest sitting wins; `elsewhere_*` set only for this state), `not_enrolled`, `deactivated`, `eligible`. `attempt_count` = ended sessions whose consuming code is not voided.
@@ -1668,9 +1671,9 @@ Every public sitting admin RPC is SECURITY DEFINER, `SET search_path = public, p
 - `issue_sitting_exam_codes`: shape (`invalid_input`) before the sitting lock; then `sitting_not_found`, `sitting_closed`, `sitting_day_ended`, `entry_not_found` (all `p_entry_ids` must be live in the sitting; checked before the prune); an in-scope entry the prune removes counts `skipped_passed`. NULL `p_user_ids` = every live candidate (<=500; no candidates issues nothing). Expiry = `sitting_code_expiry(scheduled_at)`. `internal_exam.code_voided` reason `reissued_after_expiry`.
 - `get_exam_sitting_issue_preview` mirrors issue refusals; `passed` rows appear here and are pruned by issue, so counts equal issue counts except `passed`.
 - `get_exam_sitting_subject_eligibility`: `p_user_ids` NULL = all live candidates (<=500, none = empty result); explicit 1..100 distinct, non-candidates dropped, none left `invalid_input`; <=200 subjects ordered `course name NULLS LAST, sort_order, short, id`.
-- `list_exam_sitting_roster`: `limit` 1..100, `offset` >=0, `q` <=100, `p_show` allow-list else `invalid_input`; filter applied before paging. Entry status first match: `voided_attempt`, `discarded` (consumed; session soft-deleted), `running`, `finished`, `absent`, `no_code`, `voided`, `expired`, `waiting`, `ready`. `code` is returned only for an unvoided code that is consumed or unexpired.
+- `list_exam_sitting_roster`: `limit` 1..100, `offset` >=0, `q` <=100, `p_show` allow-list else `invalid_input`; filter applied before paging. Entry status first match: `voided_attempt`, `discarded` (consumed; session soft-deleted), `running`, `finished`, `absent`, `no_code`, `voided`, `expired`, `waiting`, `ready`. `code` is returned only for an unvoided code that is consumed or unexpired. The sitting page's URL value `show=attempts` is sent as `has_attempts`; `not_emailed` is not offered in the UI until email sending exists.
 - `list_exam_sitting_removed_entries`: `student_name` is `''` for a user outside the caller's org; `subject_short` is NULL for a soft-deleted subject.
-- Audit: ids, counts and reason counts only; no names, emails or code values.
+- Audit: ids, counts and reason counts; no names, emails or code values, except `void_sitting_code`, whose `internal_exam.code_voided` rows (and `internal_exam_codes.void_reason`) carry the admin's free-text reason, as `void_internal_exam_code` does.
 
 ##### `list_my_active_internal_exam_codes()` (migrations `20260521000002`, `20260824000200`, `20261116002900`, `20261117001250`)
 
@@ -1691,7 +1694,7 @@ Extended by migration `20261116002900` (#1777): appends `sitting_id, sitting_sch
 
 `easa_subjects` is joined without a `deleted_at` predicate: `soft_delete_syllabus_item` refuses a subject while an unconsumed, unvoided, unexpired code references it.
 
-Ordered by `COALESCE(sitting_scheduled_at, expires_at) ASC`, limited to 100 rows (the issuance ceiling is well below this — the cap is defensive).
+Ordered by `COALESCE(es.scheduled_at, iec.expires_at) ASC`, limited to 100 rows (the issuance ceiling is well below this — the cap is defensive).
 
 ```sql
 CREATE OR REPLACE FUNCTION public.list_my_active_internal_exam_codes()

@@ -1,5 +1,6 @@
 import { revalidatePath } from 'next/cache'
 import { matchRpcError } from '@/lib/rpc-error-match'
+import { SITTING_ROOT } from '../types'
 
 export type SittingActionResult<T extends object = Record<string, never>> =
   | ({ success: true } & T)
@@ -13,7 +14,7 @@ export const SITTING_RPC_ERRORS: Record<string, string> = {
   sitting_not_found: 'Sitting not found',
   sitting_closed: 'This sitting is closed and cannot be changed.',
   sitting_day_ended: "This sitting's day has ended.",
-  sitting_not_editable: 'Time, mode and materials cannot be changed once the sitting is open.',
+  sitting_not_editable: 'Time and mode cannot be changed once the sitting is open.',
   sitting_not_scheduled: 'This sitting has already been started.',
   sitting_not_due:
     'Too early: a sitting can start from its UTC day. Edit the date to run it earlier.',
@@ -22,6 +23,21 @@ export const SITTING_RPC_ERRORS: Record<string, string> = {
   scheduled_in_past: 'The sitting date must be today or later (UTC).',
   invigilator_not_found:
     'The invigilator must be an active admin or instructor of your organization',
+  too_many_candidates: 'A sitting can hold at most 500 people.',
+  too_many_entries: 'A sitting can hold at most 2000 exams.',
+  subject_not_found: 'An exam you picked no longer exists. Reload and try again.',
+  exam_config_required: 'An exam you picked is not set up as an internal exam.',
+  candidate_has_attempt:
+    'Someone you selected has taken an exam. History is permanent: they cannot be removed.',
+  candidate_not_found: 'Someone you selected is no longer in this sitting. Reload the page.',
+  entry_has_attempt: 'This exam has been taken. It cannot be removed.',
+  entry_not_found: 'This exam is no longer in the sitting. Reload the page.',
+  student_not_found: 'A person you selected no longer exists. Reload and try again.',
+  code_generation_failed: 'Could not generate a unique code. Try again.',
+  code_not_found: 'Code not found. Refresh the page.',
+  code_voided: 'Code is already voided.',
+  code_in_use: 'This code has been used. Refresh the page.',
+  group_not_found: 'This group no longer exists.',
 }
 
 export function sittingFailure(message: string, fallback: string) {
@@ -39,8 +55,6 @@ export function num(row: Record<string, unknown>, key: string): number {
   const v = row[key]
   return typeof v === 'number' ? v : 0
 }
-
-export const SITTING_ROOT = '/app/admin/internal-exams'
 
 export function revalidateSitting(sittingId: string) {
   revalidatePath(SITTING_ROOT)

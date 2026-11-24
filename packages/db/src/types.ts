@@ -2692,6 +2692,12 @@ export type Database = {
           session_id: string
         }[]
       }
+      void_sitting_code: {
+        Args: { p_code_id: string; p_reason: string; p_sitting_id: string }
+        Returns: {
+          code_id: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

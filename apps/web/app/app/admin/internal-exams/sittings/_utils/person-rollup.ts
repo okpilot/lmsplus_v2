@@ -1,0 +1,15 @@
+import { LIVE_ENTRY_STATUSES, type RosterEntry, type ShowValue } from '../types'
+
+export const SHOW_OPTIONS: readonly { value: ShowValue; label: string }[] = [
+  { value: 'all', label: 'All people' },
+  { value: 'needs_code', label: 'Needs code' },
+  { value: 'attempts', label: 'Has attempts' },
+]
+
+/** The expiry every live code shares, or null when they differ or none is live. */
+export function sharedExpiry(entries: readonly RosterEntry[]): string | null {
+  const stamps = new Set<string>()
+  for (const e of entries)
+    if (LIVE_ENTRY_STATUSES.has(e.status) && e.codeExpiresAt) stamps.add(e.codeExpiresAt)
+  return stamps.size === 1 ? ([...stamps][0] ?? null) : null
+}

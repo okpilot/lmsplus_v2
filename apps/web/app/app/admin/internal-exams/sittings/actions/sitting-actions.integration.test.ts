@@ -28,7 +28,7 @@ let studentId: string
 async function readSitting(id: string) {
   const { data, error } = await admin
     .from('exam_sittings')
-    .select('status, mode, permitted_materials, invigilator_id')
+    .select('status, mode, invigilator_id')
     .eq('id', id)
     .single()
   if (error) throw new Error(`readSitting: ${error.message}`)
@@ -53,7 +53,6 @@ async function createToday(): Promise<string> {
     scheduledAt: todayIso(),
     mode: 'remote',
     invigilatorId: instructorId,
-    permittedMaterials: 'Calculator',
   })
   if (!created.success) throw new Error(`createSitting: ${created.error}`)
   return created.sittingId
@@ -97,7 +96,6 @@ describe('sitting Server Actions (app-layer integration)', () => {
     expect(await readSitting(id)).toMatchObject({
       status: 'scheduled',
       mode: 'remote',
-      permitted_materials: 'Calculator',
       invigilator_id: instructorId,
     })
 
@@ -122,7 +120,7 @@ describe('sitting Server Actions (app-layer integration)', () => {
     expect((await readSitting(id)).status).toBe('closed')
   })
 
-  it('refuses to edit the time, mode or materials of an open sitting', async () => {
+  it('refuses to edit the time or mode of an open sitting', async () => {
     await signInAs(adminEmail, password)
     const id = await createToday()
     const started = await startSitting({ sittingId: id })
@@ -132,7 +130,7 @@ describe('sitting Server Actions (app-layer integration)', () => {
 
     expect(result).toEqual({
       success: false,
-      error: 'Time, mode and materials cannot be changed once the sitting is open.',
+      error: 'Time and mode cannot be changed once the sitting is open.',
     })
     expect((await readSitting(id)).mode).toBe('remote')
   })

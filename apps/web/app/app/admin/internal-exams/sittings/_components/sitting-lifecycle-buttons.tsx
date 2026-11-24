@@ -1,11 +1,12 @@
 'use client'
 
+import Link from 'next/link'
 import { useRef, useState } from 'react'
 import { RowMenu } from '@/components/admin/row-menu'
 import { Button } from '@/components/ui/button'
 import { MenuItem, MenuSeparator } from '@/components/ui/menu'
 import { useSittingUi } from '../_hooks/sitting-ui-context'
-import type { SittingRow, SittingSummary } from '../types'
+import { SITTING_BASE, type SittingRow, type SittingSummary } from '../types'
 import { type Confirm, LifecycleConfirms } from './lifecycle-confirms'
 
 type Props = { sitting: SittingRow; summary: SittingSummary; notDue: boolean; dayEnded: boolean }
@@ -20,6 +21,9 @@ export function SittingLifecycleButtons({ sitting, summary, notDue, dayEnded }: 
       <RowMenu label="More actions" triggerRef={triggerRef}>
         <MenuItem disabled={isRefreshing} onClick={() => open('edit', triggerRef.current)}>
           Edit details
+        </MenuItem>
+        <MenuItem render={<Link href={`${SITTING_BASE}/${sitting.id}/print`} prefetch={false} />}>
+          Print codes
         </MenuItem>
         <MenuSeparator />
         <MenuItem tone="danger" onClick={() => setConfirm('cancel')}>

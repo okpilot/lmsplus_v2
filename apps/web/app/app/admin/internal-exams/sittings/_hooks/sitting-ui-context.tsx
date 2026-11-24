@@ -3,6 +3,7 @@
 import { useSearchParams } from 'next/navigation'
 import {
   createContext,
+  type MutableRefObject,
   type ReactNode,
   useCallback,
   useContext,
@@ -15,6 +16,7 @@ import { toast } from 'sonner'
 import { readDlgParam } from '../../_search-params'
 import type { ResultBannerData } from '../_utils/copy'
 import { type DialogRefs, useDialogParam } from './use-dialog-param'
+import { NO_ROSTER, type RosterSelection, useRosterSelection } from './use-roster-selection'
 
 type Shared = {
   refs: DialogRefs
@@ -23,11 +25,14 @@ type Shared = {
   setLocked: (v: boolean) => void
   banner: ResultBannerData | null
   setBanner: (b: ResultBannerData | null) => void
+  roster: RosterSelection
+  /** Search text typed but not yet written to the URL; Show flushes it with its own write. */
+  searchDraft: MutableRefObject<string | null>
 }
 
 const SittingUiContext = createContext<Shared | null>(null)
 
-/** One banner at a time; plain success is a toast. */
+/** One banner at a time; success is a toast. */
 function toastOrBanner(b: ResultBannerData | null, set: (b: ResultBannerData | null) => void) {
   if (b?.tone === 'success') {
     set(null)
@@ -49,6 +54,8 @@ export function useSittingUi() {
     setLocked: shared?.setLocked ?? (() => undefined),
     banner: shared?.banner ?? null,
     setBanner: shared?.setBanner ?? noBanner,
+    ...(shared?.roster ?? NO_ROSTER),
+    searchDraft: shared?.searchDraft,
   }
 }
 
@@ -69,9 +76,19 @@ export function SittingUiProvider({ children }: Readonly<{ children: ReactNode }
     (b: ResultBannerData | null) => toastOrBanner(b, setBannerState),
     [],
   )
+  const roster = useRosterSelection()
+  const searchDraft = useRef<string | null>(null)
   const value = useMemo<Shared>(
-    () => ({ refs: { openedHere, openerRef, closing }, locked, setLocked, banner, setBanner }),
-    [locked, banner, setBanner],
+    () => ({
+      refs: { openedHere, openerRef, closing },
+      locked,
+      setLocked,
+      banner,
+      setBanner,
+      roster,
+      searchDraft,
+    }),
+    [locked, banner, setBanner, roster],
   )
   return <SittingUiContext.Provider value={value}>{children}</SittingUiContext.Provider>
 }
