@@ -115,6 +115,12 @@ describe('entryFacts', () => {
     ).toContain('Voided: sitting closed')
   })
 
+  it('shows a free-text reason that collides with an Object prototype key verbatim', () => {
+    expect(
+      entryFacts(entry({ status: 'voided', voidReason: 'toString' }), { sharedExpiry: false }),
+    ).toContain('Voided: toString')
+  })
+
   it('says Did not start for an absent exam', () => {
     expect(entryFacts(entry({ status: 'absent' }), { sharedExpiry: false })).toContain(
       'Did not start',

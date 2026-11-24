@@ -53,7 +53,11 @@ function attemptText(e: RosterEntry): string {
 
 function codeText(e: RosterEntry, sharedExpiry: boolean): string {
   if (e.status === 'voided') {
-    const why = e.voidReason ? (VOID_REASON_LABEL[e.voidReason] ?? e.voidReason) : ''
+    const why = e.voidReason
+      ? Object.hasOwn(VOID_REASON_LABEL, e.voidReason)
+        ? VOID_REASON_LABEL[e.voidReason]
+        : e.voidReason
+      : ''
     return why ? `Voided: ${why}` : 'Voided'
   }
   if (!e.codeExpiresAt) return ''

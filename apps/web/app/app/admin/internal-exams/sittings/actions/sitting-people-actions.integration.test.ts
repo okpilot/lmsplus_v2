@@ -11,6 +11,7 @@ import {
   seedReferenceData,
   signInAs,
 } from '@/lib/integration-support/harness'
+import { issueSittingCodes } from './issue-sitting-codes'
 import { removeCandidates } from './remove-candidates'
 import { removeSittingEntries } from './remove-entries'
 import { voidSittingCode } from './void-sitting-code'
@@ -25,6 +26,7 @@ let adminId: string
 let instructorId: string
 let s1: string
 let s2: string
+let s3: string
 let refs: ReferenceIds
 let sittingId: string
 let entryId: string
@@ -51,6 +53,13 @@ describe('sitting people Server Actions (app-layer integration)', () => {
       admin,
       orgId,
       email: `int-pact-s2-${suffix}@test.local`,
+      password,
+      role: 'student',
+    })
+    s3 = await createTestUser({
+      admin,
+      orgId,
+      email: `int-pact-s3-${suffix}@test.local`,
       password,
       role: 'student',
     })
@@ -93,7 +102,7 @@ describe('sitting people Server Actions (app-layer integration)', () => {
   })
 
   afterAll(async () => {
-    await cleanupTestData({ admin, orgId, userIds: [adminId, instructorId, s1, s2] })
+    await cleanupTestData({ admin, orgId, userIds: [adminId, instructorId, s1, s2, s3] })
     await cleanupReferenceData({ admin, refs: [refs] })
   })
 
@@ -135,6 +144,68 @@ describe('sitting people Server Actions (app-layer integration)', () => {
     expect(await removeCandidates({ sittingId, userIds: [s2] })).toEqual({
       success: false,
       error: 'Someone you selected is no longer in this sitting. Reload the page.',
+    })
+  })
+
+  it('issueSittingCodes issues one code for an entry, then reports it already issued', async () => {
+    const subject = await admin
+      .from('easa_subjects')
+      .select('course_id')
+      .eq('id', refs.subjectId)
+      .single()
+    if (subject.error) throw new Error(`subject: ${subject.error.message}`)
+    const enrolled = await admin
+      .from('course_enrolments')
+      .select('id')
+      .eq('user_id', s3)
+      .eq('course_id', subject.data.course_id)
+      .is('deleted_at', null)
+    if (enrolled.error) throw new Error(`enrolment: ${enrolled.error.message}`)
+    if ((enrolled.data ?? []).length === 0) {
+      throw new Error('fixture: the test student is not enrolled on the subject course')
+    }
+    const cfg = await admin.from('exam_configs').insert({
+      organization_id: orgId,
+      subject_id: refs.subjectId,
+      enabled: true,
+      total_questions: 10,
+      time_limit_seconds: 1800,
+      pass_mark: 75,
+    })
+    if (cfg.error) throw new Error(`exam_configs: ${cfg.error.message}`)
+    const cand = await admin
+      .from('exam_sitting_candidates')
+      .insert({ organization_id: orgId, sitting_id: sittingId, user_id: s3 })
+    if (cand.error) throw new Error(`candidate: ${cand.error.message}`)
+    const ent = await admin
+      .from('exam_sitting_entries')
+      .insert({
+        organization_id: orgId,
+        sitting_id: sittingId,
+        user_id: s3,
+        subject_id: refs.subjectId,
+      })
+      .select('id')
+      .single()
+    if (ent.error) throw new Error(`entry: ${ent.error.message}`)
+
+    await signInAs(adminEmail, password)
+    expect(await issueSittingCodes({ sittingId, entryIds: [ent.data.id] })).toMatchObject({
+      success: true,
+      issued: 1,
+    })
+    const { data: codes } = await admin
+      .from('internal_exam_codes')
+      .select('id, voided_at, consumed_at')
+      .eq('sitting_entry_id', ent.data.id)
+      .is('deleted_at', null)
+    expect(codes).toHaveLength(1)
+    expect(codes?.[0]?.voided_at).toBeNull()
+
+    expect(await issueSittingCodes({ sittingId, entryIds: [ent.data.id] })).toMatchObject({
+      success: true,
+      issued: 0,
+      skippedAlreadyIssued: 1,
     })
   })
 
