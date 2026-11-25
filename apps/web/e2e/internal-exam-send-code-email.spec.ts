@@ -97,6 +97,23 @@ async function lookupAdminUserId(admin: AdminClient): Promise<string> {
   return data.id
 }
 
+async function softDeleteIssuedCodes(ids: Set<string>): Promise<void> {
+  if (ids.size === 0) return
+  try {
+    const { data, error } = await getAdminClient()
+      .from('internal_exam_codes')
+      .update({ deleted_at: new Date().toISOString() })
+      .in('id', [...ids])
+      .select('id')
+    if (error) throw new Error(error.message)
+    if ((data?.length ?? 0) > 0) {
+      console.log(`[cleanup] soft-deleted ${data?.length} internal exam code(s)`)
+    }
+  } finally {
+    ids.clear()
+  }
+}
+
 test.describe('internal exam — send-code-email pre-send state guard', () => {
   test.setTimeout(120_000)
 
@@ -107,26 +124,22 @@ test.describe('internal exam — send-code-email pre-send state guard', () => {
     await cleanupE2eExamSittings()
   })
 
-  // Hermeticity (§7) — soft-delete every code this spec issued so downstream
-  // internal-exam specs don't inherit active/issued codes. Single cleanup step.
+  // Hermeticity (§7) — soft-delete every code this spec issued so downstream internal-exam specs
+  // don't inherit active/issued codes. Two steps, each with its own error slot: a failed sitting
+  // teardown must not skip the code soft-delete, which is what keeps the shared fixture clean.
   test.afterEach(async () => {
-    await cleanupE2eExamSittings()
-    if (issuedCodeIds.size === 0) return
+    const errors: string[] = []
     try {
-      const admin = getAdminClient()
-      const ids = [...issuedCodeIds]
-      const { data, error } = await admin
-        .from('internal_exam_codes')
-        .update({ deleted_at: new Date().toISOString() })
-        .in('id', ids)
-        .select('id')
-      if (error) throw new Error(`afterEach soft-delete: ${error.message}`)
-      if ((data?.length ?? 0) > 0) {
-        console.log(`[cleanup] soft-deleted ${data?.length} internal exam code(s)`)
-      }
-    } finally {
-      issuedCodeIds.clear()
+      await cleanupE2eExamSittings()
+    } catch (e) {
+      errors.push(`sittings cleanup: ${e instanceof Error ? e.message : String(e)}`)
     }
+    try {
+      await softDeleteIssuedCodes(issuedCodeIds)
+    } catch (e) {
+      errors.push(`code soft-delete: ${e instanceof Error ? e.message : String(e)}`)
+    }
+    if (errors.length > 0) throw new Error(errors.join('; '))
   })
 
   test('accepts an active code past the pre-send state guard', async ({ page: adminPage }) => {

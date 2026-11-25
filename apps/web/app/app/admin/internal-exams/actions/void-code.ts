@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { matchRpcError } from '@/lib/rpc-error-match'
+import { checkSittingCode } from './sitting-code-guard'
 
 const VoidCodeSchema = z.object({
   codeId: z.uuid(),
@@ -43,14 +44,6 @@ function isRpcRow(value: unknown): value is RpcRow {
   )
 }
 
-/** A consumed sitting code with a live session: the sitting page cannot void it, so this can. */
-function isRunningAttempt(row: {
-  consumed_at: string | null
-  quiz_sessions: { ended_at: string | null } | null
-}): boolean {
-  return row.consumed_at !== null && row.quiz_sessions?.ended_at == null
-}
-
 export async function voidInternalExamCode(input: unknown): Promise<VoidCodeResult> {
   const parsed = VoidCodeSchema.safeParse(input)
   if (!parsed.success) return { success: false, error: 'Invalid input' }
@@ -58,20 +51,8 @@ export async function voidInternalExamCode(input: unknown): Promise<VoidCodeResu
   const { supabase } = await requireAdmin()
   const { codeId, reason } = parsed.data
 
-  const { data: codeRow, error: lookupError } = await supabase
-    .from('internal_exam_codes')
-    .select('sitting_entry_id, consumed_at, quiz_sessions!consumed_session_id(ended_at)')
-    .eq('id', codeId)
-    .maybeSingle()
-  if (lookupError) {
-    console.error('[voidInternalExamCode] lookup error:', lookupError.message)
-    return { success: false, error: 'Failed to void internal exam code' }
-  }
-  // Fail closed: the legacy RPC has no sitting guard of its own (#1820).
-  if (!codeRow) return { success: false, error: 'Code not found' }
-  if (codeRow.sitting_entry_id && !isRunningAttempt(codeRow)) {
-    return { success: false, error: 'Void sitting codes from their sitting' }
-  }
+  const guard = await checkSittingCode(supabase, codeId)
+  if (!guard.ok) return { success: false, error: guard.error }
 
   const { data, error } = await supabase.rpc('void_internal_exam_code', {
     p_code_id: codeId,
