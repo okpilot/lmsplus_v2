@@ -1,12 +1,10 @@
 import { parsePageParam } from '@/lib/utils/parse-page-param'
 import { readScopeParam } from './sittings/_utils/scope-url'
 import type { SittingScope } from './sittings/types'
-import type { ListCodesFilters } from './types'
-
-const CODE_STATUS_VALUES = ['active', 'consumed', 'expired', 'voided', 'finished'] as const
+import { CODE_FILTER_STATUSES, type ListCodesFilters } from './types'
 
 function parseCodeStatus(value: string | string[] | undefined): ListCodesFilters['status'] {
-  return typeof value === 'string' && (CODE_STATUS_VALUES as readonly string[]).includes(value)
+  return typeof value === 'string' && (CODE_FILTER_STATUSES as readonly string[]).includes(value)
     ? (value as ListCodesFilters['status'])
     : undefined
 }

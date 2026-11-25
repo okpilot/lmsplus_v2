@@ -78,9 +78,8 @@ async function insertCode(fields: Record<string, unknown>): Promise<string> {
 let seeded: Promise<void> | null = null
 
 describe('checkSittingCode (app-layer integration)', () => {
-  // `signInAs` cannot run in `beforeAll` (the harness resets the cookie jar per test), so the seed
-  // is memoised as a PROMISE: a rejected one rejects again for every test instead of leaving the
-  // ids undefined.
+  // `signInAs` cannot run in `beforeAll`: the harness resets the cookie jar per test. The seed is
+  // memoised as a PROMISE so a rejection re-throws for every test rather than leaving ids unset.
   beforeEach(async () => {
     seeded ??= seed()
     await seeded
@@ -242,7 +241,7 @@ describe('checkSittingCode (app-layer integration)', () => {
     // hiding the row, not from a broken FK hint that would null every embed.
     expect(await checkSittingCode(supabase, hiddenCodeId, REASON)).toEqual({
       ok: false,
-      error: 'This attempt was discarded — there is nothing to void',
+      error: 'This attempt is no longer live — there is nothing to void',
     })
   })
 

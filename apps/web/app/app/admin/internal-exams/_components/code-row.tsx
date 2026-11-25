@@ -5,42 +5,24 @@ import { StatusText } from '@/components/kit/status-text'
 import { Button } from '@/components/ui/button'
 import { TableCell, TableRow } from '@/components/ui/table'
 import { formatUtc } from '@/lib/utils/format-utc'
-import { codeRowVoidable } from '../_void-policy'
+import { codeDisplayStatus, codeRowVoidable, codeVoidDisabled } from '../_void-policy'
 import { SITTING_BASE } from '../sittings/types'
 import type { InternalExamCodeRow } from '../types'
 import { statusLabel } from './code-status-items'
 import { SendCodeEmailButton } from './send-code-email-button'
 
-type DisplayStatus = InternalExamCodeRow['status'] | 'finished' | 'discarded'
-
-function displayStatus(row: InternalExamCodeRow): DisplayStatus {
-  if (row.status !== 'consumed') return row.status
-  if (row.sessionEndedAt) return 'finished'
-  // Soft-deleted and never ended: the attempt is gone, not running. Reporting it as "In progress"
-  // leaves the admin watching a row that will never finish and that `codeRowVoidable` won't void.
-  if (row.sessionDeletedAt) return 'discarded'
-  return 'consumed'
-}
-
-const STATUS_MUTED: ReadonlySet<DisplayStatus> = new Set(['expired', 'voided', 'discarded'])
+const STATUS_MUTED: ReadonlySet<string> = new Set(['expired', 'voided', 'discarded'])
 
 function formatAbsolute(iso: string | null): string {
   if (!iso) return '—'
   return formatUtc(iso, { dateStyle: 'short', timeStyle: 'short' }, { label: false })
 }
 
-function isVoidDisabled(r: InternalExamCodeRow): boolean {
-  if (r.status === 'voided') return true
-  // Ended or discarded, the attempt is final: `void_internal_exam_code` raises
-  // `session_state_changed` for a legacy code in either state.
-  return r.status === 'consumed' && (r.sessionEndedAt !== null || r.sessionDeletedAt !== null)
-}
-
 export function CodeRow({
   r,
   onVoid,
 }: Readonly<{ r: InternalExamCodeRow; onVoid: (id: string) => void }>) {
-  const ds = displayStatus(r)
+  const ds = codeDisplayStatus(r)
   return (
     <TableRow>
       <TableCell>
@@ -86,7 +68,7 @@ export function CodeRow({
           <Button
             variant="outline"
             size="sm"
-            disabled={isVoidDisabled(r)}
+            disabled={codeVoidDisabled(r)}
             onClick={() => onVoid(r.id)}
           >
             Void

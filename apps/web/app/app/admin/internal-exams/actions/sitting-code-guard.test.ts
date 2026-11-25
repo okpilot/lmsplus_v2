@@ -43,7 +43,7 @@ describe('checkSittingCode', () => {
     expect(await checkSittingCode(supabase, 'c1', 'typed by the admin')).toEqual({ ok: true })
   })
 
-  it('says the attempt was discarded when its session is hidden', async () => {
+  it('does not claim which state a hidden session was in', async () => {
     mockMaybeSingle.mockResolvedValue({
       data: {
         sitting_entry_id: 'e1',
@@ -55,7 +55,7 @@ describe('checkSittingCode', () => {
     })
     expect(await checkSittingCode(supabase, 'c1', 'admin typed reason')).toEqual({
       ok: false,
-      error: 'This attempt was discarded — there is nothing to void',
+      error: 'This attempt is no longer live — there is nothing to void',
     })
   })
 

@@ -35,16 +35,14 @@ function applyCodeFilters(
     case 'expired':
       return b.is('voided_at', null).is('consumed_at', null).lte('expires_at', nowIso)
     case 'consumed':
-      // linked session still in flight: not ended AND not discarded. A soft-deleted session is
-      // visible to this service-role read, and without the second filter it reads as in-flight.
+      // This service-role read sees soft-deleted sessions, so in-flight needs both filters.
       return b
         .not('consumed_at', 'is', null)
         .is('voided_at', null)
         .is('quiz_sessions.ended_at', null)
         .is('quiz_sessions.deleted_at', null)
     case 'discarded':
-      // Consumed, never ended, session soft-deleted. Only this service-role read can see the
-      // session row at all, so this is the one place the state is filterable.
+      // Only this service-role read sees the session row, so only here is the state filterable.
       return b
         .not('consumed_at', 'is', null)
         .is('voided_at', null)

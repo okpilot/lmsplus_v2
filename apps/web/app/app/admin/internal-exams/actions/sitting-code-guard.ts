@@ -21,7 +21,7 @@ function refusal(row: CodeRow): string {
   if (row.voided_at) return 'Code is already voided'
   if (row.consumed_at === null) return 'Void sitting codes from their sitting'
   if (row.quiz_sessions?.ended_at) return 'Cannot void a finished attempt — record is final'
-  return 'This attempt was discarded — there is nothing to void'
+  return 'This attempt is no longer live — there is nothing to void'
 }
 
 /**

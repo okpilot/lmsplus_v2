@@ -1,3 +1,4 @@
+import type { InternalExamCodeStatus } from './types'
 export type VoidPolicyInput = {
   sittingEntryId: string | null
   consumed: boolean
@@ -38,4 +39,35 @@ export function codeRowVoidable(
     sessionEndedAt: row.sessionEndedAt,
     sessionVisible: row.sessionDeletedAt === null,
   })
+}
+
+export type CodeDisplayStatus = InternalExamCodeStatus | 'finished' | 'discarded'
+
+/** What the row badge reads. A soft-deleted, unended attempt is gone, not running. */
+export function codeDisplayStatus(
+  row: Readonly<{
+    status: InternalExamCodeStatus
+    sessionEndedAt: string | null
+    sessionDeletedAt: string | null
+  }>,
+): CodeDisplayStatus {
+  if (row.status !== 'consumed') return row.status
+  if (row.sessionEndedAt) return 'finished'
+  if (row.sessionDeletedAt) return 'discarded'
+  return 'consumed'
+}
+
+/**
+ * Void stays visible but inert for a finished or discarded attempt: `void_internal_exam_code`
+ * raises `session_state_changed` for a legacy code in either state.
+ */
+export function codeVoidDisabled(
+  row: Readonly<{
+    status: InternalExamCodeStatus
+    sessionEndedAt: string | null
+    sessionDeletedAt: string | null
+  }>,
+): boolean {
+  if (row.status === 'voided') return true
+  return row.status === 'consumed' && (row.sessionEndedAt !== null || row.sessionDeletedAt !== null)
 }

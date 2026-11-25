@@ -1,10 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import { parseInternalExamsSearchParams } from './_search-params'
+import { CODE_FILTER_STATUSES } from './types'
 
 describe('parseInternalExamsSearchParams', () => {
   it('keeps a recognised code status', () => {
     expect(parseInternalExamsSearchParams({ status: 'consumed' }).status).toBe('consumed')
     expect(parseInternalExamsSearchParams({ status: 'finished' }).status).toBe('finished')
+  })
+
+  // Every value the Select offers must survive the URL round-trip, or the option filters nothing.
+  it('parses every status the codes filter offers', () => {
+    for (const value of CODE_FILTER_STATUSES) {
+      expect(parseInternalExamsSearchParams({ status: value }).status).toBe(value)
+    }
   })
 
   it('drops an unrecognised status to undefined', () => {

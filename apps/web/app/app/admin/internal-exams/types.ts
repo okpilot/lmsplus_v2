@@ -1,5 +1,17 @@
 export type InternalExamCodeStatus = 'active' | 'waiting' | 'consumed' | 'expired' | 'voided'
 
+/** Every status the codes filter accepts, in the order the Select offers them. */
+export const CODE_FILTER_STATUSES = [
+  'active',
+  'consumed',
+  'finished',
+  'discarded',
+  'voided',
+  'expired',
+] as const
+
+export type CodeFilterStatus = (typeof CODE_FILTER_STATUSES)[number]
+
 export type InternalExamCodeRow = {
   id: string
   code: string
@@ -26,7 +38,7 @@ export type InternalExamCodeRow = {
 }
 
 export type ListCodesFilters = {
-  status?: Exclude<InternalExamCodeStatus, 'waiting'> | 'finished' | 'discarded'
+  status?: CodeFilterStatus
   studentId?: string
   subjectId?: string
   page?: number
