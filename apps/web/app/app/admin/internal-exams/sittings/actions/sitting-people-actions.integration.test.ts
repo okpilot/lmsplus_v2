@@ -650,8 +650,6 @@ describe('sitting Add people / Add exams / Issue codes actions (app-layer integr
       expect(codes).toBe(0)
     })
 
-    // KNOWN PRODUCTION BUG (reported, keep red): `issued` already includes the re-issued code, so
-    // `issuePopupBanner` (issued + reissuedAfterExpiry) calls a matching preview "changed".
     it('does not claim the counts changed when issued matches the preview', () => {
       if (!issuedResult?.success) throw new Error('issue result missing')
       const { success: _ok, ...counts } = issuedResult
