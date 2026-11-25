@@ -16,7 +16,8 @@
     "lint:ci": "node .claude/hooks/run-ci-lint.mjs",
     "db:types": "pnpm -s supabase gen types typescript --local > packages/db/src/types.ts.tmp && mv packages/db/src/types.ts.tmp packages/db/src/types.ts || { rm -f packages/db/src/types.ts.tmp; exit 1; }; biome format --write packages/db/src/types.ts",
     "tokens:css": "pnpm --filter @repo/web tokens:css",
-    "preinstall": "npx only-allow pnpm"
+    "preinstall": "npx only-allow pnpm",
+    "prepare": "git rev-parse --git-dir >/dev/null 2>&1 || exit 0; lefthook install || exit 1; for h in .git/hooks/*; do [ -f \"$h\" ] || continue; grep -q \"find lefthook in PATH\" \"$h\" || continue; sed -i \"s|.*find lefthook in PATH.*|      echo \\\"lefthook not found - run: pnpm install\\\" >\\&2; exit 1|\" \"$h\" || exit 1; done; exit 0"
   },
   "engines": {
     "node": ">=22.12.0",

@@ -22,16 +22,18 @@ process.stdin.on('error', (err) => {
 })
 process.stdin.on('data', (chunk) => {
   input += chunk
-  // Fail-open-but-loud on absurdly large payloads — real payloads are a few KB,
-  // and unbounded buffering would let a runaway stream exhaust memory.
+  // Fail CLOSED on absurdly large payloads. Real payloads are a few KB, so only padding reaches
+  // 1MB — and padding in front of a destructive command is exactly how a denylist gets bypassed.
+  // guard-agent-brief.js fails closed on the identical condition; these two must not disagree.
+  // Unbounded buffering would also let a runaway stream exhaust memory.
   if (input.length > 1_000_000 && !oversizedPayload) {
     // The flag keeps the 'end' handler from processing the payload while the
-    // async stderr flush completes — the fail-open exit must not be overridden.
+    // async stderr flush completes — the blocking exit must not be overridden.
     oversizedPayload = true
     process.stdin.destroy() // stop further data events immediately
     process.stderr.write(
-      '[guard-bash] payload exceeds 1MB — allowing command (unparseable-payload policy)\n',
-      () => process.exit(0),
+      'BLOCKED: command payload exceeds 1MB — refusing to pattern-match a truncated payload\n',
+      () => process.exit(2),
     )
   }
 })

@@ -37,8 +37,28 @@ fi
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 REMOTE_REF=$(git rev-parse --abbrev-ref @{upstream} 2>/dev/null || echo "origin/master")
-DIFF_FULL=$(git diff --no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ "$REMOTE_REF"...HEAD 2>/dev/null || git diff --no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ HEAD 2>/dev/null || echo "")
 
+# Branch on the diff's EXIT CODE, never on its emptiness. The previous form was
+#   git diff "$REMOTE_REF"...HEAD 2>/dev/null || git diff HEAD 2>/dev/null || echo ""
+# followed by `[ -z "$DIFF_FULL" ] && exit 0`: when the first diff ERRORED (unresolvable
+# origin/master, shallow clone, no merge base) the fallback produced the working-tree diff, empty on
+# a clean tree, and this documented fail-closed gate approved the push having audited nothing.
+# `/fullpush` step 5b states the same rule for the orchestrator's own diff capture.
+if ! git rev-parse --verify "$REMOTE_REF^{commit}" >/dev/null; then
+  echo "[security-auditor] cannot resolve '$REMOTE_REF' — run 'git fetch origin'. BLOCKING." >&2
+  exit 1
+fi
+
+# `set -e` does not fire on a failed assignment guarded by `||`, so capture the status explicitly
+# rather than letting git's own 128 abort the script before any reason is printed.
+DIFF_RC=0
+DIFF_FULL=$(git diff --no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ "$REMOTE_REF"...HEAD) || DIFF_RC=$?
+if [ "$DIFF_RC" -ne 0 ]; then
+  echo "[security-auditor] 'git diff $REMOTE_REF...HEAD' failed (exit $DIFF_RC) — BLOCKING." >&2
+  exit 1
+fi
+
+# Only a diff that SUCCEEDED and is empty is a legitimate no-op.
 if [ -z "$DIFF_FULL" ]; then
   echo "[security-auditor] No diff to audit. Skipping."
   exit 0

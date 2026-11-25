@@ -18,6 +18,7 @@ import {
   isArmed,
   makeDir,
   makeRepo,
+  notebookPayload,
   payload,
   prodEdit,
   runHook,
@@ -193,11 +194,14 @@ test('allows a .test. file edit even when the gate is armed', () => {
   }
 })
 
-test('allows a /.claude/ path edit even when the gate is armed', () => {
+test('allows a /.claude/rules/ path edit even when the gate is armed', () => {
   const dir = makeDir()
   try {
     arm(dir)
-    assert.equal(runHook(payload(path.join(dir, '.claude', 'x')), dir).status, 0)
+    assert.equal(
+      runHook(payload(path.join(dir, '.claude', 'rules', 'code-style.md')), dir).status,
+      0,
+    )
   } finally {
     cleanup(dir)
   }
@@ -375,6 +379,75 @@ test('sets the lock beside the hook when git cannot resolve the repo', () => {
     const r = runNode('review-gate.js', [copy], { input, cwd: dir, timeout: TIMEOUT_MS, env })
     assert.equal(r.status, 0)
     assert.equal(isArmed(dir), true)
+  } finally {
+    cleanup(dir)
+  }
+})
+
+// --- Notebook payloads ---
+
+test('blocks a NotebookEdit of a production path while the gate is armed', () => {
+  const dir = makeDir()
+  try {
+    arm(dir)
+    const r = runHook(notebookPayload(path.join(dir, 'apps', 'web', 'lib', 'foo.ipynb')), dir)
+    assert.equal(r.status, 2)
+    assert.match(r.stderr, /BLOCKED/)
+  } finally {
+    cleanup(dir)
+  }
+})
+
+// --- Enforcement files are protected while armed ---
+
+for (const rel of [
+  '.claude/hooks/review-gate.js',
+  '.claude/settings.json',
+  '.claude/pipeline.json',
+  '.claude/hooks/gate-briefs.json',
+]) {
+  test(`blocks an armed edit of the enforcement file ${rel}`, () => {
+    const dir = makeDir()
+    try {
+      arm(dir)
+      assert.equal(runHook(payload(path.join(dir, rel)), dir).status, 2)
+    } finally {
+      cleanup(dir)
+    }
+  })
+}
+
+for (const rel of [
+  '.claude/rules/code-style.md',
+  '.claude/skills/review-gate/x.txt',
+  '.claude/commands/fullpush.txt',
+  '.claude/agents/x.txt',
+  '.claude/hooks/review-gate.test.mjs',
+  '.claude/hooks/review-gate.testkit.mjs',
+  '.claude/hooks/review-gate.mutations.json',
+]) {
+  test(`allows an armed edit of the exempt path ${rel}`, () => {
+    const dir = makeDir()
+    try {
+      arm(dir)
+      assert.equal(runHook(payload(path.join(dir, rel)), dir).status, 0)
+    } finally {
+      cleanup(dir)
+    }
+  })
+}
+
+// F1c. Added by the implementer, not test-author: the criterion was derived after the tests-first
+// run, from the official hooks docs not documenting NotebookEdit's path field. A write tool whose
+// path key this hook does not know must not be waved through.
+// GROUP: review-gate-always-passes, review-gate-empty-path-allowed
+test('blocks a write carrying no recognised path field while the gate is armed', () => {
+  const dir = makeDir()
+  try {
+    arm(dir)
+    const r = runHook(JSON.stringify({ tool_name: 'Edit', tool_input: {} }), dir)
+    assert.equal(r.status, 2)
+    assert.match(r.stderr, /no recognised path field/)
   } finally {
     cleanup(dir)
   }

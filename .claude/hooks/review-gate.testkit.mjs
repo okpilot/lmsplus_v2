@@ -69,6 +69,14 @@ export function payload(filePath) {
   return JSON.stringify({ tool_name: 'Edit', tool_input: { file_path: filePath } })
 }
 
+/** Hook stdin payload for a NotebookEdit of notebookPath. */
+export function notebookPayload(notebookPath) {
+  return JSON.stringify({
+    tool_name: 'NotebookEdit',
+    tool_input: { notebook_path: notebookPath },
+  })
+}
+
 /** Run a PostToolUse Agent event for `subagentType` (none when omitted). */
 export function dispatch(dir, subagentType) {
   const toolInput = subagentType ? { subagent_type: subagentType } : {}

@@ -48,9 +48,9 @@ test('fails open but loud on empty stdin (exit 0 + stderr warning)', () => {
   assert.match(r.stderr, /unparseable hook payload/)
 })
 
-test('fails open but loud on a payload over 1MB (exit 0 + size warning)', () => {
+test('fails closed on a payload over 1MB (exit 2 + size message)', () => {
   const r = runHook('x'.repeat(1_100_000))
-  assert.equal(r.status, 0)
+  assert.equal(r.status, 2)
   assert.match(r.stderr, /exceeds 1MB/)
 })
 
@@ -70,7 +70,7 @@ test('blocks a non-string command payload (array) with exit 2 and a "non-string 
   assert.match(r.stderr, /non-string command/)
 })
 
-test('fails open even when an oversized payload contains valid JSON with a blocked command (exit 0 + size warning)', () => {
+test('fails closed on an oversized payload whose valid JSON carries a blocked command (exit 2 + size message)', () => {
   // The oversizedPayload flag set in the 'data' handler short-circuits the 'end' handler
   // via `if (oversizedPayload) return` before it can parse the JSON and match blocked
   // patterns. Without the flag, JSON.parse would succeed here, the DROP DATABASE pattern
@@ -81,6 +81,12 @@ test('fails open even when an oversized payload contains valid JSON with a block
   const pad = 'x'.repeat(2_000_000)
   const bigBlockedPayload = `{"tool_input":{"command":"DROP DATABASE x","pad":"${pad}"}}`
   const r = runHook(bigBlockedPayload)
-  assert.equal(r.status, 0)
+  assert.equal(r.status, 2)
+  assert.match(r.stderr, /exceeds 1MB/)
+})
+
+test('fails closed on a 1.1MB payload ending in a destructive command after a no-op prefix', () => {
+  const r = runHook(`{"tool_input":{"command":": ${'x'.repeat(1_100_000)}; ${'rm -rf'} /"}}`)
+  assert.equal(r.status, 2)
   assert.match(r.stderr, /exceeds 1MB/)
 })

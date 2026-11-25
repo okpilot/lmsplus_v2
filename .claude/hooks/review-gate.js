@@ -3,16 +3,24 @@
 //
 // Wired twice in .claude/settings.json:
 //   PostToolUse Agent     a gate-round/conditional dispatch sets the lock; a plan-critic dispatch clears it. Always exits 0.
-//   PreToolUse Edit|Write blocks (exit 2) a production path while the lock is set.
+//   PreToolUse Edit|Write|NotebookEdit blocks (exit 2) a production path while the lock is set.
+//     The matcher is a list of EXACT tool names, not a regex (https://code.claude.com/docs/en/hooks.md):
+//     adding any regex character makes it an UNANCHORED regex, where `Edit` also matches NotebookEdit.
 //
 // Lock: .claude/review-gate.lock (gitignored). Present = set. One lock for every session and branch.
 // /fullpush step 11 deletes it after the push succeeds (.claude/skills/review-gate/agent-workflow.md § Pre-Push Review Gate).
 // Any session's plan-critic dispatch clears it; a lock no push clears blocks every session until deleted or the next plan-critic dispatch.
 // Blocks non-exempt paths under the project folder, including every `.claude/worktrees/*` checkout.
 // A failed lock write is logged to stderr and leaves the lock unset.
-// Paths are compared as spelled: files outside the project folder, a path reaching the project
-// through a symlink, and Bash redirects are not gated.
-// `.coderabbit.yaml` at a checkout root is exempt, like `.claude/` and `docs/`.
+// Paths are compared as spelled: files outside the project folder, and a path reaching the project
+// through a symlink, are not gated here.
+// This hook is the cheap early warning, NOT the gate. A write through Bash, an MCP terminal tool,
+// Monitor or the user's own editor never reaches a PreToolUse Edit matcher. The enforcing gate is
+// lefthook pre-commit `review-gate-lock` (.claude/hooks/check-review-gate-lock.mjs), which every
+// write route reaches via `git commit`.
+// `.coderabbit.yaml` at a checkout root is exempt, like `docs/` and the four `.claude/`
+// directories gate agents write. `.claude/hooks/**`, `settings.json`, `pipeline.json` and
+// `gate-briefs.json` are NOT exempt: a locked session must not rewrite the policy it is under.
 // Roles come from .claude/pipeline.json `agents.<type>.role`.
 
 const { execFileSync } = require('node:child_process')
@@ -39,8 +47,22 @@ const REPO_ROOT = path.resolve(process.env.REVIEW_GATE_ROOT || mainCheckoutRoot(
 const PIPELINE_PATH = path.join(REPO_ROOT, '.claude', 'pipeline.json')
 const ARMING_ROLES = new Set(['gate-round', 'conditional'])
 const LOCK = path.join(REPO_ROOT, '.claude', 'review-gate.lock')
-const EXEMPT_DIRS = ['.claude', 'docs', path.join('apps', 'web', 'e2e')]
+// `.claude` is NOT exempt wholesale: that let a locked session rewrite review-gate.js,
+// settings.json, pipeline.json and gate-briefs.json — the policy being enforced. The four
+// directories gate agents legitimately write are listed instead, so a NEW hook file is protected
+// by default rather than by remembering to add it.
+const EXEMPT_DIRS = [
+  path.join('.claude', 'rules'),
+  path.join('.claude', 'skills'),
+  path.join('.claude', 'commands'),
+  path.join('.claude', 'agents'),
+  'docs',
+  path.join('apps', 'web', 'e2e'),
+]
 const EXEMPT_FILES = ['.coderabbit.yaml']
+// test-writer's own artefacts beside a guard. `.testkit.mjs` and `.mutations.json` do not contain
+// `.test.`, so the substring check below does not reach them.
+const EXEMPT_SUFFIXES = ['.md', '.testkit.mjs', '.mutations.json']
 const WORKTREES_DIR = path.resolve(REPO_ROOT, '.claude', 'worktrees') + path.sep
 
 /** The checkout holding `filePath`: its worktree under .claude/worktrees/, else the main tree. */
@@ -80,15 +102,24 @@ function block(reason) {
 }
 
 /** Edit/Write check for `filePath`. */
-function onEdit(filePath) {
+function onEdit(rawPath) {
   if (!fs.existsSync(LOCK)) process.exit(0)
 
+  // Fail closed on a path field this hook does not recognise. NotebookEdit's `tool_input` path key
+  // is undocumented, so a future write tool can reach here with neither field set; `path.resolve('')`
+  // would otherwise resolve to the cwd and allow the write. A real Edit/Write always carries one.
+  if (!rawPath) block('write with no recognised path field, after a review round.')
+
   // Collapse `..` segments so an exempt substring cannot mask a production target.
-  filePath = path.resolve(filePath)
+  const filePath = path.resolve(rawPath)
 
   if (!filePath.startsWith(REPO_ROOT + path.sep)) process.exit(0)
   if (EXEMPT_FILES.some((f) => filePath === path.join(checkoutRoot(filePath), f))) process.exit(0)
-  if (filePath.includes('.test.') || inExemptDir(filePath) || filePath.endsWith('.md')) {
+  if (
+    filePath.includes('.test.') ||
+    inExemptDir(filePath) ||
+    EXEMPT_SUFFIXES.some((s) => filePath.endsWith(s))
+  ) {
     process.exit(0)
   }
 
@@ -122,5 +153,7 @@ process.stdin.on('end', () => {
     }
     process.exit(0)
   }
-  onEdit(parsed?.tool_input?.file_path || '')
+  // NotebookEdit's path key is not in the official hooks docs; third-party sources say
+  // `notebook_path`. Read both and let onEdit fail closed when neither is present.
+  onEdit(parsed?.tool_input?.file_path || parsed?.tool_input?.notebook_path || '')
 })
