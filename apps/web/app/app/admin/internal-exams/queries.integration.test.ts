@@ -392,10 +392,12 @@ describe('listInternalExamCodes — sitting codes (real DB FK hint)', () => {
   let sAdmin: string
   let sStudent: string
   let sStudent2: string
+  let sStudent3: string
   let sRefs: ReferenceIds
   let sittingId: string
   const sCodeValue = `SIT-${sfx}-A`
   const sConsumedValue = `SIT-${sfx}-C`
+  const sDiscardedValue = `SIT-${sfx}-D`
 
   beforeAll(async () => {
     sOrg = await createTestOrg({ admin, name: `int-iexam-sit ${sfx}`, slug: `ies-${sfx}` })
@@ -418,6 +420,14 @@ describe('listInternalExamCodes — sitting codes (real DB FK hint)', () => {
       admin,
       orgId: sOrg,
       email: `int-iexam-sit-stu2-${sfx}@test.local`,
+      password,
+      role: 'student',
+    })
+    // A third student for the discarded attempt: one live code per sitting entry.
+    sStudent3 = await createTestUser({
+      admin,
+      orgId: sOrg,
+      email: `int-iexam-sit-stu3-${sfx}@test.local`,
       password,
       role: 'student',
     })
@@ -456,10 +466,16 @@ describe('listInternalExamCodes — sitting codes (real DB FK hint)', () => {
           user_id: sStudent2,
           subject_id: sRefs.subjectId,
         },
+        {
+          organization_id: sOrg,
+          sitting_id: sittingId,
+          user_id: sStudent3,
+          subject_id: sRefs.subjectId,
+        },
       ])
       .select('id, user_id')
     const entryOf = (uid: string) => entries.data?.find((e) => e.user_id === uid)?.id
-    if (entries.error || !entryOf(sStudent) || !entryOf(sStudent2))
+    if (entries.error || !entryOf(sStudent) || !entryOf(sStudent2) || !entryOf(sStudent3))
       throw new Error(`seed entry: ${entries.error?.message}`)
     const session = await admin
       .from('quiz_sessions')
@@ -472,6 +488,23 @@ describe('listInternalExamCodes — sitting codes (real DB FK hint)', () => {
       .select('id')
       .single()
     if (session.error || !session.data) throw new Error(`seed session: ${session.error?.message}`)
+    // Ended AND soft-deleted. `codeDisplayStatus` reads deletion first, so this attempt is
+    // discarded, not finished — the `finished` filter's `deleted_at IS NULL` must exclude it.
+    // The one-active-session index is partial on `ended_at IS NULL AND deleted_at IS NULL`,
+    // so this row sits outside it.
+    const discarded = await admin
+      .from('quiz_sessions')
+      .insert({
+        organization_id: sOrg,
+        student_id: sStudent3,
+        mode: 'internal_exam',
+        ended_at: new Date().toISOString(),
+        deleted_at: new Date().toISOString(),
+      })
+      .select('id')
+      .single()
+    if (discarded.error || !discarded.data)
+      throw new Error(`seed discarded session: ${discarded.error?.message}`)
     const base = {
       subject_id: sRefs.subjectId,
       student_id: sStudent,
@@ -489,6 +522,14 @@ describe('listInternalExamCodes — sitting codes (real DB FK hint)', () => {
         code: sConsumedValue,
         consumed_at: new Date().toISOString(),
         consumed_session_id: session.data.id,
+      },
+      {
+        ...base,
+        student_id: sStudent3,
+        sitting_entry_id: entryOf(sStudent3),
+        code: sDiscardedValue,
+        consumed_at: new Date().toISOString(),
+        consumed_session_id: discarded.data.id,
       },
     ])
     if (codes.error) throw new Error(`seed sitting codes: ${codes.error.message}`)
@@ -510,7 +551,11 @@ describe('listInternalExamCodes — sitting codes (real DB FK hint)', () => {
 
     if (errors.length === 0) {
       try {
-        await cleanupTestData({ admin, orgId: sOrg, userIds: [sAdmin, sStudent, sStudent2] })
+        await cleanupTestData({
+          admin,
+          orgId: sOrg,
+          userIds: [sAdmin, sStudent, sStudent2, sStudent3],
+        })
       } catch (e) {
         errors.push(`cleanupTestData: ${e instanceof Error ? e.message : String(e)}`)
       }
@@ -539,5 +584,20 @@ describe('listInternalExamCodes — sitting codes (real DB FK hint)', () => {
     const { rows } = await listInternalExamCodes({ status: 'consumed' })
     const row = rows.find((r) => r.code === sConsumedValue)
     expect(row).toMatchObject({ sittingId, status: 'consumed' })
+  })
+
+  it('returns the code whose attempt was discarded, not the one still running', async () => {
+    await signInAs(`int-iexam-sit-admin-${sfx}@test.local`, password)
+    // Both the count and the data select filter an embedded quiz_sessions column, so a missing
+    // `!inner` is a PostgREST 400 (PGRST108) that runOffsetCount throws on. Only a real database
+    // raises it; reaching a row at all proves both selects resolved.
+    const { rows, totalCount } = await listInternalExamCodes({ status: 'discarded' })
+    // D is this org's only discarded code, so the exact count catches a dropped deleted_at
+    // predicate directly, not just via the absence check below.
+    expect(totalCount).toBe(1)
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({ code: sDiscardedValue, sittingId })
+    expect(rows[0]?.sessionDeletedAt).not.toBeNull()
+    expect(rows.map((r) => r.code)).not.toContain(sConsumedValue)
   })
 })
