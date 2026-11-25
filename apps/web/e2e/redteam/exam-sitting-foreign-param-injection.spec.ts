@@ -208,10 +208,15 @@ test.describe('Red Team: foreign ids in own sitting (ND)', () => {
         p_user_ids: [victimId, crossUserId],
       })
       expect(mixed.error, fn).toBeNull()
-      expect(JSON.stringify(mixed.data ?? []), fn).not.toContain(victimId)
-      // CONTROL: the own candidate alone resolves.
+      // CONTROL: the own candidate alone resolves, and the mixed call returns exactly that —
+      // the foreign id contributed nothing. The row-shape negative (no victimId in the payload)
+      // is not asserted: every row of these three derives from an `exam_sitting_candidates` join
+      // on this sitting, so a non-candidate can never reach the output even with
+      // `private.sitting_resolve_user_ids` removed. The `invalid_input` assertion above is the
+      // one that fails when the filter is removed.
       const own = await crossAdmin.rpc(fn, { p_sitting_id: sittingId, p_user_ids: [crossUserId] })
       expect(own.error, fn).toBeNull()
+      expect(mixed.data ?? [], fn).toEqual(own.data ?? [])
     }
     expect(await liveCandidates(admin, sittingId)).toEqual([crossUserId])
   })

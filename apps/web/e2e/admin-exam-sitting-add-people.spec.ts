@@ -287,7 +287,7 @@ test('Select all: link, all-mode bar, Add exams for everyone, leaving all-mode',
     status: 'scheduled',
     people: names.map((name) => ({ name, entries: [], enrolled: true })),
   })
-  const header = page.getByRole('checkbox', { name: /^Select all \d+ shown$/ })
+  const header = page.getByRole('checkbox', { name: /^Select all \d+ selectable$/ })
 
   await test.step('no Select all link under a search filter', async () => {
     await page.goto(`${BASE}/${sittingId}?q=E2E%20Sel`)
