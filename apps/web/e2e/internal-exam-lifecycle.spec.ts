@@ -277,9 +277,7 @@ test.describe('internal exam — lifecycle', () => {
     }
   })
 
-  test('a legacy code (no sitting) is still redeemable until it is dropped', async ({
-    browser,
-  }) => {
+  test('a legacy code (no sitting) is redeemable', async ({ browser }) => {
     const legacyCode = await insertLegacyCodeFor({
       studentEmail: INTERNAL_EXAM_STUDENT_EMAIL,
       subjectFragment: SUBJECT_LABEL_FRAGMENT,
