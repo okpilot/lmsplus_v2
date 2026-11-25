@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { RESERVED_VOID_REASONS } from '../schema'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
 import { fixtureSuffix } from './fixture-suffix'
 import { seedReferenceData } from './seed'
@@ -253,6 +254,14 @@ describe('RPC: void_sitting_code', () => {
   })
 
   it.each(['', '   ', 'a'.repeat(501)])('refuses reason %j with invalid_input', async (reason) => {
+    const sit = await sitting()
+    const c = await code(await entry(sit, s1), s1)
+    expect((await voidIt(sit, c, reason)).error?.message).toBe('invalid_input')
+    expect((await codeRow(c)).voided_at).toBeNull()
+  })
+
+  // The column also carries these system tokens, and three readers key on 'sitting_cancelled'.
+  it.each(RESERVED_VOID_REASONS)('refuses the system token %s', async (reason) => {
     const sit = await sitting()
     const c = await code(await entry(sit, s1), s1)
     expect((await voidIt(sit, c, reason)).error?.message).toBe('invalid_input')

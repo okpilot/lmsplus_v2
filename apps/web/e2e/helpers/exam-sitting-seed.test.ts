@@ -9,19 +9,40 @@ import { seedSitting } from './exam-sitting-seed'
 
 type Insert = { table: string; rows: Record<string, unknown>[] }
 
-function fakeAdmin(opts: { failUsersInsert?: boolean; failRollback?: boolean } = {}) {
+function fakeAdmin(
+  opts: { failUsersInsert?: boolean; failRollback?: boolean; dropFirstEntryId?: boolean } = {},
+) {
   const inserts: Insert[] = []
   const created: string[] = []
   const deleted: string[] = []
   let n = 0
   const builder = (table: string) => {
     const api: Record<string, unknown> = {}
-    const result = () => ({ data: [{ id: `id-${++n}`, short: 'FPM' }], error: null })
+    let lastInsert: Record<string, unknown>[] = []
+    const result = () => {
+      if (table === 'easa_subjects') {
+        return {
+          data: [
+            { id: 's-1', short: 'MET', course_id: 'c-1' },
+            { id: 's-2', short: 'AIR', course_id: 'c-1' },
+            { id: 's-3', short: 'NAV', course_id: 'c-2' },
+          ],
+          error: null,
+        }
+      }
+      if (table === 'exam_sitting_entries' && lastInsert.length > 0) {
+        // PostgREST does not promise input order: hand them back reversed.
+        const rows = lastInsert.map((r) => ({ id: `e-${r.subject_id}`, subject_id: r.subject_id }))
+        return { data: opts.dropFirstEntryId ? rows.slice(1) : rows.reverse(), error: null }
+      }
+      return { data: [{ id: `id-${++n}`, short: 'FPM' }], error: null }
+    }
     for (const m of ['select', 'eq', 'is', 'in', 'order', 'limit', 'like', 'neq']) {
       api[m] = () => api
     }
     api.insert = (rows: Record<string, unknown> | Record<string, unknown>[]) => {
-      inserts.push({ table, rows: Array.isArray(rows) ? rows : [rows] })
+      lastInsert = Array.isArray(rows) ? rows : [rows]
+      inserts.push({ table, rows: lastInsert })
       if (table === 'users' && opts.failUsersInsert) {
         return Promise.resolve({ data: null, error: { message: 'duplicate key' } })
       }
@@ -101,5 +122,24 @@ describe('seedSitting', () => {
     await expect(
       seedSitting({ people: [{ name: 'Ann', entries: [{ state: 'live' }] }] }),
     ).rejects.toThrow(/rollback also failed: auth down/)
+  })
+
+  it('pairs each seeded code with its own entry when the insert returns rows out of order', async () => {
+    const { inserts } = fakeAdmin()
+    await seedSitting({
+      people: [{ name: 'Ann', entries: [{ state: 'live' }, { state: 'expired' }] }],
+    })
+    const entries = inserts.filter((i) => i.table === 'exam_sitting_entries').flatMap((i) => i.rows)
+    const codes = inserts.filter((i) => i.table === 'internal_exam_codes').flatMap((i) => i.rows)
+    expect(entries).toHaveLength(2)
+    expect(codes).toHaveLength(2)
+    for (const c of codes) expect(c.sitting_entry_id).toBe(`e-${c.subject_id}`)
+  })
+
+  it('fails loudly when an entry id is missing from the insert result', async () => {
+    fakeAdmin({ dropFirstEntryId: true })
+    await expect(
+      seedSitting({ people: [{ name: 'Ann', entries: [{ state: 'live' }, { state: 'live' }] }] }),
+    ).rejects.toThrow(/entry id/)
   })
 })

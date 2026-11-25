@@ -248,6 +248,16 @@ describe('VoidSittingCodeSchema', () => {
   it('rejects a non-uuid code id', () => {
     expect(parse('VoidSittingCodeSchema', { ...ok, codeId: 'nope' }).success).toBe(false)
   })
+  it.each(schema.RESERVED_VOID_REASONS)('rejects the system token %s', (token) => {
+    expect(parse('VoidSittingCodeSchema', { ...ok, reason: token }).success).toBe(false)
+    expect(parse('VoidSittingCodeSchema', { ...ok, reason: `  ${token}  ` }).success).toBe(false)
+  })
+  it('accepts text that merely contains a system token', () => {
+    expect(
+      parse('VoidSittingCodeSchema', { ...ok, reason: 'not sitting_cancelled, my mistake' })
+        .success,
+    ).toBe(true)
+  })
 })
 
 describe('AC-67 SubjectEligibilityQuerySchema', () => {

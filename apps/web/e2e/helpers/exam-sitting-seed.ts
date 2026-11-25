@@ -138,12 +138,17 @@ async function seedEntries(
     })),
   )
   if (enrol.error) fail('enrolments', enrol.error)
-  const res = await admin.from('exam_sitting_entries').insert(rows).select('id')
+  // PostgREST does not guarantee that returned rows keep input order, so pair them by subject_id
+  // (unique per insert: a repeat would violate the live (sitting, user, subject) unique index).
+  const res = await admin.from('exam_sitting_entries').insert(rows).select('id, subject_id')
   if (res.error) fail('entries', res.error)
+  const bySubject = new Map<string, string>()
+  for (const r of (res.data ?? []) as { id: string; subject_id: string }[])
+    bySubject.set(r.subject_id, r.id)
   for (const [i, state] of states.entries()) {
-    const entryId = res.data?.[i]?.id
-    if (!entryId) continue
     const subjectId = (rows[i] as { subject_id: string }).subject_id
+    const entryId = bySubject.get(subjectId)
+    if (!entryId) fail(`entry id for subject ${subjectId}`, null)
     await seedCode(admin, { ...ctx, entryId, userId, subjectId }, state)
   }
 }
