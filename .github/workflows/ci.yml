@@ -57,6 +57,9 @@ jobs:
       - name: Pre-push hook missing-timeout control
         run: node --test .claude/hooks/run-security-auditor.notimeout.test.mjs
 
+      - name: Security auditor — diff-failure fail-closed unit test
+        run: node --test .claude/hooks/run-security-auditor.diff-fail.test.mjs
+
       - name: Soft-delete column guard
         run: node .claude/hooks/check-soft-delete-guard.mjs
 
@@ -132,6 +135,12 @@ jobs:
 
       - name: Review gate — unit test
         run: node --test .claude/hooks/review-gate.test.mjs
+
+      - name: Review-gate lock pre-commit guard — unit test
+        run: node --test .claude/hooks/check-review-gate-lock.test.mjs
+
+      - name: Lefthook shims fail closed — unit test
+        run: node --test .claude/hooks/lefthook-install.test.mjs
 
       - name: Local CI lint runner — unit test
         run: node --test .claude/hooks/run-ci-lint.test.mjs

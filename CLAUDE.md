@@ -175,9 +175,9 @@ plan-critic runs ONCE per plan, before user approval.
 ## QA pipeline
 Lefthook enforces mechanical gates (blocking). Command list is DATA in `.claude/pipeline.json` — do
 not enumerate it here (`.claude/pipeline.test.mjs` fails if it and `lefthook.yml` disagree).
-- **pre-commit:** mechanical guards only; the unit suite runs at `/fullpush` step 4, the integration tier only in CI.
+- **pre-commit:** mechanical guards, plus `review-gate-lock` — a commit is refused while the review-gate lock is set, because a fixup after a review round needs plan-critic first (step 7). The unit suite runs at `/fullpush` step 4, the integration tier only in CI.
 - **commit-msg:** conventional commit format; an existing `docs/decisions.md` line is never edited except to append a marker (Decision 86) — escape hatch: `Ledger-edit-ok: <N|header> — <reason>` trailer.
-- **pre-push:** security-auditor + dep audit — FAIL-CLOSED: LLM audit failure/timeout or no `timeout` on PATH or missing `run-security-auditor.sh` BLOCKS the push, no fallback approval.
+- **pre-push:** security-auditor + dep audit — FAIL-CLOSED: LLM audit failure/timeout, no `timeout` on PATH, missing `run-security-auditor.sh`, a failed diff against the remote ref whose `HEAD` fallback also fails, or an unresolvable remote ref with an empty fallback diff (push scope unestablishable) all BLOCK the push, no fallback approval.
 
 Everything else (review, docs, tests) runs through subagents for visibility.
 

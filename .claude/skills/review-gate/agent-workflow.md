@@ -148,7 +148,7 @@ then ONCE per branch, in this order:
 update spec tasks.md ([ ] → [x]) ▼ /fullpush ▼ push (security-auditor, fail-closed)
 ```
 **Never re-run to chase a clean round; always re-run after a fix.** A round reads a CHANGED artifact or it buys nothing.
-**`.claude/hooks/review-gate.js` writes the gate state** on dispatch: a gate-round/conditional agent sets one repo-wide lock, a plan-critic dispatch clears it. While set, a production Edit/Write is blocked. A Bash redirect bypasses it. After the push succeeds, `/fullpush` step 11 deletes it: `rm -f "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/.claude/review-gate.lock"`; a blocked or failed push leaves it set.
+**`.claude/hooks/review-gate.js` writes the gate state** on dispatch: a gate-round/conditional agent sets one repo-wide lock, a plan-critic dispatch clears it. While set, lefthook `pre-commit` `review-gate-lock` (`.claude/hooks/check-review-gate-lock.mjs`) refuses the commit — every write route reaches `git commit`, so that is the gate. `review-gate.js` additionally blocks a production Edit/Write/NotebookEdit as early warning; a write made through Bash, an MCP terminal tool, Monitor or an editor never reaches a PreToolUse matcher and is caught at the commit instead. After the push succeeds, `/fullpush` step 11 deletes it: `rm -f "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/.claude/review-gate.lock"`; a blocked or failed push leaves it set.
 
 ### Red-Team Agent Trigger (conditional)
 After the review loop ends, check whether the BRANCH DIFF includes any of these paths: `supabase/migrations/**`, `packages/db/src/**`, `apps/web/app/app/quiz/actions/**`, `apps/web/app/auth/**`, `apps/web/app/**/route.ts`, `apps/web/proxy.ts`, `docs/security.md`.
@@ -189,7 +189,7 @@ A reviewer's ISSUE/CRITICAL is a hypothesis. Validate before editing:
    does NOT prevent recurrence — only the artifact check does.
 2. **Check implications** — what callers/tests/docs break if the fix is applied? Read them.
 3. **Decide** — real issue, false positive, or valid concern needing a different fix.
-4. **If the fix changes the plan** — re-validate the changed parts first. After a round, every production fixup, any size, gets a fixup plan and one plan-critic run first; `review-gate.js` blocks the Edit/Write until plan-critic is dispatched. The size rules below decide WHETHER to apply a fix, never whether to plan it.
+4. **If the fix changes the plan** — re-validate the changed parts first. After a round, every production fixup, any size, gets a fixup plan and one plan-critic run first; the `review-gate-lock` pre-commit guard refuses the commit, and `review-gate.js` blocks the Edit/Write, until plan-critic is dispatched. The size rules below decide WHETHER to apply a fix, never whether to plan it.
 
 ## Apply-vs-Defer Discipline (MANDATORY before push)
 > **Default: apply. Defer is the exception.** Sort everything on the local machine before pushing. Don't push with a queue of unfinished business.
