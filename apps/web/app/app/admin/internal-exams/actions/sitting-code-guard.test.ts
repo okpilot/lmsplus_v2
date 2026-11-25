@@ -4,9 +4,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { checkSittingCode } from './sitting-code-guard'
 
 const mockMaybeSingle = vi.hoisted(() => vi.fn())
+const mockIs = vi.hoisted(() => vi.fn())
 
 const supabase = {
-  from: () => ({ select: () => ({ eq: () => ({ maybeSingle: mockMaybeSingle }) }) }),
+  from: () => ({
+    select: () => ({
+      eq: () => ({ is: mockIs.mockReturnValue({ maybeSingle: mockMaybeSingle }) }),
+    }),
+  }),
 } as unknown as SupabaseClient<Database>
 
 describe('checkSittingCode', () => {
@@ -33,6 +38,19 @@ describe('checkSittingCode', () => {
       error: 'That reason is reserved for the system — type a different one',
     })
     expect(mockMaybeSingle).not.toHaveBeenCalled()
+  })
+
+  // `void_internal_exam_code` reads the code WHERE deleted_at IS NULL and raises `code_not_found`
+  // (mig 20260601000003). The guard must not compute a verdict from a row the RPC cannot see.
+  // The behaviour itself is pinned in sitting-code-guard.integration.test.ts; a mocked chain can
+  // only show the filter is applied.
+  it('filters soft-deleted codes out of the lookup, as the RPC does', async () => {
+    mockMaybeSingle.mockResolvedValue({
+      data: { sitting_entry_id: null, voided_at: null, consumed_at: null, quiz_sessions: null },
+      error: null,
+    })
+    await checkSittingCode(supabase, 'c1', 'typed by the admin')
+    expect(mockIs).toHaveBeenCalledWith('deleted_at', null)
   })
 
   it('accepts a free-text reason on a legacy code', async () => {

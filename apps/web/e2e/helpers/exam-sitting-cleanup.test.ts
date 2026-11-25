@@ -223,6 +223,9 @@ describe('cleanupE2eExamSittings (seeded sittings)', () => {
       internal_exam_codes: [{ data: [{ id: 'c1', consumed_session_id: 'q1' }], error: null }],
       quiz_sessions: [
         { data: [{ id: 'q1', users: { email: 'e2e-internal-exam@lmsplus.local' } }], error: null },
+        // The soft-delete UPDATE now chains `.select('id')` and checks the row count, so it draws a
+        // second result: the row it updated.
+        { data: [{ id: 'q1' }], error: null },
       ],
     })
     await cleanupE2eExamSittings()

@@ -120,7 +120,7 @@ describe('AvailableTab', () => {
       expect(screen.getByTestId('start-button')).toBeDisabled()
     })
 
-    it('shows the ended hint for closed and cancelled sittings', () => {
+    it('shows the ended hint for a closed sitting', () => {
       render(<AvailableTab rows={[SITTING_ROW('closed')]} />)
       expect(screen.getByText('This sitting has ended. Ask your invigilator.')).toBeInTheDocument()
     })

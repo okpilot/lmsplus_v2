@@ -52,10 +52,21 @@ async function retireFixtureSessions(admin: Admin, fixture: string[]) {
   // Soft-delete FIRST: the two updates are not atomic, and every history and attempts list filters
   // `deleted_at IS NULL`. A failure after this point leaves the row invisible rather than looking
   // like an unscored finished attempt.
-  check(
-    'fixture sessions soft-delete',
-    (await admin.from('quiz_sessions').update({ deleted_at: now }).in('id', fixture)).error,
-  )
+  // Row count, not just `error`: a 0-row UPDATE returns 200 OK, so a vanished id would leave a
+  // fixture session with `ended_at IS NULL` while teardown reported success — the next spec then
+  // fails with `active_session_exists`, which reads as flake. The ids were looked up in this same
+  // teardown and this UPDATE carries no filter, so every one must match.
+  const softDeleted = await admin
+    .from('quiz_sessions')
+    .update({ deleted_at: now })
+    .in('id', fixture)
+    .select('id')
+  check('fixture sessions soft-delete', softDeleted.error)
+  if ((softDeleted.data?.length ?? 0) !== fixture.length) {
+    throw new Error(
+      `fixture sessions soft-delete: expected ${fixture.length} row(s), updated ${softDeleted.data?.length ?? 0}`,
+    )
+  }
   check(
     'fixture sessions end',
     (

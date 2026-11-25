@@ -34,6 +34,7 @@ let entry2Id: string
 let liveCodeId: string
 let hiddenCodeId: string
 let legacyCodeId: string
+let deletedCodeId: string
 
 const adminEmail = `int-scg-admin-${suffix}@test.local`
 const studentEmail = `int-scg-stu-${suffix}@test.local`
@@ -177,6 +178,11 @@ describe('checkSittingCode (app-layer integration)', () => {
       consumed_session_id: hiddenSession,
     })
     legacyCodeId = await insertCode({ code: `SCG-${suffix}-LEGACY` })
+    deletedCodeId = await insertCode({
+      code: `SCG-${suffix}-DELETED`,
+      sitting_entry_id: entryId,
+      deleted_at: new Date().toISOString(),
+    })
   }
 
   afterAll(async () => {
@@ -269,6 +275,16 @@ describe('checkSittingCode (app-layer integration)', () => {
     expect(await checkSittingCode(supabase, legacyCodeId, 'sitting_closed')).toEqual({
       ok: false,
       error: 'That reason is reserved for the system — type a different one',
+    })
+  })
+
+  it('treats a soft-deleted code as nonexistent, the way the RPC does', async () => {
+    await signInAs(adminEmail, password)
+    const supabase = await createServerSupabaseClient()
+
+    expect(await checkSittingCode(supabase, deletedCodeId, REASON)).toEqual({
+      ok: false,
+      error: 'Code not found',
     })
   })
 

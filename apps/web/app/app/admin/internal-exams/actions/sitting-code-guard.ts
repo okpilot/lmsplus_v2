@@ -41,6 +41,10 @@ export async function checkSittingCode(
     .from('internal_exam_codes')
     .select('sitting_entry_id, consumed_at, voided_at, quiz_sessions!consumed_session_id(ended_at)')
     .eq('id', codeId)
+    // The RPC reads the code WHERE deleted_at IS NULL and raises `code_not_found`
+    // (mig 20260601000003), so a verdict computed from a soft-deleted row would name a state the
+    // write path cannot see.
+    .is('deleted_at', null)
     .maybeSingle()
   if (error) {
     console.error('[checkSittingCode] lookup error:', error.message)

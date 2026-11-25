@@ -8,8 +8,11 @@ const CODE_LENGTH = 8
 const LEGACY_VALIDITY_MS = 24 * 3_600_000
 
 /**
- * Last microsecond of the scheduled day, matching `private.sitting_code_expiry`. A fixed offset
- * would seed a code that outlives its sitting day, a state production cannot produce.
+ * Last MILLISECOND of the scheduled UTC day: a JS `Date` carries no microseconds, so this lands
+ * 999 µs before `private.sitting_code_expiry`, which is
+ * `private.sitting_day_end(...) - interval '1 microsecond'`. Still inside the sitting day, which is
+ * what matters — a fixed offset would seed a code that outlives its day, a state production cannot
+ * produce.
  */
 function codeExpiry(scheduledAt: Date): string {
   const end = new Date(scheduledAt)

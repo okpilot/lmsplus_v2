@@ -22,7 +22,7 @@ const SUPABASE = {
   __marker: 'supabase',
   rpc: mockRpc,
   from: vi.fn(() => ({
-    select: () => ({ eq: () => ({ maybeSingle: mockMaybeSingle }) }),
+    select: () => ({ eq: () => ({ is: () => ({ maybeSingle: mockMaybeSingle }) }) }),
   })),
 }
 
