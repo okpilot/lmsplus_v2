@@ -43,6 +43,14 @@ function isRpcRow(value: unknown): value is RpcRow {
   )
 }
 
+/** A consumed sitting code with a live session: the sitting page cannot void it, so this can. */
+function isRunningAttempt(row: {
+  consumed_at: string | null
+  quiz_sessions: { ended_at: string | null } | null
+}): boolean {
+  return row.consumed_at !== null && row.quiz_sessions?.ended_at == null
+}
+
 export async function voidInternalExamCode(input: unknown): Promise<VoidCodeResult> {
   const parsed = VoidCodeSchema.safeParse(input)
   if (!parsed.success) return { success: false, error: 'Invalid input' }
@@ -52,14 +60,16 @@ export async function voidInternalExamCode(input: unknown): Promise<VoidCodeResu
 
   const { data: codeRow, error: lookupError } = await supabase
     .from('internal_exam_codes')
-    .select('sitting_entry_id')
+    .select('sitting_entry_id, consumed_at, quiz_sessions!consumed_session_id(ended_at)')
     .eq('id', codeId)
     .maybeSingle()
   if (lookupError) {
     console.error('[voidInternalExamCode] lookup error:', lookupError.message)
     return { success: false, error: 'Failed to void internal exam code' }
   }
-  if (codeRow?.sitting_entry_id) {
+  // Fail closed: the legacy RPC has no sitting guard of its own (#1820).
+  if (!codeRow) return { success: false, error: 'Code not found' }
+  if (codeRow.sitting_entry_id && !isRunningAttempt(codeRow)) {
     return { success: false, error: 'Void sitting codes from their sitting' }
   }
 

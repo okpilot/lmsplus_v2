@@ -174,12 +174,22 @@ describe('CodeRow sitting codes', () => {
     expect(mockSendButton).not.toHaveBeenCalled()
   })
 
-  it('does not render Void for a consumed sitting code', () => {
+  it('offers Void for a sitting code whose attempt is still running', () => {
     renderRow({ ...sitting, status: 'consumed', consumedAt: '2026-04-28T11:00:00.000Z' })
+    expect(screen.getByRole('button', { name: 'Void' })).toBeEnabled()
+  })
+
+  it('does not offer Void once the attempt has ended', () => {
+    renderRow({
+      ...sitting,
+      status: 'consumed',
+      consumedAt: '2026-04-28T11:00:00.000Z',
+      sessionEndedAt: '2026-04-28T12:00:00.000Z',
+    })
     expect(screen.queryByRole('button', { name: 'Void' })).not.toBeInTheDocument()
   })
 
-  it.each(['active', 'waiting', 'consumed'] as const)(
+  it.each(['active', 'waiting'] as const)(
     'does not render Void for a %s sitting code',
     (status) => {
       renderRow({ ...sitting, status })

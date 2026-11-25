@@ -51,12 +51,20 @@ function ExpiryCaption({ expiresAt }: Readonly<{ expiresAt: string }>) {
   )
 }
 
+/** A closed or cancelled sitting never opens, so it must not promise that it will. */
+function sittingHint(status: SittingInfo['status'] | undefined): string {
+  if (status === 'open') return 'Works while the sitting is open.'
+  if (status === 'scheduled') return 'Opens when your invigilator starts the sitting.'
+  return 'This sitting has ended. Ask your invigilator.'
+}
+
 export function AvailableRow({
   row,
   onStart,
 }: Readonly<{ row: AvailableInternalExam; onStart: (row: AvailableInternalExam) => void }>) {
   const { sitting } = row
   const open = sitting?.status === 'open'
+  const hint = sittingHint(sitting?.status)
   const hintId = `available-hint-${row.id}`
   return (
     <CardListRow
@@ -76,9 +84,7 @@ export function AvailableRow({
         )}
         {sitting && (
           <p id={hintId} className="mt-1 text-caption text-muted-foreground">
-            {open
-              ? 'Works while the sitting is open.'
-              : 'Opens when your invigilator starts the sitting.'}
+            {hint}
           </p>
         )}
       </div>

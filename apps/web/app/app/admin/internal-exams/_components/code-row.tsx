@@ -29,6 +29,16 @@ function isVoidDisabled(r: InternalExamCodeRow): boolean {
   return r.status === 'consumed' && r.sessionEndedAt !== null
 }
 
+/**
+ * Sitting codes are voided from their sitting, which refuses a consumed code (`code_in_use`) and
+ * offers Void only for a waiting or ready entry. A running attempt therefore has no other stop
+ * button, so it keeps this one.
+ */
+function showsVoid(r: InternalExamCodeRow): boolean {
+  if (r.sittingEntryId === null) return true
+  return r.status === 'consumed' && r.sessionEndedAt === null
+}
+
 export function CodeRow({
   r,
   onVoid,
@@ -66,7 +76,7 @@ export function CodeRow({
         {/* Only an active code can be (re)emailed — the send action rejects
             consumed/voided/expired codes ('Code is no longer active'), so
             disable the button for every non-active code. */}
-        {r.sittingEntryId === null && (
+        {showsVoid(r) && (
           <SendCodeEmailButton
             codeId={r.id}
             emailedAt={r.emailedAt}
@@ -75,7 +85,7 @@ export function CodeRow({
         )}
       </TableCell>
       <TableCell>
-        {r.sittingEntryId === null && (
+        {showsVoid(r) && (
           <Button
             variant="outline"
             size="sm"

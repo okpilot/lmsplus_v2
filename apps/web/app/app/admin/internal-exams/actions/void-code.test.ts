@@ -86,7 +86,45 @@ describe('voidInternalExamCode', () => {
   describe('sitting code guard', () => {
     it('refuses a sitting code and does not call the RPC', async () => {
       mockAdmin()
-      mockMaybeSingle.mockResolvedValue({ data: { sitting_entry_id: 'entry-1' }, error: null })
+      mockMaybeSingle.mockResolvedValue({
+        data: { sitting_entry_id: 'entry-1', consumed_at: null, quiz_sessions: null },
+        error: null,
+      })
+
+      const result = await voidInternalExamCode(VALID_INPUT)
+
+      expect(result).toEqual({ success: false, error: 'Void sitting codes from their sitting' })
+      expect(mockRpc).not.toHaveBeenCalled()
+    })
+
+    it('voids a sitting code whose attempt is still running', async () => {
+      mockAdmin()
+      mockMaybeSingle.mockResolvedValue({
+        data: {
+          sitting_entry_id: 'entry-1',
+          consumed_at: '2026-04-28T11:00:00.000Z',
+          quiz_sessions: { ended_at: null },
+        },
+        error: null,
+      })
+      mockRpc.mockResolvedValue({ data: [RPC_OK_NO_SESSION], error: null })
+
+      const result = await voidInternalExamCode(VALID_INPUT)
+
+      expect(mockRpc).toHaveBeenCalledTimes(1)
+      expect(result.success).toBe(true)
+    })
+
+    it('refuses a sitting code whose attempt has ended', async () => {
+      mockAdmin()
+      mockMaybeSingle.mockResolvedValue({
+        data: {
+          sitting_entry_id: 'entry-1',
+          consumed_at: '2026-04-28T11:00:00.000Z',
+          quiz_sessions: { ended_at: '2026-04-28T12:00:00.000Z' },
+        },
+        error: null,
+      })
 
       const result = await voidInternalExamCode(VALID_INPUT)
 
@@ -114,15 +152,13 @@ describe('voidInternalExamCode', () => {
       expect(mockRpc).toHaveBeenCalledTimes(1)
     })
 
-    it('falls through to the RPC for a missing row and maps code_not_found', async () => {
+    it('fails closed when the row is missing, without calling the RPC', async () => {
       mockAdmin()
-      vi.spyOn(console, 'error').mockImplementation(() => {})
       mockMaybeSingle.mockResolvedValue({ data: null, error: null })
-      mockRpc.mockResolvedValue({ data: null, error: { message: 'code_not_found' } })
 
       const result = await voidInternalExamCode(VALID_INPUT)
 
-      expect(mockRpc).toHaveBeenCalledTimes(1)
+      expect(mockRpc).not.toHaveBeenCalled()
       expect(result).toEqual({ success: false, error: 'Code not found' })
     })
   })
