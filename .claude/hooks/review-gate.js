@@ -4,8 +4,10 @@
 // Wired twice in .claude/settings.json:
 //   PostToolUse Agent     a gate-round/conditional dispatch sets the lock; a plan-critic dispatch clears it. Always exits 0.
 //   PreToolUse Edit|Write|NotebookEdit blocks (exit 2) a production path while the lock is set.
-//     The matcher is a list of EXACT tool names, not a regex (https://code.claude.com/docs/en/hooks.md):
-//     adding any regex character makes it an UNANCHORED regex, where `Edit` also matches NotebookEdit.
+//     A matcher made only of letters, digits, `_` and `|` is a list of EXACT tool names, NOT a
+//     regex (https://code.claude.com/docs/en/hooks.md) — so `Edit|Write` never matched NotebookEdit
+//     and naming it is load-bearing. Any OTHER character turns the whole matcher into an unanchored
+//     JS regex, in which `Edit` would also match NotebookEdit. The set, not the `|`, is what decides.
 //
 // Lock: .claude/review-gate.lock (gitignored). Present = set. One lock for every session and branch.
 // /fullpush step 11 deletes it after the push succeeds (.claude/skills/review-gate/agent-workflow.md § Pre-Push Review Gate).
@@ -18,11 +20,13 @@
 // Monitor or the user's own editor never reaches a PreToolUse Edit matcher. The enforcing gate is
 // lefthook pre-commit `review-gate-lock` (.claude/hooks/check-review-gate-lock.mjs), which every
 // write route reaches via `git commit`.
-// Exempt: `docs/`, `apps/web/e2e/`, the four `.claude/` directories gate agents write,
-// `.coderabbit.yaml` at a checkout root, and — in ANY directory, `.claude/hooks/` included — a
-// `.md`, `.testkit.mjs` or `.mutations.json` file, plus a basename carrying `.test.`.
-// NOT exempt: `settings.json`, `pipeline.json`, `gate-briefs.json` and the guards themselves — a
-// locked session must not rewrite the policy it is under.
+// BLOCKED: `settings.json`, `pipeline.json`, `gate-briefs.json` and the guard sources — the
+// executable wiring. STAYS WRITABLE: a `.md` in any directory, any basename carrying `.test.`
+// (guard tests included), `.claude/{rules,skills,commands,agents}/`, `docs/`, `apps/web/e2e/`, a
+// `.coderabbit.yaml` at a checkout root, and a `.testkit.mjs` or `.mutations.json` under that
+// checkout's own `.claude/hooks/`. doc-updater must write the prose and test-writer must write the
+// guard tests and the data that grades them while a round is open, so the binding PROSE policy is
+// deliberately NOT protected here — only the wiring is.
 // Roles come from .claude/pipeline.json `agents.<type>.role`.
 
 const { execFileSync } = require('node:child_process')
@@ -62,9 +66,12 @@ const EXEMPT_DIRS = [
   path.join('apps', 'web', 'e2e'),
 ]
 const EXEMPT_FILES = ['.coderabbit.yaml']
-// test-writer's own artefacts beside a guard. `.testkit.mjs` and `.mutations.json` do not contain
-// `.test.`, so the basename check below does not reach them.
-const EXEMPT_SUFFIXES = ['.md', '.testkit.mjs', '.mutations.json']
+const EXEMPT_SUFFIXES = ['.md']
+// test-writer's own artefacts BESIDE A GUARD, so they are exempt only under the hooks directory of
+// the checkout that holds the path. Unscoped, either suffix would pass anywhere in the tree, so a
+// production file renamed to one of them would be writable while a round is open.
+// Neither suffix contains `.test.`, so the basename check below does not reach them.
+const HOOKS_SUFFIXES = ['.testkit.mjs', '.mutations.json']
 const WORKTREES_DIR = path.resolve(REPO_ROOT, '.claude', 'worktrees') + path.sep
 
 /** The checkout holding `filePath`: its worktree under .claude/worktrees/, else the main tree. */
@@ -77,6 +84,11 @@ function checkoutRoot(filePath) {
 function inExemptDir(filePath) {
   const root = checkoutRoot(filePath)
   return EXEMPT_DIRS.some((dir) => filePath.startsWith(path.resolve(root, dir) + path.sep))
+}
+
+/** True when `filePath` sits under the `.claude/hooks/` of its OWN checkout (nested paths included). */
+function inHooksDir(filePath) {
+  return filePath.startsWith(path.resolve(checkoutRoot(filePath), '.claude', 'hooks') + path.sep)
 }
 
 /** True when pipeline.json gives `subagentType` an arming role. */
@@ -118,9 +130,10 @@ function onEdit(rawPath) {
   if (!filePath.startsWith(REPO_ROOT + path.sep)) process.exit(0)
   if (EXEMPT_FILES.some((f) => filePath === path.join(checkoutRoot(filePath), f))) process.exit(0)
   if (
-    path.basename(path.relative(checkoutRoot(filePath), filePath)).includes('.test.') ||
+    path.basename(filePath).includes('.test.') ||
     inExemptDir(filePath) ||
-    EXEMPT_SUFFIXES.some((s) => filePath.endsWith(s))
+    EXEMPT_SUFFIXES.some((s) => filePath.endsWith(s)) ||
+    (inHooksDir(filePath) && HOOKS_SUFFIXES.some((s) => filePath.endsWith(s)))
   ) {
     process.exit(0)
   }

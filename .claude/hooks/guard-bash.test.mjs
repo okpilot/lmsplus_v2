@@ -71,13 +71,16 @@ test('blocks a non-string command payload (array) with exit 2 and a "non-string 
 })
 
 test('fails closed on an oversized payload whose valid JSON carries a blocked command (exit 2 + size message)', () => {
-  // The oversizedPayload flag set in the 'data' handler short-circuits the 'end' handler
-  // via `if (oversizedPayload) return` before it can parse the JSON and match blocked
-  // patterns. Without the flag, JSON.parse would succeed here, the DROP DATABASE pattern
-  // would match, and the hook would exit 2 — incorrectly blocking the tool call.
-  // The existing >1MB test uses non-JSON (plain 'x' bytes), which would also exit 0 via
-  // the malformed-JSON fail-open path even without the flag — so it cannot catch that
-  // regression. This test closes the gap with a valid JSON payload.
+  // The oversizedPayload flag set in the 'data' handler short-circuits the 'end' handler via
+  // `if (oversizedPayload) return`, so the payload is refused rather than pattern-matched while
+  // truncated. Exit 2 is the INTENDED outcome: a denylist cannot be trusted on a payload it has
+  // only partly seen, and padding in front of a destructive command is how one gets bypassed.
+  // Without the flag this valid-JSON payload would parse, the blocked pattern below would match,
+  // and the hook would exit 2 for the WRONG reason — leaving the size branch itself untested.
+  // The `/exceeds 1MB/` stderr match is what separates the two. The other >1MB test uses
+  // non-JSON ('x' bytes), which without the flag exits 0 down the malformed-JSON path
+  // (`[guard-bash] unparseable hook payload — allowing command`, guard-bash.js:43-50), so it
+  // cannot pin this branch either.
   const pad = 'x'.repeat(2_000_000)
   const bigBlockedPayload = `{"tool_input":{"command":"DROP DATABASE x","pad":"${pad}"}}`
   const r = runHook(bigBlockedPayload)

@@ -40,10 +40,13 @@ REMOTE_REF=$(git rev-parse --abbrev-ref @{upstream} 2>/dev/null || echo "origin/
 
 # Branch on the diff's EXIT CODE, never on its emptiness. The previous form was
 #   git diff "$REMOTE_REF"...HEAD 2>/dev/null || git diff HEAD 2>/dev/null || echo ""
-# followed by `[ -z "$DIFF_FULL" ] && exit 0`. The fallback itself is a SUPPORTED mode — a clone
-# with no tracking branch and no origin/master audits the working-tree diff, and the fallback-scan
-# tests depend on it. The defect was conflating its EMPTY result with "nothing to push": on a clean
-# tree that approved the push having audited nothing. `/fullpush` step 5b states the same rule.
+# followed by `[ -z "$DIFF_FULL" ] && exit 0`. The fallback mode itself is kept — with no tracking
+# branch and no origin/master, the working-tree diff is what there is to audit, and the
+# fallback-scan tests depend on it. The defect was conflating its EMPTY result with "nothing to
+# push": on a clean tree that approved the push having audited nothing. An empty fallback diff now
+# BLOCKS, so the fallback mode cannot pass on a clean tree at all — in that state the push scope is
+# unknowable, and `git fetch origin` does not help when `origin/master` genuinely does not exist.
+# `/fullpush` step 5b states the same branch-on-exit-code rule.
 # The range that actually PRODUCED `DIFF_FULL`. Every later diff must re-use it: re-running
 # `"$REMOTE_REF"...HEAD` after the fallback was taken re-runs the expression that already failed,
 # which yields an empty filtered diff and an empty stat, and the LLM then audits nothing.

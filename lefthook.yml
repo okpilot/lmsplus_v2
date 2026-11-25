@@ -28,9 +28,10 @@ pre-commit:
     # user's own editor — reaches `git commit`, while a PreToolUse matcher fires only on the tool
     # names it enumerates.
     # NO glob: the lock is a repository state, not a property of the staged paths.
-    # FIRST in the stage: `biome-check` runs with `stage_fixed: true` and `type-check` is the
-    # slowest command here, so a commit that will be refused must not first rewrite and re-stage
-    # the author's files.
+    # FIRST only so the refusal is the first thing printed. It saves no work: lefthook runs the
+    # rest of the group even after a command fails — stopping there needs `piped: true`, which this
+    # stage does not set — so `biome-check` still rewrites and re-stages and `type-check` still
+    # runs. Measured on lefthook 2.2.2.
     review-gate-lock:
       run: node .claude/hooks/check-review-gate-lock.mjs
     biome-check:

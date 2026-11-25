@@ -489,3 +489,58 @@ test('blocks a production file inside a directory named like a test file (src/fo
     cleanup(dir)
   }
 })
+
+// --- .testkit.mjs and .mutations.json exemptions are scoped to the checkout's .claude/hooks ---
+
+// GROUP: review-gate-hooks-suffixes-unscoped, review-gate-hooks-dir-prefix-no-sep, review-gate-always-passes
+for (const rel of [
+  'packages/db/src/x.testkit.mjs',
+  'apps/web/lib/x.mutations.json',
+  '.claude/x.testkit.mjs',
+  '.claude/hooks-extra/x.testkit.mjs',
+]) {
+  test(`blocks an armed edit of ${rel}, outside any .claude/hooks directory`, () => {
+    const dir = makeDir()
+    try {
+      arm(dir)
+      const r = runHook(payload(path.join(dir, rel)), dir)
+      assert.equal(r.status, 2)
+      // The specific reason, not /BLOCKED/: the empty-path branch also prints BLOCKED, so the
+      // looser pattern would pass on either mechanism and pin neither.
+      assert.match(r.stderr, /production edit after a review round/)
+    } finally {
+      cleanup(dir)
+    }
+  })
+}
+
+test('allows an armed edit of a .testkit.mjs or .mutations.json under a worktree own .claude/hooks', () => {
+  const dir = makeDir()
+  try {
+    arm(dir)
+    const wt = path.join(dir, '.claude', 'worktrees', 'agent-x')
+    mkdirSync(wt, { recursive: true })
+    for (const rel of [
+      '.claude/hooks/x.testkit.mjs',
+      '.claude/hooks/x.mutations.json',
+      '.claude/hooks/sub/y.testkit.mjs',
+    ]) {
+      assert.equal(runHook(payload(path.join(wt, rel)), dir).status, 0, rel)
+    }
+  } finally {
+    cleanup(dir)
+  }
+})
+
+// GROUP: review-gate-hooks-suffixes-unscoped, review-gate-always-passes
+test('blocks an armed .testkit.mjs edit outside .claude/hooks inside a worktree', () => {
+  const dir = makeDir()
+  try {
+    arm(dir)
+    const wt = path.join(dir, '.claude', 'worktrees', 'agent-x')
+    mkdirSync(wt, { recursive: true })
+    assert.equal(runHook(payload(path.join(wt, 'packages', 'db', 'x.testkit.mjs')), dir).status, 2)
+  } finally {
+    cleanup(dir)
+  }
+})
