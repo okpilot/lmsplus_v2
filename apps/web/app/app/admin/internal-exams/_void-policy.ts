@@ -62,8 +62,11 @@ export function codeDisplayStatus(
 }
 
 /**
- * Void stays visible but inert for a finished or discarded attempt: `void_internal_exam_code`
- * raises `session_state_changed` for a legacy code in either state.
+ * Void stays visible but inert for a finished or discarded attempt. `void_internal_exam_code`
+ * locks the session with a `deleted_at IS NULL` filter, so the two states raise different tokens:
+ * a DELETED session (ended or not) is not found and raises `session_state_changed`; an ENDED,
+ * still-live session raises `cannot_void_finished_attempt`. Deleted wins over ended, matching
+ * `codeDisplayStatus` above.
  */
 export function codeVoidDisabled(
   row: Readonly<{

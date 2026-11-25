@@ -53,13 +53,16 @@ async function issueCodeFromSittingPage(
   await dialog.getByRole('button', { name: 'Issue 1 code' }).click()
   await expect(dialog).toHaveCount(0)
   await adminPage.getByRole('button', { name: `Show exams for ${seed.studentName}` }).click()
-  const code = (
-    await adminPage
-      .locator('tr', { hasText: seed.studentName })
-      .locator('code')
-      .first()
-      .textContent()
-  )?.trim()
+  // The code sits in the detail row, whose text carries no person name. The expanded toggle
+  // publishes that row's id in aria-controls (person-row.tsx:114).
+  const toggle = adminPage.locator(
+    `button[aria-expanded="true"][aria-label$="exams for ${seed.studentName}"]`,
+  )
+  const detailId = await toggle.getAttribute('aria-controls')
+  if (!detailId) throw new Error('expanded roster row exposed no detail row id')
+  const detail = adminPage.locator(`#${detailId}`)
+  await expect(detail).toBeVisible()
+  const code = (await detail.locator('code').first().textContent())?.trim()
   if (!code) throw new Error('roster showed no code after issuing')
   return code
 }

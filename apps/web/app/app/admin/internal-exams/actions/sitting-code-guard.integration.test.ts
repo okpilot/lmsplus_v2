@@ -217,7 +217,7 @@ describe('checkSittingCode (app-layer integration)', () => {
     })
     if (errors.length === 0) {
       await step('cleanupTestData', () =>
-        cleanupTestData({ admin, orgId, userIds: [adminId, studentId] }),
+        cleanupTestData({ admin, orgId, userIds: [adminId, studentId, student2Id] }),
       )
     }
     if (errors.length === 0) {

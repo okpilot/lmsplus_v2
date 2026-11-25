@@ -255,6 +255,20 @@ describe('listInternalExamCodes', () => {
       expect(chain.is).toHaveBeenCalledWith('quiz_sessions.ended_at', null)
     })
 
+    it('returns only codes whose linked session was discarded for status=discarded', async () => {
+      mockAdmin()
+      const chain = buildChain([], null, 0)
+      mockAdminFrom.mockReturnValue(chain)
+
+      await listInternalExamCodes({ status: 'discarded' })
+
+      expect(chain.select).toHaveBeenCalledWith(
+        expect.stringContaining('quiz_sessions!consumed_session_id!inner(ended_at, deleted_at)'),
+        { count: 'exact', head: true },
+      )
+      expect(chain.not).toHaveBeenCalledWith('quiz_sessions.deleted_at', 'is', null)
+    })
+
     it('returns only codes whose linked session has ended for status=finished', async () => {
       mockAdmin()
       const chain = buildChain([], null, 0)

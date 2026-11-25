@@ -495,11 +495,36 @@ describe('listInternalExamCodes — sitting codes (real DB FK hint)', () => {
   })
 
   afterAll(async () => {
-    await admin.from('internal_exam_codes').delete().eq('organization_id', sOrg)
-    await admin.from('exam_sitting_entries').delete().eq('organization_id', sOrg)
-    await admin.from('exam_sittings').delete().eq('organization_id', sOrg)
-    await cleanupTestData({ admin, orgId: sOrg, userIds: [sAdmin, sStudent, sStudent2] })
-    await cleanupReferenceData({ admin, refs: [sRefs] })
+    const errors: string[] = []
+
+    // Each table FK-references the next, so the order is load-bearing and every step must run
+    // even after an earlier one fails — otherwise a later FK error masks the first cause.
+    for (const table of ['internal_exam_codes', 'exam_sitting_entries', 'exam_sittings'] as const) {
+      try {
+        const { error } = await admin.from(table).delete().eq('organization_id', sOrg).select('id')
+        if (error) throw new Error(error.message)
+      } catch (e) {
+        errors.push(`delete ${table}: ${e instanceof Error ? e.message : String(e)}`)
+      }
+    }
+
+    if (errors.length === 0) {
+      try {
+        await cleanupTestData({ admin, orgId: sOrg, userIds: [sAdmin, sStudent, sStudent2] })
+      } catch (e) {
+        errors.push(`cleanupTestData: ${e instanceof Error ? e.message : String(e)}`)
+      }
+    }
+
+    if (errors.length === 0) {
+      try {
+        await cleanupReferenceData({ admin, refs: [sRefs] })
+      } catch (e) {
+        errors.push(`cleanupReferenceData: ${e instanceof Error ? e.message : String(e)}`)
+      }
+    }
+
+    if (errors.length > 0) throw new Error(`afterAll sitting codes: ${errors.join('; ')}`)
   })
 
   it('returns the sitting id and a waiting status for a sitting code (plain select)', async () => {

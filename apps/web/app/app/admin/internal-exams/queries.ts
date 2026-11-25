@@ -69,8 +69,9 @@ export async function listInternalExamCodes(
   const page = clampPage(filters.page)
   const client = offsetAdminClient
   const nowIso = new Date().toISOString()
-  // 'consumed'/'finished' filter the embedded session's ended_at → both selects need an INNER
-  // join (a count select filtering quiz_sessions.ended_at without !inner 400s — PostgREST PGRST108).
+  // 'consumed', 'finished' and 'discarded' filter the embedded session on ended_at, deleted_at or
+  // both → all three need an INNER join on BOTH selects (a count select filtering a
+  // quiz_sessions column without !inner 400s — PostgREST PGRST108).
   const splitOnSession =
     filters.status === 'consumed' || filters.status === 'finished' || filters.status === 'discarded'
   const embed = splitOnSession
