@@ -83,3 +83,37 @@ test('a shim installed by prepare exits non-zero once lefthook is unresolvable',
     rmSync(dir, { recursive: true, force: true })
   }
 })
+
+test('prepare run from a linked worktree patches the shim in the SHARED hooks dir', () => {
+  assert.equal(typeof PREPARE, 'string')
+  const real = realLefthook()
+  assert.ok(real, 'lefthook binary not resolvable from the repo')
+  const dir = realpathSync(mkdtempSync(path.join(tmpdir(), 'prepare-wt-')))
+  const bin = path.join(dir, 'bin')
+  const repo = path.join(dir, 'repo')
+  const wt = path.join(dir, 'wt')
+  try {
+    mkdirSync(bin)
+    mkdirSync(repo)
+    copyFileSync(real, path.join(bin, 'lefthook'))
+    chmodSync(path.join(bin, 'lefthook'), 0o755)
+    sh('git init -q', { cwd: repo })
+    writeFileSync(
+      path.join(repo, 'lefthook.yml'),
+      'pre-commit:\n  commands:\n    x:\n      run: "true"\n',
+    )
+    sh('git add lefthook.yml && git -c user.name=t -c user.email=t@t commit -q -m init', {
+      cwd: repo,
+    })
+    sh(`git worktree add -q -b wt "${wt}"`, { cwd: repo })
+    const inst = sh(PREPARE, { cwd: wt, env: { PATH: `${bin}:${BARE_PATH}` } })
+    assert.equal(inst.status, 0, inst.stderr)
+    rmSync(bin, { recursive: true, force: true })
+    const shim = path.join(repo, '.git', 'hooks', 'pre-commit')
+    assert.match(readFileSync(shim, 'utf8'), /lefthook not found - run: pnpm install/)
+    const r = sh('.git/hooks/pre-commit', { cwd: repo, env: { PATH: BARE_PATH } })
+    assert.notEqual(r.status, 0)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})

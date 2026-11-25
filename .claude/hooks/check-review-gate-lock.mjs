@@ -5,9 +5,10 @@
 // (.claude/hooks/review-gate.js). CLAUDE.md step 7 requires plan-critic for a fixup after a review
 // round; this is where that requirement is enforced.
 //
-// Gated at the commit, not at a tool: PreToolUse covers one tool name at a time, so Bash,
-// NotebookEdit, mcp__terminal__run_in_terminal, Monitor and the user's own editor each need their
-// own matcher. Every write route reaches `git commit`.
+// Gated at the commit, not at a tool: a PreToolUse matcher fires only on the tool names it
+// enumerates (`.claude/settings.json` lists Edit, Write and NotebookEdit), so Bash,
+// mcp__terminal__run_in_terminal, Monitor and the user's own editor would each have to be added,
+// and an editor cannot be. Every write route reaches `git commit`.
 //
 // Fails closed: an unresolvable git common dir refuses the commit rather than skipping the check.
 // Escape hatch is LEFTHOOK=0 or --no-verify, both explicit and visible in the shell history.

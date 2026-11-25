@@ -4,7 +4,15 @@
 // on STDIN — the channel the harness actually uses — so these tests pin the
 // input contract and gate-state behaviour, not just the pattern matching.
 import assert from 'node:assert/strict'
-import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import {
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  writeFileSync,
+} from 'node:fs'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
@@ -450,6 +458,33 @@ test('blocks a write carrying no recognised path field while the gate is armed',
     const r = runHook(JSON.stringify({ tool_name: 'Edit', tool_input: {} }), dir)
     assert.equal(r.status, 2)
     assert.match(r.stderr, /no recognised path field/)
+  } finally {
+    cleanup(dir)
+  }
+})
+
+// --- `.test.` exemption matches the in-checkout basename only ---
+
+test('blocks a production edit under a checkout directory whose own name contains .test.', () => {
+  const dir = realpathSync(mkdtempSync(path.join(tmpdir(), 'review-gate.test.')))
+  try {
+    mkdirSync(path.join(dir, '.claude'))
+    writeFileSync(
+      path.join(dir, '.claude', 'pipeline.json'),
+      JSON.stringify({ agents: { 'plan-critic': { role: 'pre-execution' } } }),
+    )
+    arm(dir)
+    assert.equal(runHook(payload(path.join(dir, 'apps', 'web', 'lib', 'foo.ts')), dir).status, 2)
+  } finally {
+    cleanup(dir)
+  }
+})
+
+test('blocks a production file inside a directory named like a test file (src/foo.test.d/prod.ts)', () => {
+  const dir = makeDir()
+  try {
+    arm(dir)
+    assert.equal(runHook(payload(path.join(dir, 'src', 'foo.test.d', 'prod.ts')), dir).status, 2)
   } finally {
     cleanup(dir)
   }

@@ -2,7 +2,8 @@
 // Run: node --test .claude/hooks/run-security-auditor.diff-fail.test.mjs
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import {
@@ -61,4 +62,44 @@ test('exits 0 when the diff succeeds and is empty', () => {
   const r = runHookAndCleanup(built)
   assert.equal(r.status, 0)
   assert.match(r.stdout, /No diff to audit/)
+})
+
+const capturingShim = (capture) =>
+  `#!/usr/bin/env bash\n{ printf '%s\\n' "$@"; cat; } > "${capture}" 2>/dev/null\necho APPROVED\n`
+
+// GROUP: run-security-auditor-always-passes
+test('audits the working-tree diff, not "No changes", when a >3000-line fallback diff carries a secret', () => {
+  const captureDir = mkdtempSync(join(tmpdir(), 'sec-aud-cap-'))
+  const capture = join(captureDir, 'prompt.txt')
+  try {
+    const built = initShimScratch('sec-aud-big-', capturingShim(capture))
+    writeFileSync(join(built.repoDir, 'leaked-credentials.ts'), 'export const a = 1\n')
+    commitInit(gitFactory(built.repoDir))
+    const lines = Array.from({ length: 3500 }, (_, i) => `export const v${i} = ${i}`)
+    lines.push('const key = "AKIAIOSFODNN7EXAMPLE"')
+    writeFileSync(join(built.repoDir, 'leaked-credentials.ts'), `${lines.join('\n')}\n`)
+    runHookAndCleanup(built)
+    const prompt = readFileSync(capture, 'utf8')
+    assert.match(prompt, /leaked-credentials\.ts/)
+    assert.doesNotMatch(prompt, /No changes/)
+  } finally {
+    rmSync(captureDir, { recursive: true, force: true })
+  }
+})
+
+// GROUP: run-security-auditor-always-passes
+test('exits 1 when the diff stat fails', () => {
+  const built = initShimScratch('sec-aud-statfail-', APPROVE_SHIM)
+  writeFileSync(join(built.repoDir, 'big.ts'), 'x\n')
+  commitInit(gitFactory(built.repoDir))
+  const lines = Array.from({ length: 3500 }, (_, i) => `export const v${i} = ${i}`)
+  writeFileSync(join(built.repoDir, 'big.ts'), `${lines.join('\n')}\n`)
+  const realGit = spawnSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).stdout.trim()
+  writeFileSync(
+    join(built.shimDir, 'git'),
+    `#!/usr/bin/env bash\nfor a in "$@"; do case "$a" in *stat*) exit 1;; esac; done\nexec "${realGit}" "$@"\n`,
+  )
+  chmodSync(join(built.shimDir, 'git'), 0o755)
+  const r = runHookAndCleanup(built)
+  assert.equal(r.status, 1)
 })

@@ -1,13 +1,16 @@
 {
-  "_": "Single source of truth for pipeline facts that .claude/pipeline.test.mjs VALIDATES. Every FACT here is asserted by that test (this `_` field is documentation, not a fact) \u2014 nothing is recorded that is not checked, so proximity to a green suite never implies coverage. Prose explains WHY; it must not restate a value from here. Rationale: git history of docs/decisions.md (Decision 62, #1268).",
+  "_": "Single source of truth for pipeline facts that .claude/pipeline.test.mjs VALIDATES. Every FACT here is asserted by that test (this `_` field is documentation, not a fact) — nothing is recorded that is not checked, so proximity to a green suite never implies coverage. Prose explains WHY; it must not restate a value from here. Rationale: git history of docs/decisions.md (Decision 62, #1268).",
+
   "models": {
     "sonnet": "sonnet",
     "haiku": "haiku",
     "opus": "claude-opus-5-5"
   },
+
   "baseTools": ["Read", "Glob", "Grep", "Bash"],
   "writeTools": ["Write", "Edit"],
   "skillTools": ["Skill"],
+
   "agents": {
     "semantic-reviewer": {
       "model": "sonnet",
@@ -24,16 +27,8 @@
       "write": true,
       "role": "gate-round"
     },
-    "test-author": {
-      "model": "sonnet",
-      "write": true,
-      "role": "tests-first"
-    },
-    "red-team": {
-      "model": "opus",
-      "write": true,
-      "role": "conditional"
-    },
+    "test-author": { "model": "sonnet", "write": true, "role": "tests-first" },
+    "red-team": { "model": "opus", "write": true, "role": "conditional" },
     "e2e-writer": {
       "model": "sonnet",
       "write": true,
@@ -55,20 +50,18 @@
       "role": "gate-round",
       "skill": true
     },
-    "security-auditor": {
-      "model": "sonnet",
-      "write": false,
-      "role": "pre-push"
-    }
+    "security-auditor": { "model": "sonnet", "write": false, "role": "pre-push" }
   },
+
   "order": ["gate-round", "fix-loop", "conditional", "spec-tasks"],
+
   "hooks": {
     "pre-commit": [
+      "review-gate-lock",
       "biome-check",
       "file-size-guard",
       "prose-paths",
       "md-allowlist",
-      "review-gate-lock",
       "soft-delete-guard",
       "design-tokens-guard",
       "type-check"
@@ -76,6 +69,7 @@
     "commit-msg": ["commitlint", "decisions-ledger"],
     "pre-push": ["audit", "security-auditor"]
   },
+
   "securityPaths": [
     "supabase/migrations/**",
     "packages/db/src/**",
@@ -86,6 +80,7 @@
     "docs/security.md"
   ],
   "redTeamExtraPaths": ["apps/web/e2e/redteam/**"],
+
   "coderabbitSyncTriggers": [
     ".claude/rules/code-style.md",
     ".claude/rules/security.md",
@@ -95,21 +90,16 @@
     "CLAUDE.md",
     ".claude/hooks/*.mjs"
   ],
+
   "modelLiteralSites": [
-    {
-      "path": ".claude/hooks/run-security-auditor.sh",
-      "flag": "--model",
-      "expects": "sonnet"
-    },
-    {
-      "path": ".github/workflows/claude-review.yml",
-      "flag": "--model",
-      "expects": "opus"
-    }
+    { "path": ".claude/hooks/run-security-auditor.sh", "flag": "--model", "expects": "sonnet" },
+    { "path": ".github/workflows/claude-review.yml", "flag": "--model", "expects": "opus" }
   ],
+
   "supabaseCli": "2.78.1",
+
   "guards": {
-    "_": "Every guard wired into lefthook.yml, any .github/workflows/*.yml step (a `.claude/...` path not passed to `node --test`), or any .claude/settings.json hook event must carry a spawned, graded RED and GREEN control (code-style.md \u00a77). .claude/controls.test.mjs derives the wired set and checks it against these keys in BOTH directions, then checks each non-exempt entry's `suites` for a linked CONTROL: red and CONTROL: green test. `base` names the co-located `.claude/hooks/<base>.mutations.json` carrying the `<base>-always-passes` / `<base>-always-blocks` grading entries.",
+    "_": "Every guard wired into lefthook.yml, any .github/workflows/*.yml step (a `.claude/...` path not passed to `node --test`), or any .claude/settings.json hook event must carry a spawned, graded RED and GREEN control (code-style.md §7). .claude/controls.test.mjs derives the wired set and checks it against these keys in BOTH directions, then checks each non-exempt entry's `suites` for a linked CONTROL: red and CONTROL: green test. `base` names the co-located `.claude/hooks/<base>.mutations.json` carrying the `<base>-always-passes` / `<base>-always-blocks` grading entries.",
     ".claude/hooks/check-design-tokens.mjs": {
       "base": "check-design-tokens",
       "suites": [".claude/hooks/check-design-tokens.test.mjs"]
@@ -187,12 +177,12 @@
         ".claude/hooks/run-security-auditor.diff-fail.test.mjs"
       ]
     },
-    ".claude/hooks/run-mutations.mjs": {
-      "exempt": "a grader, not a blocking guard"
-    },
     ".claude/hooks/check-review-gate-lock.mjs": {
       "base": "check-review-gate-lock",
       "suites": [".claude/hooks/check-review-gate-lock.test.mjs"]
+    },
+    ".claude/hooks/run-mutations.mjs": {
+      "exempt": "a grader, not a blocking guard"
     }
   }
 }

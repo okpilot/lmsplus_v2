@@ -18,9 +18,11 @@
 // Monitor or the user's own editor never reaches a PreToolUse Edit matcher. The enforcing gate is
 // lefthook pre-commit `review-gate-lock` (.claude/hooks/check-review-gate-lock.mjs), which every
 // write route reaches via `git commit`.
-// `.coderabbit.yaml` at a checkout root is exempt, like `docs/` and the four `.claude/`
-// directories gate agents write. `.claude/hooks/**`, `settings.json`, `pipeline.json` and
-// `gate-briefs.json` are NOT exempt: a locked session must not rewrite the policy it is under.
+// Exempt: `docs/`, `apps/web/e2e/`, the four `.claude/` directories gate agents write,
+// `.coderabbit.yaml` at a checkout root, and — in ANY directory, `.claude/hooks/` included — a
+// `.md`, `.testkit.mjs` or `.mutations.json` file, plus a basename carrying `.test.`.
+// NOT exempt: `settings.json`, `pipeline.json`, `gate-briefs.json` and the guards themselves — a
+// locked session must not rewrite the policy it is under.
 // Roles come from .claude/pipeline.json `agents.<type>.role`.
 
 const { execFileSync } = require('node:child_process')
@@ -61,7 +63,7 @@ const EXEMPT_DIRS = [
 ]
 const EXEMPT_FILES = ['.coderabbit.yaml']
 // test-writer's own artefacts beside a guard. `.testkit.mjs` and `.mutations.json` do not contain
-// `.test.`, so the substring check below does not reach them.
+// `.test.`, so the basename check below does not reach them.
 const EXEMPT_SUFFIXES = ['.md', '.testkit.mjs', '.mutations.json']
 const WORKTREES_DIR = path.resolve(REPO_ROOT, '.claude', 'worktrees') + path.sep
 
@@ -116,7 +118,7 @@ function onEdit(rawPath) {
   if (!filePath.startsWith(REPO_ROOT + path.sep)) process.exit(0)
   if (EXEMPT_FILES.some((f) => filePath === path.join(checkoutRoot(filePath), f))) process.exit(0)
   if (
-    filePath.includes('.test.') ||
+    path.basename(path.relative(checkoutRoot(filePath), filePath)).includes('.test.') ||
     inExemptDir(filePath) ||
     EXEMPT_SUFFIXES.some((s) => filePath.endsWith(s))
   ) {

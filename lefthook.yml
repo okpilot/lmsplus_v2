@@ -22,6 +22,17 @@ pre-commit:
   # The stage is sub-second serially; correctness wins over the saving.
   parallel: false
   commands:
+    # Refuse a commit while a review round is open. CLAUDE.md step 7 requires plan-critic for a
+    # fixup after a review round; a plan-critic dispatch is what clears the lock. Gated here and
+    # not only at PreToolUse because every write route — Bash, an MCP terminal tool, Monitor, the
+    # user's own editor — reaches `git commit`, while a PreToolUse matcher fires only on the tool
+    # names it enumerates.
+    # NO glob: the lock is a repository state, not a property of the staged paths.
+    # FIRST in the stage: `biome-check` runs with `stage_fixed: true` and `type-check` is the
+    # slowest command here, so a commit that will be refused must not first rewrite and re-stage
+    # the author's files.
+    review-gate-lock:
+      run: node .claude/hooks/check-review-gate-lock.mjs
     biome-check:
       glob: "*.{js,ts,jsx,tsx,json,mjs,cjs}"
       run: npx biome check --write --no-errors-on-unmatched {staged_files}
@@ -63,13 +74,6 @@ pre-commit:
     # reason prose-paths has none: the guard enumerates its own staged-add/rename list.
     md-allowlist:
       run: node .claude/hooks/check-md-allowlist.mjs
-    # Refuse a commit while a review round is open. CLAUDE.md step 7 requires plan-critic for a
-    # fixup after a review round; a plan-critic dispatch is what clears the lock. Gated here and
-    # not only at PreToolUse because every write route — Bash, an MCP terminal tool, Monitor, the
-    # user's own editor — reaches `git commit`, while a PreToolUse matcher covers one tool name.
-    # NO glob: the lock is a repository state, not a property of the staged paths.
-    review-gate-lock:
-      run: node .claude/hooks/check-review-gate-lock.mjs
     # Full test suite runs in CI (ci.yml). Pre-commit runs fast gates only.
     # test:
     #   run: pnpm test
