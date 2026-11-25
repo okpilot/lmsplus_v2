@@ -895,7 +895,7 @@ Immutable append-only GDPR consent audit log. Tracks user acceptance of Terms of
 
 ### internal_exam_codes
 
-Single-use 8-character codes for starting `internal_exam` mode sessions. Admins issue codes from a sitting, each targeting one student + subject; the student consumes the code once to start a session. Codes expire after 24 hours; a sitting code (`sitting_entry_id` set) expires at 23:59:59.999999 UTC of its sitting day (`private.sitting_code_expiry`).
+Single-use 8-character codes for starting `internal_exam` mode sessions. Admins issue a code targeting a specific student + subject; the student consumes the code once to start a session. Codes expire after 24 hours; a sitting code (`sitting_entry_id` set) expires at 23:59:59.999999 UTC of its sitting day (`private.sitting_code_expiry`).
 
 | Column | Type | Constraints |
 |--------|------|-------------|

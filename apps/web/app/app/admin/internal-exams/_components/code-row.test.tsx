@@ -64,7 +64,7 @@ describe('CodeRow status text', () => {
     ['Finished', { status: 'consumed', sessionEndedAt: '2026-10-31T10:00:00Z' }, false],
     ['In progress', { status: 'consumed' }, false],
     ['Expired', { status: 'expired' }, true],
-  ] as const)('shows status %s as plain text, muted only when %s', (label, patch, muted) => {
+  ] as const)('shows status %s (row %s) as plain text, muted %s', (label, patch, muted) => {
     const { container } = renderRow({ ...baseRow, ...patch })
     expect(container.querySelector('[data-slot="badge"]')).toBeNull()
     const el = screen.getByText(label)
