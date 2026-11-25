@@ -40,25 +40,31 @@ REMOTE_REF=$(git rev-parse --abbrev-ref @{upstream} 2>/dev/null || echo "origin/
 
 # Branch on the diff's EXIT CODE, never on its emptiness. The previous form was
 #   git diff "$REMOTE_REF"...HEAD 2>/dev/null || git diff HEAD 2>/dev/null || echo ""
-# followed by `[ -z "$DIFF_FULL" ] && exit 0`: when the first diff ERRORED (unresolvable
-# origin/master, shallow clone, no merge base) the fallback produced the working-tree diff, empty on
-# a clean tree, and this documented fail-closed gate approved the push having audited nothing.
-# `/fullpush` step 5b states the same rule for the orchestrator's own diff capture.
-if ! git rev-parse --verify "$REMOTE_REF^{commit}" >/dev/null; then
-  echo "[security-auditor] cannot resolve '$REMOTE_REF' — run 'git fetch origin'. BLOCKING." >&2
-  exit 1
+# followed by `[ -z "$DIFF_FULL" ] && exit 0`. The fallback itself is a SUPPORTED mode — a clone
+# with no tracking branch and no origin/master audits the working-tree diff, and the fallback-scan
+# tests depend on it. The defect was conflating its EMPTY result with "nothing to push": on a clean
+# tree that approved the push having audited nothing. `/fullpush` step 5b states the same rule.
+UPSTREAM_RC=0
+DIFF_FULL=$(git diff --no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ "$REMOTE_REF"...HEAD 2>/dev/null) || UPSTREAM_RC=$?
+
+if [ "$UPSTREAM_RC" -ne 0 ]; then
+  # `$REMOTE_REF` is unresolvable, or shares no merge base with HEAD. Audit the working-tree diff.
+  # `set -e` does not fire on an assignment guarded by `||`, so capture the status explicitly
+  # rather than letting git's own 128 abort before any reason is printed.
+  FALLBACK_RC=0
+  DIFF_FULL=$(git diff --no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ HEAD 2>/dev/null) || FALLBACK_RC=$?
+  if [ "$FALLBACK_RC" -ne 0 ]; then
+    echo "[security-auditor] no diff against '$REMOTE_REF' (exit $UPSTREAM_RC) or HEAD (exit $FALLBACK_RC) — BLOCKING." >&2
+    exit 1
+  fi
+  if [ -z "$DIFF_FULL" ]; then
+    echo "[security-auditor] '$REMOTE_REF' is unresolvable and the working tree is clean, so the" >&2
+    echo "  push scope cannot be established. Run 'git fetch origin'. BLOCKING." >&2
+    exit 1
+  fi
 fi
 
-# `set -e` does not fire on a failed assignment guarded by `||`, so capture the status explicitly
-# rather than letting git's own 128 abort the script before any reason is printed.
-DIFF_RC=0
-DIFF_FULL=$(git diff --no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ "$REMOTE_REF"...HEAD) || DIFF_RC=$?
-if [ "$DIFF_RC" -ne 0 ]; then
-  echo "[security-auditor] 'git diff $REMOTE_REF...HEAD' failed (exit $DIFF_RC) — BLOCKING." >&2
-  exit 1
-fi
-
-# Only a diff that SUCCEEDED and is empty is a legitimate no-op.
+# Reached only when the upstream diff SUCCEEDED: an empty result is a genuine no-op.
 if [ -z "$DIFF_FULL" ]; then
   echo "[security-auditor] No diff to audit. Skipping."
   exit 0
