@@ -463,6 +463,7 @@ test('blocks a write carrying no recognised path field while the gate is armed',
   }
 })
 
+// GROUP: review-gate-always-passes, review-gate-empty-path-allowed, review-gate-nonstring-path-allowed
 test('blocks a write whose path field is a non-string while the gate is armed', () => {
   const dir = makeDir()
   try {

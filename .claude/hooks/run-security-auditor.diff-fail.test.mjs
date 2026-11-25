@@ -47,7 +47,7 @@ test('exits 1 when git diff against the remote ref fails (no merge base)', () =>
   assert.doesNotMatch(r.stdout, /No diff to audit/)
 })
 
-// GROUP: run-security-auditor-always-blocks
+// GROUP: run-security-auditor-noop-blocks
 test('exits 0 when the diff succeeds and is empty', () => {
   const built = initShimScratch('sec-aud-empty-', APPROVE_SHIM)
   const { scratch, repoDir } = built
@@ -67,7 +67,7 @@ test('exits 0 when the diff succeeds and is empty', () => {
 const capturingShim = (capture) =>
   `#!/usr/bin/env bash\n{ printf '%s\\n' "$@"; cat; } > "${capture}" 2>/dev/null\necho APPROVED\n`
 
-// GROUP: run-security-auditor-always-passes
+// GROUP: run-security-auditor-filter-ignores-diff-range
 test('audits the working-tree diff, not "No changes", when a >3000-line fallback diff carries a secret', () => {
   const captureDir = mkdtempSync(join(tmpdir(), 'sec-aud-cap-'))
   const capture = join(captureDir, 'prompt.txt')
@@ -87,7 +87,7 @@ test('audits the working-tree diff, not "No changes", when a >3000-line fallback
   }
 })
 
-// GROUP: run-security-auditor-always-passes
+// GROUP: run-security-auditor-always-passes, run-security-auditor-stat-fail-passes
 test('exits 1 when the diff stat fails', () => {
   const built = initShimScratch('sec-aud-statfail-', APPROVE_SHIM)
   writeFileSync(join(built.repoDir, 'big.ts'), 'x\n')
@@ -117,6 +117,7 @@ function bigDiffRepo(prefix, gitShimBody) {
   return built
 }
 
+// GROUP: run-security-auditor-always-passes, run-security-auditor-filter-fail-passes
 test('exits 1 and names the filter when filtering a large diff to security-sensitive files fails', () => {
   const built = bigDiffRepo(
     'sec-aud-filterfail-',
@@ -128,6 +129,7 @@ test('exits 1 and names the filter when filtering a large diff to security-sensi
   assert.match(r.stderr, /filtering .* failed/)
 })
 
+// GROUP: run-security-auditor-always-passes, run-security-auditor-empty-stat-passes, run-security-auditor-filter-ignores-diff-range
 test('exits 1 when a large diff has no security-sensitive file and its stat is empty', () => {
   const built = bigDiffRepo(
     'sec-aud-emptystat-',

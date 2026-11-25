@@ -5,7 +5,8 @@
     ".claude/hooks/run-security-auditor.controls.test.mjs",
     ".claude/hooks/run-security-auditor.config.test.mjs",
     ".claude/hooks/run-security-auditor.prompt-config.test.mjs",
-    ".claude/hooks/run-security-auditor.notimeout.test.mjs"
+    ".claude/hooks/run-security-auditor.notimeout.test.mjs",
+    ".claude/hooks/run-security-auditor.diff-fail.test.mjs"
   ],
   "mutations": [
     {
@@ -13,22 +14,27 @@
       "find": "set -euo pipefail",
       "replace": "set -euo pipefail\n\nexit() { command exit 0; }",
       "expectRed": [
-        "blocks the push when the security audit returns a BLOCKED verdict",
-        "fails closed when the CLI fails and the diagnostic scan finds nothing",
-        "blocks the push via the fallback scan when the CLI times out and a secret is in the diff",
-        "blocks the push via the fallback scan when the CLI fails and a secret is in the diff",
-        "fallback scan still finds a secret a textconv driver hides on the no-upstream diff",
-        "fallback scan still finds a secret a textconv driver hides on the upstream diff",
-        "fallback scan still finds a secret GIT_EXTERNAL_DIFF hides on the no-upstream diff",
         "fallback scan still finds a secret color.ui=always hides on the no-upstream diff",
         "fallback scan still finds a .env file diff.noprefix=true hides on the no-upstream diff",
         "fallback scan still finds a secret color.ui=always hides on the upstream diff",
         "fallback scan still finds a .env file diff.noprefix=true hides on the upstream diff",
-        "exits 1 naming `timeout` when no timeout binary is on PATH",
+        "blocks the push when the security audit returns a BLOCKED verdict",
+        "fails closed when the CLI fails and the diagnostic scan finds nothing",
+        "blocks the push via the fallback scan when the CLI times out and a secret is in the diff",
         "reports a timeout when the CLI is killed after the grace period",
-        "passes a kill-after grace period to timeout"
+        "passes a kill-after grace period to timeout",
+        "blocks the push via the fallback scan when the CLI fails and a secret is in the diff",
+        "fallback scan still finds a secret a textconv driver hides on the no-upstream diff",
+        "fallback scan still finds a secret a textconv driver hides on the upstream diff",
+        "fallback scan still finds a secret GIT_EXTERNAL_DIFF hides on the no-upstream diff",
+        "exits 1 when the upstream ref and origin/master are both unresolvable",
+        "exits 1 when git diff against the remote ref fails (no merge base)",
+        "exits 1 when the diff stat fails",
+        "exits 1 and names the filter when filtering a large diff to security-sensitive files fails",
+        "exits 1 when a large diff has no security-sensitive file and its stat is empty",
+        "exits 1 naming `timeout` when no timeout binary is on PATH"
       ],
-      "note": "Shadows the `exit` builtin with a function that always exits 0 — every blocking exit in the script, whichever of the four routes reaches it (the terminal BLOCKED exit, fail_closed_no_llm_output, and the two fallback-scan branches), is defeated at once. Chosen over patching only the terminal exit because the guard has multiple independent fail-closed exits (Decision 79) and this is the one mutation that represents 'the guard never blocks', matching what code-reviewer's controls.test.mjs requires every CONTROL: red test in a suite to link to under a single `<base>-always-passes` id."
+      "note": "Shadows the `exit` builtin with a function that always exits 0 — every blocking exit in the script, whichever of the four routes reaches it (the terminal BLOCKED exit, fail_closed_no_llm_output, and the two fallback-scan branches), is defeated at once. Chosen over patching only the terminal exit because the guard has multiple independent fail-closed exits (Decision 79) and this is the one mutation that represents 'the guard never blocks', matching what code-reviewer's controls.test.mjs requires every CONTROL: red test in a suite to link to under a single `<base>-always-passes` id. Shadowing `exit` neutralises every blocking exit, so it reddens EVERY test asserting a non-zero status — including all five diff-fail blocking tests."
     },
     {
       "id": "run-security-auditor-always-blocks",
@@ -206,6 +212,48 @@
       "replace": "\"$TIMEOUT_BIN\" \"$AUDIT_TIMEOUT_SECS\"",
       "expectRed": ["passes a kill-after grace period to timeout"],
       "note": "Without `-k`, a CLI that ignores SIGTERM keeps the push hanging past the audit budget."
+    },
+    {
+      "id": "run-security-auditor-filter-fail-passes",
+      "find": "    echo \"[security-auditor] filtering '$DIFF_RANGE' to security-sensitive files failed (exit $FILTER_RC) — BLOCKING.\" >&2\n    exit 1\n",
+      "replace": "    exit 0\n",
+      "expectRed": [
+        "exits 1 and names the filter when filtering a large diff to security-sensitive files fails"
+      ],
+      "note": "A FAILED filter of a large diff falls through to the stat-only audit instead of blocking — the push is audited on a prompt the filter never produced."
+    },
+    {
+      "id": "run-security-auditor-stat-fail-passes",
+      "find": "      echo \"[security-auditor] stat of '$DIFF_RANGE' failed (exit $STAT_RC) — BLOCKING.\" >&2\n      exit 1\n",
+      "replace": "      exit 0\n",
+      "expectRed": ["exits 1 when the diff stat fails"],
+      "note": "A FAILED stat no longer blocks, so the LLM audits an empty prompt and can approve the push."
+    },
+    {
+      "id": "run-security-auditor-empty-stat-passes",
+      "find": "      echo \"  empty, so there is nothing to audit for a diff of $DIFF_LINES lines. BLOCKING.\" >&2\n      exit 1\n",
+      "replace": "      exit 0\n",
+      "expectRed": [
+        "exits 1 when a large diff has no security-sensitive file and its stat is empty"
+      ],
+      "note": "A large diff that filters to nothing AND has an empty stat no longer blocks — the original fail-open, where a push was approved having audited nothing."
+    },
+    {
+      "id": "run-security-auditor-filter-ignores-diff-range",
+      "find": "\"$DIFF_RANGE\" -- \\\n",
+      "replace": "\"$REMOTE_REF\"...HEAD -- \\\n",
+      "expectRed": [
+        "audits the working-tree diff, not \"No changes\", when a >3000-line fallback diff carries a secret",
+        "exits 1 when a large diff has no security-sensitive file and its stat is empty"
+      ],
+      "note": "The filtered diff re-runs the upstream range instead of the range that produced DIFF_FULL. In fallback mode that expression has already failed, so the filter yields nothing. This is the ONLY mutation that pins the DIFF_RANGE reuse; the exit-flips above do not touch it."
+    },
+    {
+      "id": "run-security-auditor-noop-blocks",
+      "find": "  echo \"[security-auditor] No diff to audit. Skipping.\"\n  exit 0\n",
+      "replace": "  echo \"[security-auditor] No diff to audit. Skipping.\"\n  exit 1\n",
+      "expectRed": ["exits 0 when the diff succeeds and is empty"],
+      "note": "A genuine no-op push — the upstream diff SUCCEEDED and is empty — blocks instead of skipping. Pins the one exit-0 path the fail-closed rework must preserve: without it, 'fail closed' would mean no push can ever pass."
     }
   ]
 }
