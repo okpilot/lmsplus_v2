@@ -35,7 +35,14 @@ async function createStudent(admin: Admin, orgId: string, name: string): Promise
   const id = data.user.id
   const row = { id, organization_id: orgId, email, full_name: name, role: 'student' }
   const res = await admin.from('users').insert(row)
-  if (res.error) fail('users row', res.error)
+  if (res.error) {
+    // Roll the auth user back: cleanup finds seed students through their `users` row, so an
+    // orphaned auth user is unreachable by teardown. deleteUser resolves `{ error }`.
+    const { error: rollbackError } = await admin.auth.admin.deleteUser(id)
+    throw new Error(
+      `seedSitting users row: ${res.error.message}${rollbackError ? ` (rollback also failed: ${rollbackError.message})` : ''}`,
+    )
+  }
   return id
 }
 

@@ -9,8 +9,10 @@ import { seedSitting } from './exam-sitting-seed'
 
 type Insert = { table: string; rows: Record<string, unknown>[] }
 
-function fakeAdmin() {
+function fakeAdmin(opts: { failUsersInsert?: boolean; failRollback?: boolean } = {}) {
   const inserts: Insert[] = []
+  const created: string[] = []
+  const deleted: string[] = []
   let n = 0
   const builder = (table: string) => {
     const api: Record<string, unknown> = {}
@@ -20,6 +22,9 @@ function fakeAdmin() {
     }
     api.insert = (rows: Record<string, unknown> | Record<string, unknown>[]) => {
       inserts.push({ table, rows: Array.isArray(rows) ? rows : [rows] })
+      if (table === 'users' && opts.failUsersInsert) {
+        return Promise.resolve({ data: null, error: { message: 'duplicate key' } })
+      }
       return api
     }
     api.single = () => Promise.resolve({ data: { id: `id-${++n}` }, error: null })
@@ -30,17 +35,27 @@ function fakeAdmin() {
   mockGetAdminClient.mockReturnValue({
     from: builder,
     auth: {
-      admin: { createUser: async () => ({ data: { user: { id: `u-${++n}` } }, error: null }) },
+      admin: {
+        createUser: async () => {
+          const id = `u-${++n}`
+          created.push(id)
+          return { data: { user: { id } }, error: null }
+        },
+        deleteUser: async (id: string) => {
+          deleted.push(id)
+          return { error: opts.failRollback ? { message: 'auth down' } : null }
+        },
+      },
     },
   })
-  return inserts
+  return { inserts, created, deleted }
 }
 
 beforeEach(() => vi.resetAllMocks())
 
 describe('seedSitting', () => {
   it('inserts a sitting carrying the E2E-SIT- marker in permitted_materials', async () => {
-    const inserts = fakeAdmin()
+    const { inserts } = fakeAdmin()
     await seedSitting({ people: [{ name: 'Ann', entries: [{ state: 'live' }] }] })
     const sitting = inserts.find((i) => i.table === 'exam_sittings')
     expect(String(sitting?.rows[0]?.permitted_materials)).toMatch(
@@ -49,7 +64,7 @@ describe('seedSitting', () => {
   })
 
   it('seeds one candidate per person and one entry per listed exam', async () => {
-    const inserts = fakeAdmin()
+    const { inserts } = fakeAdmin()
     await seedSitting({
       people: [
         { name: 'Ann', entries: [{ state: 'live' }, { state: 'no_code' }] },
@@ -70,5 +85,21 @@ describe('seedSitting', () => {
     expect(typeof r.sittingId).toBe('string')
     expect(r.people[0]).toMatchObject({ name: 'Ann' })
     expect(typeof r.people[0]?.userId).toBe('string')
+  })
+
+  it('rolls the auth user back when the users insert fails', async () => {
+    const { created, deleted } = fakeAdmin({ failUsersInsert: true })
+    await expect(
+      seedSitting({ people: [{ name: 'Ann', entries: [{ state: 'live' }] }] }),
+    ).rejects.toThrow(/users row/)
+    expect(deleted).toEqual(created)
+    expect(deleted).toHaveLength(1)
+  })
+
+  it('reports a failed rollback alongside the insert error', async () => {
+    fakeAdmin({ failUsersInsert: true, failRollback: true })
+    await expect(
+      seedSitting({ people: [{ name: 'Ann', entries: [{ state: 'live' }] }] }),
+    ).rejects.toThrow(/rollback also failed: auth down/)
   })
 })
