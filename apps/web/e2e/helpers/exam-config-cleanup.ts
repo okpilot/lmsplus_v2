@@ -71,6 +71,9 @@ export async function insertExamConfig(
   return data.id
 }
 
+/** Known limit: the created ids live in process memory, since `exam_configs` carries no free-text
+ * column to mark. A worker killed between `ensureExamConfigs` and the teardown leaks its configs,
+ * and the next run counts them as pre-existing. */
 const createdConfigIds = new Set<string>()
 const MIN_CONFIGS = 2
 

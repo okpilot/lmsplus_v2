@@ -22,6 +22,8 @@ export type DialogRefs = {
   closing: RefObject<boolean>
   /** Shared transition; without it the hook runs its own. */
   nav?: DialogNav
+  /** Shared uncommitted patches; without it each consumer accumulates its own. */
+  patches?: RefObject<Patch>
 }
 
 /** `search` without any popup param (`dlg` included). */
@@ -50,7 +52,7 @@ function withQuery(pathname: string, params: URLSearchParams): string {
   return qs ? `${pathname}?${qs}` : pathname
 }
 
-type Patch = Readonly<Record<string, string | null>>
+export type Patch = Readonly<Record<string, string | null>>
 
 /** `patch` without the keys the committed `search` already carries (null = absent). */
 function stillPending(search: string, patch: Patch): Patch {
@@ -79,6 +81,15 @@ function useDialogRefs(shared: DialogRefs | undefined, dlg: string | null) {
   return { ...refs, consumeOpenedHere }
 }
 
+/** The latest value in a ref, for a callback that may run after an await from an earlier render. */
+function useLatest<T>(value: T) {
+  const ref = useRef(value)
+  useEffect(() => {
+    ref.current = value
+  }, [value])
+  return ref
+}
+
 /**
  * Dialog state in the URL (`?dlg=`). `open` pushes a history entry (recording `opener`, else the focused element, for focus return) and `close` pops it when this
  * session opened the dialog; a deep-linked dialog closes by replacing the URL without `dlg`. `replaceParams` edits popup params in place (no history entry).
@@ -94,16 +105,14 @@ export function useDialogParam(shared?: DialogRefs) {
   const dlg = readDlgParam(sp)
   const { openedHere, openerRef, closing, consumeOpenedHere } = useDialogRefs(shared, dlg)
   const search = sp.toString()
-  /** Patches issued but not yet in `search`; a second replaceParams before the first commits must carry both. */
-  const pending = useRef<Patch>({})
+  /** Uncommitted patches, shared by the provider so a second replaceParams carries both across components. */
+  const ownPatches = useRef<Patch>({})
+  const pending = shared?.patches ?? ownPatches
   useEffect(() => {
     pending.current = stillPending(search, pending.current)
-  }, [search])
+  }, [search, pending])
   /** Latest `isRefreshing` for `close`, which can run after an await from an earlier render. */
-  const refreshing = useRef(isRefreshing)
-  useEffect(() => {
-    refreshing.current = isRefreshing
-  }, [isRefreshing])
+  const refreshing = useLatest(isRefreshing)
   const open = useCallback(
     (name: DialogParam, opener?: HTMLElement | null, extra?: Readonly<Record<string, string>>) => {
       const active = document.activeElement
@@ -114,7 +123,7 @@ export function useDialogParam(shared?: DialogRefs) {
       const href = paramsHref(pathname, withoutPopupParams(search), { dlg: name, ...extra })
       startTransition(() => router.push(href, { scroll: false }))
     },
-    [pathname, search, router, startTransition, openedHere, openerRef, closing],
+    [pathname, search, router, startTransition, openedHere, openerRef, closing, pending],
   )
   const replaceParams = useCallback(
     (patch: Patch) => {
@@ -123,7 +132,7 @@ export function useDialogParam(shared?: DialogRefs) {
       const href = paramsHref(pathname, search, pending.current)
       startTransition(() => router.replace(href, { scroll: false }))
     },
-    [pathname, search, router, startTransition, closing],
+    [pathname, search, router, startTransition, closing, pending],
   )
   const close = useCallback(() => {
     if (closing.current) return
@@ -139,6 +148,6 @@ export function useDialogParam(shared?: DialogRefs) {
     startTransition(() =>
       router.replace(paramsHref(pathname, withoutPopupParams(search), {}), { scroll: false }),
     )
-  }, [pathname, search, router, startTransition, openedHere, closing])
+  }, [pathname, search, router, startTransition, openedHere, closing, pending, refreshing])
   return { dlg, isRefreshing, openerRef, open, replaceParams, close, consumeOpenedHere }
 }

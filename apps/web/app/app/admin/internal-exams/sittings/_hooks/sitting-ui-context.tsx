@@ -16,7 +16,7 @@ import {
 import { toast } from 'sonner'
 import { readDlgParam } from '../../_search-params'
 import type { ResultBannerData } from '../_utils/copy'
-import { type DialogRefs, useDialogParam } from './use-dialog-param'
+import { type DialogRefs, type Patch, useDialogParam } from './use-dialog-param'
 import { NO_ROSTER, type RosterSelection, useRosterSelection } from './use-roster-selection'
 import { type TickSet, useTickSet } from './use-tick-set'
 
@@ -94,9 +94,10 @@ export function SittingUiProvider({ children }: Readonly<ProviderProps>) {
   const people = useTickSet()
   const [pending, start] = useTransition()
   const searchDraft = useRef<string | null>(null)
+  const patches = useRef<Patch>({})
   const value = useMemo<Shared>(
     () => ({
-      refs: { openedHere, openerRef, closing, nav: { pending, start } },
+      refs: { openedHere, openerRef, closing, nav: { pending, start }, patches },
       locked,
       setLocked,
       banner,
