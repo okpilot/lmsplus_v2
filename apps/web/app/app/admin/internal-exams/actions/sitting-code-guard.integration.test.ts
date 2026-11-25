@@ -252,7 +252,7 @@ describe('checkSittingCode (app-layer integration)', () => {
 
     expect(await checkSittingCode(supabase, liveCodeId, 'sitting_closed')).toEqual({
       ok: false,
-      error: 'reason must not be a system void reason',
+      error: 'That reason is reserved for the system — type a different one',
     })
   })
 
@@ -269,7 +269,7 @@ describe('checkSittingCode (app-layer integration)', () => {
 
     expect(await checkSittingCode(supabase, legacyCodeId, 'sitting_closed')).toEqual({
       ok: false,
-      error: 'reason must not be a system void reason',
+      error: 'That reason is reserved for the system — type a different one',
     })
   })
 

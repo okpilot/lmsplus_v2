@@ -1,0 +1,54 @@
+import { describe, expect, it } from 'vitest'
+import { formatAbsolute, formatRelative, sittingHint } from './sitting-captions'
+
+const NOW = new Date('2026-11-25T12:00:00.000Z')
+const at = (ms: number) => new Date(NOW.getTime() + ms).toISOString()
+
+describe('formatRelative', () => {
+  // The marker an expired row shows. Losing it leaves "Expires <date>" with Start still enabled.
+  it('reports a past time as expired', () => {
+    expect(formatRelative(at(-1), NOW)).toBe('expired')
+    expect(formatRelative(at(0), NOW)).toBe('expired')
+  })
+
+  it('counts minutes under an hour', () => {
+    expect(formatRelative(at(30 * 60_000), NOW)).toBe('in 30 min')
+  })
+
+  it('counts hours under two days', () => {
+    expect(formatRelative(at(5 * 3_600_000), NOW)).toBe('in 5 h')
+  })
+
+  it('counts days from two days out', () => {
+    expect(formatRelative(at(72 * 3_600_000), NOW)).toBe('in 3 d')
+  })
+
+  it('says nothing for an unparseable date', () => {
+    expect(formatRelative('not a date', NOW)).toBe('')
+  })
+})
+
+describe('formatAbsolute', () => {
+  it('returns the input unchanged when it cannot be parsed', () => {
+    expect(formatAbsolute('not a date')).toBe('not a date')
+  })
+})
+
+describe('sittingHint', () => {
+  it('tells an open sitting it works now', () => {
+    expect(sittingHint('open')).toContain('while the sitting is open')
+  })
+
+  it('tells a scheduled sitting to reload', () => {
+    expect(sittingHint('scheduled')).toContain('reload')
+  })
+
+  it('says cancelled, not ended, for a cancelled sitting', () => {
+    expect(sittingHint('cancelled')).toContain('cancelled')
+    expect(sittingHint('cancelled')).not.toContain('ended')
+  })
+
+  it('says ended for a closed sitting', () => {
+    expect(sittingHint('closed')).toContain('ended')
+  })
+})

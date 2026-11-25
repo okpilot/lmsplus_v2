@@ -35,7 +35,7 @@ export async function checkSittingCode(
   reason: string,
 ): Promise<GuardVerdict> {
   if (isReservedReason(reason)) {
-    return { ok: false, error: 'reason must not be a system void reason' }
+    return { ok: false, error: 'That reason is reserved for the system — type a different one' }
   }
   const { data, error } = await supabase
     .from('internal_exam_codes')

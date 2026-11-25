@@ -204,6 +204,20 @@ describe('CodeRow sitting codes', () => {
     expect(screen.queryByText('In progress')).not.toBeInTheDocument()
   })
 
+  it('offers no Void for a legacy code whose attempt was discarded', () => {
+    // `void_internal_exam_code` raises `session_state_changed` for it on every click.
+    renderRow({
+      ...sitting,
+      sittingEntryId: null,
+      sittingId: null,
+      status: 'consumed',
+      consumedAt: '2026-04-28T11:00:00.000Z',
+      sessionDeletedAt: '2026-04-28T12:00:00.000Z',
+    })
+    expect(screen.getByText('Discarded')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Void' })).toBeDisabled()
+  })
+
   it('does not offer Void once the attempt has ended', () => {
     renderRow({
       ...sitting,

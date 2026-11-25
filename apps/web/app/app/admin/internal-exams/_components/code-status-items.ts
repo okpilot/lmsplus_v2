@@ -19,6 +19,7 @@ export const STATUS_ITEMS = [
   { value: 'active', label: 'Active / Waiting' },
   { value: 'consumed', label: 'In progress' },
   { value: 'finished', label: 'Finished' },
+  { value: 'discarded', label: 'Discarded' },
   { value: 'voided', label: 'Voided' },
   { value: 'expired', label: 'Expired' },
 ] as const

@@ -31,7 +31,9 @@ function formatAbsolute(iso: string | null): string {
 
 function isVoidDisabled(r: InternalExamCodeRow): boolean {
   if (r.status === 'voided') return true
-  return r.status === 'consumed' && r.sessionEndedAt !== null
+  // Ended or discarded, the attempt is final: `void_internal_exam_code` raises
+  // `session_state_changed` for a legacy code in either state.
+  return r.status === 'consumed' && (r.sessionEndedAt !== null || r.sessionDeletedAt !== null)
 }
 
 export function CodeRow({

@@ -42,6 +42,14 @@ function applyCodeFilters(
         .is('voided_at', null)
         .is('quiz_sessions.ended_at', null)
         .is('quiz_sessions.deleted_at', null)
+    case 'discarded':
+      // Consumed, never ended, session soft-deleted. Only this service-role read can see the
+      // session row at all, so this is the one place the state is filterable.
+      return b
+        .not('consumed_at', 'is', null)
+        .is('voided_at', null)
+        .is('quiz_sessions.ended_at', null)
+        .not('quiz_sessions.deleted_at', 'is', null)
     case 'finished':
       // linked session has ended (ended_at IS NOT NULL)
       return b
@@ -64,7 +72,8 @@ export async function listInternalExamCodes(
   const nowIso = new Date().toISOString()
   // 'consumed'/'finished' filter the embedded session's ended_at → both selects need an INNER
   // join (a count select filtering quiz_sessions.ended_at without !inner 400s — PostgREST PGRST108).
-  const splitOnSession = filters.status === 'consumed' || filters.status === 'finished'
+  const splitOnSession =
+    filters.status === 'consumed' || filters.status === 'finished' || filters.status === 'discarded'
   const embed = splitOnSession
     ? 'quiz_sessions!consumed_session_id!inner(ended_at, deleted_at)'
     : 'quiz_sessions!consumed_session_id(ended_at, deleted_at)'

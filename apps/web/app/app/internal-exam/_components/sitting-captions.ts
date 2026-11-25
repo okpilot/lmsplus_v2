@@ -13,7 +13,7 @@ export function formatRelative(iso: string, now: Date = new Date()): string {
   const target = new Date(iso)
   if (Number.isNaN(target.getTime())) return ''
   const diffMs = target.getTime() - now.getTime()
-  if (diffMs <= 0) return ''
+  if (diffMs <= 0) return 'expired'
   const minutes = Math.round(diffMs / 60_000)
   if (minutes < 60) return `in ${minutes} min`
   const hours = Math.round(minutes / 60)
@@ -29,5 +29,7 @@ export function sittingHint(status: SittingStatus | undefined): string {
   if (status === 'scheduled') {
     return 'Opens when your invigilator starts the sitting — reload this page to check.'
   }
+  // A cancelled sitting never ran, so it cannot be described as having ended.
+  if (status === 'cancelled') return 'This sitting was cancelled. Ask your invigilator.'
   return 'This sitting has ended. Ask your invigilator.'
 }

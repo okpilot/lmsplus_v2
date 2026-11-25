@@ -23,14 +23,14 @@ describe('checkSittingCode', () => {
     // Without this the row would be voidable: a running attempt is decision 264's exception.
     expect(await checkSittingCode(supabase, 'c1', 'sitting_closed')).toEqual({
       ok: false,
-      error: 'reason must not be a system void reason',
+      error: 'That reason is reserved for the system — type a different one',
     })
   })
 
   it('refuses a system void reason on a legacy code too, and never looks it up', async () => {
     expect(await checkSittingCode(supabase, 'c1', 'sitting_closed')).toEqual({
       ok: false,
-      error: 'reason must not be a system void reason',
+      error: 'That reason is reserved for the system — type a different one',
     })
     expect(mockMaybeSingle).not.toHaveBeenCalled()
   })
