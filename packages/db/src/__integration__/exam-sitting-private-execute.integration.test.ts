@@ -22,6 +22,7 @@ function psql(sql: string): { out: string; err: string } {
 
 /** AC-48: privileges, security definer settings and volatility of the new functions. */
 describe('exam sitting function privileges', () => {
+  // Derive: grep -hoiE 'CREATE (OR REPLACE )?FUNCTION public\.[a-z_]+' supabase/migrations/2026111[678]*.sql | sort -u
   const PUBLIC_RPCS = [
     'create_exam_sitting',
     'update_exam_sitting',
@@ -44,6 +45,7 @@ describe('exam sitting function privileges', () => {
     'get_exam_sitting_subject_eligibility',
     'list_exam_sitting_roster',
     'list_exam_sitting_removed_entries',
+    'void_sitting_code',
   ]
   const PRIVATE_FNS = [
     'sitting_day_end',
@@ -117,6 +119,7 @@ describe('exam sitting function privileges', () => {
       'list_my_active_internal_exam_codes',
       'add_exam_sitting_entries',
       'issue_sitting_exam_codes',
+      'void_sitting_code',
     ]
     const q = (names: string[]) =>
       psql(`SELECT DISTINCT p.provolatile FROM pg_proc p WHERE p.proname IN (${list(names)});`).out
