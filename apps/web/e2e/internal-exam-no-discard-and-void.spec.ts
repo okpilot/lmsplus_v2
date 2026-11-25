@@ -78,7 +78,8 @@ test.describe('internal exam — no-discard + admin void', () => {
     await cleanupE2eExamSittings()
   })
 
-  // The void test uses a legacy code: a consumed sitting code has no Void in the Codes tab.
+  // The void test uses a legacy code. A consumed sitting code keeps Void only while its attempt
+  // is still running (decision 264); that exception is covered by void-code.test.ts.
   test.afterEach(async () => {
     const errors: string[] = []
     try {

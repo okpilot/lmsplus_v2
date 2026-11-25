@@ -113,6 +113,9 @@ export type SeedSittingForInput = {
 /**
  * Service-role seed of a marked sitting holding an EXISTING student with one entry and, by default, a live code (no RPC).
  * `cleanupE2eExamSittings` removes the sitting, entry and code.
+ * Known limit: the sitting is scheduled for `now`, and `list_my_active_internal_exam_codes` drops
+ * the row once `private.sitting_day_ended(scheduled_at)` is true — a run that crosses UTC midnight
+ * between the seed and the student's reload loses it.
  */
 export async function seedSittingFor(
   input: SeedSittingForInput,

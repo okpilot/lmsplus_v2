@@ -5,6 +5,7 @@ import { StatusText } from '@/components/kit/status-text'
 import { Button } from '@/components/ui/button'
 import { TableCell, TableRow } from '@/components/ui/table'
 import { formatUtc } from '@/lib/utils/format-utc'
+import { sittingCodeVoidable } from '../_void-policy'
 import { SITTING_BASE } from '../sittings/types'
 import type { InternalExamCodeRow } from '../types'
 import { statusLabel } from './code-status-items'
@@ -27,16 +28,6 @@ function formatAbsolute(iso: string | null): string {
 function isVoidDisabled(r: InternalExamCodeRow): boolean {
   if (r.status === 'voided') return true
   return r.status === 'consumed' && r.sessionEndedAt !== null
-}
-
-/**
- * Sitting codes are voided from their sitting, which refuses a consumed code (`code_in_use`) and
- * offers Void only for a waiting or ready entry. A running attempt therefore has no other stop
- * button, so it keeps this one.
- */
-function showsVoid(r: InternalExamCodeRow): boolean {
-  if (r.sittingEntryId === null) return true
-  return r.status === 'consumed' && r.sessionEndedAt === null
 }
 
 export function CodeRow({
@@ -85,7 +76,13 @@ export function CodeRow({
         )}
       </TableCell>
       <TableCell>
-        {showsVoid(r) && (
+        {sittingCodeVoidable({
+          sittingEntryId: r.sittingEntryId,
+          consumed: r.status === 'consumed',
+          sessionEndedAt: r.sessionEndedAt,
+          // The codes list reads sessions with the service role, so the row is always visible.
+          sessionVisible: true,
+        }) && (
           <Button
             variant="outline"
             size="sm"

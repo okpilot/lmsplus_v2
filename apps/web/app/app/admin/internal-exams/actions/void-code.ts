@@ -71,6 +71,8 @@ export async function voidInternalExamCode(input: unknown): Promise<VoidCodeResu
   }
 
   revalidatePath('/app/admin/internal-exams')
+  // Voiding a running sitting attempt changes the entry a sitting detail page shows.
+  revalidatePath('/app/admin/internal-exams/sittings/[sittingId]', 'page')
   return {
     success: true,
     codeId: row.code_id,

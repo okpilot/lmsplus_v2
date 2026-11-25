@@ -1,22 +1,6 @@
 import type { Database } from '@repo/db/types'
 import type { SupabaseClient } from '@supabase/supabase-js'
-
-type CodeLookup = {
-  sitting_entry_id: string | null
-  consumed_at: string | null
-  quiz_sessions: { ended_at: string | null } | null
-}
-
-/**
- * A consumed sitting code whose attempt is still running. `consumed_at` is never set without
- * `consumed_session_id` (CHECK `consumed_pair_consistency`), so a null embed means the session row
- * is hidden from this caller, not that there is none — that case fails closed.
- */
-function isRunningAttempt(row: CodeLookup): boolean {
-  return (
-    row.consumed_at !== null && row.quiz_sessions !== null && row.quiz_sessions.ended_at === null
-  )
-}
+import { sittingCodeVoidable } from '../_void-policy'
 
 export type GuardVerdict = { ok: true } | { ok: false; error: string }
 
@@ -40,8 +24,14 @@ export async function checkSittingCode(
   }
   // Fail closed: the legacy `void_internal_exam_code` has no sitting guard of its own (#1820).
   if (!data) return { ok: false, error: 'Code not found' }
-  if (data.sitting_entry_id && !isRunningAttempt(data)) {
-    return { ok: false, error: 'Void sitting codes from their sitting' }
-  }
+  const voidable = sittingCodeVoidable({
+    sittingEntryId: data.sitting_entry_id,
+    consumed: data.consumed_at !== null,
+    sessionEndedAt: data.quiz_sessions?.ended_at ?? null,
+    // `consumed_at` is never set without `consumed_session_id` (CHECK `consumed_pair_consistency`),
+    // so a null embed means the row is hidden from this caller, not that there is none.
+    sessionVisible: data.quiz_sessions !== null,
+  })
+  if (!voidable) return { ok: false, error: 'Void sitting codes from their sitting' }
   return { ok: true }
 }
