@@ -60,6 +60,13 @@ describe('BottomTabBar', () => {
     expect(screen.queryByRole('button', { name: 'More' })).not.toBeInTheDocument()
   })
 
+  it('is hidden when printing', () => {
+    renderTabBar()
+    expect(screen.getByRole('navigation', { name: 'Bottom navigation' }).className).toContain(
+      'print:hidden',
+    )
+  })
+
   it('shows admin items for admin users', () => {
     renderMeasured(1000, 'admin')
     expect(screen.getByText('Syllabus')).toBeInTheDocument()

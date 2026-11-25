@@ -27,7 +27,6 @@ const base = {
   invigilatorId: 'inv-1',
   invigilatorName: 'Ann Instructor',
   invigilatorActive: true,
-  permittedMaterials: 'Calculator',
   endedAutomatically: false,
 }
 const summary = { attemptsRunning: 0, entriesNotStarted: 0, studentsNotStarted: 0 }
@@ -51,13 +50,11 @@ describe('SittingHeader', () => {
     expect(
       screen.getByRole('heading', { level: 1, name: '18 Nov 2026, 09:30 UTC' }),
     ).toBeInTheDocument()
-    expect(
-      screen.getByText('Scheduled · Remote · Invigilator Ann Instructor · Materials: Calculator'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Scheduled · Remote · Invigilator Ann Instructor')).toBeInTheDocument()
   })
 
-  it('omits Materials when none are set and marks an inactive invigilator', () => {
-    ui({ permittedMaterials: null, invigilatorActive: false })
+  it('marks an inactive invigilator', () => {
+    ui({ invigilatorActive: false })
     expect(
       screen.getByText('Scheduled · Remote · Invigilator Ann Instructor (inactive)'),
     ).toBeInTheDocument()
@@ -81,9 +78,9 @@ describe('SittingHeader', () => {
     },
   )
 
-  it('shows Can start on {date} (UTC). when the sitting is not yet due', () => {
+  it('shows Can start on {date} UTC. when the sitting is not yet due', () => {
     ui({}, { notDue: true })
-    expect(screen.getByText('Can start on 18 Nov 2026 (UTC).')).toBeInTheDocument()
+    expect(screen.getByText('Can start on 18 Nov 2026 UTC.')).toBeInTheDocument()
   })
 
   it('shows the closed notice, plain and automatic variants', () => {

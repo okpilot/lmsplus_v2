@@ -25,6 +25,20 @@ test.describe('protected routes redirect to login', () => {
   })
 })
 
+test.describe('sitting page redirects without a session', () => {
+  test('sitting detail redirects to login', async ({ page }) => {
+    await page.goto('/app/admin/internal-exams/sittings/00000000-0000-4000-a000-0000000000a1')
+    expect(new URL(page.url()).pathname).toBe('/')
+    await expect(page.getByRole('heading', { name: 'LMS Plus' })).toBeVisible()
+  })
+
+  test('sitting print page redirects to login', async ({ page }) => {
+    await page.goto('/app/admin/internal-exams/sittings/00000000-0000-4000-a000-0000000000a1/print')
+    expect(new URL(page.url()).pathname).toBe('/')
+    await expect(page.getByRole('heading', { name: 'LMS Plus' })).toBeVisible()
+  })
+})
+
 test.describe('login page content', () => {
   test('shows login form with email input and submit button', async ({ page }) => {
     await page.goto('/')

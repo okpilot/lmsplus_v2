@@ -24,6 +24,11 @@ describe('PhoneTopBar', () => {
     expect(screen.queryByRole('banner')).not.toBeInTheDocument()
   })
 
+  it('is hidden when printing', () => {
+    const { container } = render(<PhoneTopBar />)
+    expect((container.firstElementChild as HTMLElement).className).toContain('print:hidden')
+  })
+
   it('uses the border token for its bottom edge', () => {
     const { container } = render(<PhoneTopBar />)
     const cls = (container.firstElementChild as HTMLElement).className

@@ -29,7 +29,6 @@ function subtitle(s: SittingRow): string {
     modeLabel(s.mode),
     `Invigilator ${s.invigilatorName}${s.invigilatorActive ? '' : ' (inactive)'}`,
   ]
-  if (s.permittedMaterials) parts.push(`Materials: ${s.permittedMaterials}`)
   return parts.join(' · ')
 }
 
@@ -45,7 +44,7 @@ function Notice({
   if (sitting.status === 'scheduled' && notDue) {
     return (
       <p className="text-caption text-muted-foreground">
-        Can start on {fmtDate(sitting.scheduledAt)} (UTC).
+        Can start on {fmtDate(sitting.scheduledAt)}.
       </p>
     )
   }

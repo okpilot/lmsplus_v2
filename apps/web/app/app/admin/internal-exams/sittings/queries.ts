@@ -25,7 +25,6 @@ function mapSittingRow(r: ListRow): SittingRow {
     invigilatorId: r.invigilator_id,
     invigilatorName: r.invigilator_name,
     invigilatorActive: r.invigilator_active,
-    permittedMaterials: r.permitted_materials,
     startedAt: r.started_at,
     closedAt: r.closed_at,
     candidates: r.candidates,
@@ -90,8 +89,11 @@ export async function getSummary(sittingId: string): Promise<SittingSummary | nu
     status: toStatus(r.status),
     scheduledAt: r.scheduled_at,
     candidates: r.candidates,
+    deactivatedCandidates: r.deactivated_candidates,
     entries: r.entries,
     codesIssued: r.codes_issued,
+    entriesWithAttempt: r.entries_with_attempt,
+    pendingRemovalNotices: r.pending_removal_notices,
     dayEnded: r.day_ended,
     attemptsRunning: r.attempts_running,
     entriesNotStarted: r.entries_not_started,
@@ -111,7 +113,7 @@ export async function getSitting(id: string): Promise<SittingRow | null> {
   const { data, error } = await supabase
     .from('exam_sittings')
     .select(
-      'id, scheduled_at, mode, status, invigilator_id, permitted_materials, started_at, closed_at, ended_automatically',
+      'id, scheduled_at, mode, status, invigilator_id, started_at, closed_at, ended_automatically',
     )
     .eq('organization_id', organizationId)
     .eq('id', id)
@@ -130,7 +132,6 @@ export async function getSitting(id: string): Promise<SittingRow | null> {
     invigilatorId: data.invigilator_id,
     invigilatorName: inv?.name ?? 'Unknown',
     invigilatorActive: inv?.active ?? false,
-    permittedMaterials: data.permitted_materials,
     startedAt: data.started_at,
     closedAt: data.closed_at,
     candidates: 0,

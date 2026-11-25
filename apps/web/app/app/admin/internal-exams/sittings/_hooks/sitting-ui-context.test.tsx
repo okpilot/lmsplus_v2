@@ -27,6 +27,22 @@ function wrapper({ children }: Readonly<{ children: ReactNode }>) {
   return <SittingUiProvider>{children}</SittingUiProvider>
 }
 
+describe('useSittingUi roster selection', () => {
+  it('shares ticks through the provider', () => {
+    const { result } = renderHook(() => useSittingUi(), { wrapper })
+    act(() => result.current.toggleRoster('u1'))
+    expect(result.current.rosterIds).toEqual(['u1'])
+    act(() => result.current.clearRoster())
+    expect(result.current.rosterIds).toEqual([])
+  })
+
+  it('has an empty selection without a provider', () => {
+    const { result } = renderHook(() => useSittingUi())
+    act(() => result.current.toggleRoster('u1'))
+    expect(result.current.rosterIds).toEqual([])
+  })
+})
+
 describe('useSittingUi with a provider', () => {
   it('keeps a caution banner in shared state and shows no toast', () => {
     const { result } = renderHook(() => useSittingUi(), { wrapper })

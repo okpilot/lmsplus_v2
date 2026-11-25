@@ -174,7 +174,6 @@ export const CreateExamSittingSchema = z.object({
   scheduledAt: SittingTimeSchema,
   mode: SittingModeSchema,
   invigilatorId: z.uuid(),
-  permittedMaterials: z.string().trim().max(1000).optional(),
 })
 
 export const UpdateExamSittingSchema = z.object({
@@ -182,7 +181,6 @@ export const UpdateExamSittingSchema = z.object({
   scheduledAt: SittingTimeSchema.optional(),
   mode: SittingModeSchema.optional(),
   invigilatorId: z.uuid().optional(),
-  permittedMaterials: z.string().trim().max(1000).optional(),
 })
 
 export const ExamSittingIdSchema = z.object({ sittingId: z.uuid() })
@@ -231,6 +229,34 @@ export const IssueSittingCodesSchema = z.object({
   sittingId: z.uuid(),
   userIds: uuidList(500).min(1).optional(),
   entryIds: uuidList(500).min(1).optional(),
+})
+
+/**
+ * Tokens the sitting RPCs themselves write to `internal_exam_codes.void_reason`; three readers key
+ * on `sitting_cancelled`, so free text reaching that column through `void_sitting_code` must not
+ * equal one. The legacy `void_internal_exam_code` path is not yet guarded: #1820.
+ * Derive: grep -rhno "void_reason = '[a-z_]*'" supabase/migrations/*.sql, plus the
+ * `private.void_unused_sitting_codes` call sites. Mirrored in the RPC's own check (mig 20261118000300).
+ */
+export const RESERVED_VOID_REASONS = [
+  'sitting_closed',
+  'sitting_cancelled',
+  'entry_removed',
+  'reissued_after_expiry',
+  'passed_elsewhere',
+] as const
+
+export const VoidSittingCodeSchema = z.object({
+  sittingId: z.uuid(),
+  codeId: z.uuid(),
+  reason: z
+    .string()
+    .trim()
+    .min(1)
+    .max(500)
+    .refine((r) => !(RESERVED_VOID_REASONS as readonly string[]).includes(r), {
+      message: 'reason must not be a system void reason',
+    }),
 })
 
 export const SubjectEligibilityQuerySchema = z.object({

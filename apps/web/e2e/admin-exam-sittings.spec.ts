@@ -1,6 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { cleanupE2eExamSittings } from './helpers/exam-sitting-cleanup'
-import { makeSittingE2eMaterials } from './helpers/exam-sitting-markers'
+import { cleanupE2eExamSittings, markE2eSitting } from './helpers/exam-sitting-cleanup'
 
 test.use({ storageState: 'e2e/.auth/admin.json', viewport: { width: 1280, height: 800 } })
 
@@ -26,7 +25,7 @@ test.skip(
 
 async function createSitting(
   page: import('@playwright/test').Page,
-  opts: { daysAhead: number; time: string; materials: string },
+  opts: { daysAhead: number; time: string },
 ) {
   await page.goto(`${LIST}?tab=sittings`)
   await page.getByRole('button', { name: /New sitting/ }).click()
@@ -39,10 +38,12 @@ async function createSitting(
     .getByRole('option', { name: /\((admin|instructor)\)$/ })
     .first()
     .click()
-  await page.getByLabel(/Permitted materials/).fill(opts.materials)
   await page.getByRole('button', { name: 'Save' }).click()
   await expect(page).toHaveURL(SITTING_URL, { timeout: 30_000 })
-  return new URL(page.url()).pathname.split('/').pop() ?? ''
+  const id = new URL(page.url()).pathname.split('/').pop() ?? ''
+  // Known limit: a Save that commits while this assertion times out leaves an unmarked row.
+  await markE2eSitting(id)
+  return id
 }
 
 /** The list row of one sitting, keyed by the id in its date link. */
@@ -78,26 +79,24 @@ test('admin creates a sitting, refuses a past date, and lands on its page', asyn
   await expect(page).not.toHaveURL(/dlg=/)
   await expect(page).toHaveURL(/\/app\/admin\/internal-exams\?tab=sittings/)
 
-  await createSitting(page, { daysAhead: 3, time: '09:30', materials: makeSittingE2eMaterials() })
+  await createSitting(page, { daysAhead: 3, time: '09:30' })
   const title = await page.getByRole('heading', { level: 1 }).textContent()
   expect(title).toMatch(/UTC$/)
   await page.reload()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(title)
 })
 
-test('admin edits mode and materials and the change persists', async ({ page }) => {
-  await createSitting(page, { daysAhead: 3, time: '09:30', materials: makeSittingE2eMaterials() })
-  const edited = makeSittingE2eMaterials()
+test('admin edits the mode and the change persists', async ({ page }) => {
+  await createSitting(page, { daysAhead: 3, time: '09:30' })
   await page.getByRole('button', { name: 'More actions' }).click()
   await page.getByRole('menuitem', { name: 'Edit details' }).click()
   await page.getByRole('combobox', { name: 'Mode' }).click()
   await page.getByRole('option', { name: 'In person' }).click()
-  await page.getByLabel(/Permitted materials/).fill(edited)
   await page.getByRole('button', { name: 'Save' }).click()
   await expect(page.getByText('Details saved.')).toBeVisible()
   await page.reload()
   await expect(page).not.toHaveURL(/dlg=/)
-  await expect(page.getByText(new RegExp(`In person.*Materials: ${edited}`))).toBeVisible()
+  await expect(page.getByText(/In person/)).toBeVisible()
 })
 
 test('a scheduled sitting appears under Upcoming and opens by row click and Enter', async ({
@@ -106,7 +105,6 @@ test('a scheduled sitting appears under Upcoming and opens by row click and Ente
   const id = await createSitting(page, {
     daysAhead: 3,
     time: '09:30',
-    materials: makeSittingE2eMaterials(),
   })
   const row = await gotoRowPage(page, '', id)
   await expect(row).toContainText('Scheduled')
@@ -125,7 +123,6 @@ test('admin starts and closes a sitting dated today', async ({ page }) => {
   const id = await createSitting(page, {
     daysAhead: 0,
     time: '23:58',
-    materials: makeSittingE2eMaterials(),
   })
   await page.getByRole('button', { name: 'Start sitting' }).click()
   await expect(page.getByText('Start sitting?')).toBeVisible()
@@ -163,7 +160,6 @@ test('admin cancels a sitting and finds it under Cancelled', async ({ page }) =>
   const id = await createSitting(page, {
     daysAhead: 4,
     time: '10:00',
-    materials: makeSittingE2eMaterials(),
   })
   await page.getByRole('button', { name: 'More actions' }).click()
   await page.getByRole('menuitem', { name: 'Cancel sitting' }).click()
@@ -176,9 +172,9 @@ test('admin cancels a sitting and finds it under Cancelled', async ({ page }) =>
 })
 
 test('Start is disabled for a future sitting and says when it can start', async ({ page }) => {
-  await createSitting(page, { daysAhead: 5, time: '09:30', materials: makeSittingE2eMaterials() })
+  await createSitting(page, { daysAhead: 5, time: '09:30' })
   await expect(page.getByRole('button', { name: 'Start sitting' })).toBeDisabled()
-  await expect(page.getByText(/^Can start on .* \(UTC\)\.$/)).toBeVisible()
+  await expect(page.getByText(/^Can start on .* UTC\.$/)).toBeVisible()
 })
 
 test.describe('student access', () => {

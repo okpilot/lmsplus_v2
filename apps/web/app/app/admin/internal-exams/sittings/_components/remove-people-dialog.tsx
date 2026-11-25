@@ -1,0 +1,52 @@
+'use client'
+
+import { useState } from 'react'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { useSittingUi } from '../_hooks/sitting-ui-context'
+import { plural } from '../_utils/plural'
+import { removeCandidates } from '../actions/remove-candidates'
+import { useSittingAction } from './use-sitting-action'
+
+type Props = {
+  sittingId: string
+  /** People to remove; null closes the dialog. */
+  userIds: readonly string[] | null
+  onClose: () => void
+}
+
+export function RemovePeopleDialog({ sittingId, userIds, onClose }: Readonly<Props>) {
+  const { setRosterPage } = useSittingUi()
+  const { pending, error, run, clearError } = useSittingAction()
+  // Keep the last count so the title does not flash "Remove 0 people?" while the dialog closes.
+  const [count, setCount] = useState(userIds?.length ?? 0)
+  if (userIds && userIds.length !== count) setCount(userIds.length)
+  return (
+    <ConfirmDialog
+      open={userIds !== null}
+      onOpenChange={(o) => {
+        if (o) return
+        clearError()
+        onClose()
+      }}
+      title={`Remove ${plural(count, 'person', 'people')}?`}
+      description="Their exams are removed and unused codes voided. Anyone who has taken an exam cannot be removed."
+      confirmLabel="Remove"
+      pending={pending}
+      error={error}
+      onConfirm={() =>
+        run(
+          () => removeCandidates({ sittingId, userIds: userIds ?? [] }),
+          (d) => {
+            onClose()
+            setRosterPage(userIds ?? [], false)
+            return {
+              tone: 'success',
+              title: `Removed ${plural(d.removed, 'person', 'people')}.`,
+              detail: `${plural(d.entriesRemoved, 'exam')} removed, ${plural(d.codesVoided, 'code')} voided.`,
+            }
+          },
+        )
+      }
+    />
+  )
+}

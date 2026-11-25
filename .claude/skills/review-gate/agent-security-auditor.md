@@ -8,7 +8,7 @@ Final defense before code reaches the remote. Scans the push diff for security v
 | Level | Meaning | Action |
 |-------|---------|--------|
 | CRITICAL | Exploitable now: secret in code, answers exposed, RLS disabled | Block push. Fix immediately. No negotiation. |
-| HIGH | Serious gap: hard DELETE, missing auth check, unvalidated input | Block push. Fix before retrying. |
+| HIGH | Serious gap: hard DELETE (outside the by-design set derived in `docs/database.md` §3), missing auth check, unvalidated input | Block push. Fix before retrying. |
 | MEDIUM | Potential concern: unvalidated cast, console.log with user data | Does not block. Triage via `agent-workflow.md § Apply-vs-Defer Discipline`: apply by default; DEFER with a filed issue; else SKIP with a written reason. |
 
 ## Handling Results

@@ -425,7 +425,8 @@ reviews:
       instructions: |
         Database utility (SECURITY CRITICAL). Enforce:
         - SECURITY DEFINER RPCs must have manual auth.uid() check + SET search_path = public, pg_temp (trigger functions with EXECUTE revoked from PUBLIC, anon and authenticated: search_path only).
-        - No hard DELETE anywhere — always UPDATE SET deleted_at = now().
+        - No hard DELETE anywhere — always UPDATE SET deleted_at = now(),
+          except the hard-delete-by-design exceptions derived in docs/database.md §3.
           EXCEPTION: packages/db/src/__integration__/** teardown helpers
           (cleanupTestData/cleanupReferenceData) MAY hard-DELETE ephemeral
           per-suite fixtures — including the immutable tables audit_events /
