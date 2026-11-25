@@ -79,6 +79,12 @@ async function lookupIds(admin: Admin, studentEmail: string, subjectFragment: st
  * Enrolments this run created for the SHARED fixture student, soft-deleted again by
  * `releaseSeededEnrolments`. Decision 38: a spec restores the shared seed data it mutates, and
  * `deleteSeededUsers` only covers users carrying the seed email prefix.
+ *
+ * KNOWN LIMIT — in-process only, unlike the rest of this helper family: a worker killed between
+ * the insert and teardown loses the ids and the enrolment stays live. It is not DB-derivable:
+ * `set_user_enrolments` also writes `enrolled_by` = the calling admin (mig 20261028000500), so no
+ * predicate separates this row from an admin-UI enrolment of the same student. Bounded to one
+ * fixture student on a local DB and cleared by `pnpm supabase db reset`; CI reseeds per run.
  */
 const seededEnrolmentIds = new Set<string>()
 
