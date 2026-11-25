@@ -22,7 +22,9 @@
         "blocks an armed edit of the enforcement file .claude/pipeline.json",
         "blocks an armed edit of the enforcement file .claude/hooks/gate-briefs.json",
         "blocks a NotebookEdit of a production path while the gate is armed",
-        "blocks a write carrying no recognised path field while the gate is armed"
+        "blocks a write carrying no recognised path field while the gate is armed",
+        "blocks a production edit under a checkout directory whose own name contains .test.",
+        "blocks a production file inside a directory named like a test file (src/foo.test.d/prod.ts)"
       ],
       "note": "Forces the block helper to exit 0 instead of 2 — the reason is printed but the edit is no longer blocked."
     },

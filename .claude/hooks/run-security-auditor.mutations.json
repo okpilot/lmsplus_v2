@@ -109,8 +109,8 @@
     },
     {
       "id": "run-security-auditor-textconv-filtered-large-diff",
-      "find": "  DIFF=$(git diff --no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ \"$REMOTE_REF\"...HEAD -- \\\n",
-      "replace": "  DIFF=$(git diff --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ \"$REMOTE_REF\"...HEAD -- \\\n",
+      "find": "  DIFF=$(git diff --no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ \"$DIFF_RANGE\" -- \\\n",
+      "replace": "  DIFF=$(git diff --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ \"$DIFF_RANGE\" -- \\\n",
       "expectRed": [
         "LLM receives the secret from the filtered diff under a textconv driver (large diff path)"
       ],
@@ -118,8 +118,8 @@
     },
     {
       "id": "run-security-auditor-extdiff-filtered-large-diff",
-      "find": "  DIFF=$(git diff --no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ \"$REMOTE_REF\"...HEAD -- \\\n",
-      "replace": "  DIFF=$(git diff --no-textconv --no-color --src-prefix=a/ --dst-prefix=b/ \"$REMOTE_REF\"...HEAD -- \\\n",
+      "find": "  DIFF=$(git diff --no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ \"$DIFF_RANGE\" -- \\\n",
+      "replace": "  DIFF=$(git diff --no-textconv --no-color --src-prefix=a/ --dst-prefix=b/ \"$DIFF_RANGE\" -- \\\n",
       "expectRed": [
         "LLM receives the secret from the filtered diff under GIT_EXTERNAL_DIFF (large diff path)"
       ],
@@ -163,8 +163,8 @@
     },
     {
       "id": "run-security-auditor-color-filtered-large-diff",
-      "find": "  DIFF=$(git diff --no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ \"$REMOTE_REF\"...HEAD -- \\\n",
-      "replace": "  DIFF=$(git diff --no-textconv --no-ext-diff --src-prefix=a/ --dst-prefix=b/ \"$REMOTE_REF\"...HEAD -- \\\n",
+      "find": "  DIFF=$(git diff --no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ \"$DIFF_RANGE\" -- \\\n",
+      "replace": "  DIFF=$(git diff --no-textconv --no-ext-diff --src-prefix=a/ --dst-prefix=b/ \"$DIFF_RANGE\" -- \\\n",
       "expectRed": [
         "LLM receives no ANSI escapes from the filtered diff under color.ui=always (large diff path)"
       ],
@@ -172,15 +172,15 @@
     },
     {
       "id": "run-security-auditor-noprefix-filtered-large-diff",
-      "find": "  DIFF=$(git diff --no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ \"$REMOTE_REF\"...HEAD -- \\\n",
-      "replace": "  DIFF=$(git diff --no-textconv --no-ext-diff --no-color \"$REMOTE_REF\"...HEAD -- \\\n",
+      "find": "  DIFF=$(git diff --no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ \"$DIFF_RANGE\" -- \\\n",
+      "replace": "  DIFF=$(git diff --no-textconv --no-ext-diff --no-color \"$DIFF_RANGE\" -- \\\n",
       "expectRed": ["LLM receives a b/-prefixed diff under diff.noprefix=true (large diff path)"],
       "note": "Drops --src-prefix=a/ --dst-prefix=b/ from the large-diff filtered-pathspec call — a local `diff.noprefix true` then strips the `b/` prefix from the diff sent to the LLM, and the validating shim returns BLOCKED."
     },
     {
       "id": "run-security-auditor-color-stat-fallback",
-      "find": "git diff --no-textconv --no-ext-diff --no-color \"$REMOTE_REF\"...HEAD --stat 2>/dev/null",
-      "replace": "git diff --no-textconv --no-ext-diff \"$REMOTE_REF\"...HEAD --stat 2>/dev/null",
+      "find": "git diff --no-textconv --no-ext-diff --no-color \"$DIFF_RANGE\" --stat 2>/dev/null",
+      "replace": "git diff --no-textconv --no-ext-diff \"$DIFF_RANGE\" --stat 2>/dev/null",
       "expectRed": [
         "LLM receives no ANSI escapes from the --stat summary under color.ui=always (stat path)"
       ],
