@@ -104,7 +104,9 @@ describe('AvailableTab', () => {
       render(<AvailableTab rows={[SITTING_ROW('scheduled')]} />)
       const start = screen.getByTestId('start-button')
       expect(start).toBeDisabled()
-      const hint = screen.getByText('Opens when your invigilator starts the sitting.')
+      const hint = screen.getByText(
+        'Opens when your invigilator starts the sitting — reload this page to check.',
+      )
       expect(start.getAttribute('aria-describedby')).toBe(hint.id)
     })
 

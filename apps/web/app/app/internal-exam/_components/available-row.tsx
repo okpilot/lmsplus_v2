@@ -54,7 +54,9 @@ function ExpiryCaption({ expiresAt }: Readonly<{ expiresAt: string }>) {
 /** A closed or cancelled sitting never opens, so it must not promise that it will. */
 function sittingHint(status: SittingInfo['status'] | undefined): string {
   if (status === 'open') return 'Works while the sitting is open.'
-  if (status === 'scheduled') return 'Opens when your invigilator starts the sitting.'
+  // The row is server-rendered and nothing refreshes it, so the student has to reload.
+  if (status === 'scheduled')
+    return 'Opens when your invigilator starts the sitting — reload this page to check.'
   return 'This sitting has ended. Ask your invigilator.'
 }
 

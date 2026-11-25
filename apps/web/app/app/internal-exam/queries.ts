@@ -55,6 +55,12 @@ function asSittingStatus(v: unknown): SittingStatus {
   return 'cancelled'
 }
 
+function asSittingMode(v: unknown): SittingMode {
+  if (v === 'in_person' || v === 'remote') return v
+  console.error('[listAvailableInternalExams] unknown sitting mode:', v)
+  return 'remote'
+}
+
 function mapSitting(row: {
   sitting_id?: unknown
   sitting_scheduled_at?: unknown
@@ -66,7 +72,7 @@ function mapSitting(row: {
   return {
     id,
     scheduledAt: asString(row.sitting_scheduled_at),
-    mode: row.sitting_mode === 'in_person' ? 'in_person' : 'remote',
+    mode: asSittingMode(row.sitting_mode),
     status: asSittingStatus(row.sitting_status),
   }
 }

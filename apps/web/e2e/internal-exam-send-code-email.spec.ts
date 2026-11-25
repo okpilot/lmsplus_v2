@@ -1,5 +1,5 @@
 /**
- * E2E spec — Internal Exam: "Send via email" pre-send state guard (red-team EC,
+ * E2E spec — Internal Exam: "Send email" pre-send state guard (red-team EC,
  * Server-Action/UI half — issue #915).
  *
  * The RPC layer (record_internal_exam_code_emailed) + integration tests already

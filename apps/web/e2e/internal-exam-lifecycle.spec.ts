@@ -53,7 +53,13 @@ async function issueCodeFromSittingPage(
   await dialog.getByRole('button', { name: 'Issue 1 code' }).click()
   await expect(dialog).toHaveCount(0)
   await adminPage.getByRole('button', { name: `Show exams for ${seed.studentName}` }).click()
-  const code = (await adminPage.locator('code').first().textContent())?.trim()
+  const code = (
+    await adminPage
+      .locator('tr', { hasText: seed.studentName })
+      .locator('code')
+      .first()
+      .textContent()
+  )?.trim()
   if (!code) throw new Error('roster showed no code after issuing')
   return code
 }
@@ -231,7 +237,11 @@ test.describe('internal exam — lifecycle', () => {
       await page.goto('/app/internal-exam')
       const row = () => page.getByTestId('available-list').getByRole('listitem').first()
       await expect(row()).toContainText(/UTC.*Remote/)
-      await expect(row().getByText('Opens when your invigilator starts the sitting.')).toBeVisible()
+      await expect(
+        row().getByText(
+          'Opens when your invigilator starts the sitting — reload this page to check.',
+        ),
+      ).toBeVisible()
       await expect(row().getByTestId('start-button')).toBeDisabled()
 
       // Reload mid-flow: still gated while scheduled.

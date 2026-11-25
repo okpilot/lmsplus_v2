@@ -5,6 +5,8 @@ import { getAdminClient } from './supabase'
 const ADMIN_EMAIL = 'admin@lmsplus.local'
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 const CODE_LENGTH = 8
+const LEGACY_VALIDITY_MS = 24 * 3_600_000
+
 /**
  * Last microsecond of the scheduled day, matching `private.sitting_code_expiry`. A fixed offset
  * would seed a code that outlives its sitting day, a state production cannot produce.
@@ -190,7 +192,8 @@ export async function insertLegacyCodeFor(input: {
     issued_by: c.adminId,
     student_id: c.userId,
     subject_id: c.subjectId,
-    expires_at: codeExpiry(new Date()),
+    // A legacy code is not a sitting code: `issue_internal_exam_code` gives it issued_at + 24h.
+    expires_at: new Date(Date.now() + LEGACY_VALIDITY_MS).toISOString(),
   })
   if (res.error) fail('legacy code', res.error)
   return code
