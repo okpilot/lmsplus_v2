@@ -237,6 +237,47 @@ describe('cleanupE2eExamSittings (seeded sittings)', () => {
     )
   })
 
+  it('throws, rather than guessing, when a session embed resolves no student', async () => {
+    // Routed to the fixture branch a seeded row is only soft-deleted, and `deleteSeededUsers` then
+    // fails on the `student_id` FK — a 23503 that buries this cause.
+    const { calls } = seededClient({
+      exam_sittings: [
+        { data: [], error: null },
+        { data: [{ id: 's1' }], error: null },
+      ],
+      exam_sitting_entries: [{ data: [{ id: 'e1' }], error: null }],
+      internal_exam_codes: [{ data: [{ id: 'c1', consumed_session_id: 'q1' }], error: null }],
+      quiz_sessions: [{ data: [{ id: 'q1', users: null }], error: null }],
+    })
+    const err = await cleanupE2eExamSittings().then(
+      () => null,
+      (e: Error) => e,
+    )
+    expect(err?.message).toMatch(/no student for session q1/)
+    const sessionCalls = calls.filter((c) => c.table === 'quiz_sessions')
+    expect(sessionCalls.some((c) => c.method === 'delete' || c.method === 'update')).toBe(false)
+  })
+
+  it('reports the session lookup error and retires no session', async () => {
+    const { calls } = seededClient({
+      exam_sittings: [
+        { data: [], error: null },
+        { data: [{ id: 's1' }], error: null },
+      ],
+      exam_sitting_entries: [{ data: [{ id: 'e1' }], error: null }],
+      internal_exam_codes: [{ data: [{ id: 'c1', consumed_session_id: 'q1' }], error: null }],
+      quiz_sessions: [{ data: null, error: { message: 'sessions boom' } }],
+    })
+    const err = await cleanupE2eExamSittings().then(
+      () => null,
+      (e: Error) => e,
+    )
+    expect(err?.message).toMatch(/seed sessions lookup/)
+    expect(err?.message).toMatch(/sessions boom/)
+    const sessionCalls = calls.filter((c) => c.table === 'quiz_sessions')
+    expect(sessionCalls.some((c) => c.method === 'delete' || c.method === 'update')).toBe(false)
+  })
+
   it('deletes the seeded students from users and auth', async () => {
     const { deleteUser } = seededClient({
       exam_sittings: [{ data: [], error: null }],

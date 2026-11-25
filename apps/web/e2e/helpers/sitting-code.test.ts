@@ -17,6 +17,7 @@ function fakeAdmin(failInsertOn?: string) {
     const row = () => ({
       id: `id-${++n}`,
       short: 'FPM',
+      full_name: 'Fixture Student',
       name: 'Flight Planning',
       course_id: 'course-1',
       organization_id: 'org-1',
@@ -118,6 +119,161 @@ describe('insertLegacyCodeFor', () => {
     fakeAdmin('internal_exam_codes')
     await expect(insertLegacyCodeFor(STUDENT)).rejects.toThrow(
       'issueSittingCodeFor legacy code: boom',
+    )
+  })
+})
+
+/**
+ * Per-table response QUEUES. The two `users` lookups in `lookupIds` are the same table and the
+ * same terminal call, so only call order can tell them apart — a table-keyed single response
+ * cannot fail the student lookup while the admin lookup succeeds.
+ */
+type Resp = { data: unknown; error: { message: string } | null }
+
+function fakeAdminSeq(queues: Record<string, Resp[]>) {
+  const calls: string[] = []
+  const take = (table: string): Resp => {
+    const q = queues[table]
+    if (!q || q.length === 0) throw new Error(`fakeAdminSeq: no queued response for ${table}`)
+    return q.shift() as Resp
+  }
+  const builder = (table: string) => {
+    const api: Record<string, unknown> = {}
+    for (const m of ['select', 'eq', 'is', 'in', 'order', 'limit', 'like', 'ilike', 'neq']) {
+      api[m] = () => api
+    }
+    api.insert = () => {
+      calls.push(`insert:${table}`)
+      return api
+    }
+    api.update = () => {
+      calls.push(`update:${table}`)
+      return api
+    }
+    api.single = () => Promise.resolve(take(table))
+    api.maybeSingle = () => Promise.resolve(take(table))
+    // biome-ignore lint/suspicious/noThenProperty: awaitable mock
+    api.then = (r: (v: unknown) => void) => Promise.resolve(take(table)).then(r)
+    return api
+  }
+  mockGetAdminClient.mockReturnValue({ from: builder })
+  return calls
+}
+
+const ok = (data: unknown): Resp => ({ data, error: null })
+const boom = (message: string): Resp => ({ data: null, error: { message } })
+const ADMIN_ROW = { id: 'admin-1', organization_id: 'org-1' }
+const STUDENT_ROW = { id: 'stu-1', full_name: 'Fixture Student' }
+const SUBJECT_ROW = { id: 'subj-1', course_id: 'course-1' }
+const issueFor = () =>
+  issueSittingCodeFor({ studentEmail: 'stu@test.local', subjectFragment: 'Flight Planning' })
+
+describe('lookupIds error paths', () => {
+  it('fails on the admin lookup', async () => {
+    fakeAdminSeq({ users: [boom('no admin')] })
+    await expect(issueFor()).rejects.toThrow('issueSittingCodeFor admin lookup: no admin')
+  })
+
+  it('fails on the student lookup', async () => {
+    fakeAdminSeq({ users: [ok(ADMIN_ROW), boom('no student')] })
+    await expect(issueFor()).rejects.toThrow('issueSittingCodeFor student lookup: no student')
+  })
+
+  it('fails on the subject lookup', async () => {
+    fakeAdminSeq({
+      users: [ok(ADMIN_ROW), ok(STUDENT_ROW)],
+      easa_subjects: [boom('no subject')],
+    })
+    await expect(issueFor()).rejects.toThrow('issueSittingCodeFor subject lookup: no subject')
+  })
+
+  it('fails when the student row carries no full_name, which row locators need', async () => {
+    fakeAdminSeq({
+      users: [ok(ADMIN_ROW), ok({ id: 'stu-1', full_name: null })],
+      easa_subjects: [ok(SUBJECT_ROW)],
+    })
+    await expect(issueFor()).rejects.toThrow('student full_name')
+  })
+})
+
+describe('ensureEnrolment error paths', () => {
+  it('fails on the enrolment lookup', async () => {
+    fakeAdminSeq({
+      users: [ok(ADMIN_ROW), ok(STUDENT_ROW)],
+      easa_subjects: [ok(SUBJECT_ROW)],
+      course_enrolments: [boom('lookup down')],
+    })
+    await expect(issueFor()).rejects.toThrow('issueSittingCodeFor enrolment lookup: lookup down')
+  })
+
+  it('fails on the enrolment insert', async () => {
+    fakeAdminSeq({
+      users: [ok(ADMIN_ROW), ok(STUDENT_ROW)],
+      easa_subjects: [ok(SUBJECT_ROW)],
+      course_enrolments: [ok(null), boom('insert down')],
+    })
+    await expect(issueFor()).rejects.toThrow('issueSittingCodeFor enrolment: insert down')
+  })
+})
+
+describe('releaseSeededEnrolments', () => {
+  it('stays silent, and touches no client, when this run seeded none', async () => {
+    vi.resetModules()
+    const calls = fakeAdminSeq({})
+    const fresh = await import('./sitting-code')
+    await expect(fresh.releaseSeededEnrolments()).resolves.toBeUndefined()
+    expect(calls).toEqual([])
+    expect(mockGetAdminClient).not.toHaveBeenCalled()
+  })
+
+  it('soft-deletes the enrolment it seeded, then forgets it', async () => {
+    vi.resetModules()
+    const fresh = await import('./sitting-code')
+    const calls = fakeAdminSeq({
+      users: [ok(ADMIN_ROW), ok(STUDENT_ROW)],
+      easa_subjects: [ok(SUBJECT_ROW)],
+      course_enrolments: [ok(null), ok({ id: 'enr-1' })],
+      exam_sittings: [ok({ id: 'sit-1' })],
+      exam_sitting_candidates: [ok({ id: 'cand-1' })],
+      exam_sitting_entries: [ok({ id: 'entry-1' })],
+      internal_exam_codes: [ok({ id: 'code-1', code: 'ABC12345' })],
+    })
+    await fresh.issueSittingCodeFor({
+      studentEmail: 'stu@test.local',
+      subjectFragment: 'Flight Planning',
+    })
+
+    const release = fakeAdminSeq({ course_enrolments: [ok(null)] })
+    await fresh.releaseSeededEnrolments()
+    expect(release).toContain('update:course_enrolments')
+
+    // Second call: the set was cleared, so it is a no-op rather than a repeat update.
+    const again = fakeAdminSeq({})
+    await fresh.releaseSeededEnrolments()
+    expect(again).toEqual([])
+    expect(calls.length).toBeGreaterThan(0)
+  })
+
+  it('fails loudly when the release update errors', async () => {
+    vi.resetModules()
+    const fresh = await import('./sitting-code')
+    fakeAdminSeq({
+      users: [ok(ADMIN_ROW), ok(STUDENT_ROW)],
+      easa_subjects: [ok(SUBJECT_ROW)],
+      course_enrolments: [ok(null), ok({ id: 'enr-1' })],
+      exam_sittings: [ok({ id: 'sit-1' })],
+      exam_sitting_candidates: [ok({ id: 'cand-1' })],
+      exam_sitting_entries: [ok({ id: 'entry-1' })],
+      internal_exam_codes: [ok({ id: 'code-1', code: 'ABC12345' })],
+    })
+    await fresh.issueSittingCodeFor({
+      studentEmail: 'stu@test.local',
+      subjectFragment: 'Flight Planning',
+    })
+
+    fakeAdminSeq({ course_enrolments: [boom('release down')] })
+    await expect(fresh.releaseSeededEnrolments()).rejects.toThrow(
+      'issueSittingCodeFor seeded enrolment release: release down',
     )
   })
 })

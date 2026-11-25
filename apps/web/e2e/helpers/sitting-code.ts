@@ -66,7 +66,7 @@ async function lookupIds(admin: Admin, studentEmail: string, subjectFragment: st
     orgId: adminRow.data.organization_id,
     adminId: adminRow.data.id,
     userId: student.data.id,
-    studentName: student.data.full_name ?? '',
+    studentName: student.data.full_name ?? fail('student full_name (row locators need it)', null),
     subjectId: subject.data.id,
     courseId: subject.data.course_id,
   }

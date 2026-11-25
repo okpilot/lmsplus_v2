@@ -10,19 +10,63 @@ const supabase = {
 } as unknown as SupabaseClient<Database>
 
 describe('checkSittingCode', () => {
+  it('refuses a system void reason on a sitting code, the only path that reaches the legacy RPC', async () => {
+    mockMaybeSingle.mockResolvedValue({
+      data: {
+        sitting_entry_id: 'e1',
+        voided_at: null,
+        consumed_at: '2026-11-25T10:00:00Z',
+        quiz_sessions: { ended_at: null },
+      },
+      error: null,
+    })
+    // Without this the row would be voidable: a running attempt is decision 264's exception.
+    expect(await checkSittingCode(supabase, 'c1', 'sitting_closed')).toEqual({
+      ok: false,
+      error: 'reason must not be a system void reason',
+    })
+  })
+
+  it('accepts a system void reason on a legacy code, which the sitting rules never covered', async () => {
+    mockMaybeSingle.mockResolvedValue({
+      data: { sitting_entry_id: null, voided_at: null, consumed_at: null, quiz_sessions: null },
+      error: null,
+    })
+    expect(await checkSittingCode(supabase, 'c1', 'sitting_closed')).toEqual({ ok: true })
+  })
+
+  it('says the attempt was discarded when its session is hidden', async () => {
+    mockMaybeSingle.mockResolvedValue({
+      data: {
+        sitting_entry_id: 'e1',
+        voided_at: null,
+        consumed_at: '2026-11-25T10:00:00Z',
+        quiz_sessions: null,
+      },
+      error: null,
+    })
+    expect(await checkSittingCode(supabase, 'c1', 'admin typed reason')).toEqual({
+      ok: false,
+      error: 'This attempt was discarded — there is nothing to void',
+    })
+  })
+
   beforeEach(() => {
     vi.resetAllMocks()
   })
 
   it('fails closed with "Code not found" when no row is visible', async () => {
     mockMaybeSingle.mockResolvedValue({ data: null, error: null })
-    expect(await checkSittingCode(supabase, 'c1')).toEqual({ ok: false, error: 'Code not found' })
+    expect(await checkSittingCode(supabase, 'c1', 'admin typed reason')).toEqual({
+      ok: false,
+      error: 'Code not found',
+    })
   })
 
   it('returns a generic error on lookup failure', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     mockMaybeSingle.mockResolvedValue({ data: null, error: { message: 'boom' } })
-    expect(await checkSittingCode(supabase, 'c1')).toEqual({
+    expect(await checkSittingCode(supabase, 'c1', 'admin typed reason')).toEqual({
       ok: false,
       error: 'Failed to void internal exam code',
     })
@@ -33,7 +77,7 @@ describe('checkSittingCode', () => {
       data: { sitting_entry_id: null, consumed_at: null, quiz_sessions: null },
       error: null,
     })
-    expect(await checkSittingCode(supabase, 'c1')).toEqual({ ok: true })
+    expect(await checkSittingCode(supabase, 'c1', 'admin typed reason')).toEqual({ ok: true })
   })
 
   it('says the code is already voided rather than naming the sitting', async () => {
@@ -46,25 +90,9 @@ describe('checkSittingCode', () => {
       },
       error: null,
     })
-    expect(await checkSittingCode(supabase, 'c1')).toEqual({
+    expect(await checkSittingCode(supabase, 'c1', 'admin typed reason')).toEqual({
       ok: false,
       error: 'Code is already voided',
-    })
-  })
-
-  it('refuses a consumed sitting code whose session row is hidden from the caller', async () => {
-    mockMaybeSingle.mockResolvedValue({
-      data: {
-        sitting_entry_id: 'e1',
-        voided_at: null,
-        consumed_at: '2026-11-25T10:00:00Z',
-        quiz_sessions: null,
-      },
-      error: null,
-    })
-    expect(await checkSittingCode(supabase, 'c1')).toEqual({
-      ok: false,
-      error: 'Void sitting codes from their sitting',
     })
   })
 
@@ -78,7 +106,7 @@ describe('checkSittingCode', () => {
       },
       error: null,
     })
-    expect(await checkSittingCode(supabase, 'c1')).toEqual({
+    expect(await checkSittingCode(supabase, 'c1', 'admin typed reason')).toEqual({
       ok: false,
       error: 'Cannot void a finished attempt — record is final',
     })
@@ -94,6 +122,6 @@ describe('checkSittingCode', () => {
       },
       error: null,
     })
-    expect(await checkSittingCode(supabase, 'c1')).toEqual({ ok: true })
+    expect(await checkSittingCode(supabase, 'c1', 'admin typed reason')).toEqual({ ok: true })
   })
 })

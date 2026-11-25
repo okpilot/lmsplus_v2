@@ -94,9 +94,9 @@ function asNullableBoolean(v: unknown): boolean | null {
 }
 
 /**
- * Returns the current student's unconsumed, unvoided internal-exam codes via the SECURITY
- * DEFINER RPC list_my_active_internal_exam_codes. A sitting code stays listed while its sitting
- * is scheduled, past `expires_at`, so the student can see the exam before it opens.
+ * Returns the current student's unconsumed, unvoided, unexpired internal-exam codes via the
+ * SECURITY DEFINER RPC list_my_active_internal_exam_codes. A sitting code is listed before its
+ * sitting opens, with Start disabled, and drops out once the sitting day has ended.
  * NEVER returns the code value itself — that is a privileged secret the admin
  * gives to the student out-of-band.
  */
