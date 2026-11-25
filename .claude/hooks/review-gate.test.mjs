@@ -392,7 +392,9 @@ test('blocks a NotebookEdit of a production path while the gate is armed', () =>
     arm(dir)
     const r = runHook(notebookPayload(path.join(dir, 'apps', 'web', 'lib', 'foo.ipynb')), dir)
     assert.equal(r.status, 2)
-    assert.match(r.stderr, /BLOCKED/)
+    // The REASON, not just /BLOCKED/: the unknown-path-field block also exits 2 with BLOCKED, so a
+    // looser pattern passes even when notebook_path is never read.
+    assert.match(r.stderr, /production edit after a review round/)
   } finally {
     cleanup(dir)
   }

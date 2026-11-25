@@ -93,21 +93,18 @@
       "find": "filePath.startsWith(path.resolve(root, dir) + path.sep)",
       "replace": "filePath.includes(path.sep + dir + path.sep)",
       "expectRed": [
-        "blocks a production file whose path contains apps/web/e2e/ below another directory",
-        "blocks a production edit in any worktree under .claude/worktrees while locked",
-        "blocks an armed edit when the hook runs from an agent worktree copy"
+        "blocks a production file whose path contains apps/web/e2e/ below another directory"
       ],
-      "note": "Matches an exempt directory anywhere in the path instead of under its checkout root \u2014 <root>/vendor/apps/web/e2e/x.ts, and any worktree file under .claude/, is let through."
+      "note": "Matches an exempt directory anywhere in the path instead of under its checkout root \u2014 <root>/vendor/apps/web/e2e/x.ts is let through. The worktree cases no longer depend on this anchoring: `.claude` is not an exempt directory any more, so `/.claude/rules/` never appears in a worktree production path."
     },
     {
       "id": "review-gate-worktrees-exempt",
       "find": "  if (!filePath.startsWith(WORKTREES_DIR)) return REPO_ROOT\n",
       "replace": "  return REPO_ROOT\n",
       "expectRed": [
-        "blocks a production edit in any worktree under .claude/worktrees while locked",
-        "blocks an armed edit when the hook runs from an agent worktree copy"
+        "allows a docs edit inside a .claude/worktrees/ checkout when the gate is armed"
       ],
-      "note": "Drops the worktree carve-out \u2014 a production file inside .claude/worktrees/ passes as an exempt .claude path."
+      "note": "Drops the worktree carve-out, so a worktree path resolves its exempt directories against the MAIN checkout root \u2014 the worktree's own docs/ no longer matches and is blocked. It no longer lets production files through: `.claude` stopped being exempt wholesale."
     },
     {
       "id": "review-gate-worktree-exempt-dirs-blocked",
