@@ -19,6 +19,23 @@
       "replace": "process.exit(2) // Allow",
       "expectRed": ["allows a benign command with exit 0"],
       "note": "Forces the allow path to exit 2 instead of 0 — a benign command is blocked too."
+    },
+    {
+      "id": "guard-bash-oversize-allowed",
+      "find": "      'BLOCKED: command payload exceeds 1MB — refusing to pattern-match a truncated payload\\n',\n      () => process.exit(2),\n",
+      "replace": "      'BLOCKED: command payload exceeds 1MB — refusing to pattern-match a truncated payload\\n',\n      () => process.exit(0),\n",
+      "expectRed": [
+        "fails closed on a payload over 1MB (exit 2 + size message)",
+        "fails closed on an oversized payload whose valid JSON carries a blocked command (exit 2 + size message)",
+        "fails closed on a 1.1MB payload ending in a destructive command after a no-op prefix"
+      ],
+      "note": "The >1MB refusal allows instead of blocking. Padding in front of a destructive command is how a denylist gets bypassed, so this is the branch that must never fail open. Reddens all three >1MB tests, which is why it is the only entry needed for this branch — derived with --update-expected, not predicted."
+    }
+  ],
+  "notEncoded": [
+    {
+      "claim": "guard-bash.test.mjs 'fails closed on an oversized payload whose valid JSON carries a blocked command': drop the `if (oversizedPayload) return` short-circuit in the 'end' handler",
+      "why": "MEASURED unreachable: with the flag forced false and the 'end' handler instrumented, a >1MB valid-JSON payload produced NO 'end' output and still exited 2 — `process.stdin.destroy()` plus the `process.exit(2)` queued in the stderr-write callback end the process before 'end' can fire. So the short-circuit is defensive depth, not an observable branch, and no fixture reddens its removal. The size branch itself IS graded, by guard-bash-oversize-allowed."
     }
   ]
 }

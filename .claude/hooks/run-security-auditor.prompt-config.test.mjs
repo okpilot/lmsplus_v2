@@ -46,7 +46,7 @@ const BIG_CONTENT = `${Array.from({ length: 3001 }, (_, i) => `dummy line ${i + 
 
 /**
  * Scratch repo with a real `origin` upstream and a diff over MAX_DIFF_LINES, so the hook takes
- * the filtered-pathspec branch (line 55). `sensitive` controls whether a file matching the
+ * the filtered-pathspec branch. `sensitive` controls whether a file matching the
  * filter pathspec also changes — with it, the filtered DIFF is non-empty and reaches the LLM
  * directly; without it, the filtered DIFF is empty and the hook falls through to `--stat`.
  *
@@ -75,7 +75,7 @@ function setupLargeUpstreamShimRepo(shimBody, sensitive) {
 }
 
 /**
- * Prove `color.ui always` is ACTIVE on the filtered-pathspec diff (line 55) before trusting a
+ * Prove `color.ui always` is ACTIVE on the filtered-pathspec diff before trusting a
  * test built on it: without `--no-color`, the migration file's hunk must carry an ANSI escape;
  * with it, none.
  */
@@ -90,7 +90,7 @@ function assertColorFilteredDiffActive(repoDir, upstreamRef) {
   assert.ok(!shown.stdout.includes('\x1b['))
 }
 
-/** Prove `diff.noprefix true` is ACTIVE on the filtered-pathspec diff (line 55). */
+/** Prove `diff.noprefix true` is ACTIVE on the filtered-pathspec diff. */
 function assertNoprefixFilteredDiffActive(repoDir, upstreamRef) {
   const args = [`${upstreamRef}...HEAD`, '--', 'supabase/migrations/001_init.sql']
   const hidden = spawnSync('git', ['diff', ...args], { cwd: repoDir, encoding: 'utf8' })
@@ -104,7 +104,7 @@ function assertNoprefixFilteredDiffActive(repoDir, upstreamRef) {
 
 // CONTROL: green
 // GROUP: run-security-auditor-always-blocks, run-security-auditor-color-filtered-large-diff
-// MUTATION: dropping --no-color from the large-diff filtered-pathspec call (line 55) lets a
+// MUTATION: dropping --no-color from the large-diff filtered-pathspec call lets a
 // local `color.ui always` wrap the prompt sent to the LLM in ANSI escapes.
 test('LLM receives no ANSI escapes from the filtered diff under color.ui=always (large diff path)', () => {
   const built = setupLargeUpstreamShimRepo(COLOR_VALIDATING_SHIM, true)
@@ -119,7 +119,7 @@ test('LLM receives no ANSI escapes from the filtered diff under color.ui=always 
 // CONTROL: green
 // GROUP: run-security-auditor-always-blocks, run-security-auditor-noprefix-filtered-large-diff
 // MUTATION: dropping --src-prefix=a/ --dst-prefix=b/ from the large-diff filtered-pathspec call
-// (line 55) lets a local `diff.noprefix true` strip the `b/` prefix from the diff sent to the LLM.
+// lets a local `diff.noprefix true` strip the `b/` prefix from the diff sent to the LLM.
 test('LLM receives a b/-prefixed diff under diff.noprefix=true (large diff path)', () => {
   const built = setupLargeUpstreamShimRepo(PREFIX_VALIDATING_SHIM, true)
   const git = gitFactory(built.repoDir)
@@ -132,7 +132,7 @@ test('LLM receives a b/-prefixed diff under diff.noprefix=true (large diff path)
 
 // CONTROL: green
 // GROUP: run-security-auditor-always-blocks, run-security-auditor-color-stat-fallback
-// MUTATION: dropping --no-color from the `--stat` fallback call (line 75) lets a local
+// MUTATION: dropping --no-color from the `--stat` fallback call lets a local
 // `color.ui always` wrap the stat summary sent to the LLM in ANSI escapes.
 test('LLM receives no ANSI escapes from the --stat summary under color.ui=always (stat path)', () => {
   const built = setupLargeUpstreamShimRepo(COLOR_VALIDATING_SHIM, false)

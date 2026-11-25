@@ -67,21 +67,61 @@ test('exits 0 when the diff succeeds and is empty', () => {
 const capturingShim = (capture) =>
   `#!/usr/bin/env bash\n{ printf '%s\\n' "$@"; cat; } > "${capture}" 2>/dev/null\necho APPROVED\n`
 
-// GROUP: run-security-auditor-filter-ignores-diff-range
-test('audits the working-tree diff, not "No changes", when a >3000-line fallback diff carries a secret', () => {
+/**
+ * A repo with a real `origin` upstream: `files` are committed on top of the pushed base, so the
+ * hook's `"$REMOTE_REF"...HEAD` diff carries them. Without an upstream the hook blocks before the
+ * LLM call, so every fixture whose verdict matters needs one.
+ *
+ * @param {string} prefix    `mkdtempSync` prefix
+ * @param {string} shimBody  a full shebang script written to the shim's `claude` executable
+ * @param {Record<string, string>} files  path -> content committed on top of the pushed base
+ */
+function upstreamRepo(prefix, shimBody, files) {
+  const built = initShimScratch(prefix, shimBody)
+  const remoteDir = join(built.scratch, 'remote.git')
+  mkdirSync(remoteDir, { recursive: true })
+  spawnSync('git', ['init', '-q', '--bare'], { cwd: remoteDir, timeout: TIMEOUT_MS })
+  const git = gitFactory(built.repoDir)
+  commitInit(git)
+  git(['remote', 'add', 'origin', remoteDir])
+  git(['push', '-q', '-u', 'origin', git(['branch', '--show-current']).stdout.trim()])
+  for (const [name, content] of Object.entries(files)) {
+    writeFileSync(join(built.repoDir, name), content)
+  }
+  git(['add', '-A'])
+  git(['commit', '-qm', 'change'])
+  return built
+}
+
+// GROUP: run-security-auditor-remote-ref-fallback
+test('audits the commits against origin/master when the configured upstream ref is gone', () => {
   const captureDir = mkdtempSync(join(tmpdir(), 'sec-aud-cap-'))
   const capture = join(captureDir, 'prompt.txt')
   try {
-    const built = initShimScratch('sec-aud-big-', capturingShim(capture))
-    writeFileSync(join(built.repoDir, 'leaked-credentials.ts'), 'export const a = 1\n')
-    commitInit(gitFactory(built.repoDir))
-    const lines = Array.from({ length: 3500 }, (_, i) => `export const v${i} = ${i}`)
-    lines.push('const key = "AKIAIOSFODNN7EXAMPLE"')
-    writeFileSync(join(built.repoDir, 'leaked-credentials.ts'), `${lines.join('\n')}\n`)
-    runHookAndCleanup(built)
-    const prompt = readFileSync(capture, 'utf8')
-    assert.match(prompt, /leaked-credentials\.ts/)
-    assert.doesNotMatch(prompt, /No changes/)
+    const built = initShimScratch('sec-aud-upgone-', capturingShim(capture))
+    const remoteDir = join(built.scratch, 'remote.git')
+    mkdirSync(remoteDir, { recursive: true })
+    spawnSync('git', ['init', '-q', '--bare'], { cwd: remoteDir, timeout: TIMEOUT_MS })
+    const git = gitFactory(built.repoDir)
+    commitInit(git)
+    git(['branch', '-M', 'master'])
+    git(['remote', 'add', 'origin', remoteDir])
+    git(['push', '-q', 'origin', 'master'])
+    git(['checkout', '-q', '-b', 'feature'])
+    git(['config', 'branch.feature.remote', 'origin'])
+    git(['config', 'branch.feature.merge', 'refs/heads/feature'])
+    writeFileSync(join(built.repoDir, 'leak.ts'), 'const key = "AKIAIOSFODNN7EXAMPLE"\n')
+    git(['add', '-A'])
+    git(['commit', '-qm', 'leak'])
+    // NON-VACUITY: the state where `git rev-parse @{upstream}` writes to stdout AND fails.
+    const probe = git(['rev-parse', '--abbrev-ref', '@{upstream}'])
+    assert.notEqual(probe.status, 0)
+    assert.match(probe.stdout, /@\{upstream\}/)
+    assert.equal(git(['rev-parse', '--verify', '-q', 'origin/master']).status, 0)
+    assert.equal(git(['status', '--porcelain']).stdout, '')
+    const r = runHookAndCleanup(built)
+    assert.equal(r.status, 0)
+    assert.match(readFileSync(capture, 'utf8'), /leak\.ts/)
   } finally {
     rmSync(captureDir, { recursive: true, force: true })
   }
@@ -89,11 +129,10 @@ test('audits the working-tree diff, not "No changes", when a >3000-line fallback
 
 // GROUP: run-security-auditor-always-passes, run-security-auditor-stat-fail-passes
 test('exits 1 when the diff stat fails', () => {
-  const built = initShimScratch('sec-aud-statfail-', APPROVE_SHIM)
-  writeFileSync(join(built.repoDir, 'big.ts'), 'x\n')
-  commitInit(gitFactory(built.repoDir))
   const lines = Array.from({ length: 3500 }, (_, i) => `export const v${i} = ${i}`)
-  writeFileSync(join(built.repoDir, 'big.ts'), `${lines.join('\n')}\n`)
+  const built = upstreamRepo('sec-aud-statfail-', APPROVE_SHIM, {
+    'big.ts': `${lines.join('\n')}\n`,
+  })
   const realGit = spawnSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).stdout.trim()
   writeFileSync(
     join(built.shimDir, 'git'),
@@ -107,10 +146,7 @@ test('exits 1 when the diff stat fails', () => {
 const BIG_LINES = Array.from({ length: 3500 }, (_, i) => `export const v${i} = ${i}`)
 
 function bigDiffRepo(prefix, gitShimBody) {
-  const built = initShimScratch(prefix, APPROVE_SHIM)
-  writeFileSync(join(built.repoDir, 'big.ts'), 'x\n')
-  commitInit(gitFactory(built.repoDir))
-  writeFileSync(join(built.repoDir, 'big.ts'), `${BIG_LINES.join('\n')}\n`)
+  const built = upstreamRepo(prefix, APPROVE_SHIM, { 'big.ts': `${BIG_LINES.join('\n')}\n` })
   const realGit = spawnSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).stdout.trim()
   writeFileSync(join(built.shimDir, 'git'), gitShimBody(realGit))
   chmodSync(join(built.shimDir, 'git'), 0o755)
@@ -129,7 +165,7 @@ test('exits 1 and names the filter when filtering a large diff to security-sensi
   assert.match(r.stderr, /filtering .* failed/)
 })
 
-// GROUP: run-security-auditor-always-passes, run-security-auditor-empty-stat-passes, run-security-auditor-filter-ignores-diff-range
+// GROUP: run-security-auditor-always-passes, run-security-auditor-empty-stat-passes
 test('exits 1 when a large diff has no security-sensitive file and its stat is empty', () => {
   const built = bigDiffRepo(
     'sec-aud-emptystat-',

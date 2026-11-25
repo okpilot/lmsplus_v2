@@ -28,14 +28,38 @@ const sh = (cmd, opts) => {
   return r
 }
 
-/** The real lefthook binary this repo resolves, or null. */
+/**
+ * The real lefthook binary this repo resolves, or null. Every candidate comes from lefthook's own
+ * `optionalDependencies` — derived, never listed here: a bump adds members, and the names do NOT
+ * follow `${process.platform}-${process.arch}` (lefthook spells Windows `windows`, node `win32`).
+ */
 function realLefthook() {
-  const r = spawnSync(
-    process.execPath,
-    ['-e', "console.log(require.resolve('lefthook-linux-x64/bin/lefthook'))"],
-    { cwd: path.join(ROOT, 'node_modules', 'lefthook'), encoding: 'utf8' },
+  const pkg = JSON.parse(
+    readFileSync(path.join(ROOT, 'node_modules', 'lefthook', 'package.json'), 'utf8'),
   )
-  return r.status === 0 ? r.stdout.trim() : null
+  for (const name of Object.keys(pkg.optionalDependencies ?? {})) {
+    const r = spawnSync(
+      process.execPath,
+      ['-e', `console.log(require.resolve(${JSON.stringify(`${name}/bin/lefthook`)}))`],
+      { cwd: path.join(ROOT, 'node_modules', 'lefthook'), encoding: 'utf8' },
+    )
+    if (r.status === 0) return r.stdout.trim()
+  }
+  return null
+}
+
+/**
+ * The binary, or a skip on a host that packages none. NEVER skips under CI: a bump that renames
+ * the platform packages would otherwise leave both prepare tests skipped and the fail-closed shim
+ * UNGRADED while CI stays green — the green-suite-that-checked-nothing this file exists to prevent.
+ */
+function lefthookOrSkip(t) {
+  const real = realLefthook()
+  if (real) return real
+  if (process.env.CI)
+    assert.fail('no lefthook platform package resolves — the shim guard is ungraded')
+  t.skip('no lefthook platform binary packaged for this host')
+  return null
 }
 
 test('package.json defines a prepare script that installs lefthook', () => {
@@ -57,10 +81,10 @@ test('prepare exits 0 outside a git repository', () => {
   }
 })
 
-test('a shim installed by prepare exits non-zero once lefthook is unresolvable', () => {
+test('a shim installed by prepare exits non-zero once lefthook is unresolvable', (t) => {
   assert.equal(typeof PREPARE, 'string')
-  const real = realLefthook()
-  assert.ok(real, 'lefthook binary not resolvable from the repo')
+  const real = lefthookOrSkip(t)
+  if (!real) return
   const dir = realpathSync(mkdtempSync(path.join(tmpdir(), 'prepare-shim-')))
   const bin = path.join(dir, 'bin')
   const repo = path.join(dir, 'repo')
@@ -84,10 +108,10 @@ test('a shim installed by prepare exits non-zero once lefthook is unresolvable',
   }
 })
 
-test('prepare run from a linked worktree patches the shim in the SHARED hooks dir', () => {
+test('prepare run from a linked worktree patches the shim in the SHARED hooks dir', (t) => {
   assert.equal(typeof PREPARE, 'string')
-  const real = realLefthook()
-  assert.ok(real, 'lefthook binary not resolvable from the repo')
+  const real = lefthookOrSkip(t)
+  if (!real) return
   const dir = realpathSync(mkdtempSync(path.join(tmpdir(), 'prepare-wt-')))
   const bin = path.join(dir, 'bin')
   const repo = path.join(dir, 'repo')

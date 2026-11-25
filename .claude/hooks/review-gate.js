@@ -4,10 +4,14 @@
 // Wired twice in .claude/settings.json:
 //   PostToolUse Agent     a gate-round/conditional dispatch sets the lock; a plan-critic dispatch clears it. Always exits 0.
 //   PreToolUse Edit|Write|NotebookEdit blocks (exit 2) a production path while the lock is set.
-//     A matcher made only of letters, digits, `_` and `|` is a list of EXACT tool names, NOT a
-//     regex (https://code.claude.com/docs/en/hooks.md) — so `Edit|Write` never matched NotebookEdit
-//     and naming it is load-bearing. Any OTHER character turns the whole matcher into an unanchored
-//     JS regex, in which `Edit` would also match NotebookEdit. The set, not the `|`, is what decides.
+//     A matcher of letters, digits, `_` and `|` is a list of EXACT tool names, NOT a regex
+//     (https://code.claude.com/docs/en/hooks.md) — so `Edit|Write` never matched NotebookEdit and
+//     naming it is load-bearing. The CLI matches the matcher against a character class and, on a
+//     hit, splits it on `[|,]` and compares names exactly; anything else is an unanchored JS regex,
+//     in which `Edit` would also match NotebookEdit. That class is WIDER than the four characters
+//     above and varies by event and version — 2.1.332 carries two variants — so derive it instead
+//     of trusting a list: `grep -a -o -E '\[a-zA-Z0-9_\|[^]]{0,12}\]\+\$' <the CLI bundle>`.
+//     What decides is the character SET, never the `|` alone.
 //
 // Lock: .claude/review-gate.lock (gitignored). Present = set. One lock for every session and branch.
 // /fullpush step 11 deletes it after the push succeeds (.claude/skills/review-gate/agent-workflow.md § Pre-Push Review Gate).
@@ -27,6 +31,9 @@
 // checkout's own `.claude/hooks/`. doc-updater must write the prose and test-writer must write the
 // guard tests and the data that grades them while a round is open, so the binding PROSE policy is
 // deliberately NOT protected here — only the wiring is.
+// WRITABLE IS NOT COMMITTABLE: these carve-outs are edit-time only. lefthook `pre-commit`
+// `review-gate-lock` takes no path filter, so a commit of ANY path is refused while the lock is
+// set, exempt ones included, until plan-critic is dispatched (#1824).
 // Roles come from .claude/pipeline.json `agents.<type>.role`.
 
 const { execFileSync } = require('node:child_process')

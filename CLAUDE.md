@@ -151,7 +151,7 @@ met, same commit. Verify redundancy, never infer from the resolved version:
 
 ## Pre-push review gate (MANDATORY)
 Load the `review-gate` skill before planning a multi-file change, dispatching any gate agent, triaging findings, or editing a rule or its mirrors.
-ONE loop per BRANCH over `git diff origin/master...HEAD`. A commit triggers NOTHING.
+ONE loop per BRANCH over `git diff origin/master...HEAD`. A commit triggers no review round.
 
 **Every round** — ONE parallel batch:
 - **code-review (skill)** (opus) — `subagent_type: code-review-skill`, `isolation: "worktree"`
@@ -177,7 +177,7 @@ Lefthook enforces mechanical gates (blocking). Command list is DATA in `.claude/
 not enumerate it here (`.claude/pipeline.test.mjs` fails if it and `lefthook.yml` disagree).
 - **pre-commit:** mechanical guards. A commit is refused while the review-gate lock is set, because a fixup after a review round needs plan-critic first (step 7). The unit suite runs at `/fullpush` step 4, the integration tier only in CI.
 - **commit-msg:** conventional commit format; an existing `docs/decisions.md` line is never edited except to append a marker (Decision 86) — escape hatch: `Ledger-edit-ok: <N|header> — <reason>` trailer.
-- **pre-push:** security-auditor + dep audit — FAIL-CLOSED: LLM audit failure/timeout, no `timeout` on PATH, missing `run-security-auditor.sh`, a failed diff against the remote ref whose `HEAD` fallback also fails, or an unresolvable remote ref with an empty fallback diff (push scope unestablishable) all BLOCK the push, no fallback approval.
+- **pre-push:** security-auditor + dep audit — FAIL-CLOSED: LLM audit failure/timeout, no `timeout` on PATH, missing `run-security-auditor.sh`, or a failed diff against the remote ref (push scope unestablishable — there is no working-tree fallback mode) all BLOCK the push, no fallback approval.
 
 Everything else (review, docs, tests) runs through subagents for visibility.
 

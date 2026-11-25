@@ -121,7 +121,7 @@ git diff origin/master...HEAD
 Three-dot (merge-base). ABORT on a non-zero EXIT CODE from fetch, base resolution, or the diff — never on an empty result.
 
 ```
-Execute ▼ commit freely — a commit triggers NOTHING
+Execute ▼ commit freely — a commit triggers no review round
     ▼  (pre-push, per BRANCH)
 ROUND   code-review (skill) + semantic-reviewer + doc-updater + test-writer
         + e2e-writer (conditional, trigger in agent-e2e-writer.md) — ONE parallel batch, every
@@ -130,7 +130,7 @@ ROUND   code-review (skill) + semantic-reviewer + doc-updater + test-writer
     ▼
 each round: WAIT for every agent LAUNCHED ─► validate every finding
             (§ Finding Validation) ─► ONE pooled triage table ─► ONE fixup commit
-            ─► re-run.  The fixup commit triggers NOTHING on its own.
+            ─► re-run.  The fixup commit triggers no review round on its own.
     ▼
 STOP on the FIRST round carrying no APPLY-worthy finding. No minimum, no floor.
     └─► an APPLY finding EXTENDS the loop by one round; a skip-with-reason does not

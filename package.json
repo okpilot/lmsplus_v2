@@ -17,7 +17,7 @@
     "db:types": "pnpm -s supabase gen types typescript --local > packages/db/src/types.ts.tmp && mv packages/db/src/types.ts.tmp packages/db/src/types.ts || { rm -f packages/db/src/types.ts.tmp; exit 1; }; biome format --write packages/db/src/types.ts",
     "tokens:css": "pnpm --filter @repo/web tokens:css",
     "preinstall": "npx only-allow pnpm",
-    "prepare": "git rev-parse --git-dir >/dev/null 2>&1 || exit 0; lefthook install || exit 1; H=$(git rev-parse --git-path hooks) || exit 1; for h in \"$H\"/*; do [ -f \"$h\" ] || continue; grep -q \"find lefthook in PATH\" \"$h\" || continue; sed -i.bak \"s|.*find lefthook in PATH.*|      echo \\\"lefthook not found - run: pnpm install\\\" >\\&2; exit 1|\" \"$h\" && rm -f \"$h.bak\" || exit 1; done; exit 0"
+    "prepare": "git rev-parse --git-dir >/dev/null 2>&1 || exit 0; lefthook install || exit 1; H=$(git rev-parse --git-path hooks) || exit 1; N=0; for h in \"$H\"/*; do [ -f \"$h\" ] || continue; grep -q \"find lefthook in PATH\" \"$h\" || continue; sed -i.bak \"s|.*find lefthook in PATH.*|      echo \\\"lefthook not found - run: pnpm install\\\" >\\&2; exit 1|\" \"$h\" && rm -f \"$h.bak\" || exit 1; N=$((N+1)); done; [ \"$N\" -gt 0 ] || { echo \"prepare: no lefthook shim matched \u2014 the fail-closed patch was NOT applied\" >&2; exit 1; }; exit 0"
   },
   "engines": {
     "node": ">=22.12.0",

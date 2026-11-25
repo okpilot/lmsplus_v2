@@ -14,8 +14,6 @@
       "find": "set -euo pipefail",
       "replace": "set -euo pipefail\n\nexit() { command exit 0; }",
       "expectRed": [
-        "fallback scan still finds a secret color.ui=always hides on the no-upstream diff",
-        "fallback scan still finds a .env file diff.noprefix=true hides on the no-upstream diff",
         "fallback scan still finds a secret color.ui=always hides on the upstream diff",
         "fallback scan still finds a .env file diff.noprefix=true hides on the upstream diff",
         "blocks the push when the security audit returns a BLOCKED verdict",
@@ -24,15 +22,14 @@
         "reports a timeout when the CLI is killed after the grace period",
         "passes a kill-after grace period to timeout",
         "blocks the push via the fallback scan when the CLI fails and a secret is in the diff",
-        "fallback scan still finds a secret a textconv driver hides on the no-upstream diff",
         "fallback scan still finds a secret a textconv driver hides on the upstream diff",
-        "fallback scan still finds a secret GIT_EXTERNAL_DIFF hides on the no-upstream diff",
         "exits 1 when the upstream ref and origin/master are both unresolvable",
         "exits 1 when git diff against the remote ref fails (no merge base)",
         "exits 1 when the diff stat fails",
         "exits 1 and names the filter when filtering a large diff to security-sensitive files fails",
         "exits 1 when a large diff has no security-sensitive file and its stat is empty",
-        "exits 1 naming `timeout` when no timeout binary is on PATH"
+        "exits 1 naming `timeout` when no timeout binary is on PATH",
+        "fallback scan still finds a secret GIT_EXTERNAL_DIFF hides on the upstream diff"
       ],
       "note": "Shadows the `exit` builtin with a function that always exits 0 — every blocking exit in the script, whichever of the four routes reaches it (the terminal BLOCKED exit, fail_closed_no_llm_output, and the two fallback-scan branches), is defeated at once. Chosen over patching only the terminal exit because the guard has multiple independent fail-closed exits (Decision 79) and this is the one mutation that represents 'the guard never blocks', matching what code-reviewer's controls.test.mjs requires every CONTROL: red test in a suite to link to under a single `<base>-always-passes` id. Shadowing `exit` neutralises every blocking exit, so it reddens EVERY test asserting a non-zero status — including all five diff-fail blocking tests."
     },
@@ -44,11 +41,12 @@
         "approves the push when the security audit returns a clean APPROVED verdict",
         "LLM receives the secret from the filtered diff under a textconv driver (large diff path)",
         "LLM receives the secret from the filtered diff under GIT_EXTERNAL_DIFF (large diff path)",
+        "audits the commits against origin/master when the configured upstream ref is gone",
         "LLM receives no ANSI escapes from the filtered diff under color.ui=always (large diff path)",
         "LLM receives a b/-prefixed diff under diff.noprefix=true (large diff path)",
         "LLM receives no ANSI escapes from the --stat summary under color.ui=always (stat path)"
       ],
-      "note": "Forces the full-script approve branch to exit 1 instead of 0 — a clean APPROVED verdict still prints 'Push approved' but the hook blocks the push anyway."
+      "note": "Forces the full-script approve branch to exit 1 instead of 0 — a clean APPROVED verdict still prints 'Push approved' but the hook blocks the push anyway. Also reddens the remote-ref test, which requires exit 0 on an approving shim."
     },
     {
       "id": "run-security-auditor-fail-closed-no-llm-output",
@@ -66,14 +64,11 @@
       "replace": "    if [ \"$ISSUES\" -gt 0 ]; then\n      echo \"[security-auditor] Found $ISSUES issue(s) in fallback scan. Push blocked.\"\n      exit 0\n    fi",
       "expectRed": [
         "blocks the push via the fallback scan when the CLI times out and a secret is in the diff",
-        "fallback scan still finds a secret a textconv driver hides on the no-upstream diff",
         "fallback scan still finds a secret a textconv driver hides on the upstream diff",
-        "fallback scan still finds a secret GIT_EXTERNAL_DIFF hides on the no-upstream diff",
-        "fallback scan still finds a secret color.ui=always hides on the no-upstream diff",
-        "fallback scan still finds a .env file diff.noprefix=true hides on the no-upstream diff",
         "fallback scan still finds a secret color.ui=always hides on the upstream diff",
         "fallback scan still finds a .env file diff.noprefix=true hides on the upstream diff",
-        "reports a timeout when the CLI is killed after the grace period"
+        "reports a timeout when the CLI is killed after the grace period",
+        "fallback scan still finds a secret GIT_EXTERNAL_DIFF hides on the upstream diff"
       ],
       "note": "Forces the timeout branch's fallback-scan exit to 0 instead of 1 — a secret found in the diff after a CLI timeout still prints 'Found N issue(s)' but approves the push anyway. Every CONTROL: red test that also uses TIMEOUT_SHIM with a finding the scan is expected to catch goes red here too, including the textconv/ext-diff/color/noprefix cases."
     },
@@ -96,22 +91,14 @@
       "note": "Drops --no-textconv from the upstream \"$REMOTE_REF\"...HEAD diff — a local diff.hide.textconv driver then empties a committed secret from DIFF_FULL, so the fallback scan finds nothing."
     },
     {
-      "id": "run-security-auditor-textconv-fallback",
-      "find": "git diff --no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ HEAD 2>/dev/null",
-      "replace": "git diff --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ HEAD 2>/dev/null",
+      "id": "run-security-auditor-extdiff-upstream",
+      "find": "git diff --no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ \"$REMOTE_REF\"...HEAD 2>/dev/null",
+      "replace": "git diff --no-textconv --no-color --src-prefix=a/ --dst-prefix=b/ \"$REMOTE_REF\"...HEAD 2>/dev/null",
       "expectRed": [
-        "fallback scan still finds a secret a textconv driver hides on the no-upstream diff"
+        "fallback scan still finds a secret GIT_EXTERNAL_DIFF hides on the upstream diff",
+        "LLM receives the secret from the filtered diff under GIT_EXTERNAL_DIFF (large diff path)"
       ],
-      "note": "Drops --no-textconv from the no-upstream `git diff HEAD` fallback — a local diff.hide.textconv driver then empties an uncommitted secret from DIFF_FULL, so the fallback scan finds nothing."
-    },
-    {
-      "id": "run-security-auditor-extdiff-fallback",
-      "find": "git diff --no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ HEAD 2>/dev/null",
-      "replace": "git diff --no-textconv --no-color --src-prefix=a/ --dst-prefix=b/ HEAD 2>/dev/null",
-      "expectRed": [
-        "fallback scan still finds a secret GIT_EXTERNAL_DIFF hides on the no-upstream diff"
-      ],
-      "note": "Drops --no-ext-diff from the no-upstream `git diff HEAD` fallback — GIT_EXTERNAL_DIFF then drops every added line from DIFF_FULL, so the fallback scan finds nothing."
+      "note": "Drops --no-ext-diff from the upstream \"$REMOTE_REF\"...HEAD diff — GIT_EXTERNAL_DIFF then drops every added line from DIFF_FULL, so the fallback scan finds nothing. Also reddens the large-diff GIT_EXTERNAL_DIFF test: DIFF_FULL empties to a no-op exit 0, so the filtered path never runs and 'Push approved' is never printed."
     },
     {
       "id": "run-security-auditor-textconv-filtered-large-diff",
@@ -130,24 +117,6 @@
         "LLM receives the secret from the filtered diff under GIT_EXTERNAL_DIFF (large diff path)"
       ],
       "note": "Drops --no-ext-diff from the large-diff filtered-pathspec call — GIT_EXTERNAL_DIFF then discards all filtered diff content; the hook falls through to the stat-only path which lacks the secret; the validating shim returns BLOCKED."
-    },
-    {
-      "id": "run-security-auditor-color-fallback",
-      "find": "git diff --no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ HEAD 2>/dev/null",
-      "replace": "git diff --no-textconv --no-ext-diff --src-prefix=a/ --dst-prefix=b/ HEAD 2>/dev/null",
-      "expectRed": [
-        "fallback scan still finds a secret color.ui=always hides on the no-upstream diff"
-      ],
-      "note": "Drops --no-color from the no-upstream `git diff HEAD` fallback — a local `color.ui always` then wraps every added line in ANSI escapes, so the fallback scan's `^\\+` secret pattern never matches."
-    },
-    {
-      "id": "run-security-auditor-noprefix-fallback",
-      "find": "git diff --no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ HEAD 2>/dev/null",
-      "replace": "git diff --no-textconv --no-ext-diff --no-color HEAD 2>/dev/null",
-      "expectRed": [
-        "fallback scan still finds a .env file diff.noprefix=true hides on the no-upstream diff"
-      ],
-      "note": "Drops --src-prefix=a/ --dst-prefix=b/ from the no-upstream `git diff HEAD` fallback — a local `diff.noprefix true` then strips the `b/` prefix from every header, so the fallback scan's `^\\+\\+\\+ b/.*\\.env` pattern never matches a committed `.env` file."
     },
     {
       "id": "run-security-auditor-color-upstream",
@@ -239,21 +208,20 @@
       "note": "A large diff that filters to nothing AND has an empty stat no longer blocks — the original fail-open, where a push was approved having audited nothing."
     },
     {
-      "id": "run-security-auditor-filter-ignores-diff-range",
-      "find": "\"$DIFF_RANGE\" -- \\\n",
-      "replace": "\"$REMOTE_REF\"...HEAD -- \\\n",
-      "expectRed": [
-        "audits the working-tree diff, not \"No changes\", when a >3000-line fallback diff carries a secret",
-        "exits 1 when a large diff has no security-sensitive file and its stat is empty"
-      ],
-      "note": "The filtered diff re-runs the upstream range instead of the range that produced DIFF_FULL. In fallback mode that expression has already failed, so the filter yields nothing. This is the ONLY mutation that pins the DIFF_RANGE reuse; the exit-flips above do not touch it."
-    },
-    {
       "id": "run-security-auditor-noop-blocks",
       "find": "  echo \"[security-auditor] No diff to audit. Skipping.\"\n  exit 0\n",
       "replace": "  echo \"[security-auditor] No diff to audit. Skipping.\"\n  exit 1\n",
       "expectRed": ["exits 0 when the diff succeeds and is empty"],
       "note": "A genuine no-op push — the upstream diff SUCCEEDED and is empty — blocks instead of skipping. Pins the one exit-0 path the fail-closed rework must preserve: without it, 'fail closed' would mean no push can ever pass."
+    },
+    {
+      "id": "run-security-auditor-remote-ref-fallback",
+      "find": "REMOTE_REF=$(git rev-parse --abbrev-ref @{upstream} 2>/dev/null) || REMOTE_REF=origin/master",
+      "replace": "REMOTE_REF=$(git rev-parse --abbrev-ref @{upstream} 2>/dev/null || echo \"origin/master\")",
+      "expectRed": [
+        "audits the commits against origin/master when the configured upstream ref is gone"
+      ],
+      "note": "Captures the failed `git rev-parse` stdout into REMOTE_REF: with the upstream ref deleted git writes `@{upstream}` to stdout and exits 128, so the value becomes `@{upstream}` + newline + `origin/master`, the diff fails, and the push blocks instead of auditing the commits against origin/master."
     }
   ]
 }

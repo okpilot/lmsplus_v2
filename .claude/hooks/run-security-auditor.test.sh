@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Tests for the verdict parser in run-security-auditor.sh (--parse-verdict mode)
-# plus the fail-closed fallback: a `claude` CLI failure must BLOCK the push (case 12),
+# plus the fail-closed paths: a `claude` CLI failure must BLOCK the push (case 12),
 # never fall back to a grep-scan approval.
 # Regression coverage for issue #832: a `BLOCKED: ...` verdict with trailing prose
 # was mis-parsed as approval and let a HIGH finding reach the remote.
@@ -125,11 +125,13 @@ run_case "APPROVED with leading whitespace approves" 0 \
 
   APPROVED"
 
-# Echoes a tmpdir holding a repo with one uncommitted change and an empty shim/ for `claude`.
+# Echoes a tmpdir holding a repo with a real `origin` upstream, one committed change on top of the
+# pushed base, and an empty shim/ for `claude`. Without an upstream the hook blocks before the LLM call.
 make_shim_repo() {
   local tmpdir
   tmpdir="$(mktemp -d)"
   mkdir -p "$tmpdir/shim" "$tmpdir/repo/.claude/agents"
+  git init -q --bare "$tmpdir/remote.git"
   (
     cd "$tmpdir/repo" || exit 1
     git init -q
@@ -139,8 +141,11 @@ make_shim_repo() {
     echo "base" > file.txt
     git add -A
     git commit -qm init
-    # Uncommitted change → non-empty `git diff HEAD` (the no-upstream fallback diff)
+    git remote add origin "$tmpdir/remote.git"
+    git push -q -u origin "$(git branch --show-current)"
+    # Committed change → non-empty `"$REMOTE_REF"...HEAD` diff
     echo "changed" >> file.txt
+    git commit -qam change
   ) >/dev/null 2>&1
   printf '%s\n' "$tmpdir"
 }

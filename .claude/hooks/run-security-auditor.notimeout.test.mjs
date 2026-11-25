@@ -46,8 +46,17 @@ function binWithoutTimeout(dir) {
 test('exits 1 naming `timeout` when no timeout binary is on PATH', () => {
   const { scratch, shimDir, repoDir } = initShimScratch('sec-aud-notimeout-', APPROVE_SHIM)
   try {
-    commitInit(gitFactory(repoDir))
+    // Without an upstream the hook blocks before reaching the `timeout` check.
+    const remoteDir = join(scratch, 'remote.git')
+    mkdirSync(remoteDir, { recursive: true })
+    spawnSync('git', ['init', '-q', '--bare'], { cwd: remoteDir, timeout: TIMEOUT_MS })
+    const git = gitFactory(repoDir)
+    commitInit(git)
+    git(['remote', 'add', 'origin', remoteDir])
+    git(['push', '-q', '-u', 'origin', git(['branch', '--show-current']).stdout.trim()])
     writeFileSync(join(repoDir, 'file.txt'), 'base\nchanged\n')
+    git(['add', '-A'])
+    git(['commit', '-qm', 'change'])
     const bin = join(scratch, 'bin')
     binWithoutTimeout(bin)
     const r = spawnSync('bash', [HOOK], {

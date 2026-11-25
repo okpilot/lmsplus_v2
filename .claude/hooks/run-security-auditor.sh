@@ -36,43 +36,23 @@ if [ "${1:-}" = "--parse-verdict" ]; then
 fi
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-REMOTE_REF=$(git rev-parse --abbrev-ref @{upstream} 2>/dev/null || echo "origin/master")
+REMOTE_REF=$(git rev-parse --abbrev-ref @{upstream} 2>/dev/null) || REMOTE_REF=origin/master
 
-# Branch on the diff's EXIT CODE, never on its emptiness. The previous form was
-#   git diff "$REMOTE_REF"...HEAD 2>/dev/null || git diff HEAD 2>/dev/null || echo ""
-# followed by `[ -z "$DIFF_FULL" ] && exit 0`. The fallback mode itself is kept — with no tracking
-# branch and no origin/master, the working-tree diff is what there is to audit, and the
-# fallback-scan tests depend on it. The defect was conflating its EMPTY result with "nothing to
-# push": on a clean tree that approved the push having audited nothing. An empty fallback diff now
-# BLOCKS, so the fallback mode cannot pass on a clean tree at all — in that state the push scope is
-# unknowable, and `git fetch origin` does not help when `origin/master` genuinely does not exist.
-# `/fullpush` step 5b states the same branch-on-exit-code rule.
-# The range that actually PRODUCED `DIFF_FULL`. Every later diff must re-use it: re-running
-# `"$REMOTE_REF"...HEAD` after the fallback was taken re-runs the expression that already failed,
-# which yields an empty filtered diff and an empty stat, and the LLM then audits nothing.
+# Branch on the diff's EXIT CODE, never on its emptiness: an empty diff is a genuine no-op only
+# when the diff SUCCEEDED. `/fullpush` step 5b states the same branch-on-exit-code rule.
+# A diff that cannot be computed means the push scope cannot be established — block before any LLM call.
 DIFF_RANGE="$REMOTE_REF...HEAD"
 UPSTREAM_RC=0
 DIFF_FULL=$(git diff --no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ "$REMOTE_REF"...HEAD 2>/dev/null) || UPSTREAM_RC=$?
 
 if [ "$UPSTREAM_RC" -ne 0 ]; then
-  # `$REMOTE_REF` is unresolvable, or shares no merge base with HEAD. Audit the working-tree diff.
-  # `set -e` does not fire on an assignment guarded by `||`, so capture the status explicitly
-  # rather than letting git's own 128 abort before any reason is printed.
-  FALLBACK_RC=0
-  DIFF_RANGE="HEAD"
-  DIFF_FULL=$(git diff --no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ HEAD 2>/dev/null) || FALLBACK_RC=$?
-  if [ "$FALLBACK_RC" -ne 0 ]; then
-    echo "[security-auditor] no diff against '$REMOTE_REF' (exit $UPSTREAM_RC) or HEAD (exit $FALLBACK_RC) — BLOCKING." >&2
-    exit 1
-  fi
-  if [ -z "$DIFF_FULL" ]; then
-    echo "[security-auditor] '$REMOTE_REF' is unresolvable and the working tree is clean, so the" >&2
-    echo "  push scope cannot be established. Run 'git fetch origin'. BLOCKING." >&2
-    exit 1
-  fi
+  # `$REMOTE_REF` is unresolvable, or shares no merge base with HEAD.
+  echo "[security-auditor] no diff against '$REMOTE_REF' (exit $UPSTREAM_RC), so the" >&2
+  echo "  push scope cannot be established. Run 'git fetch origin'. BLOCKING." >&2
+  exit 1
 fi
 
-# Reached only when the upstream diff SUCCEEDED: an empty result is a genuine no-op.
+# The upstream diff SUCCEEDED: an empty result is a genuine no-op.
 if [ -z "$DIFF_FULL" ]; then
   echo "[security-auditor] No diff to audit. Skipping."
   exit 0

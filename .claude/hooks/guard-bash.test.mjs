@@ -48,6 +48,7 @@ test('fails open but loud on empty stdin (exit 0 + stderr warning)', () => {
   assert.match(r.stderr, /unparseable hook payload/)
 })
 
+// GROUP: guard-bash-oversize-allowed
 test('fails closed on a payload over 1MB (exit 2 + size message)', () => {
   const r = runHook('x'.repeat(1_100_000))
   assert.equal(r.status, 2)
@@ -70,17 +71,15 @@ test('blocks a non-string command payload (array) with exit 2 and a "non-string 
   assert.match(r.stderr, /non-string command/)
 })
 
+// GROUP: guard-bash-oversize-allowed
 test('fails closed on an oversized payload whose valid JSON carries a blocked command (exit 2 + size message)', () => {
-  // The oversizedPayload flag set in the 'data' handler short-circuits the 'end' handler via
-  // `if (oversizedPayload) return`, so the payload is refused rather than pattern-matched while
-  // truncated. Exit 2 is the INTENDED outcome: a denylist cannot be trusted on a payload it has
-  // only partly seen, and padding in front of a destructive command is how one gets bypassed.
-  // Without the flag this valid-JSON payload would parse, the blocked pattern below would match,
-  // and the hook would exit 2 for the WRONG reason — leaving the size branch itself untested.
-  // The `/exceeds 1MB/` stderr match is what separates the two. The other >1MB test uses
-  // non-JSON ('x' bytes), which without the flag exits 0 down the malformed-JSON path
-  // (`[guard-bash] unparseable hook payload — allowing command`, guard-bash.js:43-50), so it
-  // cannot pin this branch either.
+  // Exit 2 is the INTENDED outcome: a denylist cannot be trusted on a payload it has only partly
+  // seen, and padding in front of a destructive command is how one gets bypassed. The size branch
+  // is what this pins — `guard-bash-oversize-allowed` flips its exit and reddens this test.
+  // The `if (oversizedPayload) return` short-circuit in the 'end' handler is NOT pinned by this
+  // test or any other, and cannot be: instrumenting 'end' with the flag forced false showed it
+  // never fires, because `process.stdin.destroy()` plus the exit queued in the stderr-write
+  // callback end the process first. Recorded in guard-bash.mutations.json `notEncoded`.
   const pad = 'x'.repeat(2_000_000)
   const bigBlockedPayload = `{"tool_input":{"command":"DROP DATABASE x","pad":"${pad}"}}`
   const r = runHook(bigBlockedPayload)
@@ -88,6 +87,7 @@ test('fails closed on an oversized payload whose valid JSON carries a blocked co
   assert.match(r.stderr, /exceeds 1MB/)
 })
 
+// GROUP: guard-bash-oversize-allowed
 test('fails closed on a 1.1MB payload ending in a destructive command after a no-op prefix', () => {
   const r = runHook(`{"tool_input":{"command":": ${'x'.repeat(1_100_000)}; ${'rm -rf'} /"}}`)
   assert.equal(r.status, 2)
