@@ -85,6 +85,7 @@ const baseRow: InternalExamCodeRow = {
   emailedAt: null,
   status: 'active',
   sessionEndedAt: null,
+  sessionDeletedAt: null,
   sittingId: null,
   sittingEntryId: null,
 }

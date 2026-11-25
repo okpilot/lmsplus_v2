@@ -16,7 +16,7 @@ export type CodeRowRaw = {
   emailed_at: string | null
   easa_subjects: { name: string | null } | null
   users: { full_name: string | null; email: string | null } | null
-  quiz_sessions: { ended_at: string | null } | null
+  quiz_sessions: { ended_at: string | null; deleted_at: string | null } | null
   sitting_entry_id: string | null
   exam_sitting_entries: { sitting_id: string; exam_sittings: { status: string } | null } | null
 }
@@ -77,6 +77,7 @@ export function mapCodeRow(r: CodeRowRaw, nowMs: number): InternalExamCodeRow {
     emailedAt: r.emailed_at,
     status: deriveStatus(r, nowMs),
     sessionEndedAt: r.quiz_sessions?.ended_at ?? null,
+    sessionDeletedAt: r.quiz_sessions?.deleted_at ?? null,
     sittingId: r.exam_sitting_entries?.sitting_id ?? null,
     sittingEntryId: r.sitting_entry_id,
   }

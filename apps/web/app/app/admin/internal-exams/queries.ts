@@ -64,8 +64,8 @@ export async function listInternalExamCodes(
   // join (a count select filtering quiz_sessions.ended_at without !inner 400s — PostgREST PGRST108).
   const splitOnSession = filters.status === 'consumed' || filters.status === 'finished'
   const embed = splitOnSession
-    ? 'quiz_sessions!consumed_session_id!inner(ended_at)'
-    : 'quiz_sessions!consumed_session_id(ended_at)'
+    ? 'quiz_sessions!consumed_session_id!inner(ended_at, deleted_at)'
+    : 'quiz_sessions!consumed_session_id(ended_at, deleted_at)'
 
   const countBuilder = applyCodeFilters(
     client

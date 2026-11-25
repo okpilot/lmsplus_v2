@@ -52,6 +52,7 @@ const baseRow: InternalExamCodeRow = {
   emailedAt: null,
   status: 'active',
   sessionEndedAt: null,
+  sessionDeletedAt: null,
   sittingId: null,
   sittingEntryId: null,
 }
@@ -177,6 +178,18 @@ describe('CodeRow sitting codes', () => {
   it('offers Void for a sitting code whose attempt is still running', () => {
     renderRow({ ...sitting, status: 'consumed', consumedAt: '2026-04-28T11:00:00.000Z' })
     expect(screen.getByRole('button', { name: 'Void' })).toBeEnabled()
+  })
+
+  it('does not offer Void when the attempt session is soft-deleted', () => {
+    // The list reads with the service role and sees the row; the server guard reads through RLS
+    // and does not. Offering Void here would give the admin a button that always fails.
+    renderRow({
+      ...sitting,
+      status: 'consumed',
+      consumedAt: '2026-04-28T11:00:00.000Z',
+      sessionDeletedAt: '2026-04-28T12:00:00.000Z',
+    })
+    expect(screen.queryByRole('button', { name: 'Void' })).not.toBeInTheDocument()
   })
 
   it('does not offer Void once the attempt has ended', () => {

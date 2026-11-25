@@ -80,8 +80,9 @@ export function CodeRow({
           sittingEntryId: r.sittingEntryId,
           consumed: r.status === 'consumed',
           sessionEndedAt: r.sessionEndedAt,
-          // The codes list reads sessions with the service role, so the row is always visible.
-          sessionVisible: true,
+          // The list reads with the service role and so sees a soft-deleted session; the guard
+          // reads through RLS and does not. Derive it here so both reach the same verdict.
+          sessionVisible: r.sessionDeletedAt === null,
         }) && (
           <Button
             variant="outline"

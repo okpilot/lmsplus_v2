@@ -249,7 +249,7 @@ describe('listInternalExamCodes', () => {
       await listInternalExamCodes({ status: 'consumed' })
 
       expect(chain.select).toHaveBeenCalledWith(
-        expect.stringContaining('quiz_sessions!consumed_session_id!inner(ended_at)'),
+        expect.stringContaining('quiz_sessions!consumed_session_id!inner(ended_at, deleted_at)'),
         { count: 'exact', head: true },
       )
       expect(chain.is).toHaveBeenCalledWith('quiz_sessions.ended_at', null)
@@ -447,7 +447,7 @@ describe('listInternalExamCodes sitting embed', () => {
     expect(
       selects.some(
         (q) =>
-          q.includes('quiz_sessions!consumed_session_id!inner(ended_at)') &&
+          q.includes('quiz_sessions!consumed_session_id!inner(ended_at, deleted_at)') &&
           q.includes('exam_sitting_entries!internal_exam_codes_sitting_entry_fkey('),
       ),
     ).toBe(true)

@@ -21,6 +21,8 @@ export type InternalExamCodeRow = {
   sittingId: string | null
   sittingEntryId: string | null
   sessionEndedAt: string | null
+  /** `deleted_at` of the consumed attempt; RLS hides a soft-deleted session from the void guard. */
+  sessionDeletedAt: string | null
 }
 
 export type ListCodesFilters = {

@@ -5,7 +5,15 @@ import { getAdminClient } from './supabase'
 const ADMIN_EMAIL = 'admin@lmsplus.local'
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 const CODE_LENGTH = 8
-const EXPIRY_MS = 6 * 3_600_000
+/**
+ * Last microsecond of the scheduled day, matching `private.sitting_code_expiry`. A fixed offset
+ * would seed a code that outlives its sitting day, a state production cannot produce.
+ */
+function codeExpiry(scheduledAt: Date): string {
+  const end = new Date(scheduledAt)
+  end.setUTCHours(23, 59, 59, 999)
+  return end.toISOString()
+}
 
 type Admin = ReturnType<typeof getAdminClient>
 type SeedStatus = 'scheduled' | 'open'
@@ -152,7 +160,7 @@ async function insertCode(admin: Admin, c: Ids, entryId: string): Promise<string
     sitting_entry_id: entryId,
     student_id: c.userId,
     subject_id: c.subjectId,
-    expires_at: new Date(Date.now() + EXPIRY_MS).toISOString(),
+    expires_at: codeExpiry(new Date()),
   })
   if (res.error) fail('code', res.error)
   return code
@@ -182,7 +190,7 @@ export async function insertLegacyCodeFor(input: {
     issued_by: c.adminId,
     student_id: c.userId,
     subject_id: c.subjectId,
-    expires_at: new Date(Date.now() + EXPIRY_MS).toISOString(),
+    expires_at: codeExpiry(new Date()),
   })
   if (res.error) fail('legacy code', res.error)
   return code

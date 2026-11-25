@@ -49,7 +49,10 @@ const SITTING_STATUSES: ReadonlySet<unknown> = new Set<SittingStatus>([
 ])
 
 function asSittingStatus(v: unknown): SittingStatus {
-  return SITTING_STATUSES.has(v) ? (v as SittingStatus) : 'cancelled'
+  if (SITTING_STATUSES.has(v)) return v as SittingStatus
+  // Falling back to `cancelled` disables Start, which is the safe side but hides a schema change.
+  console.error('[listAvailableInternalExams] unknown sitting status:', v)
+  return 'cancelled'
 }
 
 function mapSitting(row: {
