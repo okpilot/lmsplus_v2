@@ -87,7 +87,12 @@ describe('voidInternalExamCode', () => {
     it('refuses a sitting code and does not call the RPC', async () => {
       mockAdmin()
       mockMaybeSingle.mockResolvedValue({
-        data: { sitting_entry_id: 'entry-1', consumed_at: null, quiz_sessions: null },
+        data: {
+          sitting_entry_id: 'entry-1',
+          voided_at: null,
+          consumed_at: null,
+          quiz_sessions: null,
+        },
         error: null,
       })
 
@@ -102,6 +107,7 @@ describe('voidInternalExamCode', () => {
       mockMaybeSingle.mockResolvedValue({
         data: {
           sitting_entry_id: 'entry-1',
+          voided_at: null,
           consumed_at: '2026-04-28T11:00:00.000Z',
           quiz_sessions: { ended_at: null },
         },
@@ -120,6 +126,7 @@ describe('voidInternalExamCode', () => {
       mockMaybeSingle.mockResolvedValue({
         data: {
           sitting_entry_id: 'entry-1',
+          voided_at: null,
           consumed_at: '2026-04-28T11:00:00.000Z',
           quiz_sessions: { ended_at: '2026-04-28T12:00:00.000Z' },
         },

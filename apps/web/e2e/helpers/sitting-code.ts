@@ -72,6 +72,27 @@ async function lookupIds(admin: Admin, studentEmail: string, subjectFragment: st
   }
 }
 
+/**
+ * Enrolments this run created for the SHARED fixture student, soft-deleted again by
+ * `releaseSeededEnrolments`. Decision 38: a spec restores the shared seed data it mutates, and
+ * `deleteSeededUsers` only covers users carrying the seed email prefix.
+ */
+const seededEnrolmentIds = new Set<string>()
+
+/** Soft-deletes the fixture-student enrolments this run added. Safe to call with none. */
+export async function releaseSeededEnrolments(): Promise<void> {
+  if (seededEnrolmentIds.size === 0) return
+  const ids = [...seededEnrolmentIds]
+  seededEnrolmentIds.clear()
+  const admin = getAdminClient()
+  const res = await admin
+    .from('course_enrolments')
+    .update({ deleted_at: new Date().toISOString() })
+    .in('id', ids)
+    .is('deleted_at', null)
+  if (res.error) fail('seeded enrolment release', res.error)
+}
+
 async function ensureEnrolment(admin: Admin, c: Ids): Promise<void> {
   const existing = await admin
     .from('course_enrolments')
@@ -83,13 +104,18 @@ async function ensureEnrolment(admin: Admin, c: Ids): Promise<void> {
     .maybeSingle()
   if (existing.error) fail('enrolment lookup', existing.error)
   if (existing.data) return
-  const res = await admin.from('course_enrolments').insert({
-    organization_id: c.orgId,
-    user_id: c.userId,
-    course_id: c.courseId,
-    enrolled_by: c.adminId,
-  })
-  if (res.error) fail('enrolment', res.error)
+  const res = await admin
+    .from('course_enrolments')
+    .insert({
+      organization_id: c.orgId,
+      user_id: c.userId,
+      course_id: c.courseId,
+      enrolled_by: c.adminId,
+    })
+    .select('id')
+    .single()
+  if (res.error || !res.data) fail('enrolment', res.error)
+  seededEnrolmentIds.add(res.data.id)
 }
 
 async function insertSitting(admin: Admin, c: Ids, status: SeedStatus): Promise<string> {

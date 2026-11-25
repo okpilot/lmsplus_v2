@@ -32,10 +32,10 @@ function SittingCaption({ sitting }: Readonly<{ sitting: SittingInfo }>) {
   const when = sitting.scheduledAt
     ? formatUtc(sitting.scheduledAt, { dateStyle: 'medium', timeStyle: 'short' })
     : null
+  const mode = sitting.mode ? sittingModeLabel(sitting.mode) : null
   return (
     <p className="mt-1 text-caption text-muted-foreground">
-      {when ? `${when} · ` : ''}
-      {sittingModeLabel(sitting.mode)}
+      {[when, mode].filter(Boolean).join(' · ')}
     </p>
   )
 }

@@ -12,7 +12,12 @@ export type AvailableInternalExam = {
   subjectShort: string
   expiresAt: string
   issuedAt: string
-  sitting: { id: string; scheduledAt: string; mode: SittingMode; status: SittingStatus } | null
+  sitting: {
+    id: string
+    scheduledAt: string
+    mode: SittingMode | null
+    status: SittingStatus
+  } | null
 }
 
 export type InternalExamHistoryEntry = {
@@ -48,10 +53,11 @@ function asSittingStatus(v: unknown): SittingStatus {
   return 'cancelled'
 }
 
-function asSittingMode(v: unknown): SittingMode {
+/** Null, not a guess: naming the wrong mode would send the student to the wrong place. */
+function asSittingMode(v: unknown): SittingMode | null {
   if (v === 'in_person' || v === 'remote') return v
   console.error('[listAvailableInternalExams] unknown sitting mode:', v)
-  return 'remote'
+  return null
 }
 
 function mapSitting(row: {

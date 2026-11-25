@@ -6,6 +6,7 @@ import {
   EXAM_SITTING_SEED_PREFIX,
   makeSittingE2eMaterials,
 } from './exam-sitting-markers'
+import { releaseSeededEnrolments } from './sitting-code'
 import { getAdminClient } from './supabase'
 
 type Admin = ReturnType<typeof getAdminClient>
@@ -15,10 +16,13 @@ function check(what: string, error: { message: string } | null) {
 }
 
 /**
- * Sessions of seeded students are deleted (their users go next). A fixture student's session
- * (e.g. the internal-exam student) may hold immutable answers: it is ended and soft-deleted instead.
+ * Splits the sessions by owner. `internal_exam_codes.consumed_session_id` references
+ * `quiz_sessions` with NO ACTION, so a seeded session can only be hard-deleted after its code is
+ * gone; a fixture session is retired with UPDATEs, which the FK does not block. The caller runs
+ * `retireFixtureSessions` BEFORE deleting the codes, so a failure there cannot orphan a live
+ * fixture session whose only link was the code it just deleted.
  */
-async function removeSeededSessions(admin: Admin, sessionIds: string[]) {
+async function classifySessions(admin: Admin, sessionIds: string[]) {
   const rows = await admin
     .from('quiz_sessions')
     .select('id, users!student_id(email)')
@@ -31,14 +35,14 @@ async function removeSeededSessions(admin: Admin, sessionIds: string[]) {
     if (email === undefined) throw new Error(`seed sessions lookup: no student for session ${r.id}`)
     return { id: r.id, seeded: email.startsWith(EXAM_SITTING_SEED_EMAIL_PREFIX) }
   })
-  const seeded = classified.filter((r) => r.seeded).map((r) => r.id)
-  const fixture = classified.filter((r) => !r.seeded).map((r) => r.id)
-  if (seeded.length > 0) {
-    check(
-      'seed sessions delete',
-      (await admin.from('quiz_sessions').delete().in('id', seeded)).error,
-    )
+  return {
+    seeded: classified.filter((r) => r.seeded).map((r) => r.id),
+    fixture: classified.filter((r) => !r.seeded).map((r) => r.id),
   }
+}
+
+/** A fixture student's session may hold immutable answers: it is ended and soft-deleted, never gone. */
+async function retireFixtureSessions(admin: Admin, fixture: string[]) {
   if (fixture.length === 0) return
   const now = new Date().toISOString()
   // Soft-delete FIRST: the two updates are not atomic, and every history and attempts list filters
@@ -74,11 +78,19 @@ async function deleteSeededRows(admin: Admin, sittingIds: string[]) {
     const sessionIds = (codes.data ?? []).flatMap((c) =>
       c.consumed_session_id ? [c.consumed_session_id] : [],
     )
+    const split = sessionIds.length > 0 ? await classifySessions(admin, sessionIds) : null
+    // Retire the fixture sessions while the codes still link to them (see `classifySessions`).
+    if (split) await retireFixtureSessions(admin, split.fixture)
     check(
       'seed codes delete',
       (await admin.from('internal_exam_codes').delete().in('sitting_entry_id', entryIds)).error,
     )
-    if (sessionIds.length > 0) await removeSeededSessions(admin, sessionIds)
+    if (split && split.seeded.length > 0) {
+      check(
+        'seed sessions delete',
+        (await admin.from('quiz_sessions').delete().in('id', split.seeded)).error,
+      )
+    }
   }
   check(
     'seed entries delete',
@@ -171,7 +183,7 @@ async function cleanupSeededExamSittings(): Promise<void> {
 /** Soft-deletes the open marked exam_sittings that have no entries or candidates, then hard-deletes the sittings `seedSitting` built with their people, codes and users (service role, test data only); closed sittings (CHECK exam_sittings_closed_not_cancelled) and red-team seeds with people are left alone. */
 export async function cleanupE2eExamSittings(): Promise<void> {
   const errors: string[] = []
-  for (const step of [cleanupEmptySittings, cleanupSeededExamSittings]) {
+  for (const step of [cleanupEmptySittings, cleanupSeededExamSittings, releaseSeededEnrolments]) {
     try {
       await step()
     } catch (e) {

@@ -36,9 +36,30 @@ describe('checkSittingCode', () => {
     expect(await checkSittingCode(supabase, 'c1')).toEqual({ ok: true })
   })
 
+  it('says the code is already voided rather than naming the sitting', async () => {
+    mockMaybeSingle.mockResolvedValue({
+      data: {
+        sitting_entry_id: 'e1',
+        voided_at: '2026-11-25T09:00:00Z',
+        consumed_at: null,
+        quiz_sessions: null,
+      },
+      error: null,
+    })
+    expect(await checkSittingCode(supabase, 'c1')).toEqual({
+      ok: false,
+      error: 'Code is already voided',
+    })
+  })
+
   it('refuses a consumed sitting code whose session row is hidden from the caller', async () => {
     mockMaybeSingle.mockResolvedValue({
-      data: { sitting_entry_id: 'e1', consumed_at: '2026-11-25T10:00:00Z', quiz_sessions: null },
+      data: {
+        sitting_entry_id: 'e1',
+        voided_at: null,
+        consumed_at: '2026-11-25T10:00:00Z',
+        quiz_sessions: null,
+      },
       error: null,
     })
     expect(await checkSittingCode(supabase, 'c1')).toEqual({
@@ -51,6 +72,7 @@ describe('checkSittingCode', () => {
     mockMaybeSingle.mockResolvedValue({
       data: {
         sitting_entry_id: 'e1',
+        voided_at: null,
         consumed_at: '2026-11-25T10:00:00Z',
         quiz_sessions: { ended_at: '2026-11-25T11:00:00Z' },
       },
@@ -66,6 +88,7 @@ describe('checkSittingCode', () => {
     mockMaybeSingle.mockResolvedValue({
       data: {
         sitting_entry_id: 'e1',
+        voided_at: null,
         consumed_at: '2026-11-25T10:00:00Z',
         quiz_sessions: { ended_at: null },
       },

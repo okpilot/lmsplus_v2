@@ -15,7 +15,7 @@ export async function checkSittingCode(
 ): Promise<GuardVerdict> {
   const { data, error } = await supabase
     .from('internal_exam_codes')
-    .select('sitting_entry_id, consumed_at, quiz_sessions!consumed_session_id(ended_at)')
+    .select('sitting_entry_id, consumed_at, voided_at, quiz_sessions!consumed_session_id(ended_at)')
     .eq('id', codeId)
     .maybeSingle()
   if (error) {
@@ -33,8 +33,10 @@ export async function checkSittingCode(
     sessionVisible: data.quiz_sessions !== null,
   })
   if (!voidable) {
-    // A finished attempt is final everywhere, so naming the sitting would send the admin to a page
-    // whose Void action exists only for a waiting or ready entry. The legacy RPC said this itself.
+    // Only point at the sitting for a state the sitting can actually act on. A finished attempt is
+    // final everywhere, and an already-voided code needs no second void: both get their own
+    // message, as the legacy RPC gave them before this guard ran ahead of it.
+    if (data.voided_at) return { ok: false, error: 'Code is already voided' }
     if (data.consumed_at !== null && data.quiz_sessions?.ended_at) {
       return { ok: false, error: 'Cannot void a finished attempt — record is final' }
     }
