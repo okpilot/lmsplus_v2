@@ -120,7 +120,11 @@ async function ensureEnrolment(admin: Admin, c: Ids): Promise<void> {
   seededEnrolmentIds.add(res.data.id)
 }
 
-async function insertSitting(admin: Admin, c: Ids, status: SeedStatus): Promise<string> {
+async function insertSitting(
+  admin: Admin,
+  c: Ids,
+  status: SeedStatus,
+): Promise<{ id: string; scheduledAt: string }> {
   const now = new Date().toISOString()
   const res = await admin
     .from('exam_sittings')
@@ -136,7 +140,7 @@ async function insertSitting(admin: Admin, c: Ids, status: SeedStatus): Promise<
     .select('id')
     .single()
   if (res.error || !res.data) fail('sitting', res.error)
-  return res.data.id
+  return { id: res.data.id, scheduledAt: now }
 }
 
 export type SeedSittingForInput = {
@@ -161,7 +165,8 @@ export async function seedSittingFor(
   const admin = getAdminClient()
   const c = await lookupIds(admin, input.studentEmail, input.subjectFragment)
   await ensureEnrolment(admin, c)
-  const sittingId = await insertSitting(admin, c, input.status ?? 'open')
+  const sitting = await insertSitting(admin, c, input.status ?? 'open')
+  const sittingId = sitting.id
   const cand = await admin
     .from('exam_sitting_candidates')
     .insert({ organization_id: c.orgId, sitting_id: sittingId, user_id: c.userId })
@@ -177,11 +182,17 @@ export async function seedSittingFor(
     .select('id')
     .single()
   if (entry.error || !entry.data) fail('entry', entry.error)
-  const code = input.withCode === false ? null : await insertCode(admin, c, entry.data.id)
+  const code =
+    input.withCode === false ? null : await insertCode(admin, c, entry.data.id, sitting.scheduledAt)
   return { code, sittingId, studentName: c.studentName }
 }
 
-async function insertCode(admin: Admin, c: Ids, entryId: string): Promise<string> {
+async function insertCode(
+  admin: Admin,
+  c: Ids,
+  entryId: string,
+  scheduledAt: string,
+): Promise<string> {
   const code = randomCode()
   const res = await admin.from('internal_exam_codes').insert({
     code,
@@ -190,7 +201,8 @@ async function insertCode(admin: Admin, c: Ids, entryId: string): Promise<string
     sitting_entry_id: entryId,
     student_id: c.userId,
     subject_id: c.subjectId,
-    expires_at: codeExpiry(new Date()),
+    // The sitting's OWN day: a second clock read can land past midnight and outlive the sitting.
+    expires_at: codeExpiry(new Date(scheduledAt)),
   })
   if (res.error) fail('code', res.error)
   return code

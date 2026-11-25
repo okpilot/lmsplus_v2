@@ -3,6 +3,18 @@ import type { AvailableInternalExam } from '../queries'
 
 type SittingStatus = NonNullable<AvailableInternalExam['sitting']>['status']
 
+/** A sitting is startable only while it is open; an unknown status is not open. */
+export function canStart(status: SittingStatus | null | undefined): boolean {
+  return status === 'open'
+}
+
+/** The sitting date, or null when it cannot be parsed — never the words "Invalid Date". */
+export function sittingWhen(iso: string): string | null {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return null
+  return formatUtc(d, { dateStyle: 'medium', timeStyle: 'short' })
+}
+
 export function formatAbsolute(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso

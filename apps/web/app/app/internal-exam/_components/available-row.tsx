@@ -2,18 +2,20 @@
 
 import { Button } from '@/components/ui/button'
 import { CardListRow } from '@/components/ui/card'
-import { formatUtc } from '@/lib/utils/format-utc'
 import { sittingModeLabel } from '@/lib/utils/sitting-mode-label'
 import type { AvailableInternalExam } from '../queries'
-import { formatAbsolute, formatRelative, sittingHint } from './sitting-captions'
+import {
+  canStart,
+  formatAbsolute,
+  formatRelative,
+  sittingHint,
+  sittingWhen,
+} from './sitting-captions'
 
 type SittingInfo = NonNullable<AvailableInternalExam['sitting']>
 
 function SittingCaption({ sitting }: Readonly<{ sitting: SittingInfo }>) {
-  // `mapSitting` maps a non-string scheduled_at to '', which formatUtc renders "Invalid Date".
-  const when = sitting.scheduledAt
-    ? formatUtc(sitting.scheduledAt, { dateStyle: 'medium', timeStyle: 'short' })
-    : null
+  const when = sitting.scheduledAt ? sittingWhen(sitting.scheduledAt) : null
   const mode = sitting.mode ? sittingModeLabel(sitting.mode) : null
   const caption = [when, mode].filter(Boolean).join(' · ')
   if (!caption) return null
@@ -40,7 +42,7 @@ export function AvailableRow({
   onStart,
 }: Readonly<{ row: AvailableInternalExam; onStart: (row: AvailableInternalExam) => void }>) {
   const { sitting } = row
-  const open = sitting?.status === 'open'
+  const open = canStart(sitting?.status)
   const hint = sittingHint(sitting?.status)
   const hintId = `available-hint-${row.id}`
   return (

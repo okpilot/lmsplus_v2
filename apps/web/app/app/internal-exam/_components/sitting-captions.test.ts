@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { formatAbsolute, formatRelative, sittingHint } from './sitting-captions'
+import {
+  canStart,
+  formatAbsolute,
+  formatRelative,
+  sittingHint,
+  sittingWhen,
+} from './sitting-captions'
 
 const NOW = new Date('2026-11-25T12:00:00.000Z')
 const at = (ms: number) => new Date(NOW.getTime() + ms).toISOString()
@@ -59,5 +65,33 @@ describe('sittingHint', () => {
     expect(hint).not.toContain('cancelled')
     expect(hint).not.toContain('ended')
     expect(hint).toContain('Ask your invigilator')
+  })
+})
+
+describe('canStart', () => {
+  it('allows only an open sitting', () => {
+    expect(canStart('open')).toBe(true)
+  })
+
+  it('refuses scheduled, closed and cancelled', () => {
+    expect(canStart('scheduled')).toBe(false)
+    expect(canStart('closed')).toBe(false)
+    expect(canStart('cancelled')).toBe(false)
+  })
+
+  // An unknown status arrives as null, and must not be startable.
+  it('refuses an unknown status', () => {
+    expect(canStart(null)).toBe(false)
+    expect(canStart(undefined)).toBe(false)
+  })
+})
+
+describe('sittingWhen', () => {
+  it('formats a parseable date', () => {
+    expect(sittingWhen('2026-05-01T09:00:00.000Z')).toContain('2026')
+  })
+
+  it('returns null rather than the words Invalid Date', () => {
+    expect(sittingWhen('not a date')).toBeNull()
   })
 })
