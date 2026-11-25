@@ -103,3 +103,38 @@ test('exits 1 when the diff stat fails', () => {
   const r = runHookAndCleanup(built)
   assert.equal(r.status, 1)
 })
+
+const BIG_LINES = Array.from({ length: 3500 }, (_, i) => `export const v${i} = ${i}`)
+
+function bigDiffRepo(prefix, gitShimBody) {
+  const built = initShimScratch(prefix, APPROVE_SHIM)
+  writeFileSync(join(built.repoDir, 'big.ts'), 'x\n')
+  commitInit(gitFactory(built.repoDir))
+  writeFileSync(join(built.repoDir, 'big.ts'), `${BIG_LINES.join('\n')}\n`)
+  const realGit = spawnSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).stdout.trim()
+  writeFileSync(join(built.shimDir, 'git'), gitShimBody(realGit))
+  chmodSync(join(built.shimDir, 'git'), 0o755)
+  return built
+}
+
+test('exits 1 and names the filter when filtering a large diff to security-sensitive files fails', () => {
+  const built = bigDiffRepo(
+    'sec-aud-filterfail-',
+    (realGit) =>
+      `#!/usr/bin/env bash\nfor a in "$@"; do case "$a" in *.env*) exit 1;; esac; done\nexec "${realGit}" "$@"\n`,
+  )
+  const r = runHookAndCleanup(built)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /filtering .* failed/)
+})
+
+test('exits 1 when a large diff has no security-sensitive file and its stat is empty', () => {
+  const built = bigDiffRepo(
+    'sec-aud-emptystat-',
+    (realGit) =>
+      `#!/usr/bin/env bash\nfor a in "$@"; do case "$a" in --stat) exit 0;; esac; done\nexec "${realGit}" "$@"\n`,
+  )
+  const r = runHookAndCleanup(built)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /nothing to audit/)
+})

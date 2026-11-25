@@ -463,6 +463,24 @@ test('blocks a write carrying no recognised path field while the gate is armed',
   }
 })
 
+test('blocks a write whose path field is a non-string while the gate is armed', () => {
+  const dir = makeDir()
+  try {
+    arm(dir)
+    const r = runHook(
+      JSON.stringify({
+        tool_name: 'Edit',
+        tool_input: { file_path: [path.join(dir, 'apps/web/x.ts')] },
+      }),
+      dir,
+    )
+    assert.equal(r.status, 2)
+    assert.match(r.stderr, /no recognised path field/)
+  } finally {
+    cleanup(dir)
+  }
+})
+
 // --- `.test.` exemption matches the in-checkout basename only ---
 
 test('blocks a production edit under a checkout directory whose own name contains .test.', () => {

@@ -29,7 +29,8 @@
         "blocks an armed edit of apps/web/lib/x.mutations.json, outside any .claude/hooks directory",
         "blocks an armed edit of .claude/x.testkit.mjs, outside any .claude/hooks directory",
         "blocks an armed edit of .claude/hooks-extra/x.testkit.mjs, outside any .claude/hooks directory",
-        "blocks an armed .testkit.mjs edit outside .claude/hooks inside a worktree"
+        "blocks an armed .testkit.mjs edit outside .claude/hooks inside a worktree",
+        "blocks a write whose path field is a non-string while the gate is armed"
       ],
       "note": "Forces the block helper to exit 0 instead of 2 — the reason is printed but the edit is no longer blocked."
     },
@@ -188,9 +189,12 @@
     },
     {
       "id": "review-gate-empty-path-allowed",
-      "find": "  if (!rawPath) block('write with no recognised path field, after a review round.')\n",
-      "replace": "",
-      "expectRed": ["blocks a write carrying no recognised path field while the gate is armed"],
+      "find": "  if (typeof rawPath !== 'string' || !rawPath) {\n",
+      "replace": "  if (false) {\n",
+      "expectRed": [
+        "blocks a write carrying no recognised path field while the gate is armed",
+        "blocks a write whose path field is a non-string while the gate is armed"
+      ],
       "note": "Drops the unknown-path-field block — `path.resolve('')` then yields the cwd, which does not start with REPO_ROOT + sep, so the write is allowed."
     },
     {
@@ -231,6 +235,13 @@
         "blocks an armed edit of .claude/hooks-extra/x.testkit.mjs, outside any .claude/hooks directory"
       ],
       "note": "Drops the trailing separator, so a sibling directory sharing the prefix — `.claude/hooks-extra/` — matches as if it were inside `.claude/hooks/`."
+    },
+    {
+      "id": "review-gate-nonstring-path-allowed",
+      "find": "  if (typeof rawPath !== 'string' || !rawPath) {\n",
+      "replace": "  if (!rawPath) {\n",
+      "expectRed": ["blocks a write whose path field is a non-string while the gate is armed"],
+      "note": "Restores the falsy-only condition. A non-string path field is truthy, so it reaches `path.resolve`, throws ERR_INVALID_ARG_TYPE, and the hook exits 1 — non-blocking for PreToolUse, so the production write lands while the gate is armed."
     }
   ]
 }

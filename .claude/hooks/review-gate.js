@@ -122,7 +122,13 @@ function onEdit(rawPath) {
   // Fail closed on a path field this hook does not recognise. NotebookEdit's `tool_input` path key
   // is undocumented, so a future write tool can reach here with neither field set; `path.resolve('')`
   // would otherwise resolve to the cwd and allow the write. A real Edit/Write always carries one.
-  if (!rawPath) block('write with no recognised path field, after a review round.')
+  // The `typeof` half is load-bearing: the reader uses `||`, which yields the first TRUTHY value of
+  // any type, so an array or object reaches `path.resolve` and throws ERR_INVALID_ARG_TYPE. That
+  // exits 1, which PreToolUse treats as a non-blocking error — the write would land. guard-bash.js
+  // refuses the same non-string class; the two must not disagree.
+  if (typeof rawPath !== 'string' || !rawPath) {
+    block('write with no recognised path field, after a review round.')
+  }
 
   // Collapse `..` segments so an exempt substring cannot mask a production target.
   const filePath = path.resolve(rawPath)
