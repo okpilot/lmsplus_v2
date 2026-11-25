@@ -11,6 +11,10 @@ export function RosterSearch({ value }: Readonly<{ value: string }>) {
   const { searchDraft, clearRoster } = useSittingUi()
   const [text, setText] = useState(value)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // The timeout below closes over the render that queued it, while the URL write lands later, so it
+  // reads the live prop through this ref instead of a stale `value`.
+  const latest = useRef(value)
+  latest.current = value
   useEffect(() => {
     if (timer.current) return
     setText((prev) => (prev.trim() === value ? prev : value))
@@ -30,6 +34,12 @@ export function RosterSearch({ value }: Readonly<{ value: string }>) {
     timer.current = setTimeout(() => {
       timer.current = null
       if (searchDraft && searchDraft.current === null) return
+      // Unchanged query: the roster does not move, so the ticks stay. Nothing wrote the URL, so
+      // the re-sync effect will not run to clear the draft either.
+      if (v.trim() === latest.current) {
+        if (searchDraft) searchDraft.current = null
+        return
+      }
       clearRoster()
       update({ q: v.trim() || null, page: null })
     }, 300)

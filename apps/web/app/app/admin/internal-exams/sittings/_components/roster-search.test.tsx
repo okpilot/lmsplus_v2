@@ -119,6 +119,48 @@ describe('RosterSearch', () => {
     expect(mockReplace.mock.calls[0]?.[0] as string).toContain('q=jon')
   })
 
+  it('a debounce that resolves to the unchanged query keeps the ticks and writes nothing', () => {
+    render(
+      <SittingUiProvider>
+        <TickProbe />
+        <RosterSearch value="ann" />
+      </SittingUiProvider>,
+    )
+    const box = screen.getByLabelText(LABEL)
+    fireEvent.change(box, { target: { value: 'annx' } })
+    fireEvent.change(box, { target: { value: 'ann' } })
+    act(() => screen.getByText(/^ticks:/).click())
+    expect(screen.getByText('ticks:1')).toBeInTheDocument()
+    act(() => vi.advanceTimersByTime(300))
+    expect(screen.getByText('ticks:1')).toBeInTheDocument()
+    expect(mockReplace).not.toHaveBeenCalled()
+  })
+
+  it('a changed query still clears the ticks', () => {
+    render(withTick)
+    fireEvent.change(screen.getByLabelText(LABEL), { target: { value: 'bea' } })
+    act(() => screen.getByText(/^ticks:/).click())
+    expect(screen.getByText('ticks:1')).toBeInTheDocument()
+    act(() => vi.advanceTimersByTime(300))
+    expect(screen.getByText('ticks:0')).toBeInTheDocument()
+    expect(mockReplace).toHaveBeenCalledTimes(1)
+  })
+
+  it('writes a deletion even while an earlier write is still pending (live value, not the closure)', () => {
+    const { rerender } = render(<RosterSearch value="" />)
+    const box = screen.getByLabelText(LABEL)
+    fireEvent.change(box, { target: { value: 'a' } })
+    vi.advanceTimersByTime(300)
+    expect(mockReplace).toHaveBeenCalledTimes(1)
+    // The URL write landed, so the prop catches up.
+    rerender(<RosterSearch value="a" />)
+    fireEvent.change(box, { target: { value: 'ax' } })
+    fireEvent.change(box, { target: { value: '' } })
+    vi.advanceTimersByTime(300)
+    expect(mockReplace).toHaveBeenCalledTimes(2)
+    expect(mockReplace.mock.calls[1]?.[0] as string).not.toContain('q=')
+  })
+
   it('Show change before the debounce fires writes one URL with show and q', () => {
     render(
       <SittingUiProvider>

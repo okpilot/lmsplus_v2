@@ -103,7 +103,7 @@ met, same commit. Verify redundancy, never infer from the resolved version:
 ## Critical rules (full details in linked docs)
 - page.tsx: composition only, no logic
 - Reads: Server Components (R1); client-initiated reads via a GET Route Handler per `docs/security.md` § Route Handler reads, never a Server Action (R2); existing Server Action reads (first: #1527) migrate when next reworked; editing one does not require migrating it. No `useEffect` data fetching (R4)
-- No hard DELETE — always soft delete (`deleted_at`)
+- No hard DELETE — always soft delete (`deleted_at`), except the hard-delete-by-design tables derived in `docs/database.md` §3
 - No `any` type — use `unknown` with narrowing
 - All mutations via Server Actions only (R3)
 - Before adding a cache, TTL, timeout, retry or module-level store, cite in the PR body the Next/React/Supabase doc page that lacks the behaviour (R6)
@@ -116,7 +116,7 @@ met, same commit. Verify redundancy, never infer from the resolved version:
 ### Security — hard stops
 - **NEVER** `SELECT *` from `questions` for students — use `get_quiz_questions()` RPC only
 - **NEVER** prefix service role key with `NEXT_PUBLIC_` — lives in `packages/db/src/admin.ts` only
-- **NEVER** hard DELETE — always `UPDATE SET deleted_at = now()`
+- **NEVER** hard DELETE — always `UPDATE SET deleted_at = now()`, except the hard-delete-by-design tables derived in `docs/database.md` §3
 - **NEVER** UPDATE/DELETE `audit_events`, `student_responses`, `quiz_session_answers` — immutable
 - **NEVER** commit `.env*` files — `.gitignore` ignores them (except `.env.example`); no pre-commit hook scans for secrets
 - **NEVER** trust client input — Zod on every Server Action input (`safeParse`, or `.parse()` in try/catch) and Route Handler body/query/path param (`safeParse`, 400 on failure) before use

@@ -15,8 +15,9 @@ BEGIN
   SELECT * INTO v_g FROM private.sitting_admin_guard();
   IF char_length(v_reason) < 1 OR char_length(v_reason) > 500 THEN RAISE EXCEPTION 'invalid_input'; END IF;
   -- The column also carries the system tokens; three readers key on 'sitting_cancelled'
-  -- (mig 20261117001000, 20261117001100, 20261117001200), so free text must never equal one.
-  -- Mirrored by RESERVED_VOID_REASONS in packages/db/src/schema.ts.
+  -- (mig 20261117001000, 20261117001100, 20261117001200), so free text through THIS path must not
+  -- equal one. Mirrored by RESERVED_VOID_REASONS in packages/db/src/schema.ts. The legacy
+  -- void_internal_exam_code still accepts any reason for a sitting code: #1820.
   IF v_reason IN ('sitting_closed','sitting_cancelled','entry_removed','reissued_after_expiry','passed_elsewhere')
     THEN RAISE EXCEPTION 'invalid_input'; END IF;
   PERFORM private.sitting_lock(v_g.org_id, p_sitting_id, true);

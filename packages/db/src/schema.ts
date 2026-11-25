@@ -233,7 +233,8 @@ export const IssueSittingCodesSchema = z.object({
 
 /**
  * Tokens the sitting RPCs themselves write to `internal_exam_codes.void_reason`; three readers key
- * on `sitting_cancelled`, so an admin's free text must never equal one.
+ * on `sitting_cancelled`, so free text reaching that column through `void_sitting_code` must not
+ * equal one. The legacy `void_internal_exam_code` path is not yet guarded: #1820.
  * Derive: grep -rhno "void_reason = '[a-z_]*'" supabase/migrations/*.sql, plus the
  * `private.void_unused_sitting_codes` call sites. Mirrored in the RPC's own check (mig 20261118000300).
  */
