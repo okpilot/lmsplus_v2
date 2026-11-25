@@ -110,7 +110,8 @@ lmsplusv2/
   - `commit-msg`: the stage's command list is DATA in `.claude/pipeline.json`, same as pre-commit
     above. Read it there — this line used to enumerate the gates and went stale the first time one
     was added. What they enforce, rather than which commands run, is that an existing
-    `docs/decisions.md` line is never edited except to append a marker (Decision 86).
+    `docs/decisions.md` line is never edited except to append a marker (Decision 86), and that a
+    commit is refused while the review-gate lock is set.
   - `pre-push` (parallel): security-auditor agent + `pnpm audit --audit-level=high`
 
 ## Deployment & Distribution
