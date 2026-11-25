@@ -22,3 +22,20 @@ export function sittingCodeVoidable(input: VoidPolicyInput): boolean {
   if (input.sittingEntryId === null) return true
   return input.consumed && input.sessionVisible && input.sessionEndedAt === null
 }
+
+/** The codes list reads with the service role, so a soft-deleted session is visible to it alone. */
+export function codeRowVoidable(
+  row: Readonly<{
+    sittingEntryId: string | null
+    status: string
+    sessionEndedAt: string | null
+    sessionDeletedAt: string | null
+  }>,
+): boolean {
+  return sittingCodeVoidable({
+    sittingEntryId: row.sittingEntryId,
+    consumed: row.status === 'consumed',
+    sessionEndedAt: row.sessionEndedAt,
+    sessionVisible: row.sessionDeletedAt === null,
+  })
+}

@@ -29,7 +29,7 @@
 ## 34 — 2026-04-04 — All paginated lists use server-side `.range()` pagination with URL-driven, server-side sort/filter; client-side sort/filter on a paginated subset is disallowed. #472
 ## 35 — 2026-04-27 — An expired zero-answer Practice Exam session completes via `complete_empty_exam_session` (0%, FAIL) and redirects to the report page, falling back to discard only if that RPC fails. #523 Superseded by 124.
 ## 36 — 2026-04-27 — `getActiveExamSession` reads the frozen `question_ids` from `quiz_sessions.config` server-side so `ResumeExamBanner` can rehydrate a cold-started resume with real IDs. #523
-## 37 — 2026-04-29 — Internal Exam Mode ships as admin-issued single-use 8-character codes (Crockford alphabet, 24h expiry, plaintext storage), with dedicated start/void RPCs and no discard or flagging during the exam. #576 Amended by 243.
+## 37 — 2026-04-29 — Internal Exam Mode ships as admin-issued single-use 8-character codes (Crockford alphabet, 24h expiry, plaintext storage), with dedicated start/void RPCs and no discard or flagging during the exam. #576 Amended by 243. Amended by 265.
 ## 38 — 2026-04-30 — Every Playwright spec that mutates shared seed data must restore it in `afterEach`/`afterAll`, codified as E2E Spec Hermiticity with a required marker/cleanup-helper shape. #594
 ## 39 — 2026-06-06 — A GDPR export sub-read failure appends a machine-readable `warnings` field to the payload instead of silently returning an incomplete export or hard-failing. #783
 ## 40 — 2026-06-08 — Adopt Socket.dev (GitHub App) for behavioral supply-chain detection and remove the redundant Snyk integration; `pnpm audit`/Dependabot/CodeQL remain the CVE layer. #805
@@ -257,3 +257,4 @@
 ## 262 — 2026-11-18 — Sitting popups Add people, Add exams and Issue codes are URL-driven Server Components (`?dlg=people|exams|issue`); the selection is validated `ids` (<=100) or `all=1`; no Route Handler or Server Action read (alternative to decision 144's GET handler). #1777
 ## 263 — 2026-11-18 — Internal Exams opens on the Sittings tab (`parseTab` default); legacy deep links to Codes need `?tab=codes`. #1777
 ## 264 — 2026-11-25 — Sitting codes (`internal_exam_codes.sitting_entry_id` set) are voided from their sitting, not the admin codes tab; the exception is a consumed code whose attempt is still running, which `void_sitting_code` refuses (`code_in_use`) and the codes tab keeps. #1777
+## 265 — 2026-11-25 — The Internal Exams codes tab no longer issues codes (`issue-code.ts` and `issue-code-form.tsx` removed); codes are issued from a sitting, and emailing a sitting code from the codes tab is refused until #1812. #1777

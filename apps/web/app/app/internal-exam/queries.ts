@@ -1,7 +1,7 @@
 import { createServerSupabaseClient } from '@repo/db/server'
-import type { SittingStatus } from '@/app/app/admin/internal-exams/sittings/types'
 import { getSessionUser } from '@/lib/auth/get-session-user'
 import type { SittingMode } from '@/lib/utils/sitting-mode-label'
+import { isSittingStatus, type SittingStatus } from '@/lib/utils/sitting-status'
 
 // SECURITY: code values are NEVER returned from this query. Admin distributes
 // codes out-of-band; student types via the redemption modal. Shape omits `code`.
@@ -41,15 +41,8 @@ function asNullableString(v: unknown): string | null {
   return typeof v === 'string' ? v : null
 }
 
-const SITTING_STATUSES: ReadonlySet<unknown> = new Set<SittingStatus>([
-  'scheduled',
-  'open',
-  'closed',
-  'cancelled',
-])
-
 function asSittingStatus(v: unknown): SittingStatus {
-  if (SITTING_STATUSES.has(v)) return v as SittingStatus
+  if (isSittingStatus(v)) return v
   // Falling back to `cancelled` disables Start, which is the safe side but hides a schema change.
   console.error('[listAvailableInternalExams] unknown sitting status:', v)
   return 'cancelled'
@@ -95,8 +88,9 @@ function asNullableBoolean(v: unknown): boolean | null {
 }
 
 /**
- * Returns the current student's unconsumed, unvoided, unexpired internal-exam
- * codes via the SECURITY DEFINER RPC list_my_active_internal_exam_codes.
+ * Returns the current student's unconsumed, unvoided internal-exam codes via the SECURITY
+ * DEFINER RPC list_my_active_internal_exam_codes. A sitting code stays listed while its sitting
+ * is scheduled, past `expires_at`, so the student can see the exam before it opens.
  * NEVER returns the code value itself — that is a privileged secret the admin
  * gives to the student out-of-band.
  */

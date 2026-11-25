@@ -5,7 +5,7 @@ import { StatusText } from '@/components/kit/status-text'
 import { Button } from '@/components/ui/button'
 import { TableCell, TableRow } from '@/components/ui/table'
 import { formatUtc } from '@/lib/utils/format-utc'
-import { sittingCodeVoidable } from '../_void-policy'
+import { codeRowVoidable } from '../_void-policy'
 import { SITTING_BASE } from '../sittings/types'
 import type { InternalExamCodeRow } from '../types'
 import { statusLabel } from './code-status-items'
@@ -76,14 +76,7 @@ export function CodeRow({
         )}
       </TableCell>
       <TableCell>
-        {sittingCodeVoidable({
-          sittingEntryId: r.sittingEntryId,
-          consumed: r.status === 'consumed',
-          sessionEndedAt: r.sessionEndedAt,
-          // The list reads with the service role and so sees a soft-deleted session; the guard
-          // reads through RLS and does not. Derive it here so both reach the same verdict.
-          sessionVisible: r.sessionDeletedAt === null,
-        }) && (
+        {codeRowVoidable(r) && (
           <Button
             variant="outline"
             size="sm"

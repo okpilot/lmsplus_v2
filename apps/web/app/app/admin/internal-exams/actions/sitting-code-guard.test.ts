@@ -47,6 +47,21 @@ describe('checkSittingCode', () => {
     })
   })
 
+  it('names the finished attempt rather than the sitting once the attempt has ended', async () => {
+    mockMaybeSingle.mockResolvedValue({
+      data: {
+        sitting_entry_id: 'e1',
+        consumed_at: '2026-11-25T10:00:00Z',
+        quiz_sessions: { ended_at: '2026-11-25T11:00:00Z' },
+      },
+      error: null,
+    })
+    expect(await checkSittingCode(supabase, 'c1')).toEqual({
+      ok: false,
+      error: 'Cannot void a finished attempt — record is final',
+    })
+  })
+
   it('allows a sitting code whose attempt is running', async () => {
     mockMaybeSingle.mockResolvedValue({
       data: {

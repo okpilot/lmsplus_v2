@@ -28,9 +28,13 @@ function formatRelative(iso: string, now: Date = new Date()): string {
 type SittingInfo = NonNullable<AvailableInternalExam['sitting']>
 
 function SittingCaption({ sitting }: Readonly<{ sitting: SittingInfo }>) {
+  // `mapSitting` maps a non-string scheduled_at to '', which formatUtc renders "Invalid Date".
+  const when = sitting.scheduledAt
+    ? formatUtc(sitting.scheduledAt, { dateStyle: 'medium', timeStyle: 'short' })
+    : null
   return (
     <p className="mt-1 text-caption text-muted-foreground">
-      {formatUtc(sitting.scheduledAt, { dateStyle: 'medium', timeStyle: 'short' })} ·{' '}
+      {when ? `${when} · ` : ''}
       {sittingModeLabel(sitting.mode)}
     </p>
   )

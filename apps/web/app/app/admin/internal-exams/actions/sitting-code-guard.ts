@@ -32,6 +32,13 @@ export async function checkSittingCode(
     // so a null embed means the row is hidden from this caller, not that there is none.
     sessionVisible: data.quiz_sessions !== null,
   })
-  if (!voidable) return { ok: false, error: 'Void sitting codes from their sitting' }
+  if (!voidable) {
+    // A finished attempt is final everywhere, so naming the sitting would send the admin to a page
+    // whose Void action exists only for a waiting or ready entry. The legacy RPC said this itself.
+    if (data.consumed_at !== null && data.quiz_sessions?.ended_at) {
+      return { ok: false, error: 'Cannot void a finished attempt — record is final' }
+    }
+    return { ok: false, error: 'Void sitting codes from their sitting' }
+  }
   return { ok: true }
 }

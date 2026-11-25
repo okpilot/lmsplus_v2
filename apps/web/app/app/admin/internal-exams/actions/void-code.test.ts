@@ -128,7 +128,11 @@ describe('voidInternalExamCode', () => {
 
       const result = await voidInternalExamCode(VALID_INPUT)
 
-      expect(result).toEqual({ success: false, error: 'Void sitting codes from their sitting' })
+      // Not "void it from the sitting": the sitting offers Void only for a waiting or ready entry.
+      expect(result).toEqual({
+        success: false,
+        error: 'Cannot void a finished attempt — record is final',
+      })
       expect(mockRpc).not.toHaveBeenCalled()
     })
 
