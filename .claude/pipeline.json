@@ -57,6 +57,7 @@
 
   "hooks": {
     "pre-commit": [
+      "review-gate-lock",
       "biome-check",
       "file-size-guard",
       "prose-paths",
@@ -65,7 +66,7 @@
       "design-tokens-guard",
       "type-check"
     ],
-    "commit-msg": ["commitlint", "decisions-ledger"],
+    "commit-msg": ["review-gate-lock", "commitlint", "decisions-ledger"],
     "pre-push": ["audit", "security-auditor"]
   },
 
@@ -172,8 +173,13 @@
         ".claude/hooks/run-security-auditor.controls.test.mjs",
         ".claude/hooks/run-security-auditor.config.test.mjs",
         ".claude/hooks/run-security-auditor.prompt-config.test.mjs",
-        ".claude/hooks/run-security-auditor.notimeout.test.mjs"
+        ".claude/hooks/run-security-auditor.notimeout.test.mjs",
+        ".claude/hooks/run-security-auditor.diff-fail.test.mjs"
       ]
+    },
+    ".claude/hooks/check-review-gate-lock.mjs": {
+      "base": "check-review-gate-lock",
+      "suites": [".claude/hooks/check-review-gate-lock.test.mjs"]
     },
     ".claude/hooks/run-mutations.mjs": {
       "exempt": "a grader, not a blocking guard"

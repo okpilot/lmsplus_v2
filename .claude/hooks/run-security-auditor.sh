@@ -36,9 +36,23 @@ if [ "${1:-}" = "--parse-verdict" ]; then
 fi
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-REMOTE_REF=$(git rev-parse --abbrev-ref @{upstream} 2>/dev/null || echo "origin/master")
-DIFF_FULL=$(git diff --no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ "$REMOTE_REF"...HEAD 2>/dev/null || git diff --no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ HEAD 2>/dev/null || echo "")
+REMOTE_REF=$(git rev-parse --abbrev-ref @{upstream} 2>/dev/null) || REMOTE_REF=origin/master
 
+# Branch on the diff's EXIT CODE, never on its emptiness: an empty diff is a genuine no-op only
+# when the diff SUCCEEDED. `/fullpush` step 5b states the same branch-on-exit-code rule.
+# A diff that cannot be computed means the push scope cannot be established — block before any LLM call.
+DIFF_RANGE="$REMOTE_REF...HEAD"
+UPSTREAM_RC=0
+DIFF_FULL=$(git diff --no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ "$REMOTE_REF"...HEAD 2>/dev/null) || UPSTREAM_RC=$?
+
+if [ "$UPSTREAM_RC" -ne 0 ]; then
+  # `$REMOTE_REF` is unresolvable, or shares no merge base with HEAD.
+  echo "[security-auditor] no diff against '$REMOTE_REF' (exit $UPSTREAM_RC), so the" >&2
+  echo "  push scope cannot be established. Run 'git fetch origin'. BLOCKING." >&2
+  exit 1
+fi
+
+# The upstream diff SUCCEEDED: an empty result is a genuine no-op.
 if [ -z "$DIFF_FULL" ]; then
   echo "[security-auditor] No diff to audit. Skipping."
   exit 0
@@ -52,11 +66,18 @@ echo "[security-auditor] Auditing changes before push ($DIFF_LINES lines)..."
 # For large diffs, filter to security-sensitive files only
 if [ "$DIFF_LINES" -gt "$MAX_DIFF_LINES" ]; then
   echo "[security-auditor] Diff too large ($DIFF_LINES lines). Filtering to security-sensitive files..."
-  DIFF=$(git diff --no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ "$REMOTE_REF"...HEAD -- \
+  # Fail CLOSED on a failed filter diff. `|| echo ""` degraded it to the stat-only audit, which is
+  # the same fail-open as an empty stat: the push proceeds on a prompt that carries nothing.
+  FILTER_RC=0
+  DIFF=$(git diff --no-textconv --no-ext-diff --no-color --src-prefix=a/ --dst-prefix=b/ "$DIFF_RANGE" -- \
     '*.env*' '**/migrations/**' '**/admin.*' '**/auth/**' \
     '**/middleware.*' '**/proxy.*' '**/actions.*' '**/route.ts' \
     '**/server.ts' '**/*schema*' '**/*security*' '**/next.config.*' \
-    '**/*.sql' '**/fsrs.*' '**/.env*' 2>/dev/null || echo "")
+    '**/*.sql' '**/fsrs.*' '**/.env*' 2>/dev/null) || FILTER_RC=$?
+  if [ "$FILTER_RC" -ne 0 ]; then
+    echo "[security-auditor] filtering '$DIFF_RANGE' to security-sensitive files failed (exit $FILTER_RC) — BLOCKING." >&2
+    exit 1
+  fi
 
   # If filtered diff is still too large, truncate
   FILTERED_LINES=$(printf '%s' "$DIFF" | wc -l)
@@ -72,7 +93,19 @@ if [ "$DIFF_LINES" -gt "$MAX_DIFF_LINES" ]; then
 
   if [ -z "$DIFF" ]; then
     echo "[security-auditor] No security-sensitive files changed. Running stat-only audit..."
-    DIFF=$(git diff --no-textconv --no-ext-diff --no-color "$REMOTE_REF"...HEAD --stat 2>/dev/null || echo "No changes")
+    STAT_RC=0
+    DIFF=$(git diff --no-textconv --no-ext-diff --no-color "$DIFF_RANGE" --stat 2>/dev/null) || STAT_RC=$?
+    # Fail CLOSED. `|| echo "No changes"` handed the LLM a prompt with no diff in it and let it
+    # approve the push: an audit of nothing, reported as an audit.
+    if [ "$STAT_RC" -ne 0 ]; then
+      echo "[security-auditor] stat of '$DIFF_RANGE' failed (exit $STAT_RC) — BLOCKING." >&2
+      exit 1
+    fi
+    if [ -z "$DIFF" ]; then
+      echo "[security-auditor] '$DIFF_RANGE' filtered to no security-sensitive file and its stat is" >&2
+      echo "  empty, so there is nothing to audit for a diff of $DIFF_LINES lines. BLOCKING." >&2
+      exit 1
+    fi
   fi
 else
   DIFF="$DIFF_FULL"

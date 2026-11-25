@@ -28,80 +28,74 @@ import {
   TIMEOUT_SHIM,
 } from './run-security-auditor.testkit.mjs'
 
-/** The default uncommitted change — no secret, no `.env`, no `SELECT *`, no `adminClient`. */
-const DEFAULT_DIRTY_CONTENT = 'base\nchanged\n'
+/** The default committed change — no secret, no `.env`, no `SELECT *`, no `adminClient`. */
+const DEFAULT_COMMITTED_CONTENT = 'base\nchanged\n'
 
 /**
- * Build a throwaway git repo with a `claude` PATH shim running `shimBody`, committed once, then
- * an uncommitted change to `file.txt` holding `dirtyContent` — a non-empty `git diff HEAD`, the
- * no-upstream fallback diff the hook falls back to outside a real PR branch. Returns the repo's
- * directories; the caller is responsible for removing `scratch`.
+ * Build a repo with a real `origin` upstream so `@{upstream}` resolves, then a COMMITTED change on
+ * top — the hook's `"$REMOTE_REF"...HEAD` diff is a commit-to-commit comparison, not a
+ * working-tree one, so content must land in a real commit to be visible on it at all. Without an
+ * upstream the hook blocks before the LLM call, so every fixture here has one.
  *
- * @param {string} shimBody      a full shebang script written to the shim's `claude` executable
- * @param {string} dirtyContent  `file.txt`'s uncommitted content — what the hook's diff carries
+ * @param {string} prefix       `mkdtempSync` prefix
+ * @param {string} shimBody     a full shebang script written to the shim's `claude` executable
+ * @param {Record<string, string>} files  path -> content committed on top of the pushed base
+ * @param {boolean} [textconv]  also hide `secret.txt` behind a local, never-committed
+ *                              `diff.hide.textconv` driver, mirroring an attacker's own machine
  */
-function setupShimRepo(shimBody, dirtyContent) {
-  const { scratch, shimDir, repoDir } = initShimScratch('sec-aud-controls-', shimBody)
-  commitInit(gitFactory(repoDir))
-  writeFileSync(join(repoDir, 'file.txt'), dirtyContent)
-  return { scratch, shimDir, repoDir }
-}
-
-/**
- * Spawn the real hook inside a fresh shim repo, with no arguments.
- *
- * @param {string} shimBody      a full shebang script written to the shim's `claude` executable
- * @param {string} [dirtyContent]  `file.txt`'s uncommitted content — defaults to no secret/`.env`
- */
-function runHookWithShim(shimBody, dirtyContent = DEFAULT_DIRTY_CONTENT) {
-  return runHookAndCleanup(setupShimRepo(shimBody, dirtyContent))
-}
-
-/**
- * Build a repo where an uncommitted change to `secret.txt` is hidden from `git diff HEAD` by a
- * local `diff.hide.textconv` driver — a repo-local, never-committed config, mirroring an
- * attacker's own machine. `file.txt` also changes so the overall diff isn't emptied outright.
- *
- * @param {string} shimBody  a full shebang script written to the shim's `claude` executable
- */
-function setupTextconvDirtyShimRepo(shimBody) {
-  const { scratch, shimDir, repoDir } = initShimScratch('sec-aud-textconv-', shimBody)
-  writeFileSync(join(repoDir, '.gitattributes'), 'secret.txt diff=hide\n')
-  writeFileSync(join(repoDir, 'secret.txt'), 'base\n')
-  const git = gitFactory(repoDir)
-  commitInit(git)
-  git(['config', 'diff.hide.textconv', 'sh -c true'])
-  writeFileSync(join(repoDir, 'file.txt'), 'base\nchanged\n')
-  writeFileSync(join(repoDir, 'secret.txt'), 'sk_live_FAKE_TEST_KEY_1234567890\n')
-  return { scratch, shimDir, repoDir }
-}
-
-/**
- * Build a repo with a real `origin` upstream so `@{upstream}` resolves, then a COMMITTED leak
- * on top — the upstream `"$REMOTE_REF"...HEAD` diff is a commit-to-commit comparison, not a
- * working-tree one, so the secret must land in a real commit to be visible on that path at all.
- * The same local, never-committed `diff.hide.textconv` driver hides it.
- *
- * @param {string} shimBody  a full shebang script written to the shim's `claude` executable
- */
-function setupUpstreamShimRepo(shimBody) {
-  const { scratch, shimDir, repoDir } = initShimScratch('sec-aud-upstream-', shimBody)
+function buildUpstreamRepo(prefix, shimBody, files, textconv = false) {
+  const { scratch, shimDir, repoDir } = initShimScratch(prefix, shimBody)
   const remoteDir = join(scratch, 'remote.git')
   mkdirSync(remoteDir, { recursive: true })
-  writeFileSync(join(repoDir, '.gitattributes'), 'secret.txt diff=hide\n')
+  if (textconv) writeFileSync(join(repoDir, '.gitattributes'), 'secret.txt diff=hide\n')
   spawnSync('git', ['init', '-q', '--bare'], { cwd: remoteDir, timeout: TIMEOUT_MS })
   const git = gitFactory(repoDir)
   commitInit(git)
   git(['remote', 'add', 'origin', remoteDir])
   const branch = git(['branch', '--show-current']).stdout.trim()
   git(['push', '-q', '-u', 'origin', branch])
-  git(['config', 'diff.hide.textconv', 'sh -c true'])
-  writeFileSync(join(repoDir, 'file.txt'), 'base\nchanged\n')
-  writeFileSync(join(repoDir, 'secret.txt'), 'sk_live_FAKE_TEST_KEY_1234567890\n')
+  if (textconv) git(['config', 'diff.hide.textconv', 'sh -c true'])
+  for (const [name, content] of Object.entries(files)) writeFileSync(join(repoDir, name), content)
   git(['add', '-A'])
   git(['commit', '-qm', 'leak'])
   const upstreamRef = git(['rev-parse', '--abbrev-ref', '@{upstream}']).stdout.trim()
   return { scratch, shimDir, repoDir, upstreamRef }
+}
+
+/**
+ * An upstream repo whose committed change to `file.txt` holds `committedContent`.
+ *
+ * @param {string} shimBody      a full shebang script written to the shim's `claude` executable
+ * @param {string} committedContent  `file.txt`'s committed content — what the hook's diff carries
+ */
+function setupShimRepo(shimBody, committedContent) {
+  return buildUpstreamRepo('sec-aud-controls-', shimBody, { 'file.txt': committedContent })
+}
+
+/**
+ * Spawn the real hook inside a fresh upstream repo, with no arguments.
+ *
+ * @param {string} shimBody      a full shebang script written to the shim's `claude` executable
+ * @param {string} [committedContent]  `file.txt`'s committed content — defaults to no secret/`.env`
+ */
+function runHookWithShim(shimBody, committedContent = DEFAULT_COMMITTED_CONTENT) {
+  return runHookAndCleanup(setupShimRepo(shimBody, committedContent))
+}
+
+/**
+ * Build an upstream repo where a COMMITTED `secret.txt` is hidden from the `"$REMOTE_REF"...HEAD`
+ * diff by a local `diff.hide.textconv` driver. `file.txt` also changes so the overall diff isn't
+ * emptied outright.
+ *
+ * @param {string} shimBody  a full shebang script written to the shim's `claude` executable
+ */
+function setupUpstreamShimRepo(shimBody) {
+  return buildUpstreamRepo(
+    'sec-aud-upstream-',
+    shimBody,
+    { 'file.txt': 'base\nchanged\n', 'secret.txt': 'sk_live_FAKE_TEST_KEY_1234567890\n' },
+    true,
+  )
 }
 
 /**
@@ -159,7 +153,7 @@ exit 3
 // An added line matching the fallback scan's secret pattern
 // (`eyJ|sk_live_|service_role|-----BEGIN`) — routes the diagnostic scan to "Found N issue(s)"
 // instead of falling through to fail_closed_no_llm_output.
-const SECRET_DIRTY_CONTENT = 'base\nsk_live_FAKE_TEST_KEY_1234567890\n'
+const SECRET_COMMITTED_CONTENT = 'base\nsk_live_FAKE_TEST_KEY_1234567890\n'
 
 // A validating shim: reads the prompt piped to it via stdin (the security-auditor.md prefix
 // + the DIFF being pushed) and only returns APPROVED when the diff section contains the
@@ -206,7 +200,7 @@ test('fails closed when the CLI fails and the diagnostic scan finds nothing', ()
 // MUTATION: forcing the timeout branch's "Found N issue(s)" `exit 1` to `exit 0` turns a
 // timed-out CLI run with a secret in the diff into an approved push.
 test('blocks the push via the fallback scan when the CLI times out and a secret is in the diff', () => {
-  const r = runHookWithShim(TIMEOUT_SHIM, SECRET_DIRTY_CONTENT)
+  const r = runHookWithShim(TIMEOUT_SHIM, SECRET_COMMITTED_CONTENT)
   assert.notEqual(r.status, 0)
   assert.match(r.stdout, /Found \d+ issue\(s\) in fallback scan/)
 })
@@ -216,7 +210,7 @@ test('blocks the push via the fallback scan when the CLI times out and a secret 
 // MUTATION: dropping the exit-137 test from the timeout branch routes a CLI that `timeout -k` had
 // to SIGKILL into the CLI-failure branch, which never prints "Timed out".
 test('reports a timeout when the CLI is killed after the grace period', () => {
-  const r = runHookWithShim(KILL_AFTER_TIMEOUT_SHIM, SECRET_DIRTY_CONTENT)
+  const r = runHookWithShim(KILL_AFTER_TIMEOUT_SHIM, SECRET_COMMITTED_CONTENT)
   assert.notEqual(r.status, 0)
   assert.match(r.stdout, /Timed out after/)
 })
@@ -225,7 +219,7 @@ test('reports a timeout when the CLI is killed after the grace period', () => {
 // MUTATION: dropping `-k 10` from the `timeout` call reaches this `timeout` shim without `-k`, so it
 // exits 3 instead of 124 and the hook never prints "Timed out".
 test('passes a kill-after grace period to timeout', () => {
-  const built = setupShimRepo(APPROVED_SHIM, DEFAULT_DIRTY_CONTENT)
+  const built = setupShimRepo(APPROVED_SHIM, DEFAULT_COMMITTED_CONTENT)
   writeFileSync(join(built.shimDir, 'timeout'), KILL_AFTER_CHECKING_TIMEOUT)
   chmodSync(join(built.shimDir, 'timeout'), 0o755)
   const r = runHookAndCleanup(built)
@@ -238,19 +232,7 @@ test('passes a kill-after grace period to timeout', () => {
 // MUTATION: forcing the CLI-failure branch's "Found N issue(s)" `exit 1` to `exit 0` turns a
 // failed CLI run with a secret in the diff into an approved push.
 test('blocks the push via the fallback scan when the CLI fails and a secret is in the diff', () => {
-  const r = runHookWithShim(CLI_FAILURE_SHIM, SECRET_DIRTY_CONTENT)
-  assert.notEqual(r.status, 0)
-  assert.match(r.stdout, /Found \d+ issue\(s\) in fallback scan/)
-})
-
-// CONTROL: red
-// GROUP: run-security-auditor-always-passes, run-security-auditor-textconv-fallback
-// MUTATION: dropping --no-textconv from the no-upstream `git diff HEAD` fallback call lets a
-// local textconv driver empty a leaking file's diff, hiding its secret from the fallback scan.
-test('fallback scan still finds a secret a textconv driver hides on the no-upstream diff', () => {
-  const built = setupTextconvDirtyShimRepo(TIMEOUT_SHIM)
-  assertTextconvDriverActive(built.repoDir, ['HEAD'])
-  const r = runHookAndCleanup(built)
+  const r = runHookWithShim(CLI_FAILURE_SHIM, SECRET_COMMITTED_CONTENT)
   assert.notEqual(r.status, 0)
   assert.match(r.stdout, /Found \d+ issue\(s\) in fallback scan/)
 })
@@ -268,18 +250,19 @@ test('fallback scan still finds a secret a textconv driver hides on the upstream
 })
 
 // CONTROL: red
-// GROUP: run-security-auditor-always-passes, run-security-auditor-extdiff-fallback
-// MUTATION: dropping --no-ext-diff from the no-upstream `git diff HEAD` fallback call lets
-// GIT_EXTERNAL_DIFF hide every added line from the fallback scan.
-test('fallback scan still finds a secret GIT_EXTERNAL_DIFF hides on the no-upstream diff', () => {
-  const built = setupShimRepo(TIMEOUT_SHIM, SECRET_DIRTY_CONTENT)
+// GROUP: run-security-auditor-always-passes, run-security-auditor-extdiff-upstream
+// MUTATION: dropping --no-ext-diff from the "$REMOTE_REF"...HEAD diff call lets GIT_EXTERNAL_DIFF
+// hide every added line from the fallback scan.
+test('fallback scan still finds a secret GIT_EXTERNAL_DIFF hides on the upstream diff', () => {
+  const built = setupShimRepo(TIMEOUT_SHIM, SECRET_COMMITTED_CONTENT)
   const extEnv = { ...process.env, GIT_EXTERNAL_DIFF: 'true' }
-  const hidden = spawnSync('git', ['diff', 'HEAD'], {
+  const range = `${built.upstreamRef}...HEAD`
+  const hidden = spawnSync('git', ['diff', range], {
     cwd: built.repoDir,
     encoding: 'utf8',
     env: extEnv,
   })
-  const shown = spawnSync('git', ['diff', '--no-ext-diff', 'HEAD'], {
+  const shown = spawnSync('git', ['diff', '--no-ext-diff', range], {
     cwd: built.repoDir,
     encoding: 'utf8',
     env: extEnv,

@@ -16,7 +16,21 @@
         "blocks a production file whose path contains apps/web/e2e/ below another directory",
         "blocks a production edit in any worktree under .claude/worktrees while locked",
         "allows a root .coderabbit.yaml edit but blocks a nested one while armed",
-        "blocks an armed edit when the hook runs from an agent worktree copy"
+        "blocks an armed edit when the hook runs from an agent worktree copy",
+        "blocks an armed edit of the enforcement file .claude/hooks/review-gate.js",
+        "blocks an armed edit of the enforcement file .claude/settings.json",
+        "blocks an armed edit of the enforcement file .claude/pipeline.json",
+        "blocks an armed edit of the enforcement file .claude/hooks/gate-briefs.json",
+        "blocks a NotebookEdit of a production path while the gate is armed",
+        "blocks a write carrying no recognised path field while the gate is armed",
+        "blocks a production edit under a checkout directory whose own name contains .test.",
+        "blocks a production file inside a directory named like a test file (src/foo.test.d/prod.ts)",
+        "blocks an armed edit of packages/db/src/x.testkit.mjs, outside any .claude/hooks directory",
+        "blocks an armed edit of apps/web/lib/x.mutations.json, outside any .claude/hooks directory",
+        "blocks an armed edit of .claude/x.testkit.mjs, outside any .claude/hooks directory",
+        "blocks an armed edit of .claude/hooks-extra/x.testkit.mjs, outside any .claude/hooks directory",
+        "blocks an armed .testkit.mjs edit outside .claude/hooks inside a worktree",
+        "blocks a write whose path field is a non-string while the gate is armed"
       ],
       "note": "Forces the block helper to exit 0 instead of 2 — the reason is printed but the edit is no longer blocked."
     },
@@ -70,15 +84,15 @@
     },
     {
       "id": "review-gate-e2e-always-blocks",
-      "find": "const EXEMPT_DIRS = ['.claude', 'docs', path.join('apps', 'web', 'e2e')]",
-      "replace": "const EXEMPT_DIRS = ['.claude', 'docs']",
+      "find": "  path.join('apps', 'web', 'e2e'),\n",
+      "replace": "",
       "expectRed": ["allows a spec.ts edit under apps/web/e2e/ even when the gate is armed"],
       "note": "Removes the apps/web/e2e/ allowance — a spec edit under apps/web/e2e/ is blocked again while the gate is armed, even though e2e-writer/red-team need to write there."
     },
     {
       "id": "review-gate-no-path-normalization",
-      "find": "  filePath = path.resolve(filePath)\n",
-      "replace": "",
+      "find": "  const filePath = path.resolve(rawPath)\n",
+      "replace": "  const filePath = rawPath\n",
       "expectRed": ["blocks a production target reached through an exempt directory via .."],
       "note": "Removes path normalization — the raw path still starts with the apps/web/e2e/ directory, so the exemption lets a production target through."
     },
@@ -87,21 +101,19 @@
       "find": "filePath.startsWith(path.resolve(root, dir) + path.sep)",
       "replace": "filePath.includes(path.sep + dir + path.sep)",
       "expectRed": [
-        "blocks a production file whose path contains apps/web/e2e/ below another directory",
-        "blocks a production edit in any worktree under .claude/worktrees while locked",
-        "blocks an armed edit when the hook runs from an agent worktree copy"
+        "blocks a production file whose path contains apps/web/e2e/ below another directory"
       ],
-      "note": "Matches an exempt directory anywhere in the path instead of under its checkout root — <root>/vendor/apps/web/e2e/x.ts, and any worktree file under .claude/, is let through."
+      "note": "Matches an exempt directory anywhere in the path instead of under its checkout root — <root>/vendor/apps/web/e2e/x.ts is let through. The worktree cases no longer depend on this anchoring: `.claude` is not an exempt directory any more, so `/.claude/rules/` never appears in a worktree production path."
     },
     {
       "id": "review-gate-worktrees-exempt",
       "find": "  if (!filePath.startsWith(WORKTREES_DIR)) return REPO_ROOT\n",
       "replace": "  return REPO_ROOT\n",
       "expectRed": [
-        "blocks a production edit in any worktree under .claude/worktrees while locked",
-        "blocks an armed edit when the hook runs from an agent worktree copy"
+        "allows a docs edit inside a .claude/worktrees/ checkout when the gate is armed",
+        "allows an armed edit of a .testkit.mjs or .mutations.json under a worktree own .claude/hooks"
       ],
-      "note": "Drops the worktree carve-out — a production file inside .claude/worktrees/ passes as an exempt .claude path."
+      "note": "Drops the worktree carve-out, so a worktree path resolves its exempt directories against the MAIN checkout root — the worktree's own docs/ no longer matches and is blocked. It no longer lets production files through: `.claude` stopped being exempt wholesale."
     },
     {
       "id": "review-gate-worktree-exempt-dirs-blocked",
@@ -160,6 +172,76 @@
       "replace": "return path.join(__dirname, '..')",
       "expectRed": ["sets the lock beside the hook when git cannot resolve the repo"],
       "note": "Without git, the root resolves to .claude/ — pipeline.json is not found and no dispatch sets the lock."
+    },
+    {
+      "id": "review-gate-claude-wholly-exempt",
+      "find": "  path.join('.claude', 'rules'),\n",
+      "replace": "  '.claude',\n",
+      "expectRed": [
+        "blocks an armed edit of the enforcement file .claude/hooks/review-gate.js",
+        "blocks an armed edit of the enforcement file .claude/settings.json",
+        "blocks an armed edit of the enforcement file .claude/pipeline.json",
+        "blocks an armed edit of the enforcement file .claude/hooks/gate-briefs.json",
+        "blocks an armed edit of .claude/x.testkit.mjs, outside any .claude/hooks directory",
+        "blocks an armed edit of .claude/hooks-extra/x.testkit.mjs, outside any .claude/hooks directory"
+      ],
+      "note": "Restores the blanket `.claude` exemption — a locked session can rewrite review-gate.js, settings.json, pipeline.json and gate-briefs.json, the policy it is being held to."
+    },
+    {
+      "id": "review-gate-empty-path-allowed",
+      "find": "  if (typeof rawPath !== 'string' || !rawPath) {\n",
+      "replace": "  if (false) {\n",
+      "expectRed": [
+        "blocks a write carrying no recognised path field while the gate is armed",
+        "blocks a write whose path field is a non-string while the gate is armed"
+      ],
+      "note": "Drops the unknown-path-field block — `path.resolve('')` then yields the cwd, which does not start with REPO_ROOT + sep, so the write is allowed."
+    },
+    {
+      "id": "review-gate-ignores-notebook-path",
+      "find": " || parsed?.tool_input?.notebook_path",
+      "replace": "",
+      "expectRed": ["blocks a NotebookEdit of a production path while the gate is armed"],
+      "note": "Reads only file_path — a NotebookEdit write reaches onEdit with an empty path."
+    },
+    {
+      "id": "review-gate-test-substring-absolute",
+      "find": "    path.basename(filePath).includes('.test.') ||\n",
+      "replace": "    filePath.includes('.test.') ||\n",
+      "expectRed": [
+        "blocks a production edit under a checkout directory whose own name contains .test.",
+        "blocks a production file inside a directory named like a test file (src/foo.test.d/prod.ts)"
+      ],
+      "note": "Matches `.test.` against the ABSOLUTE path again — a checkout directory whose name carries `.test.`, or any directory named like a test file, exempts every production file beneath it."
+    },
+    {
+      "id": "review-gate-hooks-suffixes-unscoped",
+      "find": "    (inHooksDir(filePath) && HOOKS_SUFFIXES.some((s) => filePath.endsWith(s)))\n",
+      "replace": "    HOOKS_SUFFIXES.some((s) => filePath.endsWith(s))\n",
+      "expectRed": [
+        "blocks an armed edit of packages/db/src/x.testkit.mjs, outside any .claude/hooks directory",
+        "blocks an armed edit of apps/web/lib/x.mutations.json, outside any .claude/hooks directory",
+        "blocks an armed edit of .claude/x.testkit.mjs, outside any .claude/hooks directory",
+        "blocks an armed edit of .claude/hooks-extra/x.testkit.mjs, outside any .claude/hooks directory",
+        "blocks an armed .testkit.mjs edit outside .claude/hooks inside a worktree"
+      ],
+      "note": "Drops the hooks-directory scope — a `.testkit.mjs` or `.mutations.json` anywhere in the repo passes the block again, so a production path renamed to either suffix is writable while a round is open."
+    },
+    {
+      "id": "review-gate-hooks-dir-prefix-no-sep",
+      "find": "  return filePath.startsWith(path.resolve(checkoutRoot(filePath), '.claude', 'hooks') + path.sep)\n",
+      "replace": "  return filePath.startsWith(path.resolve(checkoutRoot(filePath), '.claude', 'hooks'))\n",
+      "expectRed": [
+        "blocks an armed edit of .claude/hooks-extra/x.testkit.mjs, outside any .claude/hooks directory"
+      ],
+      "note": "Drops the trailing separator, so a sibling directory sharing the prefix — `.claude/hooks-extra/` — matches as if it were inside `.claude/hooks/`."
+    },
+    {
+      "id": "review-gate-nonstring-path-allowed",
+      "find": "  if (typeof rawPath !== 'string' || !rawPath) {\n",
+      "replace": "  if (!rawPath) {\n",
+      "expectRed": ["blocks a write whose path field is a non-string while the gate is armed"],
+      "note": "Restores the falsy-only condition. A non-string path field is truthy, so it reaches `path.resolve`, throws ERR_INVALID_ARG_TYPE, and the hook exits 1 — non-blocking for PreToolUse, so the production write lands while the gate is armed."
     }
   ]
 }

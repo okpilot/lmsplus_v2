@@ -36,7 +36,7 @@ State what is true. Delete the rest.
 7. Plan-critic → skip single-file <10 lines, except a fixup after a review round
 8. Approve
 8a. Tests first → test-author writes failing tests from the approved plan; EVIDENCE: the failing run. Skip only when the plan records `Tests first: SKIP — <reason>`.
-9. Execute → parallel subagents; the implementer never edits test-author's tests (`// GROUP:` markers excepted); commit freely, a commit triggers nothing
+9. Execute → parallel subagents; the implementer never edits test-author's tests (`// GROUP:` markers excepted); a commit triggers no review round, but while the review-gate lock is set the commit gate refuses it until plan-critic is dispatched
 10. Pre-push gate → ONE loop over the branch diff (§ Pre-push review gate)
 11. Fix → ONE pooled fixup commit per round → re-run → stop on first clean round
 12. Conditionals → red-team / coderabbit-sync if the branch diff triggers them
@@ -151,7 +151,7 @@ met, same commit. Verify redundancy, never infer from the resolved version:
 
 ## Pre-push review gate (MANDATORY)
 Load the `review-gate` skill before planning a multi-file change, dispatching any gate agent, triaging findings, or editing a rule or its mirrors.
-ONE loop per BRANCH over `git diff origin/master...HEAD`. A commit triggers NOTHING.
+ONE loop per BRANCH over `git diff origin/master...HEAD`. A commit triggers no review round.
 
 **Every round** — ONE parallel batch:
 - **code-review (skill)** (opus) — `subagent_type: code-review-skill`, `isolation: "worktree"`
@@ -175,9 +175,9 @@ plan-critic runs ONCE per plan, before user approval.
 ## QA pipeline
 Lefthook enforces mechanical gates (blocking). Command list is DATA in `.claude/pipeline.json` — do
 not enumerate it here (`.claude/pipeline.test.mjs` fails if it and `lefthook.yml` disagree).
-- **pre-commit:** mechanical guards only; the unit suite runs at `/fullpush` step 4, the integration tier only in CI.
-- **commit-msg:** conventional commit format; an existing `docs/decisions.md` line is never edited except to append a marker (Decision 86) — escape hatch: `Ledger-edit-ok: <N|header> — <reason>` trailer.
-- **pre-push:** security-auditor + dep audit — FAIL-CLOSED: LLM audit failure/timeout or no `timeout` on PATH or missing `run-security-auditor.sh` BLOCKS the push, no fallback approval.
+- **pre-commit:** mechanical guards. A commit is refused while the review-gate lock is set, because a fixup after a review round needs plan-critic first (step 7). The unit suite runs at `/fullpush` step 4, the integration tier only in CI.
+- **commit-msg:** conventional commit format; the review-gate lock refusal (the same guard as pre-commit, which runs here on every commit including an empty-index one); an existing `docs/decisions.md` line is never edited except to append a marker (Decision 86) — escape hatch: `Ledger-edit-ok: <N|header> — <reason>` trailer.
+- **pre-push:** security-auditor + dep audit — FAIL-CLOSED: LLM audit failure/timeout, no `timeout` on PATH, missing `run-security-auditor.sh`, or a failed diff against the remote ref (push scope unestablishable — there is no working-tree fallback mode) all BLOCK the push, no fallback approval.
 
 Everything else (review, docs, tests) runs through subagents for visibility.
 

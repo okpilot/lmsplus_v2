@@ -121,7 +121,7 @@ git diff origin/master...HEAD
 Three-dot (merge-base). ABORT on a non-zero EXIT CODE from fetch, base resolution, or the diff — never on an empty result.
 
 ```
-Execute ▼ commit freely — a commit triggers NOTHING
+Execute ▼ commit freely — a commit triggers no review round
     ▼  (pre-push, per BRANCH)
 ROUND   code-review (skill) + semantic-reviewer + doc-updater + test-writer
         + e2e-writer (conditional, trigger in agent-e2e-writer.md) — ONE parallel batch, every
@@ -130,7 +130,7 @@ ROUND   code-review (skill) + semantic-reviewer + doc-updater + test-writer
     ▼
 each round: WAIT for every agent LAUNCHED ─► validate every finding
             (§ Finding Validation) ─► ONE pooled triage table ─► ONE fixup commit
-            ─► re-run.  The fixup commit triggers NOTHING on its own.
+            ─► re-run.  The fixup commit triggers no review round on its own.
     ▼
 STOP on the FIRST round carrying no APPLY-worthy finding. No minimum, no floor.
     └─► an APPLY finding EXTENDS the loop by one round; a skip-with-reason does not
@@ -148,7 +148,7 @@ then ONCE per branch, in this order:
 update spec tasks.md ([ ] → [x]) ▼ /fullpush ▼ push (security-auditor, fail-closed)
 ```
 **Never re-run to chase a clean round; always re-run after a fix.** A round reads a CHANGED artifact or it buys nothing.
-**`.claude/hooks/review-gate.js` writes the gate state** on dispatch: a gate-round/conditional agent sets one repo-wide lock, a plan-critic dispatch clears it. While set, a production Edit/Write is blocked. A Bash redirect bypasses it. After the push succeeds, `/fullpush` step 11 deletes it: `rm -f "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/.claude/review-gate.lock"`; a blocked or failed push leaves it set.
+**`.claude/hooks/review-gate.js` writes the gate state** on dispatch: a gate-round/conditional agent sets one repo-wide lock, a plan-critic dispatch clears it. While set, lefthook `pre-commit` `review-gate-lock` (`.claude/hooks/check-review-gate-lock.mjs`) refuses the commit — every write route reaches `git commit`, so that is the gate. `review-gate.js` additionally blocks a production Edit/Write/NotebookEdit as early warning; a write made through Bash, an MCP terminal tool, Monitor or an editor never reaches a PreToolUse matcher and is caught at the commit instead. After the push succeeds, `/fullpush` step 11 deletes it: `rm -f "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/.claude/review-gate.lock"`; a blocked or failed push leaves it set.
 
 ### Red-Team Agent Trigger (conditional)
 After the review loop ends, check whether the BRANCH DIFF includes any of these paths: `supabase/migrations/**`, `packages/db/src/**`, `apps/web/app/app/quiz/actions/**`, `apps/web/app/auth/**`, `apps/web/app/**/route.ts`, `apps/web/proxy.ts`, `docs/security.md`.
@@ -189,7 +189,7 @@ A reviewer's ISSUE/CRITICAL is a hypothesis. Validate before editing:
    does NOT prevent recurrence — only the artifact check does.
 2. **Check implications** — what callers/tests/docs break if the fix is applied? Read them.
 3. **Decide** — real issue, false positive, or valid concern needing a different fix.
-4. **If the fix changes the plan** — re-validate the changed parts first. After a round, every production fixup, any size, gets a fixup plan and one plan-critic run first; `review-gate.js` blocks the Edit/Write until plan-critic is dispatched. The size rules below decide WHETHER to apply a fix, never whether to plan it.
+4. **If the fix changes the plan** — re-validate the changed parts first. After a round, every production fixup, any size, gets a fixup plan and one plan-critic run first; the `review-gate-lock` pre-commit guard refuses the commit, and `review-gate.js` blocks the Edit/Write, until plan-critic is dispatched. The size rules below decide WHETHER to apply a fix, never whether to plan it.
 
 ## Apply-vs-Defer Discipline (MANDATORY before push)
 > **Default: apply. Defer is the exception.** Sort everything on the local machine before pushing. Don't push with a queue of unfinished business.
@@ -243,7 +243,7 @@ Mechanical or test-only work, over disjoint files, sharing no migration, no memb
 ### Splitting is SEQUENCING, not deferring
 Pieces are built in order, in the same run. Only a deferral if a piece is left unbuilt — say so in the PR body.
 ### Batch the fixups too (UNCHANGED by the split default)
-Collect ALL findings from ALL of a round's reviewers into **ONE fixup commit**, not one per finding. test-writer's and e2e-writer's specs ride the same commit (`agent-test-writer.md`, `agent-e2e-writer.md`). red-team's proven-exploit spec + the prod fix ride together as their own fixup commit, post-loop. The fixup commit triggers nothing by itself — the next ROUND is what re-reads it.
+Collect ALL findings from ALL of a round's reviewers into **ONE fixup commit**, not one per finding. test-writer's and e2e-writer's specs ride the same commit (`agent-test-writer.md`, `agent-e2e-writer.md`). red-team's proven-exploit spec + the prod fix ride together as their own fixup commit, post-loop. The fixup commit triggers no review round by itself — the next ROUND is what re-reads it.
 ### Anti-patterns — there are TWO, in opposite directions
 1. One issue → one branch → full pipeline → merge → repeat — crawls on a multi-issue mechanical run.
 2. Everything the work touches → one branch — and a migration drags unrelated code through a prod-deploy gate.

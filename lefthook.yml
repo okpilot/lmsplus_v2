@@ -7,7 +7,7 @@
 # Layer 3: pre-push    — BLOCKING — security gate (final defense)
 #
 # NOTE: Code review, doc updates, and test writing are NOT here. A commit triggers
-# nothing. They run as Claude Code subagents (Agent tool) in ONE pre-push loop over
+# no review round. They run as Claude Code subagents (Agent tool) in ONE pre-push loop over
 # the branch diff, so findings flow back into the conversation before the push.
 # See CLAUDE.md § Pre-push review gate.
 # ============================================================================
@@ -22,6 +22,23 @@ pre-commit:
   # The stage is sub-second serially; correctness wins over the saving.
   parallel: false
   commands:
+    # Refuse a commit while a review round is open. CLAUDE.md step 7 requires plan-critic for a
+    # fixup after a review round; a plan-critic dispatch is what clears the lock. Gated here and
+    # not only at PreToolUse because every write route — Bash, an MCP terminal tool, Monitor, the
+    # user's own editor — reaches `git commit`, while a PreToolUse matcher fires only on the tool
+    # names it enumerates.
+    # NO glob: the lock is a repository state, not a property of the staged paths. That does NOT
+    # make the command unconditional — lefthook SKIPS a command when nothing is staged
+    # (`(skip) no matching staged files`), so an empty-index `git commit --amend -m` or
+    # `--allow-empty` would pass this stage. The `commit-msg` copy below covers those: that stage
+    # runs on every commit, empty index included.
+    # Position in this file does not order anything: with `parallel: false` and no `piped`,
+    # lefthook 2.2.2 runs a stage's commands in ALPHABETICAL order of their NAMES. It also runs
+    # the rest of the group after a failure — stopping needs `piped: true`, which this stage does
+    # not set — so `biome-check` still rewrites and re-stages and `type-check` still runs. Both
+    # measured on 2.2.2.
+    review-gate-lock:
+      run: node .claude/hooks/check-review-gate-lock.mjs
     biome-check:
       glob: "*.{js,ts,jsx,tsx,json,mjs,cjs}"
       run: npx biome check --write --no-errors-on-unmatched {staged_files}
@@ -69,6 +86,11 @@ pre-commit:
 
 commit-msg:
   commands:
+    # The pre-commit copy is skipped when nothing is staged, so a message-only amend or an
+    # `--allow-empty` commit would otherwise rewrite reviewed history with a round open. This
+    # stage runs on every commit. Same script, no staged-file input.
+    review-gate-lock:
+      run: node .claude/hooks/check-review-gate-lock.mjs
     commitlint:
       run: npx commitlint --edit "{1}"
     # Block an edit to an existing docs/decisions.md line other than an appended marker

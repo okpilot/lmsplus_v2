@@ -19,39 +19,8 @@ import {
   TIMEOUT_SHIM,
 } from './run-security-auditor.testkit.mjs'
 
-/** An added line with a secret — routes the timeout branch's diagnostic scan to a finding. */
-const SECRET_DIRTY_CONTENT = 'base\nsk_live_FAKE_TEST_KEY_1234567890\n'
-
-/**
- * Build a repo with a repo-local `color.ui always` (uncommitted config, mirroring an attacker's
- * own machine) and an uncommitted secret change to `file.txt` — the no-upstream fallback diff.
- *
- * @param {string} shimBody  a full shebang script written to the shim's `claude` executable
- */
-function setupColorShimRepo(shimBody) {
-  const { scratch, shimDir, repoDir } = initShimScratch('sec-aud-color-', shimBody)
-  const git = gitFactory(repoDir)
-  commitInit(git)
-  git(['config', 'color.ui', 'always'])
-  writeFileSync(join(repoDir, 'file.txt'), SECRET_DIRTY_CONTENT)
-  return { scratch, shimDir, repoDir }
-}
-
-/**
- * Build a repo with a repo-local `diff.noprefix true` (uncommitted config) and a staged new
- * `.env` file — the no-upstream fallback diff the `.env`-commit check scans.
- *
- * @param {string} shimBody  a full shebang script written to the shim's `claude` executable
- */
-function setupNoprefixShimRepo(shimBody) {
-  const { scratch, shimDir, repoDir } = initShimScratch('sec-aud-noprefix-', shimBody)
-  const git = gitFactory(repoDir)
-  commitInit(git)
-  git(['config', 'diff.noprefix', 'true'])
-  writeFileSync(join(repoDir, '.env'), 'SECRET=1\n')
-  git(['add', '.env'])
-  return { scratch, shimDir, repoDir }
-}
+/** A committed added line with a secret — routes the timeout branch's diagnostic scan to a finding. */
+const SECRET_COMMITTED_CONTENT = 'base\nsk_live_FAKE_TEST_KEY_1234567890\n'
 
 /**
  * Prove `color.ui always` is ACTIVE before trusting a test built on it: without `--no-color`,
@@ -88,32 +57,6 @@ function assertNoprefixConfigActive(repoDir, diffArgs) {
   assert.match(shown.stdout, /^\+\+\+ b\/\.env/m)
 }
 
-// CONTROL: red
-// GROUP: run-security-auditor-always-passes, run-security-auditor-fallback-scan-timeout, run-security-auditor-color-fallback
-// MUTATION: dropping --no-color from the no-upstream `git diff HEAD` fallback call lets a local
-// `color.ui always` wrap every added line in ANSI escapes, so the fallback scan's `^\+` secret
-// pattern never matches and the secret passes through unnoticed.
-test('fallback scan still finds a secret color.ui=always hides on the no-upstream diff', () => {
-  const built = setupColorShimRepo(TIMEOUT_SHIM)
-  assertColorConfigActive(built.repoDir, ['HEAD'])
-  const r = runHookAndCleanup(built)
-  assert.notEqual(r.status, 0)
-  assert.match(r.stdout, /Found \d+ issue\(s\) in fallback scan/)
-})
-
-// CONTROL: red
-// GROUP: run-security-auditor-always-passes, run-security-auditor-fallback-scan-timeout, run-security-auditor-noprefix-fallback
-// MUTATION: dropping --src-prefix=a/ --dst-prefix=b/ from the no-upstream `git diff HEAD`
-// fallback call lets a local `diff.noprefix true` strip the `b/` prefix from every header, so
-// the fallback scan's `^\+\+\+ b/.*\.env` pattern never matches a committed `.env` file.
-test('fallback scan still finds a .env file diff.noprefix=true hides on the no-upstream diff', () => {
-  const built = setupNoprefixShimRepo(TIMEOUT_SHIM)
-  assertNoprefixConfigActive(built.repoDir, ['HEAD', '--', '.env'])
-  const r = runHookAndCleanup(built)
-  assert.notEqual(r.status, 0)
-  assert.match(r.stdout, /Found \d+ issue\(s\) in fallback scan/)
-})
-
 /**
  * Build a repo with a real `origin` upstream so `@{upstream}` resolves, a repo-local
  * `color.ui always`, and a COMMITTED secret leak on top — the upstream `"$REMOTE_REF"...HEAD`
@@ -132,7 +75,7 @@ function setupUpstreamColorShimRepo(shimBody) {
   const branch = git(['branch', '--show-current']).stdout.trim()
   git(['push', '-q', '-u', 'origin', branch])
   git(['config', 'color.ui', 'always'])
-  writeFileSync(join(repoDir, 'file.txt'), SECRET_DIRTY_CONTENT)
+  writeFileSync(join(repoDir, 'file.txt'), SECRET_COMMITTED_CONTENT)
   git(['add', '-A'])
   git(['commit', '-qm', 'leak'])
   const upstreamRef = git(['rev-parse', '--abbrev-ref', '@{upstream}']).stdout.trim()

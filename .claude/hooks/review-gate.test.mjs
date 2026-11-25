@@ -4,7 +4,15 @@
 // on STDIN — the channel the harness actually uses — so these tests pin the
 // input contract and gate-state behaviour, not just the pattern matching.
 import assert from 'node:assert/strict'
-import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import {
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  writeFileSync,
+} from 'node:fs'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
@@ -18,6 +26,7 @@ import {
   isArmed,
   makeDir,
   makeRepo,
+  notebookPayload,
   payload,
   prodEdit,
   runHook,
@@ -193,11 +202,14 @@ test('allows a .test. file edit even when the gate is armed', () => {
   }
 })
 
-test('allows a /.claude/ path edit even when the gate is armed', () => {
+test('allows a /.claude/rules/ path edit even when the gate is armed', () => {
   const dir = makeDir()
   try {
     arm(dir)
-    assert.equal(runHook(payload(path.join(dir, '.claude', 'x')), dir).status, 0)
+    assert.equal(
+      runHook(payload(path.join(dir, '.claude', 'rules', 'code-style.md')), dir).status,
+      0,
+    )
   } finally {
     cleanup(dir)
   }
@@ -375,6 +387,178 @@ test('sets the lock beside the hook when git cannot resolve the repo', () => {
     const r = runNode('review-gate.js', [copy], { input, cwd: dir, timeout: TIMEOUT_MS, env })
     assert.equal(r.status, 0)
     assert.equal(isArmed(dir), true)
+  } finally {
+    cleanup(dir)
+  }
+})
+
+// --- Notebook payloads ---
+
+test('blocks a NotebookEdit of a production path while the gate is armed', () => {
+  const dir = makeDir()
+  try {
+    arm(dir)
+    const r = runHook(notebookPayload(path.join(dir, 'apps', 'web', 'lib', 'foo.ipynb')), dir)
+    assert.equal(r.status, 2)
+    // The REASON, not just /BLOCKED/: the unknown-path-field block also exits 2 with BLOCKED, so a
+    // looser pattern passes even when notebook_path is never read.
+    assert.match(r.stderr, /production edit after a review round/)
+  } finally {
+    cleanup(dir)
+  }
+})
+
+// --- Enforcement files are protected while armed ---
+
+for (const rel of [
+  '.claude/hooks/review-gate.js',
+  '.claude/settings.json',
+  '.claude/pipeline.json',
+  '.claude/hooks/gate-briefs.json',
+]) {
+  test(`blocks an armed edit of the enforcement file ${rel}`, () => {
+    const dir = makeDir()
+    try {
+      arm(dir)
+      assert.equal(runHook(payload(path.join(dir, rel)), dir).status, 2)
+    } finally {
+      cleanup(dir)
+    }
+  })
+}
+
+for (const rel of [
+  '.claude/rules/code-style.md',
+  '.claude/skills/review-gate/x.txt',
+  '.claude/commands/fullpush.txt',
+  '.claude/agents/x.txt',
+  '.claude/hooks/review-gate.test.mjs',
+  '.claude/hooks/review-gate.testkit.mjs',
+  '.claude/hooks/review-gate.mutations.json',
+]) {
+  test(`allows an armed edit of the exempt path ${rel}`, () => {
+    const dir = makeDir()
+    try {
+      arm(dir)
+      assert.equal(runHook(payload(path.join(dir, rel)), dir).status, 0)
+    } finally {
+      cleanup(dir)
+    }
+  })
+}
+
+// F1c. Added by the implementer, not test-author: the criterion was derived after the tests-first
+// run, from the official hooks docs not documenting NotebookEdit's path field. A write tool whose
+// path key this hook does not know must not be waved through.
+// GROUP: review-gate-always-passes, review-gate-empty-path-allowed
+test('blocks a write carrying no recognised path field while the gate is armed', () => {
+  const dir = makeDir()
+  try {
+    arm(dir)
+    const r = runHook(JSON.stringify({ tool_name: 'Edit', tool_input: {} }), dir)
+    assert.equal(r.status, 2)
+    assert.match(r.stderr, /no recognised path field/)
+  } finally {
+    cleanup(dir)
+  }
+})
+
+// GROUP: review-gate-always-passes, review-gate-empty-path-allowed, review-gate-nonstring-path-allowed
+test('blocks a write whose path field is a non-string while the gate is armed', () => {
+  const dir = makeDir()
+  try {
+    arm(dir)
+    const r = runHook(
+      JSON.stringify({
+        tool_name: 'Edit',
+        tool_input: { file_path: [path.join(dir, 'apps/web/x.ts')] },
+      }),
+      dir,
+    )
+    assert.equal(r.status, 2)
+    assert.match(r.stderr, /no recognised path field/)
+  } finally {
+    cleanup(dir)
+  }
+})
+
+// --- `.test.` exemption matches the in-checkout basename only ---
+
+test('blocks a production edit under a checkout directory whose own name contains .test.', () => {
+  const dir = realpathSync(mkdtempSync(path.join(tmpdir(), 'review-gate.test.')))
+  try {
+    mkdirSync(path.join(dir, '.claude'))
+    writeFileSync(
+      path.join(dir, '.claude', 'pipeline.json'),
+      JSON.stringify({ agents: { 'plan-critic': { role: 'pre-execution' } } }),
+    )
+    arm(dir)
+    assert.equal(runHook(payload(path.join(dir, 'apps', 'web', 'lib', 'foo.ts')), dir).status, 2)
+  } finally {
+    cleanup(dir)
+  }
+})
+
+test('blocks a production file inside a directory named like a test file (src/foo.test.d/prod.ts)', () => {
+  const dir = makeDir()
+  try {
+    arm(dir)
+    assert.equal(runHook(payload(path.join(dir, 'src', 'foo.test.d', 'prod.ts')), dir).status, 2)
+  } finally {
+    cleanup(dir)
+  }
+})
+
+// --- .testkit.mjs and .mutations.json exemptions are scoped to the checkout's .claude/hooks ---
+
+// GROUP: review-gate-hooks-suffixes-unscoped, review-gate-hooks-dir-prefix-no-sep, review-gate-always-passes
+for (const rel of [
+  'packages/db/src/x.testkit.mjs',
+  'apps/web/lib/x.mutations.json',
+  '.claude/x.testkit.mjs',
+  '.claude/hooks-extra/x.testkit.mjs',
+]) {
+  test(`blocks an armed edit of ${rel}, outside any .claude/hooks directory`, () => {
+    const dir = makeDir()
+    try {
+      arm(dir)
+      const r = runHook(payload(path.join(dir, rel)), dir)
+      assert.equal(r.status, 2)
+      // The specific reason, not /BLOCKED/: the empty-path branch also prints BLOCKED, so the
+      // looser pattern would pass on either mechanism and pin neither.
+      assert.match(r.stderr, /production edit after a review round/)
+    } finally {
+      cleanup(dir)
+    }
+  })
+}
+
+test('allows an armed edit of a .testkit.mjs or .mutations.json under a worktree own .claude/hooks', () => {
+  const dir = makeDir()
+  try {
+    arm(dir)
+    const wt = path.join(dir, '.claude', 'worktrees', 'agent-x')
+    mkdirSync(wt, { recursive: true })
+    for (const rel of [
+      '.claude/hooks/x.testkit.mjs',
+      '.claude/hooks/x.mutations.json',
+      '.claude/hooks/sub/y.testkit.mjs',
+    ]) {
+      assert.equal(runHook(payload(path.join(wt, rel)), dir).status, 0, rel)
+    }
+  } finally {
+    cleanup(dir)
+  }
+})
+
+// GROUP: review-gate-hooks-suffixes-unscoped, review-gate-always-passes
+test('blocks an armed .testkit.mjs edit outside .claude/hooks inside a worktree', () => {
+  const dir = makeDir()
+  try {
+    arm(dir)
+    const wt = path.join(dir, '.claude', 'worktrees', 'agent-x')
+    mkdirSync(wt, { recursive: true })
+    assert.equal(runHook(payload(path.join(wt, 'packages', 'db', 'x.testkit.mjs')), dir).status, 2)
   } finally {
     cleanup(dir)
   }
