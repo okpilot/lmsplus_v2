@@ -243,7 +243,7 @@ Mechanical or test-only work, over disjoint files, sharing no migration, no memb
 ### Splitting is SEQUENCING, not deferring
 Pieces are built in order, in the same run. Only a deferral if a piece is left unbuilt — say so in the PR body.
 ### Batch the fixups too (UNCHANGED by the split default)
-Collect ALL findings from ALL of a round's reviewers into **ONE fixup commit**, not one per finding. test-writer's and e2e-writer's specs ride the same commit (`agent-test-writer.md`, `agent-e2e-writer.md`). red-team's proven-exploit spec + the prod fix ride together as their own fixup commit, post-loop. The fixup commit triggers nothing by itself — the next ROUND is what re-reads it.
+Collect ALL findings from ALL of a round's reviewers into **ONE fixup commit**, not one per finding. test-writer's and e2e-writer's specs ride the same commit (`agent-test-writer.md`, `agent-e2e-writer.md`). red-team's proven-exploit spec + the prod fix ride together as their own fixup commit, post-loop. The fixup commit triggers no review round by itself — the next ROUND is what re-reads it.
 ### Anti-patterns — there are TWO, in opposite directions
 1. One issue → one branch → full pipeline → merge → repeat — crawls on a multi-issue mechanical run.
 2. Everything the work touches → one branch — and a migration drags unrelated code through a prod-deploy gate.

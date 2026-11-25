@@ -36,7 +36,7 @@ State what is true. Delete the rest.
 7. Plan-critic → skip single-file <10 lines, except a fixup after a review round
 8. Approve
 8a. Tests first → test-author writes failing tests from the approved plan; EVIDENCE: the failing run. Skip only when the plan records `Tests first: SKIP — <reason>`.
-9. Execute → parallel subagents; the implementer never edits test-author's tests (`// GROUP:` markers excepted); a commit triggers no review round, but while the review-gate lock is set the pre-commit gate refuses it until plan-critic is dispatched
+9. Execute → parallel subagents; the implementer never edits test-author's tests (`// GROUP:` markers excepted); a commit triggers no review round, but while the review-gate lock is set the commit gate refuses it until plan-critic is dispatched
 10. Pre-push gate → ONE loop over the branch diff (§ Pre-push review gate)
 11. Fix → ONE pooled fixup commit per round → re-run → stop on first clean round
 12. Conditionals → red-team / coderabbit-sync if the branch diff triggers them

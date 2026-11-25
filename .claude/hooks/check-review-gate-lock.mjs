@@ -1,5 +1,8 @@
 #!/usr/bin/env node
-// check-review-gate-lock.mjs — pre-commit gate: refuse a commit while the review-gate lock is set.
+// check-review-gate-lock.mjs — commit gate: refuse a commit while the review-gate lock is set.
+// Wired at BOTH `pre-commit` and `commit-msg` (lefthook.yml). The pre-commit copy is skipped
+// when nothing is staged, so the commit-msg copy is what catches a message-only amend or an
+// `--allow-empty` commit — that stage runs on every commit.
 //
 // The lock is set by a gate-round or conditional dispatch and cleared by a plan-critic dispatch
 // (.claude/hooks/review-gate.js). CLAUDE.md step 7 requires plan-critic for a fixup after a review
@@ -38,7 +41,17 @@ try {
   process.exit(1)
 }
 
-if (existsSync(path.join(root, '.claude', 'review-gate.lock'))) {
+// The writer (`review-gate.js`) honours `REVIEW_GATE_ROOT`, so the lock can sit under that root
+// rather than this checkout's. Check BOTH: a lock under either refuses the commit. This only ADDS
+// a place to look, so the var can never redirect the gate AWAY from a real lock — the split the
+// two-sided-gate rule warns about (`.claude/rules/code-style.md` §7). A stale var would need a
+// stale lock under its own root to block anything; one pointing nowhere finds nothing.
+const roots = [root]
+// biome-ignore lint/suspicious/noUndeclaredEnvVars: not a Turborepo task — runs outside turbo.
+const redirected = process.env.REVIEW_GATE_ROOT
+if (redirected) roots.push(path.resolve(redirected))
+
+if (roots.some((r) => existsSync(path.join(r, '.claude', 'review-gate.lock')))) {
   process.stderr.write(
     'BLOCKED: a review round is open — the review-gate lock is set.\n' +
       'Plan the fixup (validated findings, proposed fix per finding), then dispatch plan-critic.\n' +

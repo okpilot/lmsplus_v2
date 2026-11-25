@@ -9,16 +9,17 @@
       "replace": "  )\n  process.exit(0)\n}\n\nprocess.exit(0)",
       "expectRed": [
         "exits 1 naming plan-critic when the review-gate lock exists",
-        "resolves the main checkout lock from a worktree"
+        "resolves the main checkout lock from a worktree",
+        "exits 1 when the lock sits under REVIEW_GATE_ROOT, not the checkout"
       ],
-      "note": "The lock branch prints its reason and exits 0 \u2014 a commit lands while a review round is open, which is the defect this guard exists to stop."
+      "note": "The lock branch prints its reason and exits 0 — a commit lands while a review round is open, which is the defect this guard exists to stop. Also reddens the REVIEW_GATE_ROOT test, since that path reaches the same blocking exit."
     },
     {
       "id": "check-review-gate-lock-always-blocks",
       "find": "\nprocess.exit(0)\n",
       "replace": "\nprocess.exit(1)\n",
       "expectRed": ["exits 0 when no review-gate lock exists"],
-      "note": "The clean path blocks too \u2014 every commit is refused whether or not a round is open."
+      "note": "The clean path blocks too — every commit is refused whether or not a round is open."
     },
     {
       "id": "check-review-gate-lock-no-common-dir",
@@ -29,6 +30,20 @@
         "resolves the main checkout lock from a worktree"
       ],
       "note": "Resolves the checkout's own toplevel instead of the shared common dir. `dirname` then points one level ABOVE the repository, so no lock is found in either case: the main checkout stops gating too, not only the worktree."
+    },
+    {
+      "id": "check-review-gate-lock-unresolvable-passes",
+      "find": "      'Commit refused rather than skipped. Run inside the repository, or dispatch plan-critic and retry.\\n',\n  )\n  process.exit(1)\n",
+      "replace": "      'Commit refused rather than skipped. Run inside the repository, or dispatch plan-critic and retry.\\n',\n  )\n  process.exit(0)\n",
+      "expectRed": ["exits 1 naming the common dir when run outside a git repository"],
+      "note": "An unresolvable git common dir ALLOWS the commit instead of refusing it. The sibling `no-common-dir` mutation reaches this catch but pins only the lock-check tests, so this exit code was ungraded — flipping it left the suite 3/3 green, which an accidental sed in round 5 proved on the real tree."
+    },
+    {
+      "id": "check-review-gate-lock-ignores-review-gate-root",
+      "find": "if (redirected) roots.push(path.resolve(redirected))\n",
+      "replace": "if (false) roots.push(path.resolve(redirected))\n",
+      "expectRed": ["exits 1 when the lock sits under REVIEW_GATE_ROOT, not the checkout"],
+      "note": "The guard stops consulting REVIEW_GATE_ROOT while review-gate.js still WRITES the lock there, so the two halves of one gate look in different places and a commit passes with a round open."
     }
   ]
 }
