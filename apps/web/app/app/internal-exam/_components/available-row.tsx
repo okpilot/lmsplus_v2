@@ -5,25 +5,7 @@ import { CardListRow } from '@/components/ui/card'
 import { formatUtc } from '@/lib/utils/format-utc'
 import { sittingModeLabel } from '@/lib/utils/sitting-mode-label'
 import type { AvailableInternalExam } from '../queries'
-
-function formatAbsolute(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return iso
-  return formatUtc(d, { dateStyle: 'medium', timeStyle: 'short' })
-}
-
-function formatRelative(iso: string, now: Date = new Date()): string {
-  const target = new Date(iso)
-  if (Number.isNaN(target.getTime())) return ''
-  const diffMs = target.getTime() - now.getTime()
-  if (diffMs <= 0) return 'expired'
-  const minutes = Math.round(diffMs / 60_000)
-  if (minutes < 60) return `in ${minutes} min`
-  const hours = Math.round(minutes / 60)
-  if (hours < 48) return `in ${hours} h`
-  const days = Math.round(hours / 24)
-  return `in ${days} d`
-}
+import { formatAbsolute, formatRelative, sittingHint } from './sitting-captions'
 
 type SittingInfo = NonNullable<AvailableInternalExam['sitting']>
 
@@ -33,11 +15,9 @@ function SittingCaption({ sitting }: Readonly<{ sitting: SittingInfo }>) {
     ? formatUtc(sitting.scheduledAt, { dateStyle: 'medium', timeStyle: 'short' })
     : null
   const mode = sitting.mode ? sittingModeLabel(sitting.mode) : null
-  return (
-    <p className="mt-1 text-caption text-muted-foreground">
-      {[when, mode].filter(Boolean).join(' · ')}
-    </p>
-  )
+  const caption = [when, mode].filter(Boolean).join(' · ')
+  if (!caption) return null
+  return <p className="mt-1 text-caption text-muted-foreground">{caption}</p>
 }
 
 function ExpiryCaption({ expiresAt }: Readonly<{ expiresAt: string }>) {
@@ -53,15 +33,6 @@ function ExpiryCaption({ expiresAt }: Readonly<{ expiresAt: string }>) {
       )}
     </p>
   )
-}
-
-/** A closed or cancelled sitting never opens, so it must not promise that it will. */
-function sittingHint(status: SittingInfo['status'] | undefined): string {
-  if (status === 'open') return 'Works while the sitting is open.'
-  // The row is server-rendered and nothing refreshes it, so the student has to reload.
-  if (status === 'scheduled')
-    return 'Opens when your invigilator starts the sitting — reload this page to check.'
-  return 'This sitting has ended. Ask your invigilator.'
 }
 
 export function AvailableRow({

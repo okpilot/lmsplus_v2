@@ -5,6 +5,7 @@ const ROW_LABEL: Record<string, string> = {
   waiting: ENTRY_STATUS_LABEL.waiting,
   consumed: 'In progress',
   finished: 'Finished',
+  discarded: 'Discarded',
   voided: 'Voided',
   expired: 'Expired',
 }

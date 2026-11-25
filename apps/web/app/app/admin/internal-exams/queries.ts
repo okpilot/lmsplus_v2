@@ -35,11 +35,13 @@ function applyCodeFilters(
     case 'expired':
       return b.is('voided_at', null).is('consumed_at', null).lte('expires_at', nowIso)
     case 'consumed':
-      // linked session still in flight (ended_at IS NULL)
+      // linked session still in flight: not ended AND not discarded. A soft-deleted session is
+      // visible to this service-role read, and without the second filter it reads as in-flight.
       return b
         .not('consumed_at', 'is', null)
         .is('voided_at', null)
         .is('quiz_sessions.ended_at', null)
+        .is('quiz_sessions.deleted_at', null)
     case 'finished':
       // linked session has ended (ended_at IS NOT NULL)
       return b

@@ -11,14 +11,18 @@ import type { InternalExamCodeRow } from '../types'
 import { statusLabel } from './code-status-items'
 import { SendCodeEmailButton } from './send-code-email-button'
 
-type DisplayStatus = InternalExamCodeRow['status'] | 'finished'
+type DisplayStatus = InternalExamCodeRow['status'] | 'finished' | 'discarded'
 
 function displayStatus(row: InternalExamCodeRow): DisplayStatus {
-  if (row.status === 'consumed' && row.sessionEndedAt) return 'finished'
-  return row.status
+  if (row.status !== 'consumed') return row.status
+  if (row.sessionEndedAt) return 'finished'
+  // Soft-deleted and never ended: the attempt is gone, not running. Reporting it as "In progress"
+  // leaves the admin watching a row that will never finish and that `codeRowVoidable` won't void.
+  if (row.sessionDeletedAt) return 'discarded'
+  return 'consumed'
 }
 
-const STATUS_MUTED: ReadonlySet<DisplayStatus> = new Set(['expired', 'voided'])
+const STATUS_MUTED: ReadonlySet<DisplayStatus> = new Set(['expired', 'voided', 'discarded'])
 
 function formatAbsolute(iso: string | null): string {
   if (!iso) return '—'

@@ -256,11 +256,21 @@ describe('checkSittingCode (app-layer integration)', () => {
     })
   })
 
-  it('leaves a legacy code alone, system reason included', async () => {
+  it('leaves a legacy code alone on a free-text reason', async () => {
     await signInAs(adminEmail, password)
     const supabase = await createServerSupabaseClient()
 
-    expect(await checkSittingCode(supabase, legacyCodeId, 'sitting_closed')).toEqual({ ok: true })
+    expect(await checkSittingCode(supabase, legacyCodeId, REASON)).toEqual({ ok: true })
+  })
+
+  it('refuses a system void reason on a legacy code too', async () => {
+    await signInAs(adminEmail, password)
+    const supabase = await createServerSupabaseClient()
+
+    expect(await checkSittingCode(supabase, legacyCodeId, 'sitting_closed')).toEqual({
+      ok: false,
+      error: 'reason must not be a system void reason',
+    })
   })
 
   it('fails closed on a code id that does not exist', async () => {

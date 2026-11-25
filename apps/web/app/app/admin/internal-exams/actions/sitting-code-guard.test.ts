@@ -27,12 +27,20 @@ describe('checkSittingCode', () => {
     })
   })
 
-  it('accepts a system void reason on a legacy code, which the sitting rules never covered', async () => {
+  it('refuses a system void reason on a legacy code too, and never looks it up', async () => {
+    expect(await checkSittingCode(supabase, 'c1', 'sitting_closed')).toEqual({
+      ok: false,
+      error: 'reason must not be a system void reason',
+    })
+    expect(mockMaybeSingle).not.toHaveBeenCalled()
+  })
+
+  it('accepts a free-text reason on a legacy code', async () => {
     mockMaybeSingle.mockResolvedValue({
       data: { sitting_entry_id: null, voided_at: null, consumed_at: null, quiz_sessions: null },
       error: null,
     })
-    expect(await checkSittingCode(supabase, 'c1', 'sitting_closed')).toEqual({ ok: true })
+    expect(await checkSittingCode(supabase, 'c1', 'typed by the admin')).toEqual({ ok: true })
   })
 
   it('says the attempt was discarded when its session is hidden', async () => {

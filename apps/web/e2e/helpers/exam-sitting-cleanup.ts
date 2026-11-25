@@ -32,7 +32,11 @@ async function classifySessions(admin: Admin, sessionIds: string[]) {
     const email = r.users?.email
     // An unresolved embed is unclassifiable. Routed to the fixture branch, a seeded row is only
     // soft-deleted and `deleteSeededUsers` then fails on the `student_id` FK, burying the cause.
-    if (email === undefined) throw new Error(`seed sessions lookup: no student for session ${r.id}`)
+    // `typeof`, not `=== undefined`: a non-string would reach `.startsWith` as a TypeError, which
+    // aborts the teardown before any delete runs.
+    if (typeof email !== 'string') {
+      throw new Error(`seed sessions lookup: no student for session ${r.id}`)
+    }
     return { id: r.id, seeded: email.startsWith(EXAM_SITTING_SEED_EMAIL_PREFIX) }
   })
   return {

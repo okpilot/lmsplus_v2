@@ -120,6 +120,22 @@ describe('AvailableTab', () => {
       expect(screen.getByTestId('start-button')).toBeDisabled()
     })
 
+    it('shows the ended hint for closed and cancelled sittings', () => {
+      render(<AvailableTab rows={[SITTING_ROW('closed')]} />)
+      expect(screen.getByText('This sitting has ended. Ask your invigilator.')).toBeInTheDocument()
+    })
+
+    it('omits the date from the caption when scheduledAt is empty', () => {
+      const row = SITTING_ROW('open')
+      render(
+        <AvailableTab
+          rows={[{ ...row, sitting: { ...row.sitting!, scheduledAt: '' } as never }]}
+        />,
+      )
+      expect(screen.queryByText(/Invalid Date/)).not.toBeInTheDocument()
+      expect(screen.getByText('Remote')).toBeInTheDocument()
+    })
+
     it('enables Start with the open hint when the sitting is open', () => {
       render(<AvailableTab rows={[SITTING_ROW('open')]} />)
       expect(screen.getByTestId('start-button')).toBeEnabled()

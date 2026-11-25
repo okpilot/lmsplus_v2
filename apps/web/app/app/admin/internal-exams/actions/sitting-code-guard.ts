@@ -5,20 +5,38 @@ import { sittingCodeVoidable } from '../_void-policy'
 
 export type GuardVerdict = { ok: true } | { ok: false; error: string }
 
+type CodeRow = {
+  sitting_entry_id: string | null
+  consumed_at: string | null
+  voided_at: string | null
+  quiz_sessions: { ended_at: string | null } | null
+}
+
 function isReservedReason(reason: string): boolean {
   return (RESERVED_VOID_REASONS as readonly string[]).includes(reason)
 }
 
+/** Why this code cannot be voided. Reached only once `sittingCodeVoidable` has said no. */
+function refusal(row: CodeRow): string {
+  if (row.voided_at) return 'Code is already voided'
+  if (row.consumed_at === null) return 'Void sitting codes from their sitting'
+  if (row.quiz_sessions?.ended_at) return 'Cannot void a finished attempt — record is final'
+  return 'This attempt was discarded — there is nothing to void'
+}
+
 /**
- * Sitting codes are voided from their sitting (decision 264). The exception is a running attempt:
- * `void_sitting_code` refuses it (`code_in_use`) and the sitting page offers Void only for a
- * waiting or ready entry, so the codes tab is its only stop button.
+ * The reserved-reason check covers EVERY code, legacy ones included: `void_internal_exam_code`
+ * writes any reason straight to `void_reason` (#1820), where a system token renders as a system
+ * void and the notice readers count it. A free-text reason must never be able to forge one.
  */
 export async function checkSittingCode(
   supabase: SupabaseClient<Database>,
   codeId: string,
   reason: string,
 ): Promise<GuardVerdict> {
+  if (isReservedReason(reason)) {
+    return { ok: false, error: 'reason must not be a system void reason' }
+  }
   const { data, error } = await supabase
     .from('internal_exam_codes')
     .select('sitting_entry_id, consumed_at, voided_at, quiz_sessions!consumed_session_id(ended_at)')
@@ -32,33 +50,12 @@ export async function checkSittingCode(
   if (!data) return { ok: false, error: 'Code not found' }
   if (data.sitting_entry_id === null) return { ok: true }
 
-  // This path is the ONLY way to stop a running sitting attempt, so it is the only way a sitting
-  // code can reach the legacy RPC, which accepts any reason (#1820). `VOID_REASON_LABEL` renders a
-  // system token as a system reason and the notice readers count it, so refuse one here as
-  // `void_sitting_code` does. Same message as `VoidSittingCodeSchema`.
-  if (isReservedReason(reason)) {
-    return { ok: false, error: 'reason must not be a system void reason' }
-  }
-
   const voidable = sittingCodeVoidable({
     sittingEntryId: data.sitting_entry_id,
     consumed: data.consumed_at !== null,
     sessionEndedAt: data.quiz_sessions?.ended_at ?? null,
-    // `consumed_at` is never set without `consumed_session_id` (CHECK `consumed_pair_consistency`),
-    // so a null embed means the row is hidden from this caller, not that there is none.
+    // An invisible session row is hidden by `instructors_read_sessions`, not absent.
     sessionVisible: data.quiz_sessions !== null,
   })
-  if (voidable) return { ok: true }
-
-  // Point at the sitting only for a state the sitting can act on: an unused code. An already-voided
-  // code needs no second void, and a consumed one is not voidable anywhere — the sitting offers
-  // Void for a waiting or ready entry only, and `void_sitting_code` refuses it with `code_in_use`.
-  if (data.voided_at) return { ok: false, error: 'Code is already voided' }
-  if (data.consumed_at === null) {
-    return { ok: false, error: 'Void sitting codes from their sitting' }
-  }
-  if (data.quiz_sessions?.ended_at) {
-    return { ok: false, error: 'Cannot void a finished attempt — record is final' }
-  }
-  return { ok: false, error: 'This attempt was discarded — there is nothing to void' }
+  return voidable ? { ok: true } : { ok: false, error: refusal(data) }
 }

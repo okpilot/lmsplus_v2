@@ -192,6 +192,18 @@ describe('CodeRow sitting codes', () => {
     expect(screen.queryByRole('button', { name: 'Void' })).not.toBeInTheDocument()
   })
 
+  it('reads the soft-deleted attempt as Discarded, not as still running', () => {
+    // "In progress" plus no Void is a row the admin can neither finish nor stop.
+    renderRow({
+      ...sitting,
+      status: 'consumed',
+      consumedAt: '2026-04-28T11:00:00.000Z',
+      sessionDeletedAt: '2026-04-28T12:00:00.000Z',
+    })
+    expect(screen.getByText('Discarded')).toBeInTheDocument()
+    expect(screen.queryByText('In progress')).not.toBeInTheDocument()
+  })
+
   it('does not offer Void once the attempt has ended', () => {
     renderRow({
       ...sitting,
