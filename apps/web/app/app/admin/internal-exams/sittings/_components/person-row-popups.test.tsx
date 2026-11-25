@@ -95,7 +95,7 @@ describe('person row menu opens the popups (AC 44, 46)', () => {
 describe('roster table in all-mode (AC 29, 53)', () => {
   it('renders the header and every row checked; an attempt holder stays disabled', () => {
     ui([row(), row({ userId: 'u2', name: 'Bob Flyer', hasAttempt: true })], { ids: [], all: true })
-    expect(screen.getByRole('checkbox', { name: 'Select all 1 shown' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Select all 1 selectable' })).toBeChecked()
     expect(screen.getByRole('checkbox', { name: 'Select Ann Pilot' })).toBeChecked()
     const bob = screen.getByRole('checkbox', { name: 'Select Bob Flyer' })
     expect(bob).toBeChecked()

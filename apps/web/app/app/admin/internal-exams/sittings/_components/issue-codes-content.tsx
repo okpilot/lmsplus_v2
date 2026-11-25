@@ -1,10 +1,10 @@
 import { DialogDescription, DialogTitle } from '@/components/ui/dialog'
-import { fmtDate } from '../_utils/format-dates'
+import { formatDay } from '../_utils/format-dates'
 import { isGone } from '../_utils/is-ended'
 import { plural } from '../_utils/plural'
-import { MAX_TICKS } from '../parse-sitting-params'
 import { getIssuePreview } from '../people-queries'
 import type { Selection } from '../types'
+import { MAX_TICKS } from '../types'
 import { IssueCodesPanel } from './issue-codes-panel'
 import { PopupEnded, PopupMessage } from './popup-message'
 import { PopupHeader } from './popup-parts'
@@ -32,7 +32,7 @@ export async function IssueCodesContent({ sittingId, scheduledAt, selection }: R
       <PopupHeader>
         <DialogTitle>{TITLE}</DialogTitle>
         <DialogDescription>
-          {who(selection)} Codes work until {fmtDate(scheduledAt)}, 23:59 UTC.
+          {who(selection)} Codes work until {formatDay(scheduledAt)}, 23:59 UTC.
         </DialogDescription>
       </PopupHeader>
       <IssueCodesPanel sittingId={sittingId} userIds={userIds} preview={preview} />

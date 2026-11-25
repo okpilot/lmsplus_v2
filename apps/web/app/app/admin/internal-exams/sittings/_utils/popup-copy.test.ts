@@ -59,7 +59,7 @@ describe('skipReasonText (B6)', () => {
     ['not_enrolled', undefined, 'not enrolled'],
     ['attempt_running', undefined, 'attempt running'],
     ['passed', undefined, 'already passed'],
-    ['passed', '2026-11-01T10:00:00Z', 'already passed on 1 Nov 2026'],
+    ['passed', '2026-11-01T10:00:00Z', 'already passed on 1 Nov 2026 UTC'],
     ['entered_elsewhere', '2026-11-18T09:30:00Z', 'in another sitting on 18 Nov 2026, 09:30 UTC'],
     ['entered_elsewhere', undefined, 'in another sitting'],
     ['something_new', undefined, 'skipped'],
@@ -94,7 +94,7 @@ describe('addExamsBanner (AC 39)', () => {
       tone: 'caution',
       title: 'Added 2 exams.',
       detail: 'Skipped 2 exams:',
-      lines: ['Ann · FPM: not enrolled', 'Bob · NAV: already passed on 1 Nov 2026'],
+      lines: ['Ann · FPM: not enrolled', 'Bob · NAV: already passed on 1 Nov 2026 UTC'],
     })
   })
 

@@ -109,7 +109,7 @@ describe('openedHere reset', () => {
     act(() => result.current.close())
     expect(m.back).not.toHaveBeenCalled()
     expect(m.replace).toHaveBeenCalledTimes(1)
-    expect(m.replace).toHaveBeenCalledWith('/app/admin/internal-exams/sittings')
+    expect(m.replace).toHaveBeenCalledWith('/app/admin/internal-exams/sittings', { scroll: false })
   })
 })
 

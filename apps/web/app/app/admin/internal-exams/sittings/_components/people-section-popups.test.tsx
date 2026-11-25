@@ -150,20 +150,20 @@ describe('PeopleSection Select all (AC 29, 15b)', () => {
   it('offers Select all {candidates} after the whole page is ticked', async () => {
     ui(many)
     expect(screen.queryByText(/Select all 120/)).toBeNull()
-    await userEvent.setup().click(screen.getByRole('checkbox', { name: 'Select all 2 shown' }))
+    await userEvent.setup().click(screen.getByRole('checkbox', { name: 'Select all 2 selectable' }))
     expect(screen.getByText(/Select all 120/)).toBeInTheDocument()
   })
 
   it('does not offer Select all 120 while a search is active', async () => {
     ui({ ...many, q: 'pers' })
-    await userEvent.setup().click(screen.getByRole('checkbox', { name: 'Select all 2 shown' }))
+    await userEvent.setup().click(screen.getByRole('checkbox', { name: 'Select all 2 selectable' }))
     expect(screen.queryByText(/Select all 120/)).toBeNull()
   })
 
   it('enters all-mode: caption, checked rows, Remove disabled with the clear hint', async () => {
     ui(many)
     const user = userEvent.setup()
-    await user.click(screen.getByRole('checkbox', { name: 'Select all 2 shown' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Select all 2 selectable' }))
     await user.click(screen.getByText(/Select all 120/))
     expect(screen.getByText('All 120 selected')).toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: 'Select Person 1' })).toBeChecked()
@@ -174,7 +174,7 @@ describe('PeopleSection Select all (AC 29, 15b)', () => {
   it('leaves all-mode with no ticks when a row is toggled', async () => {
     ui(many)
     const user = userEvent.setup()
-    await user.click(screen.getByRole('checkbox', { name: 'Select all 2 shown' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Select all 2 selectable' }))
     await user.click(screen.getByText(/Select all 120/))
     await user.click(screen.getByRole('checkbox', { name: 'Select Person 1' }))
     expect(screen.queryByText('All 120 selected')).toBeNull()
@@ -184,7 +184,9 @@ describe('PeopleSection Select all (AC 29, 15b)', () => {
   it('says Tick at most 100, or select all. above 100 unfiltered ticks', async () => {
     const rows = Array.from({ length: 101 }, (_, i) => person(i + 1))
     ui({ rows, total: 101, summary: { ...summary, candidates: 101 } })
-    await userEvent.setup().click(screen.getByRole('checkbox', { name: 'Select all 101 shown' }))
+    await userEvent
+      .setup()
+      .click(screen.getByRole('checkbox', { name: 'Select all 101 selectable' }))
     expect(screen.getByText(/Tick at most 100, or select all\./)).toBeInTheDocument()
   })
 })

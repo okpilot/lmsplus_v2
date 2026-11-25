@@ -60,6 +60,7 @@ describe('useDialogParam', () => {
     expect(mockPush).toHaveBeenCalledTimes(1)
     expect(mockPush).toHaveBeenCalledWith(
       '/app/admin/internal-exams?tab=sittings&scope=open&dlg=new',
+      { scroll: false },
     )
     expect(mockBack).toHaveBeenCalledTimes(1)
     expect(mockReplace).not.toHaveBeenCalled()
@@ -72,7 +73,9 @@ describe('useDialogParam', () => {
     act(() => result.current.close())
     expect(mockBack).not.toHaveBeenCalled()
     expect(mockReplace).toHaveBeenCalledTimes(1)
-    expect(mockReplace).toHaveBeenCalledWith('/app/admin/internal-exams?tab=sittings&scope=open')
+    expect(mockReplace).toHaveBeenCalledWith('/app/admin/internal-exams?tab=sittings&scope=open', {
+      scroll: false,
+    })
   })
 
   it('ignores param edits once the dialog is closing, and accepts them after it reopens', () => {
@@ -121,7 +124,9 @@ describe('useDialogParam', () => {
       result.current.close()
     })
     expect(mockReplace).toHaveBeenCalledTimes(1)
-    expect(mockReplace).toHaveBeenCalledWith('/app/admin/internal-exams?tab=sittings')
+    expect(mockReplace).toHaveBeenCalledWith('/app/admin/internal-exams?tab=sittings', {
+      scroll: false,
+    })
     expect(mockBack).not.toHaveBeenCalled()
   })
 
@@ -136,9 +141,13 @@ describe('useDialogParam', () => {
     rerender()
     act(() => result.current.close())
     expect(mockReplace).toHaveBeenCalledTimes(1)
-    expect(mockReplace).toHaveBeenCalledWith('/app/admin/internal-exams?tab=sittings')
+    expect(mockReplace).toHaveBeenCalledWith('/app/admin/internal-exams?tab=sittings', {
+      scroll: false,
+    })
     expect(mockPush).toHaveBeenCalledTimes(1)
-    expect(mockPush).toHaveBeenCalledWith('/app/admin/internal-exams?tab=sittings&dlg=new')
+    expect(mockPush).toHaveBeenCalledWith('/app/admin/internal-exams?tab=sittings&dlg=new', {
+      scroll: false,
+    })
     expect(mockBack).toHaveBeenCalledTimes(1)
     expect(currentUrl()).toBe('/app/admin/internal-exams?tab=sittings')
   })

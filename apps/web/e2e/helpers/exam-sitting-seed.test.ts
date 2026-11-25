@@ -178,7 +178,7 @@ describe('seedSitting addable people, enrolment and groups', () => {
     })
     const enrol = inserts.filter((i) => i.table === 'course_enrolments').flatMap((i) => i.rows)
     expect(enrol).toHaveLength(1)
-    expect(enrol[0]).toMatchObject({ course_id: 'course-1' })
+    expect(enrol[0]).toMatchObject({ course_id: 'c-1' })
   })
 
   it('builds groups named E2E-GRP-SIT- with the listed people and addable people as members', async () => {

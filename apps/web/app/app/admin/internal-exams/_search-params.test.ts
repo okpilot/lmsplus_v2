@@ -62,18 +62,18 @@ describe('parseInternalExamsSearchParams: tab, scope, dlg', () => {
     expect(parseInternalExamsSearchParams({ scope: ['open', 'past'] }).scope).toBe('upcoming')
   })
 
-  it('keeps dlg new and edit, drops anything else', () => {
-    expect(parseInternalExamsSearchParams({ dlg: 'new' }).dlg).toBe('new')
-    expect(parseInternalExamsSearchParams({ dlg: 'edit' }).dlg).toBe('edit')
-    expect(parseInternalExamsSearchParams({ dlg: 'people' }).dlg).toBeUndefined()
+  it('keeps every dialog value, drops an unknown or repeated one', () => {
+    for (const dlg of ['new', 'edit', 'people', 'exams', 'issue'])
+      expect(parseInternalExamsSearchParams({ dlg }).dlg).toBe(dlg)
+    expect(parseInternalExamsSearchParams({ dlg: 'bogus' }).dlg).toBeUndefined()
     expect(parseInternalExamsSearchParams({ dlg: ['new', 'edit'] }).dlg).toBeUndefined()
   })
 })
 
 describe('readTabParam', () => {
-  it('returns codes for a repeated tab param, matching the server', async () => {
+  it('returns sittings for a repeated tab param, matching the server', async () => {
     const { readTabParam } = await import('./_search-params')
-    expect(readTabParam(new URLSearchParams('tab=sittings&tab=codes'))).toBe('codes')
+    expect(readTabParam(new URLSearchParams('tab=sittings&tab=codes'))).toBe('sittings')
   })
 
   it('returns the tab for a single tab param', async () => {
@@ -81,9 +81,9 @@ describe('readTabParam', () => {
     expect(readTabParam(new URLSearchParams('tab=sittings'))).toBe('sittings')
   })
 
-  it('returns codes when tab is absent', async () => {
+  it('returns sittings when tab is absent', async () => {
     const { readTabParam } = await import('./_search-params')
-    expect(readTabParam(new URLSearchParams(''))).toBe('codes')
+    expect(readTabParam(new URLSearchParams(''))).toBe('sittings')
   })
 })
 

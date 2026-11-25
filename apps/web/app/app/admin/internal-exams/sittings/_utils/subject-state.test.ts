@@ -46,7 +46,11 @@ describe('subjectRowView, one person (AC 36)', () => {
   })
 
   it.each([
-    ['passed', { passedAt: '2026-11-01T10:00:00Z', passedScore: 82.4 }, 'Passed 1 Nov 2026 · 82%'],
+    [
+      'passed',
+      { passedAt: '2026-11-01T10:00:00Z', passedScore: 82.4 },
+      'Passed 1 Nov 2026 UTC · 82%',
+    ],
     ['passed', {}, 'Passed'],
     [
       'entered_elsewhere',

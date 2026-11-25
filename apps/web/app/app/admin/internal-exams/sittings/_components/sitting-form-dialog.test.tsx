@@ -148,7 +148,9 @@ describe('SittingFormDialog', () => {
     await user.click(screen.getByRole('button', { name: 'Save' }))
     expect(m.update).not.toHaveBeenCalled()
     await waitFor(() =>
-      expect(m.replace).toHaveBeenCalledWith('/app/admin/internal-exams?tab=sittings'),
+      expect(m.replace).toHaveBeenCalledWith('/app/admin/internal-exams?tab=sittings', {
+        scroll: false,
+      }),
     )
     expect(m.replace).toHaveBeenCalledTimes(1)
     expect(m.back).not.toHaveBeenCalled()
@@ -218,7 +220,9 @@ describe('SittingFormDialog', () => {
     edit('scheduled')
     await user.keyboard('{Escape}')
     await waitFor(() =>
-      expect(m.replace).toHaveBeenCalledWith('/app/admin/internal-exams?tab=sittings'),
+      expect(m.replace).toHaveBeenCalledWith('/app/admin/internal-exams?tab=sittings', {
+        scroll: false,
+      }),
     )
     expect(m.replace).toHaveBeenCalledTimes(1)
     expect(m.back).not.toHaveBeenCalled()
