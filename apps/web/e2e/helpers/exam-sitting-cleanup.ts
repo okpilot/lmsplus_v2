@@ -93,11 +93,16 @@ async function cleanupSeededExamSittings(): Promise<void> {
       errors.push(e instanceof Error ? e.message : String(e))
     }
   }
-  try {
-    await deleteSeededUsers(admin)
-  } catch (e) {
-    errors.push(e instanceof Error ? e.message : String(e))
-  }
+  // FK-dependent step (code-style.md:729): the users are parents of the rows above, so running it
+  // after a failed rows delete only raises FK errors that bury the real cause. The leaked rows and
+  // their auth users are found again by the next afterEach, keyed on the email prefix.
+  if (errors.length === 0) {
+    try {
+      await deleteSeededUsers(admin)
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e))
+    }
+  } else errors.push('seed users delete skipped: seeded rows delete failed')
   if (errors.length > 0) throw new Error(errors.join('; '))
 }
 

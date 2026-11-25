@@ -239,9 +239,9 @@ describe('cleanupE2eExamSittings (per-step isolation)', () => {
     expect(deleteUser).toHaveBeenCalledWith('u1')
   })
 
-  it('deletes the seeded users when a seeded row delete fails and reports the error', async () => {
+  it('skips the seeded users when a seeded row delete fails, and says so', async () => {
     const deleteUser = vi.fn().mockResolvedValue({ error: null })
-    mockTables({
+    const calls = mockTables({
       exam_sittings: [
         { data: [], error: null },
         { data: [{ id: 's1' }], error: null },
@@ -251,8 +251,21 @@ describe('cleanupE2eExamSittings (per-step isolation)', () => {
     })
     const client = mockGetAdminClient() as Record<string, unknown>
     mockGetAdminClient.mockReturnValue({ ...client, auth: { admin: { deleteUser } } })
-    await expect(cleanupE2eExamSittings()).rejects.toThrow(/afterEach: .*entries boom/)
-    expect(deleteUser).toHaveBeenCalledWith('u1')
+    // FK ordering: deleting the users after a failed rows delete raises 23503 and buries the
+    // cause (code-style.md § Multi-Step Cleanup, "Dependent steps"). The prefix-keyed users
+    // lookup finds the leftovers again on the next run whose rows step succeeds.
+    const err = await cleanupE2eExamSittings().then(
+      () => null,
+      (e: Error) => e,
+    )
+    expect(err?.message).toMatch(/entries boom/)
+    expect(err?.message).toMatch(/seed users delete skipped/)
+    expect(deleteUser).not.toHaveBeenCalled()
+    expect(
+      calls.some(
+        (c) => (c.table === 'users' || c.table === 'course_enrolments') && c.method === 'delete',
+      ),
+    ).toBe(false)
   })
 
   it('deletes later users when one user delete fails and reports the error', async () => {

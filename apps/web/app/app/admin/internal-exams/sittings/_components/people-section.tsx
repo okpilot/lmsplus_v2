@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { PaginationBar } from '@/app/app/_components/pagination-bar'
 import { ListCard } from '@/components/admin/list-card'
 import { Section } from '@/components/admin/section'
@@ -34,8 +34,16 @@ type Props = {
 
 /** The sitting's people as a related list: section header, toolbar or bulk bar, table, pagination. */
 export function PeopleSection(p: Readonly<Props>) {
-  const { rosterIds } = useSittingUi()
+  const { rosterIds, clearRoster } = useSittingUi()
   const [removeIds, setRemoveIds] = useState<readonly string[] | null>(null)
+  // Back/Forward changes `q` or `show` without the search box or the filter running, so the ticks
+  // would outlive the list they were made on. Keyed on the pair, not on `page`: paging keeps them.
+  const prevFilters = useRef({ q: p.q, show: p.show })
+  useEffect(() => {
+    if (prevFilters.current.q === p.q && prevFilters.current.show === p.show) return
+    prevFilters.current = { q: p.q, show: p.show }
+    clearRoster()
+  }, [p.q, p.show, clearRoster])
   const bulk = p.editable && rosterIds.length > 0
   return (
     <Section title="People" count={p.summary.candidates}>

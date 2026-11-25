@@ -228,6 +228,75 @@ describe('PeopleSection disclosure', () => {
     expect(document.getElementById('detail-u1')).not.toBeNull()
   })
 
+  it('clears the ticks when q changes without the search box (Back/Forward)', async () => {
+    const user = userEvent.setup()
+    const { rerender } = ui()
+    await user.click(screen.getByRole('checkbox', { name: 'Select Person 1' }))
+    expect(screen.getByText(/1 selected/)).toBeInTheDocument()
+    rerender(
+      <SittingUiProvider>
+        <PeopleSection
+          sittingId="sit-1"
+          status="scheduled"
+          editable
+          summary={summary as never}
+          rows={[person(1), person(2)] as never}
+          total={2}
+          q="bea"
+          show="all"
+          page={1}
+        />
+      </SittingUiProvider>,
+    )
+    expect(screen.queryByText(/selected/)).toBeNull()
+  })
+
+  it('clears the ticks when show changes without the filter (Back/Forward)', async () => {
+    const user = userEvent.setup()
+    const { rerender } = ui()
+    await user.click(screen.getByRole('checkbox', { name: 'Select Person 1' }))
+    expect(screen.getByText(/1 selected/)).toBeInTheDocument()
+    rerender(
+      <SittingUiProvider>
+        <PeopleSection
+          sittingId="sit-1"
+          status="scheduled"
+          editable
+          summary={summary as never}
+          rows={[person(1), person(2)] as never}
+          total={2}
+          q=""
+          show="needs_code"
+          page={1}
+        />
+      </SittingUiProvider>,
+    )
+    expect(screen.queryByText(/selected/)).toBeNull()
+  })
+
+  it('keeps the ticks on a page-only change', async () => {
+    const user = userEvent.setup()
+    const { rerender } = ui({ total: 120 })
+    await user.click(screen.getByRole('checkbox', { name: 'Select Person 1' }))
+    expect(screen.getByText(/1 selected/)).toBeInTheDocument()
+    rerender(
+      <SittingUiProvider>
+        <PeopleSection
+          sittingId="sit-1"
+          status="scheduled"
+          editable
+          summary={summary as never}
+          rows={[person(1), person(2)] as never}
+          total={120}
+          q=""
+          show="all"
+          page={2}
+        />
+      </SittingUiProvider>,
+    )
+    expect(screen.getByText(/1 selected/)).toBeInTheDocument()
+  })
+
   it('resets the open set on a page change', async () => {
     const user = userEvent.setup()
     const { rerender } = ui()

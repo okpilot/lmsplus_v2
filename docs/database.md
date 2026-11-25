@@ -941,7 +941,7 @@ Single-use 8-character codes for starting `internal_exam` mode sessions. Admins 
 
 ## 3. Soft Delete
 
-**Rule: No hard DELETE anywhere in the application. Ever.**
+**Rule: No hard DELETE in application code, except the tables marked "Hard DELETE (approved exception)" in the matrix below and the service-role E2E teardown described with them.**
 
 Every mutable table has `deleted_at TIMESTAMPTZ NULL`. When a record is "deleted":
 

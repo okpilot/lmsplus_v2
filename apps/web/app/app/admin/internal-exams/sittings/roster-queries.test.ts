@@ -213,6 +213,20 @@ describe('getRosterAll', () => {
     expect(rows).toHaveLength(250)
     expect(new Set(rows.map((r) => r.userId)).size).toBe(250)
   })
+
+  it('drops a person a concurrent insert pushed onto two pages', async () => {
+    // Offset paging has no snapshot: an insert between calls shifts rows down, so page 2 can
+    // repeat page 1's last person. Two rows with the same userId is a duplicate React key.
+    const page = (start: number, n: number) =>
+      Array.from({ length: n }, (_, i) => rosterRow({ user_id: `u${start + i}`, total_count: 150 }))
+    mockRpc
+      .mockResolvedValueOnce({ data: page(0, 100), error: null })
+      .mockResolvedValueOnce({ data: page(99, 50), error: null })
+    const rows = await getRosterAll(SID)
+    expect(mockRpc).toHaveBeenCalledTimes(2)
+    expect(new Set(rows.map((r) => r.userId)).size).toBe(rows.length)
+    expect(rows).toHaveLength(149)
+  })
 })
 
 describe('getRemoved', () => {

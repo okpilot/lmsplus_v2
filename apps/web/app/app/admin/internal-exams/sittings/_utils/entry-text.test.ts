@@ -1,3 +1,4 @@
+import { RESERVED_VOID_REASONS } from '@repo/db/schema'
 import { describe, expect, it } from 'vitest'
 import { ENTRY_STATUS_LABEL, entryFacts, entryStatusText, showsCode } from './entry-text'
 
@@ -113,6 +114,12 @@ describe('entryFacts', () => {
         sharedExpiry: false,
       }),
     ).toContain('Voided: sitting closed')
+  })
+
+  it.each(RESERVED_VOID_REASONS)('labels the system void reason %s', (reason) => {
+    const out = entryFacts(entry({ status: 'voided', voidReason: reason }), { sharedExpiry: false })
+    expect(out).toMatch(/^Voided: /)
+    expect(out).not.toContain(reason)
   })
 
   it('shows a free-text reason that collides with an Object prototype key verbatim', () => {

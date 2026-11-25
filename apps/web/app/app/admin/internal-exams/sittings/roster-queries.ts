@@ -128,11 +128,20 @@ const ALL_PAGE_SIZE = 100
 export async function getRosterAll(sittingId: string): Promise<RosterRow[]> {
   const { supabase } = await requireAdmin()
   const out: RosterRow[] = []
+  // Offset paging has no snapshot: a concurrent insert shifts rows down, so a page can repeat the
+  // previous page's tail. Two rows with one userId is a duplicate React key on the Print page.
+  const seen = new Set<string>()
+  let received = 0
   for (let page = 1; ; page++) {
     const rows = await fetchRoster(supabase, { sittingId, limit: ALL_PAGE_SIZE, page })
     if (!rows || rows.length === 0) break
-    out.push(...rows.map(mapRow))
-    if (out.length >= totalOf(rows)) break
+    received += rows.length
+    for (const row of rows.map(mapRow)) {
+      if (seen.has(row.userId)) continue
+      seen.add(row.userId)
+      out.push(row)
+    }
+    if (received >= totalOf(rows)) break
   }
   return out
 }
