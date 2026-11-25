@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { sittingCodeVoidable } from './_void-policy'
+import { codeDisplayStatus, sittingCodeVoidable } from './_void-policy'
 
 const base = { consumed: false, sessionEndedAt: null, sessionVisible: true }
 
@@ -31,5 +31,42 @@ describe('sittingCodeVoidable', () => {
     expect(
       sittingCodeVoidable({ ...base, sittingEntryId: 'e1', consumed: true, sessionVisible: false }),
     ).toBe(false)
+  })
+})
+
+describe('codeDisplayStatus', () => {
+  const row = { sessionEndedAt: null, sessionDeletedAt: null }
+
+  it('passes an unconsumed status through', () => {
+    expect(codeDisplayStatus({ ...row, status: 'waiting' })).toBe('waiting')
+    expect(codeDisplayStatus({ ...row, status: 'voided' })).toBe('voided')
+  })
+
+  it('reads a live attempt as consumed', () => {
+    expect(codeDisplayStatus({ ...row, status: 'consumed' })).toBe('consumed')
+  })
+
+  it('reads an ended attempt as finished', () => {
+    expect(
+      codeDisplayStatus({ ...row, status: 'consumed', sessionEndedAt: '2026-11-25T10:00:00Z' }),
+    ).toBe('finished')
+  })
+
+  it('reads a discarded attempt as discarded', () => {
+    expect(
+      codeDisplayStatus({ ...row, status: 'consumed', sessionDeletedAt: '2026-11-25T10:00:00Z' }),
+    ).toBe('discarded')
+  })
+
+  // `list_exam_sitting_roster` joins the session on `deleted_at IS NULL`, so it calls this
+  // 'discarded'; the codes tab must not call the same attempt 'Finished'.
+  it('reads an ended-then-deleted attempt as discarded, not finished', () => {
+    expect(
+      codeDisplayStatus({
+        status: 'consumed',
+        sessionEndedAt: '2026-11-25T10:00:00Z',
+        sessionDeletedAt: '2026-11-25T11:00:00Z',
+      }),
+    ).toBe('discarded')
   })
 })

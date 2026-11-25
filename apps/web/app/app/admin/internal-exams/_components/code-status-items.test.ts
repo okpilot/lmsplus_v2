@@ -1,21 +1,21 @@
 import { describe, expect, it } from 'vitest'
+import type { CodeDisplayStatus } from '../_void-policy'
 import { CODE_FILTER_STATUSES } from '../types'
 import { STATUS_ITEMS, statusLabel } from './code-status-items'
 
 describe('statusLabel', () => {
-  it.each([
+  // The parameter is the closed `CodeDisplayStatus` union, so there is no unknown-status path to
+  // cover: a new display status fails `check-types` here instead of rendering as a raw token.
+  it.each<[CodeDisplayStatus, string]>([
     ['active', 'Active'],
     ['waiting', 'Waiting for start'],
     ['consumed', 'In progress'],
     ['finished', 'Finished'],
+    ['discarded', 'Discarded'],
     ['voided', 'Voided'],
     ['expired', 'Expired'],
   ])('labels %s as %s', (status, label) => {
     expect(statusLabel(status)).toBe(label)
-  })
-
-  it('returns the raw status when unknown', () => {
-    expect(statusLabel('mystery')).toBe('mystery')
   })
 })
 

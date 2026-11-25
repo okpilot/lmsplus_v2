@@ -5,13 +5,22 @@ import { StatusText } from '@/components/kit/status-text'
 import { Button } from '@/components/ui/button'
 import { TableCell, TableRow } from '@/components/ui/table'
 import { formatUtc } from '@/lib/utils/format-utc'
-import { codeDisplayStatus, codeRowVoidable, codeVoidDisabled } from '../_void-policy'
+import {
+  type CodeDisplayStatus,
+  codeDisplayStatus,
+  codeRowVoidable,
+  codeVoidDisabled,
+} from '../_void-policy'
 import { SITTING_BASE } from '../sittings/types'
 import type { InternalExamCodeRow } from '../types'
 import { statusLabel } from './code-status-items'
 import { SendCodeEmailButton } from './send-code-email-button'
 
-const STATUS_MUTED: ReadonlySet<string> = new Set(['expired', 'voided', 'discarded'])
+const STATUS_MUTED: ReadonlySet<CodeDisplayStatus> = new Set<CodeDisplayStatus>([
+  'expired',
+  'voided',
+  'discarded',
+])
 
 function formatAbsolute(iso: string | null): string {
   if (!iso) return '—'

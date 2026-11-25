@@ -43,17 +43,18 @@ function applyCodeFilters(
         .is('quiz_sessions.deleted_at', null)
     case 'discarded':
       // Only this service-role read sees the session row, so only here is the state filterable.
+      // Ended or not: a soft-deleted attempt is discarded (`codeDisplayStatus`).
       return b
         .not('consumed_at', 'is', null)
         .is('voided_at', null)
-        .is('quiz_sessions.ended_at', null)
         .not('quiz_sessions.deleted_at', 'is', null)
     case 'finished':
-      // linked session has ended (ended_at IS NOT NULL)
+      // Ended AND still live — an ended-then-deleted attempt belongs under `discarded`.
       return b
         .not('consumed_at', 'is', null)
         .is('voided_at', null)
         .not('quiz_sessions.ended_at', 'is', null)
+        .is('quiz_sessions.deleted_at', null)
     case 'active':
       return b.is('consumed_at', null).is('voided_at', null).gt('expires_at', nowIso)
     default:

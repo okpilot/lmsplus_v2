@@ -1,7 +1,8 @@
+import type { CodeDisplayStatus } from '../_void-policy'
 import { ENTRY_STATUS_LABEL } from '../sittings/_utils/entry-text'
 import { CODE_FILTER_STATUSES, type CodeFilterStatus } from '../types'
 
-const ROW_LABEL: Record<string, string> = {
+const ROW_LABEL: Record<CodeDisplayStatus, string> = {
   active: 'Active',
   waiting: ENTRY_STATUS_LABEL.waiting,
   consumed: 'In progress',
@@ -29,6 +30,6 @@ export const STATUS_ITEMS: ReadonlyArray<{ value: string; label: string }> = [
   ...CODE_FILTER_STATUSES.map((value) => ({ value, label: FILTER_LABEL[value] })),
 ]
 
-export function statusLabel(status: string): string {
-  return ROW_LABEL[status] ?? status
+export function statusLabel(status: CodeDisplayStatus): string {
+  return ROW_LABEL[status]
 }

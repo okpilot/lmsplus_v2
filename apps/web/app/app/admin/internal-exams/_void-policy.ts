@@ -43,7 +43,11 @@ export function codeRowVoidable(
 
 export type CodeDisplayStatus = InternalExamCodeStatus | 'finished' | 'discarded'
 
-/** What the row badge reads. A soft-deleted, unended attempt is gone, not running. */
+/**
+ * What the row badge reads. Deletion first: a soft-deleted attempt is discarded whether or not it
+ * ended, the order `list_exam_sitting_roster` and `get_quiz_progress` use. The two screens must
+ * agree.
+ */
 export function codeDisplayStatus(
   row: Readonly<{
     status: InternalExamCodeStatus
@@ -52,8 +56,8 @@ export function codeDisplayStatus(
   }>,
 ): CodeDisplayStatus {
   if (row.status !== 'consumed') return row.status
-  if (row.sessionEndedAt) return 'finished'
   if (row.sessionDeletedAt) return 'discarded'
+  if (row.sessionEndedAt) return 'finished'
   return 'consumed'
 }
 
