@@ -54,7 +54,7 @@ async function issueCodeFromSittingPage(
   await expect(dialog).toHaveCount(0)
   await adminPage.getByRole('button', { name: `Show exams for ${seed.studentName}` }).click()
   // The code sits in the detail row, whose text carries no person name. The expanded toggle
-  // publishes that row's id in aria-controls (person-row.tsx:114).
+  // in PersonRow publishes that row's id in aria-controls.
   const toggle = adminPage.locator(
     `button[aria-expanded="true"][aria-label$="exams for ${seed.studentName}"]`,
   )
