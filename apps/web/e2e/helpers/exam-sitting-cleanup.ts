@@ -24,10 +24,15 @@ async function removeSeededSessions(admin: Admin, sessionIds: string[]) {
     .select('id, users!student_id(email)')
     .in('id', sessionIds)
   check('seed sessions lookup', rows.error)
-  const isSeeded = (email: string | undefined) =>
-    email?.startsWith(EXAM_SITTING_SEED_EMAIL_PREFIX) ?? false
-  const seeded = (rows.data ?? []).filter((r) => isSeeded(r.users?.email)).map((r) => r.id)
-  const fixture = (rows.data ?? []).filter((r) => !isSeeded(r.users?.email)).map((r) => r.id)
+  const classified = (rows.data ?? []).map((r) => {
+    const email = r.users?.email
+    // An unresolved embed is unclassifiable. Routed to the fixture branch, a seeded row is only
+    // soft-deleted and `deleteSeededUsers` then fails on the `student_id` FK, burying the cause.
+    if (email === undefined) throw new Error(`seed sessions lookup: no student for session ${r.id}`)
+    return { id: r.id, seeded: email.startsWith(EXAM_SITTING_SEED_EMAIL_PREFIX) }
+  })
+  const seeded = classified.filter((r) => r.seeded).map((r) => r.id)
+  const fixture = classified.filter((r) => !r.seeded).map((r) => r.id)
   if (seeded.length > 0) {
     check(
       'seed sessions delete',
@@ -36,6 +41,13 @@ async function removeSeededSessions(admin: Admin, sessionIds: string[]) {
   }
   if (fixture.length === 0) return
   const now = new Date().toISOString()
+  // Soft-delete FIRST: the two updates are not atomic, and every history and attempts list filters
+  // `deleted_at IS NULL`. A failure after this point leaves the row invisible rather than looking
+  // like an unscored finished attempt.
+  check(
+    'fixture sessions soft-delete',
+    (await admin.from('quiz_sessions').update({ deleted_at: now }).in('id', fixture)).error,
+  )
   check(
     'fixture sessions end',
     (
@@ -45,10 +57,6 @@ async function removeSeededSessions(admin: Admin, sessionIds: string[]) {
         .in('id', fixture)
         .is('ended_at', null)
     ).error,
-  )
-  check(
-    'fixture sessions soft-delete',
-    (await admin.from('quiz_sessions').update({ deleted_at: now }).in('id', fixture)).error,
   )
 }
 

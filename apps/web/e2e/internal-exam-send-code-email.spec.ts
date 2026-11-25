@@ -70,6 +70,7 @@ async function openLegacyCodeRow(
 function sendButton(adminPage: Page, code: string) {
   return adminPage.locator('tr', { hasText: code }).getByRole('button', { name: /send email/i })
 }
+
 /** Resolve the issued code's row id by its (globally UNIQUE) code string. */
 async function lookupCodeId(admin: AdminClient, code: string): Promise<string> {
   const { data, error } = await admin

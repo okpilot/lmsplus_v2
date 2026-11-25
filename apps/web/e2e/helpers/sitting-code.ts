@@ -48,6 +48,7 @@ async function lookupIds(admin: Admin, studentEmail: string, subjectFragment: st
     .select('id, course_id')
     .ilike('name', `%${subjectFragment}%`)
     .is('deleted_at', null)
+    .order('name')
     .limit(1)
     .single()
   if (subject.error || !subject.data) fail('subject lookup', subject.error)

@@ -35,7 +35,7 @@ export async function checkSittingCode(
     .eq('id', codeId)
     .maybeSingle()
   if (error) {
-    console.error('[voidInternalExamCode] lookup error:', error.message)
+    console.error('[checkSittingCode] lookup error:', error.message)
     return { ok: false, error: 'Failed to void internal exam code' }
   }
   // Fail closed: the legacy `void_internal_exam_code` has no sitting guard of its own (#1820).
