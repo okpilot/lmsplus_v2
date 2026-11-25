@@ -312,3 +312,31 @@ describe('ShowFilter draft flush', () => {
     expect(screen.getByRole('button', { name: 'ticks:0' })).toBeInTheDocument()
   })
 })
+
+describe('RosterSearch — a write by the Show filter under our pending timer', () => {
+  it('clears q after the filter flushed our draft', () => {
+    const { rerender } = render(
+      <SittingUiProvider>
+        <RosterSearch value="" />
+        <ShowFilter value="all" q="" />
+      </SittingUiProvider>,
+    )
+    fireEvent.change(screen.getByLabelText(LABEL), { target: { value: 'ann' } })
+    // The filter consumes the draft and writes q itself, while our 300 ms timer is still armed.
+    fireEvent.click(screen.getByRole('button', { name: 'reselect' }))
+    expect(mockReplace.mock.calls[0]?.[0] as string).toContain('q=ann')
+    rerender(
+      <SittingUiProvider>
+        <RosterSearch value="ann" />
+        <ShowFilter value="all" q="ann" />
+      </SittingUiProvider>,
+    )
+    act(() => vi.advanceTimersByTime(300))
+    // Emptying the box must drop q; comparing against a stale ref would write nothing.
+    fireEvent.change(screen.getByLabelText(LABEL), { target: { value: '' } })
+    act(() => vi.advanceTimersByTime(300))
+    const last = mockReplace.mock.calls.at(-1)?.[0] as string
+    expect(mockReplace.mock.calls.length).toBeGreaterThan(1)
+    expect(last).not.toContain('q=')
+  })
+})

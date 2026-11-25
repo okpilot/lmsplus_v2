@@ -33,7 +33,12 @@ export function RosterSearch({ value }: Readonly<{ value: string }>) {
     if (searchDraft) searchDraft.current = v
     timer.current = setTimeout(() => {
       timer.current = null
-      if (searchDraft && searchDraft.current === null) return
+      // The filter consumed our draft and wrote `q` itself. Catch the ref up here: the effect
+      // cannot, because it returns early while this timer is armed.
+      if (searchDraft && searchDraft.current === null) {
+        requested.current = v.trim()
+        return
+      }
       // Unchanged query: the roster does not move, so the ticks stay. Nothing wrote the URL, so
       // the re-sync effect will not run to clear the draft either.
       if (v.trim() === requested.current) {
