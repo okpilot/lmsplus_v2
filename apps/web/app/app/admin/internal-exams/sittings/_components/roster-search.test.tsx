@@ -16,17 +16,23 @@ vi.mock('@/app/app/_components/filter-select', () => ({
     items: { value: string; label: string }[]
     onValueChange: (v: string | null) => void
   }) => (
-    <select
-      aria-label={p.ariaLabel}
-      value={p.value}
-      onChange={(e) => p.onValueChange(e.target.value)}
-    >
-      {p.items.map((i) => (
-        <option key={i.value} value={i.value}>
-          {i.label}
-        </option>
-      ))}
-    </select>
+    <>
+      <select
+        aria-label={p.ariaLabel}
+        value={p.value}
+        onChange={(e) => p.onValueChange(e.target.value)}
+      >
+        {p.items.map((i) => (
+          <option key={i.value} value={i.value}>
+            {i.label}
+          </option>
+        ))}
+      </select>
+      {/* Base UI fires onValueChange on every item press, the current one included. */}
+      <button type="button" onClick={() => p.onValueChange(p.value)}>
+        reselect
+      </button>
+    </>
   ),
 }))
 
@@ -48,7 +54,7 @@ const withTick = (
   <SittingUiProvider>
     <TickProbe />
     <RosterSearch value="" />
-    <ShowFilter value="all" />
+    <ShowFilter value="all" q="" />
   </SittingUiProvider>
 )
 
@@ -165,7 +171,7 @@ describe('RosterSearch', () => {
     render(
       <SittingUiProvider>
         <RosterSearch value="" />
-        <ShowFilter value="all" />
+        <ShowFilter value="all" q="" />
       </SittingUiProvider>,
     )
     fireEvent.change(screen.getByLabelText(LABEL), { target: { value: 'ann' } })
@@ -186,7 +192,7 @@ describe('RosterSearch', () => {
     render(
       <SittingUiProvider>
         <RosterSearch value="Bea" />
-        <ShowFilter value="all" />
+        <ShowFilter value="all" q="" />
       </SittingUiProvider>,
     )
     fireEvent.change(screen.getByLabelText(LABEL), { target: { value: '' } })
@@ -205,7 +211,7 @@ describe('RosterSearch', () => {
     const tree = (value: string) => (
       <SittingUiProvider>
         <RosterSearch value={value} />
-        <ShowFilter value="all" />
+        <ShowFilter value="all" q="" />
       </SittingUiProvider>
     )
     const { rerender } = render(tree(''))
@@ -263,5 +269,46 @@ describe('RosterSearch', () => {
     unmount()
     vi.advanceTimersByTime(1000)
     expect(mockReplace).not.toHaveBeenCalled()
+  })
+})
+
+describe('RosterSearch — in-flight navigation', () => {
+  it('writes a correction typed back to the previous URL value', () => {
+    const { rerender } = render(<RosterSearch value="ann" />)
+    const box = screen.getByLabelText(LABEL)
+    fireEvent.change(box, { target: { value: 'anna' } })
+    vi.advanceTimersByTime(300)
+    expect(mockReplace.mock.calls[0]?.[0] as string).toContain('q=anna')
+    // The navigation has not committed, so the `value` prop is still 'ann'.
+    rerender(<RosterSearch value="ann" />)
+    fireEvent.change(box, { target: { value: 'ann' } })
+    vi.advanceTimersByTime(300)
+    expect(mockReplace).toHaveBeenCalledTimes(2)
+    expect(mockReplace.mock.calls[1]?.[0] as string).toContain('q=ann')
+  })
+
+  it('still skips a query the committed URL already carries', () => {
+    const { rerender } = render(<RosterSearch value="ann" />)
+    const box = screen.getByLabelText(LABEL)
+    fireEvent.change(box, { target: { value: 'anna' } })
+    vi.advanceTimersByTime(300)
+    rerender(<RosterSearch value="anna" />)
+    fireEvent.change(box, { target: { value: 'anna' } })
+    vi.advanceTimersByTime(300)
+    expect(mockReplace).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('ShowFilter draft flush', () => {
+  it('flushes a pending search and clears the ticks when the same option is pressed', () => {
+    render(withTick)
+    fireEvent.click(screen.getByRole('button', { name: /^ticks:/ }))
+    expect(screen.getByRole('button', { name: 'ticks:1' })).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText(LABEL), { target: { value: 'bea' } })
+    fireEvent.click(screen.getByRole('button', { name: 'reselect' }))
+    const url = mockReplace.mock.calls[0]?.[0] as string
+    expect(url).toContain('q=bea')
+    expect(url).not.toContain('page=')
+    expect(screen.getByRole('button', { name: 'ticks:0' })).toBeInTheDocument()
   })
 })

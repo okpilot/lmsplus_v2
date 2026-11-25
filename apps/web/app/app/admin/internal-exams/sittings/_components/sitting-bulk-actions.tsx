@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/button'
 import { useSittingUi } from '../_hooks/sitting-ui-context'
-import { MAX_TICKS } from '../parse-sitting-params'
+import { MAX_TICKS } from '../types'
 
 /** Bulk bar for ticked people; replaces the toolbar while anything is ticked. */
 export function SittingBulkActions({ onRemove }: Readonly<{ onRemove: (ids: string[]) => void }>) {

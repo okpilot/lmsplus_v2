@@ -13,7 +13,7 @@ type Props = {
 /** Status as text; a symbol reinforces success and danger. */
 export function StatusText({ label, tone = 'neutral', caption, className }: Readonly<Props>) {
   const text = (
-    <span className={cn('inline-flex items-center gap-1', className)}>
+    <span className={cn('inline-flex items-center gap-1', caption ? undefined : className)}>
       {tone === 'success' && <CircleCheck className="size-icon-sm text-success" aria-hidden />}
       {tone === 'danger' && <CircleAlert className="size-icon-sm text-danger" aria-hidden />}
       {label}
@@ -21,7 +21,7 @@ export function StatusText({ label, tone = 'neutral', caption, className }: Read
   )
   if (!caption) return text
   return (
-    <span className="flex flex-col">
+    <span className={cn('flex flex-col', className)}>
       {text}
       <span className="text-caption text-muted-foreground tabular-nums">{caption}</span>
     </span>

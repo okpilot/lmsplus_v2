@@ -93,7 +93,8 @@ async function cleanupSeededExamSittings(): Promise<void> {
       errors.push(e instanceof Error ? e.message : String(e))
     }
   }
-  // FK-dependent step (code-style.md:729): the users are parents of the rows above, so running it
+  // FK-dependent step (code-style.md § Multi-Step Cleanup Needs a Per-Step Error Accumulator,
+  // "Dependent steps"): the users are parents of the rows above, so running it
   // after a failed rows delete only raises FK errors that bury the real cause. The leaked rows and
   // their auth users are found again by the next afterEach, keyed on the email prefix.
   if (errors.length === 0) {

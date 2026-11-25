@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const ui = vi.hoisted(() => ({ rosterIds: [] as string[], clearRoster: vi.fn() }))
 vi.mock('../_hooks/sitting-ui-context', () => ({ useSittingUi: () => ui }))
 
-import { MAX_TICKS } from '../parse-sitting-params'
+import { MAX_TICKS } from '../types'
 import { SittingBulkActions } from './sitting-bulk-actions'
 
 const ids = (n: number) => Array.from({ length: n }, (_, i) => `u${i}`)

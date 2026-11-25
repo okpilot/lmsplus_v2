@@ -46,6 +46,10 @@ export type InvigilatorOption = { id: string; name: string }
 
 export const ROSTER_PAGE_SIZE = 50
 
+/** Most people a bulk action may tick. Here, not in `parse-sitting-params`: that module builds
+ * Zod schemas at module scope and client components read this constant. */
+export const MAX_TICKS = 100
+
 /** Entries holding a usable, unspent code. */
 export const LIVE_ENTRY_STATUSES: ReadonlySet<string> = new Set(['waiting', 'ready'])
 

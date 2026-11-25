@@ -34,6 +34,7 @@ test.describe('sitting page redirects without a session', () => {
 
   test('sitting print page redirects to login', async ({ page }) => {
     await page.goto('/app/admin/internal-exams/sittings/00000000-0000-4000-a000-0000000000a1/print')
+    await expect(page).toHaveURL(/^[^?]*\/(\?.*)?$/)
     await expect(page.getByRole('heading', { name: 'LMS Plus' })).toBeVisible()
   })
 })

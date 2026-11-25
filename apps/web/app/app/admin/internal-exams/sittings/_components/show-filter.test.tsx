@@ -14,17 +14,24 @@ vi.mock('@/app/app/_components/filter-select', () => ({
     items: { value: string; label: string }[]
     onValueChange: (v: string | null) => void
   }) => (
-    <select
-      aria-label={p.ariaLabel}
-      value={p.value}
-      onChange={(e) => p.onValueChange(e.target.value)}
-    >
-      {p.items.map((i) => (
-        <option key={i.value} value={i.value}>
-          {i.label}
-        </option>
-      ))}
-    </select>
+    <>
+      <select
+        aria-label={p.ariaLabel}
+        value={p.value}
+        onChange={(e) => p.onValueChange(e.target.value)}
+      >
+        {p.items.map((i) => (
+          <option key={i.value} value={i.value}>
+            {i.label}
+          </option>
+        ))}
+      </select>
+      {/* Base UI fires onValueChange on every item press, including the current one, which a
+          native select cannot do. */}
+      <button type="button" onClick={() => p.onValueChange(p.value)}>
+        reselect
+      </button>
+    </>
   ),
 }))
 
@@ -37,7 +44,7 @@ beforeEach(() => {
 
 describe('ShowFilter', () => {
   it('offers All people, Needs code and Has attempts only', () => {
-    render(<ShowFilter value="all" />)
+    render(<ShowFilter value="all" q="ann" />)
     const select = screen.getByRole('combobox', { name: 'Show' })
     expect([...select.querySelectorAll('option')].map((o) => o.textContent)).toEqual([
       'All people',
@@ -47,7 +54,7 @@ describe('ShowFilter', () => {
   })
 
   it('writes show to the URL and clears page, keeping q', () => {
-    render(<ShowFilter value="all" />)
+    render(<ShowFilter value="all" q="ann" />)
     fireEvent.change(screen.getByRole('combobox', { name: 'Show' }), {
       target: { value: 'attempts' },
     })
@@ -57,9 +64,15 @@ describe('ShowFilter', () => {
     expect(url).not.toContain('page=')
   })
 
+  it('writes nothing when the pressed option is the current one', () => {
+    render(<ShowFilter value="all" q="ann" />)
+    fireEvent.click(screen.getByRole('button', { name: 'reselect' }))
+    expect(mockReplace).not.toHaveBeenCalled()
+  })
+
   it('removes show from the URL for All people', () => {
     window.history.replaceState(null, '', '/x?q=ann&show=needs_code')
-    render(<ShowFilter value="needs_code" />)
+    render(<ShowFilter value="needs_code" q="ann" />)
     fireEvent.change(screen.getByRole('combobox', { name: 'Show' }), { target: { value: 'all' } })
     expect(mockReplace.mock.calls[0]?.[0] as string).not.toContain('show=')
   })

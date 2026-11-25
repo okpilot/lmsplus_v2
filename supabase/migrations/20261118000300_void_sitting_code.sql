@@ -1,4 +1,10 @@
 -- void_sitting_code: voids ONE unused code of an editable sitting. Refuses consumed (code_in_use), voided and foreign codes.
+-- It validates p_code_id but voids through private.void_unused_sitting_codes, which works by ENTRY.
+-- That is the same row only because of uq_internal_exam_codes_live_entry (mig 20261116000200):
+--   UNIQUE (sitting_entry_id) WHERE sitting_entry_id IS NOT NULL AND deleted_at IS NULL
+--     AND (voided_at IS NULL OR consumed_at IS NOT NULL)
+-- so an unvoided UNUSED code is unique per entry (the OR arm is what makes it so). The `<> 1`
+-- check below is therefore a cardinality assertion on that index, not an ordinary error path.
 CREATE OR REPLACE FUNCTION public.void_sitting_code(p_sitting_id uuid, p_code_id uuid, p_reason text)
 RETURNS TABLE(code_id uuid)
 LANGUAGE plpgsql

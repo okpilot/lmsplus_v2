@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { MAX_TICKS, parseSittingParams } from './parse-sitting-params'
+import { parseSittingParams } from './parse-sitting-params'
+import { MAX_TICKS } from './types'
 
 describe('parseSittingParams', () => {
   it('defaults to no query, show all and page 1', () => {

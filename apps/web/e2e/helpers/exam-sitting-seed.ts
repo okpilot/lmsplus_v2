@@ -153,6 +153,9 @@ async function seedEntries(
   }
 }
 
+/** Passed entries the prune path auto-removed. The `audit_events` rows it writes are immutable, so
+ * teardown cannot remove them while the parent sitting is hard-deleted: each run leaves orphan
+ * audit rows in the local and CI databases. */
 async function seedAutoRemoved(
   admin: Admin,
   ctx: { orgId: string; adminId: string; sittingId: string; subjects: Subject[] },

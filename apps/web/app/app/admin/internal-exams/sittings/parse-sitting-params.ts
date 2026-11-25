@@ -1,9 +1,6 @@
 import { z } from 'zod'
 import { SHOW_VALUES, type ShowValue } from './types'
 
-/** Most people a bulk action may tick. */
-export const MAX_TICKS = 100
-
 export type SittingParams = { q?: string; show: ShowValue; page: number }
 
 type Raw = Record<string, string | string[] | undefined>
