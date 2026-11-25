@@ -2,8 +2,9 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+const m = vi.hoisted(() => ({ push: vi.fn() }))
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), back: vi.fn() }),
+  useRouter: () => ({ push: m.push, replace: vi.fn(), refresh: vi.fn(), back: vi.fn() }),
   usePathname: () => '/app/admin/internal-exams/sittings/sit-1',
   useSearchParams: () => new URLSearchParams(),
 }))
@@ -107,13 +108,46 @@ describe('PersonRow', () => {
     expect(screen.queryByRole('button', { name: 'Actions for Ann Pilot' })).toBeNull()
   })
 
-  it('disables the tick and offers no Remove for a person who has taken an exam', () => {
+  it('disables the tick and offers Add exams but no Remove for a person who has taken an exam (AC 53)', async () => {
     ui({ row: row({ hasAttempt: true }) })
     expect(screen.getByRole('checkbox', { name: 'Select Ann Pilot' })).toHaveAttribute(
       'aria-disabled',
       'true',
     )
-    expect(screen.queryByRole('button', { name: 'Actions for Ann Pilot' })).toBeNull()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Actions for Ann Pilot' }))
+    expect(await screen.findByRole('menuitem', { name: 'Add exams' })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Remove from sitting' })).toBeNull()
+  })
+
+  it('offers Issue codes only for a needs-code, active person (AC 44, 53)', async () => {
+    const user = userEvent.setup()
+    ui({ row: row({ entries: [entry({ status: 'no_code', codeId: null, code: null })] }) })
+    await user.click(screen.getByRole('button', { name: 'Actions for Ann Pilot' }))
+    expect(await screen.findByRole('menuitem', { name: 'Issue codes' })).toBeInTheDocument()
+  })
+
+  it('disables every row action while a navigation is refreshing', async () => {
+    m.push.mockImplementation(() => new Promise<void>(() => undefined))
+    const user = userEvent.setup()
+    ui({ row: row({ entries: [entry({ status: 'no_code', codeId: null, code: null })] }) })
+    await user.click(screen.getByRole('button', { name: 'Actions for Ann Pilot' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Issue codes' }))
+    await user.click(screen.getByRole('button', { name: 'Actions for Ann Pilot' }))
+    expect(await screen.findByRole('menuitem', { name: 'Issue codes' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    )
+    for (const name of ['Add exams', 'Remove from sitting']) {
+      expect(screen.getByRole('menuitem', { name })).toHaveAttribute('aria-disabled', 'true')
+    }
+  })
+
+  it('omits Issue codes when every exam already has a code (AC 44)', async () => {
+    ui()
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Actions for Ann Pilot' }))
+    expect(await screen.findByRole('menuitem', { name: 'Add exams' })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Issue codes' })).toBeNull()
   })
 
   it('keeps a ticked person with an attempt untickable', async () => {

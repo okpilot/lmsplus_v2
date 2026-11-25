@@ -406,6 +406,13 @@ describe('PeopleSection selection', () => {
     expect(screen.queryByRole('button', { name: /Email/ })).toBeNull()
   })
 
+  it('disables bulk Issue codes when the only ticked needs-code person is deactivated', async () => {
+    const noCode = [entry({ entryId: 'n1', status: 'no_code', codeId: null, code: null })]
+    ui({ rows: [person(1, { deactivated: true, entries: noCode }), person(2)] })
+    await userEvent.setup().click(screen.getByRole('checkbox', { name: 'Select Person 1' }))
+    expect(screen.getByRole('button', { name: 'Issue codes' })).toBeDisabled()
+  })
+
   it('disables Remove above 100 ticks with Tick at most 100.', async () => {
     const rows = Array.from({ length: 101 }, (_, i) => person(i + 1))
     ui({ rows, total: 101 })

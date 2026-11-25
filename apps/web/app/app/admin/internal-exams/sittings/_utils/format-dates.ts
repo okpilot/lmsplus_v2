@@ -8,6 +8,11 @@ export function fmtDate(iso: string): string {
   return formatUtc(iso, DAY)
 }
 
+/** "18 Nov 2026" (the sentence around it supplies the UTC label). */
+export function formatDay(iso: string): string {
+  return formatUtc(iso, DAY, { label: false })
+}
+
 /** "18 Nov 2026, 09:30" (list column headed UTC). */
 export function formatListDate(iso: string): string {
   return formatUtc(iso, DAY_TIME, { label: false })

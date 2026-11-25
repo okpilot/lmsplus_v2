@@ -456,7 +456,7 @@ CREATE INDEX idx_exam_sittings_org_scheduled ON exam_sittings(organization_id, s
 CREATE INDEX idx_exam_sittings_invigilator ON exam_sittings(invigilator_id) WHERE deleted_at IS NULL;
 ```
 
-Test teardown (`apps/web/e2e/helpers/exam-sitting-cleanup.ts`) soft-deletes the unclosed marked `E2E-SIT-` sittings with no entries or candidates, and hard-deletes the `E2E-SIT-SEED-` sittings `seedSitting` builds with their codes, sessions, entries, candidates, enrolments and users; never in product code.
+Test teardown (`apps/web/e2e/helpers/exam-sitting-cleanup.ts`) soft-deletes the unclosed marked `E2E-SIT-` sittings with no entries or candidates, and hard-deletes the `E2E-SIT-SEED-` sittings `seedSitting` builds with their codes, sessions, entries, candidates, enrolments and users, and the `E2E-GRP-SIT-` groups with their members; never in product code. `apps/web/e2e/helpers/exam-config-cleanup.ts` hard-deletes the `exam_configs` rows it created in the same run (tracked in process memory, no DB marker); never in product code.
 
 CHECKs: started, closed and deleted pairs (`*_at` NULL iff `*_by` NULL); `closed_at IS NOT NULL ⇒ started_at IS NOT NULL`; not both closed and deleted; `ended_automatically ⇒ closed_at IS NOT NULL OR deleted_at IS NOT NULL`. `status` is generated; transitions are one-way and Closed is final.
 
@@ -1104,8 +1104,8 @@ ORDER BY deleted_at DESC;
 | `question_banks` | Yes | Bank retirement, not destruction |
 | `questions` | Yes | Retired questions still referenced in historical responses |
 | `course_enrolments` | Yes | Removed enrolments kept as history; `set_user_enrolments` sets `deleted_at`/`deleted_by`, re-adding inserts a new active row; never hard-deleted in product code (test teardown exception: §2 `exam_sittings`) |
-| `student_groups` | Yes | Retired groups kept as history; `delete_student_group` sets `deleted_at`/`deleted_by`; the name becomes reusable |
-| `student_group_members` | Yes | Removed memberships kept as history; `remove_student_group_members` / `delete_student_group` set `deleted_at`/`deleted_by`, re-adding inserts a new active row |
+| `student_groups` | Yes | Retired groups kept as history; `delete_student_group` sets `deleted_at`/`deleted_by`; the name becomes reusable (test teardown exception: §2 `exam_sittings`) |
+| `student_group_members` | Yes | Removed memberships kept as history; `remove_student_group_members` / `delete_student_group` set `deleted_at`/`deleted_by`, re-adding inserts a new active row (test teardown exception: §2 `exam_sittings`) |
 | `exam_sittings` | Yes | Cancel sets `deleted_at`/`deleted_by`; never hard-deleted in product code (test teardown exception: §2 `exam_sittings`); kept at least 3 years after training completion (ORA.ATO.120) |
 | `exam_sitting_candidates` | Yes | Removal sets `deleted_at`/`deleted_by`; never hard-deleted in product code (test teardown exception: §2 `exam_sittings`); kept at least 3 years after training completion (ORA.ATO.120) |
 | `exam_sitting_entries` | Yes | Removal sets `deleted_at`/`deleted_by`; never hard-deleted in product code (test teardown exception: §2 `exam_sittings`); kept at least 3 years after training completion (ORA.ATO.120) |
@@ -1120,7 +1120,7 @@ ORDER BY deleted_at DESC;
 | `courses` | No | Global reference data, never deleted |
 | `quiz_drafts` | Hard DELETE (approved exception) | Disposable temp storage; no recovery value |
 | `flagged_questions` | Yes (soft) | Unflag = set deleted_at; flags referenced in quiz filter queries |
-| `exam_configs` | Yes | Per-subject exam configuration; soft-deleted when org removes exam mode |
+| `exam_configs` | Yes | Per-subject exam configuration; soft-deleted when org removes exam mode; never hard-deleted in product code (test teardown exception: §2 `exam_sittings`) |
 | `exam_config_distributions` | Hard DELETE (approved exception) | No `deleted_at`; replaced atomically by `upsert_exam_config` RPC. Also cascades from parent `exam_configs` via `ON DELETE CASCADE`. RLS policies (admin SELECT/INSERT/DELETE) filter `ec.deleted_at IS NULL` on the parent join (mig 083), so direct PostgREST access to distributions of a soft-deleted exam config is blocked at the policy layer; `upsert_exam_config` runs as owner `postgres` (BYPASSRLS), so the replace-on-save flow is unaffected |
 | `question_comments` | Hard DELETE (explicit exception — low audit value) | deleted_at exists as safety net but not used by application code |
 | `internal_exam_codes` | Yes | Issued codes form an audit trail; admin void uses `voided_at`/`void_reason`, soft-delete reserved for compliance archival; test teardown exception: §2 `exam_sittings` |

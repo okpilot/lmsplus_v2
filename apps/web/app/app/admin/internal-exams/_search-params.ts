@@ -11,12 +11,26 @@ function parseCodeStatus(value: string | string[] | undefined): ListCodesFilters
     : undefined
 }
 
-export type DialogParam = 'new' | 'edit'
+const DIALOG_PARAMS = ['new', 'edit', 'people', 'exams', 'issue'] as const
+
+export type DialogParam = (typeof DIALOG_PARAMS)[number]
+
+/** Every URL param a sitting popup owns; opening or closing a popup drops the stale ones. */
+export const POPUP_PARAMS = [
+  'dlg',
+  'ids',
+  'all',
+  'pq',
+  'pgroup',
+  'pcourse',
+  'pstatus',
+  'ppage',
+] as const
 
 export type TabKey = 'sittings' | 'codes' | 'attempts'
 
 export function parseTab(value: string | string[] | null | undefined): TabKey {
-  return value === 'sittings' || value === 'attempts' ? value : 'codes'
+  return value === 'codes' || value === 'attempts' ? value : 'sittings'
 }
 
 /** `getAll(key)` in the server's `string | string[] | undefined` shape: a repeated key is an array. */
@@ -31,7 +45,9 @@ export function readTabParam(sp: Pick<URLSearchParams, 'getAll'>): TabKey {
 }
 
 function parseDlg(value: string | string[] | undefined): DialogParam | undefined {
-  return value === 'new' || value === 'edit' ? value : undefined
+  return typeof value === 'string' && (DIALOG_PARAMS as readonly string[]).includes(value)
+    ? (value as DialogParam)
+    : undefined
 }
 
 /** Client-side dialog read; a repeated or unknown `dlg` resolves exactly as the server's `parseDlg`. */
@@ -50,7 +66,7 @@ export type InternalExamsSearchParams = {
 }
 
 /**
- * Normalizes the admin Internal Exams page's raw search params: the active tab (default codes),
+ * Normalizes the admin Internal Exams page's raw search params: the active tab (default sittings),
  * a whitelisted code status (invalid/absent → undefined), the sittings scope and the table page
  * numbers. Extracted so `page.tsx` stays composition-only.
  */

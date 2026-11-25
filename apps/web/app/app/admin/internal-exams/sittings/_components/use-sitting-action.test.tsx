@@ -1,4 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
+import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const m = vi.hoisted(() => ({ refresh: vi.fn(), toastError: vi.fn(), toastSuccess: vi.fn() }))
@@ -9,6 +10,7 @@ vi.mock('next/navigation', () => ({
 }))
 vi.mock('sonner', () => ({ toast: { success: m.toastSuccess, error: m.toastError } }))
 
+import { SittingUiProvider, useSittingUi } from '../_hooks/sitting-ui-context'
 import { useSittingAction } from './use-sitting-action'
 
 beforeEach(() => vi.resetAllMocks())
@@ -62,5 +64,68 @@ describe('useSittingAction', () => {
     )
     await waitFor(() => expect(m.toastError).toHaveBeenCalledWith('Nope'))
     expect(result.current.error).toBeNull()
+  })
+})
+
+describe('useSittingAction lock (D-b5, AC 47)', () => {
+  const wrapper = ({ children }: Readonly<{ children: ReactNode }>) => (
+    <SittingUiProvider>{children}</SittingUiProvider>
+  )
+  const both = () => renderHook(() => ({ a: useSittingAction(), ui: useSittingUi() }), { wrapper })
+
+  it('locks the popup for the duration of the call and releases it on success', async () => {
+    const { result } = both()
+    let finish: (v: { success: true }) => void = () => undefined
+    act(() =>
+      result.current.a.run(
+        () =>
+          new Promise<{ success: true }>((res) => {
+            finish = res
+          }),
+        () => null,
+        { lock: true },
+      ),
+    )
+    expect(result.current.ui.locked).toBe(true)
+    await act(async () => finish({ success: true }))
+    expect(result.current.ui.locked).toBe(false)
+  })
+
+  it('releases the lock after a failure and after a throw', async () => {
+    const { result } = both()
+    act(() =>
+      result.current.a.run(async () => ({ success: false as const, error: 'Nope' }), vi.fn(), {
+        lock: true,
+      }),
+    )
+    await waitFor(() => expect(result.current.a.error).toBe('Nope'))
+    expect(result.current.ui.locked).toBe(false)
+    act(() =>
+      result.current.a.run(
+        async () => {
+          throw new Error('x')
+        },
+        vi.fn(),
+        { lock: true },
+      ),
+    )
+    await waitFor(() => expect(result.current.a.error).toBe('Service error. Please try again.'))
+    expect(result.current.ui.locked).toBe(false)
+  })
+
+  it('does not lock without the option', async () => {
+    const { result } = both()
+    let finish: (v: { success: true }) => void = () => undefined
+    act(() =>
+      result.current.a.run(
+        () =>
+          new Promise<{ success: true }>((res) => {
+            finish = res
+          }),
+        () => null,
+      ),
+    )
+    expect(result.current.ui.locked).toBe(false)
+    await act(async () => finish({ success: true }))
   })
 })

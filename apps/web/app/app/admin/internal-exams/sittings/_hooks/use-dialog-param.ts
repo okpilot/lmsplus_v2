@@ -1,8 +1,18 @@
 'use client'
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { type RefObject, useCallback, useEffect, useRef, useTransition } from 'react'
-import { type DialogParam, readDlgParam } from '../../_search-params'
+import {
+  type RefObject,
+  type TransitionStartFunction,
+  useCallback,
+  useEffect,
+  useRef,
+  useTransition,
+} from 'react'
+import { type DialogParam, POPUP_PARAMS, readDlgParam } from '../../_search-params'
+
+/** The provider's one navigation transition: every consumer sees the same pending state. */
+export type DialogNav = { pending: boolean; start: TransitionStartFunction }
 
 /** Refs a provider shares so every consumer of one page sees the same open/close history. */
 export type DialogRefs = {
@@ -10,15 +20,44 @@ export type DialogRefs = {
   openerRef: RefObject<HTMLElement | null>
   /** Set once a close is issued; cleared when `dlg` leaves the URL, so a second close() before the URL updates is a no-op. */
   closing: RefObject<boolean>
+  /** Shared transition; without it the hook runs its own. */
+  nav?: DialogNav
+  /** Shared uncommitted patches; without it each consumer accumulates its own. */
+  patches?: RefObject<Patch>
 }
 
-/** `pathname?search` with `dlg` set, or removed when null; other params kept. */
-export function dialogHref(pathname: string, search: string, dlg: DialogParam | null): string {
+/** `search` without any popup param (`dlg` included). */
+function withoutPopupParams(search: string): string {
   const params = new URLSearchParams(search)
-  if (dlg) params.set('dlg', dlg)
-  else params.delete('dlg')
+  for (const key of POPUP_PARAMS) params.delete(key)
+  return params.toString()
+}
+
+/** `pathname?search` with each key of `patch` set, or removed when null; other params kept. */
+export function paramsHref(
+  pathname: string,
+  search: string,
+  patch: Readonly<Record<string, string | null>>,
+): string {
+  const params = new URLSearchParams(search)
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === null) params.delete(key)
+    else params.set(key, value)
+  }
+  return withQuery(pathname, params)
+}
+
+function withQuery(pathname: string, params: URLSearchParams): string {
   const qs = params.toString()
   return qs ? `${pathname}?${qs}` : pathname
+}
+
+export type Patch = Readonly<Record<string, string | null>>
+
+/** `patch` without the keys the committed `search` already carries (null = absent). */
+function stillPending(search: string, patch: Patch): Patch {
+  const params = new URLSearchParams(search)
+  return Object.fromEntries(Object.entries(patch).filter(([k, v]) => (params.get(k) ?? null) !== v))
 }
 
 /** The provider's shared refs, else this hook's own (reset here when `dlg` leaves the URL). */
@@ -42,37 +81,73 @@ function useDialogRefs(shared: DialogRefs | undefined, dlg: string | null) {
   return { ...refs, consumeOpenedHere }
 }
 
+/** The latest value in a ref, for a callback that may run after an await from an earlier render. */
+function useLatest<T>(value: T) {
+  const ref = useRef(value)
+  useEffect(() => {
+    ref.current = value
+  }, [value])
+  return ref
+}
+
 /**
  * Dialog state in the URL (`?dlg=`). `open` pushes a history entry (recording `opener`, else the focused element, for focus return) and `close` pops it when this
- * session opened the dialog; a deep-linked dialog closes by replacing the URL without `dlg`.
+ * session opened the dialog; a deep-linked dialog closes by replacing the URL without `dlg`. `replaceParams` edits popup params in place (no history entry).
+ * Navigation runs in the provider's transition when there is one (`isRefreshing` is then true for every consumer) and never scrolls.
  */
 export function useDialogParam(shared?: DialogRefs) {
   const router = useRouter()
   const pathname = usePathname()
   const sp = useSearchParams()
-  const [isRefreshing, startTransition] = useTransition()
+  const [ownPending, ownStart] = useTransition()
+  const isRefreshing = shared?.nav ? shared.nav.pending : ownPending
+  const startTransition = shared?.nav ? shared.nav.start : ownStart
   const dlg = readDlgParam(sp)
   const { openedHere, openerRef, closing, consumeOpenedHere } = useDialogRefs(shared, dlg)
   const search = sp.toString()
+  /** Uncommitted patches, shared by the provider so a second replaceParams carries both across components. */
+  const ownPatches = useRef<Patch>({})
+  const pending = shared?.patches ?? ownPatches
+  useEffect(() => {
+    pending.current = stillPending(search, pending.current)
+  }, [search, pending])
+  /** Latest `isRefreshing` for `close`, which can run after an await from an earlier render. */
+  const refreshing = useLatest(isRefreshing)
   const open = useCallback(
-    (name: DialogParam, opener?: HTMLElement | null) => {
+    (name: DialogParam, opener?: HTMLElement | null, extra?: Readonly<Record<string, string>>) => {
       const active = document.activeElement
       openerRef.current = opener ?? (active instanceof HTMLElement ? active : null)
       openedHere.current = true
       closing.current = false
-      startTransition(() => router.push(dialogHref(pathname, search, name)))
+      pending.current = {}
+      const href = paramsHref(pathname, withoutPopupParams(search), { dlg: name, ...extra })
+      startTransition(() => router.push(href, { scroll: false }))
     },
-    [pathname, search, router, openedHere, openerRef, closing],
+    [pathname, search, router, startTransition, openedHere, openerRef, closing, pending],
+  )
+  const replaceParams = useCallback(
+    (patch: Patch) => {
+      if (closing.current) return
+      pending.current = { ...pending.current, ...patch }
+      const href = paramsHref(pathname, search, pending.current)
+      startTransition(() => router.replace(href, { scroll: false }))
+    },
+    [pathname, search, router, startTransition, closing, pending],
   )
   const close = useCallback(() => {
     if (closing.current) return
     closing.current = true
-    if (openedHere.current) {
-      openedHere.current = false
+    pending.current = {}
+    // Back while a replace is unsettled lets that replace land on the entry before the popup.
+    const back = openedHere.current && !refreshing.current
+    openedHere.current = false
+    if (back) {
       router.back()
       return
     }
-    startTransition(() => router.replace(dialogHref(pathname, search, null)))
-  }, [pathname, search, router, openedHere, closing])
-  return { dlg, isRefreshing, openerRef, open, close, consumeOpenedHere }
+    startTransition(() =>
+      router.replace(paramsHref(pathname, withoutPopupParams(search), {}), { scroll: false }),
+    )
+  }, [pathname, search, router, startTransition, openedHere, closing, pending, refreshing])
+  return { dlg, isRefreshing, openerRef, open, replaceParams, close, consumeOpenedHere }
 }

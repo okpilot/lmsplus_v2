@@ -5,23 +5,24 @@ import type { SittingActionResult } from '../actions/sitting-action-result'
 
 /**
  * Runs a sitting action in a transition. The previous banner is cleared first; `onOk` returns the new
- * banner (or null); the action revalidates the page. A failure stays in the confirm dialog (`error`),
+ * banner (or null); the action revalidates the page. `lock` holds the popup open (no dismiss) until the call ends. A failure stays in the confirm dialog (`error`),
  * or becomes a danger banner when the caller has no dialog (`errorAsBanner`).
  */
 export function useSittingAction() {
-  const { setBanner } = useSittingUi()
+  const { setBanner, setLocked } = useSittingUi()
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
 
   function run<T extends object>(
     call: () => Promise<SittingActionResult<T>>,
     onOk: (data: T) => ResultBannerData | null,
-    opts?: Readonly<{ errorAsBanner?: boolean }>,
+    opts?: Readonly<{ errorAsBanner?: boolean; lock?: boolean }>,
   ) {
     const fail = (message: string) =>
       opts?.errorAsBanner ? setBanner({ tone: 'danger', title: message }) : setError(message)
     setError(null)
     setBanner(null)
+    if (opts?.lock) setLocked(true)
     startTransition(async () => {
       try {
         const result = await call()
@@ -32,6 +33,8 @@ export function useSittingAction() {
         setBanner(onOk(result))
       } catch {
         fail('Service error. Please try again.')
+      } finally {
+        if (opts?.lock) setLocked(false)
       }
     })
   }

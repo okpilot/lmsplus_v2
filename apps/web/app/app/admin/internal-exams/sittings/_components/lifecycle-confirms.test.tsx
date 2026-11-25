@@ -10,6 +10,7 @@ const m = vi.hoisted(() => ({
   setConfirm: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
+  issueNow: vi.fn(),
 }))
 vi.mock('../actions/start-sitting', () => ({ startSitting: m.start }))
 vi.mock('../actions/close-sitting', () => ({ closeSitting: m.close }))
@@ -47,6 +48,7 @@ function ui(confirm: Confirm, s: Record<string, unknown> = summary) {
       summary={s as never}
       confirm={confirm}
       setConfirm={m.setConfirm}
+      onIssueNow={m.issueNow}
     />,
   )
 }
@@ -151,5 +153,32 @@ describe('LifecycleConfirms', () => {
   it('renders no dialog when nothing is being confirmed', () => {
     ui(null)
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+  })
+})
+
+describe('LifecycleConfirms Issue now (AC 45)', () => {
+  it('shows Issue now only when entries are issuable', async () => {
+    const { unmount } = ui('start', { ...summary, entriesWithoutCode: 2, entriesIssuable: 2 })
+    expect(await screen.findByRole('button', { name: 'Issue now' })).toBeInTheDocument()
+    unmount()
+    ui('start', { ...summary, entriesWithoutCode: 2, entriesIssuable: 0 })
+    await screen.findByRole('button', { name: 'Start sitting' })
+    expect(screen.queryByRole('button', { name: 'Issue now' })).toBeNull()
+  })
+
+  it('disables Issue now while the start request is pending', async () => {
+    m.start.mockReturnValue(new Promise(() => undefined))
+    ui('start', { ...summary, entriesWithoutCode: 2, entriesIssuable: 2 })
+    const issue = await screen.findByRole('button', { name: 'Issue now' })
+    expect(issue).toBeEnabled()
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Start sitting' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Issue now' })).toBeDisabled())
+  })
+
+  it('calls onIssueNow and does not start the sitting', async () => {
+    ui('start', { ...summary, entriesWithoutCode: 2, entriesIssuable: 2 })
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Issue now' }))
+    expect(m.issueNow).toHaveBeenCalledTimes(1)
+    expect(m.start).not.toHaveBeenCalled()
   })
 })

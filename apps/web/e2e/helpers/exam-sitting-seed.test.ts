@@ -15,6 +15,7 @@ function fakeAdmin(
   const inserts: Insert[] = []
   const created: string[] = []
   const deleted: string[] = []
+  const updates: Insert[] = []
   let n = 0
   const builder = (table: string) => {
     const api: Record<string, unknown> = {}
@@ -35,7 +36,7 @@ function fakeAdmin(
         const rows = lastInsert.map((r) => ({ id: `e-${r.subject_id}`, subject_id: r.subject_id }))
         return { data: opts.dropFirstEntryId ? rows.slice(1) : rows.reverse(), error: null }
       }
-      return { data: [{ id: `id-${++n}`, short: 'FPM' }], error: null }
+      return { data: [{ id: `id-${++n}`, short: 'FPM', course_id: 'course-1' }], error: null }
     }
     for (const m of ['select', 'eq', 'is', 'in', 'order', 'limit', 'like', 'neq']) {
       api[m] = () => api
@@ -46,6 +47,10 @@ function fakeAdmin(
       if (table === 'users' && opts.failUsersInsert) {
         return Promise.resolve({ data: null, error: { message: 'duplicate key' } })
       }
+      return api
+    }
+    api.update = (row: Record<string, unknown>) => {
+      updates.push({ table, rows: [row] })
       return api
     }
     api.single = () => Promise.resolve({ data: { id: `id-${++n}` }, error: null })
@@ -69,7 +74,7 @@ function fakeAdmin(
       },
     },
   })
-  return { inserts, created, deleted }
+  return { inserts, created, deleted, updates }
 }
 
 beforeEach(() => vi.resetAllMocks())
@@ -141,5 +146,59 @@ describe('seedSitting', () => {
     await expect(
       seedSitting({ people: [{ name: 'Ann', entries: [{ state: 'live' }, { state: 'live' }] }] }),
     ).rejects.toThrow(/entry id/)
+  })
+})
+
+describe('seedSitting addable people, enrolment and groups', () => {
+  it('creates addable students that are not candidates and deactivates the flagged one', async () => {
+    const { inserts, updates } = fakeAdmin()
+    const r = await seedSitting({
+      people: [{ name: 'Ann', entries: [] }],
+      addable: [{ name: 'Zed' }, { name: 'Dee', deactivated: true }],
+    })
+    const cands = inserts
+      .filter((i) => i.table === 'exam_sitting_candidates')
+      .flatMap((i) => i.rows)
+    expect(cands).toHaveLength(1)
+    const users = inserts.filter((i) => i.table === 'users').flatMap((i) => i.rows)
+    expect(users.map((u) => u.full_name)).toEqual(expect.arrayContaining(['Ann', 'Zed', 'Dee']))
+    expect(users.every((u) => String(u.email).startsWith('e2e-sit-'))).toBe(true)
+    expect(r.addable.map((a) => a.name)).toEqual(['Zed', 'Dee'])
+    const dead = updates.find((u) => u.table === 'users')
+    expect(dead?.rows[0]).toHaveProperty('deleted_at')
+  })
+
+  it('enrols an enrolled person without exams in the first configured subject course', async () => {
+    const { inserts } = fakeAdmin()
+    await seedSitting({
+      people: [
+        { name: 'Ann', entries: [], enrolled: true },
+        { name: 'Bea', entries: [] },
+      ],
+    })
+    const enrol = inserts.filter((i) => i.table === 'course_enrolments').flatMap((i) => i.rows)
+    expect(enrol).toHaveLength(1)
+    expect(enrol[0]).toMatchObject({ course_id: 'c-1' })
+  })
+
+  it('builds groups named E2E-GRP-SIT- with the listed people and addable people as members', async () => {
+    const { inserts } = fakeAdmin()
+    const r = await seedSitting({
+      people: [{ name: 'Ann', entries: [] }],
+      addable: [{ name: 'Zed' }],
+      groups: [{ name: 'Alpha', members: ['Ann', 'Zed'] }],
+    })
+    const group = inserts.find((i) => i.table === 'student_groups')
+    expect(group?.rows[0]).toMatchObject({ name: 'E2E-GRP-SIT-Alpha' })
+    const members = inserts.find((i) => i.table === 'student_group_members')
+    expect(members?.rows.map((m) => m.user_id)).toEqual([r.people[0]?.userId, r.addable[0]?.userId])
+    expect(r.groups[0]?.name).toBe('E2E-GRP-SIT-Alpha')
+  })
+
+  it('rejects a group member that is not a seeded person', async () => {
+    fakeAdmin()
+    await expect(
+      seedSitting({ people: [], groups: [{ name: 'Alpha', members: ['Nobody'] }] }),
+    ).rejects.toThrow(/unknown member Nobody/)
   })
 })

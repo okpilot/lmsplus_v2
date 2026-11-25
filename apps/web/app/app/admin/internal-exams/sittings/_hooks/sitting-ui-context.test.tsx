@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const m = vi.hoisted(() => ({
+  push: vi.fn(),
   toastError: vi.fn(),
   toastSuccess: vi.fn(),
   back: vi.fn(),
@@ -10,7 +11,7 @@ const m = vi.hoisted(() => ({
   search: { value: '' },
 }))
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: vi.fn(), replace: m.replace, back: m.back }),
+  useRouter: () => ({ push: m.push, replace: m.replace, back: m.back }),
   usePathname: () => '/app/admin/internal-exams/sittings',
   useSearchParams: () => new URLSearchParams(m.search.value),
 }))
@@ -108,7 +109,7 @@ describe('openedHere reset', () => {
     act(() => result.current.close())
     expect(m.back).not.toHaveBeenCalled()
     expect(m.replace).toHaveBeenCalledTimes(1)
-    expect(m.replace).toHaveBeenCalledWith('/app/admin/internal-exams/sittings')
+    expect(m.replace).toHaveBeenCalledWith('/app/admin/internal-exams/sittings', { scroll: false })
   })
 })
 
@@ -133,6 +134,91 @@ describe('useSittingUi without a provider', () => {
     act(() => result.current.setBanner(null))
     expect(m.toastError).not.toHaveBeenCalled()
     expect(m.toastSuccess).not.toHaveBeenCalled()
+  })
+})
+
+describe('all-mode through the provider (AC 29)', () => {
+  it('enters and leaves all-mode, emptying ticks', () => {
+    const { result } = renderHook(() => useSittingUi(), { wrapper })
+    act(() => result.current.toggleRoster('u1'))
+    act(() => result.current.setSelectAll(true))
+    expect(result.current.selectAll).toBe(true)
+    expect(result.current.rosterIds).toEqual([])
+    act(() => result.current.toggleRoster('u2'))
+    expect(result.current.selectAll).toBe(false)
+    expect(result.current.rosterIds).toEqual([])
+  })
+
+  it('is off without a provider', () => {
+    const { result } = renderHook(() => useSittingUi())
+    act(() => result.current.setSelectAll(true))
+    expect(result.current.selectAll).toBe(false)
+  })
+})
+
+describe('people ticks (D-b4)', () => {
+  it('toggles, ticks a page and clears, apart from the roster ticks', () => {
+    const { result } = renderHook(() => useSittingUi(), { wrapper })
+    act(() => result.current.people.toggle('p1'))
+    act(() => result.current.people.setMany(['p2', 'p3'], true))
+    expect(result.current.people.ids).toEqual(['p1', 'p2', 'p3'])
+    expect(result.current.rosterIds).toEqual([])
+    act(() => result.current.people.clear())
+    expect(result.current.people.ids).toEqual([])
+  })
+
+  it('keeps people ticks when the popup params change', () => {
+    m.search.value = 'dlg=people'
+    const { result, rerender } = renderHook(() => useSittingUi(), { wrapper })
+    act(() => result.current.people.toggle('p1'))
+    m.search.value = 'dlg=people&pq=ann&ppage=2'
+    rerender()
+    expect(result.current.people.ids).toEqual(['p1'])
+  })
+
+  it('has no ticks without a provider', () => {
+    const { result } = renderHook(() => useSittingUi())
+    act(() => result.current.people.toggle('p1'))
+    expect(result.current.people.ids).toEqual([])
+  })
+})
+
+describe('banner with lines (AC 54)', () => {
+  it('keeps a success banner that has lines and shows no toast', () => {
+    const { result } = renderHook(() => useSittingUi(), { wrapper })
+    const banner = {
+      tone: 'success' as const,
+      title: 'Added 1 exam.',
+      lines: ['Ann · FPM: not enrolled'],
+    }
+    act(() => result.current.setBanner(banner))
+    expect(result.current.banner).toEqual(banner)
+    expect(m.toastSuccess).not.toHaveBeenCalled()
+  })
+
+  it('still toasts a success banner with empty lines', () => {
+    const { result } = renderHook(() => useSittingUi(), { wrapper })
+    act(() => result.current.setBanner({ tone: 'success', title: 'Done', lines: [] }))
+    expect(result.current.banner).toBeNull()
+    expect(m.toastSuccess).toHaveBeenCalled()
+  })
+})
+
+describe('shared navigation transition (AC 48)', () => {
+  it('reports isRefreshing to a sibling consumer while a navigation runs', async () => {
+    let finish: () => void = () => undefined
+    m.push.mockImplementation(
+      () =>
+        new Promise<void>((res) => {
+          finish = res
+        }),
+    )
+    const { result } = renderHook(() => [useSittingUi(), useSittingUi()] as const, { wrapper })
+    expect(result.current[1].isRefreshing).toBe(false)
+    act(() => result.current[0].open('people'))
+    expect(result.current[1].isRefreshing).toBe(true)
+    await act(async () => finish())
+    expect(result.current[1].isRefreshing).toBe(false)
   })
 })
 

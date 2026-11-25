@@ -14,6 +14,7 @@ type Props = { sitting: SittingRow; summary: SittingSummary; notDue: boolean; da
 export function SittingLifecycleButtons({ sitting, summary, notDue, dayEnded }: Readonly<Props>) {
   const [confirm, setConfirm] = useState<Confirm>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
+  const startRef = useRef<HTMLButtonElement>(null)
   const { open, isRefreshing } = useSittingUi()
   if (dayEnded || sitting.status === 'closed' || sitting.status === 'cancelled') return null
   return (
@@ -31,7 +32,7 @@ export function SittingLifecycleButtons({ sitting, summary, notDue, dayEnded }: 
         </MenuItem>
       </RowMenu>
       {sitting.status === 'scheduled' && (
-        <Button disabled={notDue} onClick={() => setConfirm('start')}>
+        <Button ref={startRef} disabled={notDue} onClick={() => setConfirm('start')}>
           Start sitting
         </Button>
       )}
@@ -43,6 +44,7 @@ export function SittingLifecycleButtons({ sitting, summary, notDue, dayEnded }: 
         summary={summary}
         confirm={confirm}
         setConfirm={setConfirm}
+        onIssueNow={() => open('issue', startRef.current)}
       />
     </div>
   )
