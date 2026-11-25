@@ -397,7 +397,7 @@ describe('listAvailableInternalExams sitting mapping', () => {
     })
   })
 
-  it('maps an unknown sitting status to cancelled so Start stays disabled', async () => {
+  it('maps an unknown sitting status to null rather than to cancelled', async () => {
     mockRpc.mockResolvedValue({
       data: [
         {
@@ -410,8 +410,28 @@ describe('listAvailableInternalExams sitting mapping', () => {
       ],
       error: null,
     })
+    vi.spyOn(console, 'error').mockImplementation(() => {})
     const result = await listAvailableInternalExams()
-    expect(result.data[0]?.sitting?.status).toBe('cancelled')
+    expect(result.data[0]?.sitting?.status).toBeNull()
+  })
+
+  it('maps an unknown sitting mode to null rather than guessing', async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          ...base,
+          sitting_id: 'sit-1',
+          sitting_scheduled_at: '2026-05-01T09:00:00.000Z',
+          sitting_mode: 'hybrid',
+          sitting_status: 'open',
+        },
+      ],
+      error: null,
+    })
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const result = await listAvailableInternalExams()
+    expect(result.data[0]?.sitting?.mode).toBeNull()
+    expect(result.data[0]?.sitting?.status).toBe('open')
   })
 
   it('maps a legacy code (null sitting_id) to sitting null', async () => {

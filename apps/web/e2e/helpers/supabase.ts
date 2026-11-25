@@ -387,21 +387,29 @@ export async function cleanupInternalExamStudentActiveSessions(
     )
   }
 
-  // LAST step (after the void loop, so a redeemed legacy code is voided first):
-  // soft-delete the student's legacy codes (sitting_entry_id IS NULL). Sitting
-  // codes are owned by cleanupE2eExamSittings. Zero rows is a valid steady state.
-  const { data: legacy, error: legacyError } = await admin
+  await retireLegacyCodes(studentRow.id)
+}
+
+/**
+ * Soft-deletes the student's legacy codes (`sitting_entry_id IS NULL`). Sitting codes belong to
+ * `cleanupE2eExamSittings`. Runs after the void loop so a redeemed code is voided first. Zero rows
+ * is a valid steady state.
+ */
+async function retireLegacyCodes(studentId: string): Promise<void> {
+  const admin = getAdminClient()
+  const { data, error } = await admin
     .from('internal_exam_codes')
     .update({ deleted_at: new Date().toISOString() })
-    .eq('student_id', studentRow.id)
+    .eq('student_id', studentId)
     .is('sitting_entry_id', null)
     .is('deleted_at', null)
     .select('id')
-  if (legacyError)
-    throw new Error(`cleanupInternalExamStudentActiveSessions legacy codes: ${legacyError.message}`)
-  if ((legacy?.length ?? 0) > 0) {
+  if (error) {
+    throw new Error(`cleanupInternalExamStudentActiveSessions legacy codes: ${error.message}`)
+  }
+  if ((data?.length ?? 0) > 0) {
     console.log(
-      `[cleanupInternalExamStudentActiveSessions] soft-deleted ${legacy?.length} legacy code(s)`,
+      `[cleanupInternalExamStudentActiveSessions] soft-deleted ${data?.length} legacy code(s)`,
     )
   }
 }

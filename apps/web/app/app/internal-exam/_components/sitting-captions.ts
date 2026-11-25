@@ -23,7 +23,7 @@ export function formatRelative(iso: string, now: Date = new Date()): string {
 }
 
 /** A closed or cancelled sitting never opens, so it must not promise that it will. */
-export function sittingHint(status: SittingStatus | undefined): string {
+export function sittingHint(status: SittingStatus | null | undefined): string {
   if (status === 'open') return 'Works while the sitting is open.'
   // The row is server-rendered and nothing refreshes it, so the student has to reload.
   if (status === 'scheduled') {
@@ -31,5 +31,6 @@ export function sittingHint(status: SittingStatus | undefined): string {
   }
   // A cancelled sitting never ran, so it cannot be described as having ended.
   if (status === 'cancelled') return 'This sitting was cancelled. Ask your invigilator.'
-  return 'This sitting has ended. Ask your invigilator.'
+  if (status === 'closed') return 'This sitting has ended. Ask your invigilator.'
+  return 'Ask your invigilator about this sitting.'
 }

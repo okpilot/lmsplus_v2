@@ -51,4 +51,13 @@ describe('sittingHint', () => {
   it('says ended for a closed sitting', () => {
     expect(sittingHint('closed')).toContain('ended')
   })
+
+  // An unknown status reaches here as null. Claiming 'cancelled' or 'ended' would describe a
+  // sitting that may still run.
+  it('claims nothing about an unknown status', () => {
+    const hint = sittingHint(null)
+    expect(hint).not.toContain('cancelled')
+    expect(hint).not.toContain('ended')
+    expect(hint).toContain('Ask your invigilator')
+  })
 })

@@ -16,7 +16,7 @@ export type AvailableInternalExam = {
     id: string
     scheduledAt: string
     mode: SittingMode | null
-    status: SittingStatus
+    status: SittingStatus | null
   } | null
 }
 
@@ -46,11 +46,11 @@ function asNullableString(v: unknown): string | null {
   return typeof v === 'string' ? v : null
 }
 
-function asSittingStatus(v: unknown): SittingStatus {
+/** Null, not a guess: `cancelled` would tell the student a live sitting had been called off. */
+function asSittingStatus(v: unknown): SittingStatus | null {
   if (isSittingStatus(v)) return v
-  // Falling back to `cancelled` disables Start, which is the safe side but hides a schema change.
   console.error('[listAvailableInternalExams] unknown sitting status:', v)
-  return 'cancelled'
+  return null
 }
 
 /** Null, not a guess: naming the wrong mode would send the student to the wrong place. */

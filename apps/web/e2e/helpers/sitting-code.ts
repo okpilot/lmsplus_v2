@@ -83,7 +83,6 @@ const seededEnrolmentIds = new Set<string>()
 export async function releaseSeededEnrolments(): Promise<void> {
   if (seededEnrolmentIds.size === 0) return
   const ids = [...seededEnrolmentIds]
-  seededEnrolmentIds.clear()
   const admin = getAdminClient()
   const res = await admin
     .from('course_enrolments')
@@ -91,6 +90,9 @@ export async function releaseSeededEnrolments(): Promise<void> {
     .in('id', ids)
     .is('deleted_at', null)
   if (res.error) fail('seeded enrolment release', res.error)
+  // Cleared only on success: `ensureEnrolment` skips an enrolment that is already live, so a set
+  // cleared before a failed update leaves it live for good.
+  seededEnrolmentIds.clear()
 }
 
 async function ensureEnrolment(admin: Admin, c: Ids): Promise<void> {
