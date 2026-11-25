@@ -183,7 +183,9 @@ test.describe('student session', () => {
     const { sittingId } = await seedSitting({ status: 'scheduled', people: THREE })
     for (const path of [`${BASE}/${sittingId}`, `${BASE}/${sittingId}/print`]) {
       await page.goto(path)
-      await expect(page).not.toHaveURL(new RegExp(`${sittingId}`))
+      // require-admin sends a signed-in non-admin to the student dashboard; assert the
+      // destination, not just that we left the sitting.
+      await expect(page).toHaveURL(/\/app\/dashboard(\?|$)/)
       await expect(page.locator('body')).not.toContainText(/Exam codes/)
     }
   })

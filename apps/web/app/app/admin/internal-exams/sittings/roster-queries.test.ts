@@ -214,18 +214,44 @@ describe('getRosterAll', () => {
     expect(new Set(rows.map((r) => r.userId)).size).toBe(250)
   })
 
-  it('drops a person a concurrent insert pushed onto two pages', async () => {
-    // Offset paging has no snapshot: an insert between calls shifts rows down, so page 2 can
-    // repeat page 1's last person. Two rows with the same userId is a duplicate React key.
+  it('keeps reading when a page repeats people already fetched', async () => {
+    // The exit must count PROGRESS, not rows received: a page of duplicates would otherwise
+    // satisfy the total while people remain unfetched, and the Print sheet would omit them.
     const page = (start: number, n: number) =>
       Array.from({ length: n }, (_, i) => rosterRow({ user_id: `u${start + i}`, total_count: 150 }))
     mockRpc
       .mockResolvedValueOnce({ data: page(0, 100), error: null })
-      .mockResolvedValueOnce({ data: page(99, 50), error: null })
+      .mockResolvedValueOnce({ data: page(40, 100), error: null })
+      .mockResolvedValueOnce({ data: page(140, 10), error: null })
+    const rows = await getRosterAll(SID)
+    expect(mockRpc).toHaveBeenCalledTimes(3)
+    expect(rows).toHaveLength(150)
+    expect(new Set(rows.map((r) => r.userId)).size).toBe(150)
+  })
+
+  it('returns everyone when an insert shifts a person onto the next page', async () => {
+    const page = (start: number, n: number) =>
+      Array.from({ length: n }, (_, i) => rosterRow({ user_id: `u${start + i}`, total_count: 150 }))
+    mockRpc
+      .mockResolvedValueOnce({ data: page(0, 100), error: null })
+      .mockResolvedValueOnce({ data: page(99, 51), error: null })
+    const rows = await getRosterAll(SID)
+    expect(rows).toHaveLength(150)
+    expect(new Set(rows.map((r) => r.userId)).size).toBe(150)
+  })
+
+  it('stops on a short page even when a removal leaves the total unreachable', async () => {
+    // Documented limit, not desired behaviour: a concurrent removal shifts rows UP, past an
+    // offset already read, and offset paging cannot recover them.
+    const page = (start: number, n: number) =>
+      Array.from({ length: n }, (_, i) => rosterRow({ user_id: `u${start + i}`, total_count: 150 }))
+    mockRpc
+      .mockResolvedValueOnce({ data: page(0, 100), error: null })
+      .mockResolvedValueOnce({ data: page(99, 49), error: null })
     const rows = await getRosterAll(SID)
     expect(mockRpc).toHaveBeenCalledTimes(2)
+    expect(rows).toHaveLength(148)
     expect(new Set(rows.map((r) => r.userId)).size).toBe(rows.length)
-    expect(rows).toHaveLength(149)
   })
 })
 

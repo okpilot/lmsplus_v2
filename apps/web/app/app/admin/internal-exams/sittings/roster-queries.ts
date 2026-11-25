@@ -131,17 +131,18 @@ export async function getRosterAll(sittingId: string): Promise<RosterRow[]> {
   // Offset paging has no snapshot: a concurrent insert shifts rows down, so a page can repeat the
   // previous page's tail. Two rows with one userId is a duplicate React key on the Print page.
   const seen = new Set<string>()
-  let received = 0
   for (let page = 1; ; page++) {
     const rows = await fetchRoster(supabase, { sittingId, limit: ALL_PAGE_SIZE, page })
     if (!rows || rows.length === 0) break
-    received += rows.length
     for (const row of rows.map(mapRow)) {
       if (seen.has(row.userId)) continue
       seen.add(row.userId)
       out.push(row)
     }
-    if (received >= totalOf(rows)) break
+    // Exit on PROGRESS, not on rows received: a page of duplicates would otherwise satisfy the
+    // total while people remain unfetched. A short page means the server ran out of rows, which
+    // also ends the walk when a concurrent removal puts the total out of reach.
+    if (out.length >= totalOf(rows) || rows.length < ALL_PAGE_SIZE) break
   }
   return out
 }
