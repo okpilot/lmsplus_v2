@@ -373,6 +373,8 @@
 | NC | void_internal_exam_code-sitting-code-day-ended-sitting-lock-bypass | LOW | exam-sitting-legacy-void-sitting-code.spec.ts | GAP | #1820 | sibling-guard-gap |
 | ND | add_exam_sitting_candidates-group_add_counts-list_exam_sitting_people-eligibility-same_day-issue_preview-foreign-group-or-student-in-own-sitting | MEDIUM | exam-sitting-foreign-param-injection.spec.ts | BLOCKED |  | cross-tenant |
 | NE | add_exam_sitting_candidates-add_exam_sitting_entries-foreign-user-id-writes-in-own-sitting | MEDIUM | exam-sitting-foreign-user-id-writes.spec.ts | BLOCKED |  | cross-tenant |
+| NF | voidInternalExamCode-codes-tab-reserved-void-reason-and-sitting-attached-code-stale-render | MEDIUM | legacy-void-server-action-guard.spec.ts | BLOCKED |  | sibling-guard-gap |
+| NG | sendInternalExamCodeEmail-codes-tab-sitting-code-stale-render-plaintext-and-emailed_at | MEDIUM | send-code-email-sitting-code.spec.ts | BLOCKED |  | race |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
