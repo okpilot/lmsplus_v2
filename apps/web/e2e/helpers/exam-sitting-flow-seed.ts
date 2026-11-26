@@ -142,7 +142,10 @@ export async function restoreExamTimer(): Promise<void> {
       continue
     }
     if ((res.data ?? []).length === 0) {
+      // Zero rows under a service-role `.eq('id', id)` means the config is gone, so no retry can
+      // succeed; retaining the id would make every later restore in this worker re-throw.
       errors.push(`restore: no row ${id}`)
+      widenedTimers.delete(id)
       continue
     }
     widenedTimers.delete(id)

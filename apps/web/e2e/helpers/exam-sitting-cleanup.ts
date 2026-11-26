@@ -142,10 +142,11 @@ async function deleteSeededGroups(admin: Admin) {
     .like('name', `${EXAM_SITTING_SEED_GROUP_PREFIX}%`)
   check('seed groups lookup', groups.error)
   const ids = (groups.data ?? []).map((g) => g.id)
-  // A full page may be truncated at `max_rows`: refuse rather than delete a partial list.
+  // A truncated page leaves nothing dangling: members cascade on `group_id` and `user_id`, and
+  // `student_groups.created_by` is ON DELETE SET NULL. The prefix finds the rest next run.
   if (ids.length >= POSTGREST_MAX_ROWS) {
-    throw new Error(
-      `deleteSeededGroups: ${ids.length} seeded group(s) hits PostgREST's max_rows; delete in pages`,
+    console.warn(
+      `deleteSeededGroups: ${ids.length} seeded group(s) hits PostgREST's max_rows; deleting this page, the rest on the next run`,
     )
   }
   if (ids.length === 0) return
@@ -180,6 +181,15 @@ async function deleteSeededStudentSessions(admin: Admin, userIds: string[]) {
   )
 }
 
+/** Users per `deleteSeededUsers` batch. A `.in()` of 1000 uuids is a ~37 KB query string; 100 is ~3.7 KB. */
+const SEEDED_USER_CHUNK = 100
+
+function chunk<T>(rows: readonly T[], size: number): T[][] {
+  const out: T[][] = []
+  for (let i = 0; i < rows.length; i += size) out.push(rows.slice(i, i + size))
+  return out
+}
+
 /** Deletes the students `seedSitting` created (users row, then auth user) once nothing references them. */
 async function deleteSeededUsers(admin: Admin) {
   const users = await admin
@@ -188,34 +198,36 @@ async function deleteSeededUsers(admin: Admin) {
     .like('email', `${EXAM_SITTING_SEED_EMAIL_PREFIX}%`)
   check('seed users lookup', users.error)
   const userRows = users.data ?? []
-  // A full page may be truncated at `max_rows`: refuse rather than delete a partial list.
+  // A truncated page shrinks this run's batch only: the email prefix finds the rest next run.
   if (userRows.length >= POSTGREST_MAX_ROWS) {
-    throw new Error(
-      `deleteSeededUsers: ${userRows.length} seeded user(s) hits PostgREST's max_rows; delete in pages`,
+    console.warn(
+      `deleteSeededUsers: ${userRows.length} seeded user(s) hits PostgREST's max_rows; deleting this page, the rest on the next run`,
     )
   }
   const errors: string[] = []
-  try {
-    await deleteSeededStudentSessions(
-      admin,
-      userRows.map((u) => u.id),
-    )
-  } catch (e) {
-    errors.push(e instanceof Error ? e.message : String(e))
-  }
-  // Dependent step: `quiz_sessions.student_id` pins sessions before users.
-  if (errors.length > 0) throw new Error(errors.join('; '))
-  for (const u of userRows) {
+  for (const batch of chunk(userRows, SEEDED_USER_CHUNK)) {
     try {
-      check(
-        'seed enrolments delete',
-        (await admin.from('course_enrolments').delete().eq('user_id', u.id)).error,
+      await deleteSeededStudentSessions(
+        admin,
+        batch.map((u) => u.id),
       )
-      check('seed user delete', (await admin.from('users').delete().eq('id', u.id)).error)
-      const authDelete = await admin.auth.admin.deleteUser(u.id)
-      check('seed auth user delete', authDelete.error)
     } catch (e) {
       errors.push(e instanceof Error ? e.message : String(e))
+      // Dependent step: `quiz_sessions.student_id` pins this batch's sessions before its users.
+      continue
+    }
+    for (const u of batch) {
+      try {
+        check(
+          'seed enrolments delete',
+          (await admin.from('course_enrolments').delete().eq('user_id', u.id)).error,
+        )
+        check('seed user delete', (await admin.from('users').delete().eq('id', u.id)).error)
+        const authDelete = await admin.auth.admin.deleteUser(u.id)
+        check('seed auth user delete', authDelete.error)
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      }
     }
   }
   if (errors.length > 0) throw new Error(errors.join('; '))
@@ -230,16 +242,20 @@ async function cleanupSeededExamSittings(): Promise<void> {
     .like('permitted_materials', `${EXAM_SITTING_SEED_PREFIX}%`)
   check('seed lookup', error)
   const ids = (data ?? []).map((r) => r.id)
-  // A full page may be truncated at `max_rows`: refuse rather than delete a partial list.
+  // `deleteSeededUsers` then deletes every `e2e-sit-` user, and `exam_sitting_entries.user_id`
+  // REFERENCES users(id) with no cascade: a truncated list leaves entries that FK-fail those
+  // deletes.
   if (ids.length >= POSTGREST_MAX_ROWS) {
     throw new Error(
       `cleanupSeededExamSittings: ${ids.length} seeded sitting(s) hits PostgREST's max_rows; delete in pages`,
     )
   }
   const errors: string[] = []
-  if (ids.length > 0) {
+  // One sitting per call: ~61 entries and codes, so `deleteSeededRows`'s own page guards stay out
+  // of reach.
+  for (const id of ids) {
     try {
-      await deleteSeededRows(admin, ids)
+      await deleteSeededRows(admin, [id])
     } catch (e) {
       errors.push(e instanceof Error ? e.message : String(e))
     }
@@ -284,10 +300,10 @@ async function cleanupEmptySittings(): Promise<void> {
     .is('closed_at', null)
   if (error) throw new Error(`cleanupE2eExamSittings lookup: ${error.message}`)
   const marked = (data ?? []).map((r) => r.id)
-  // A full page may be truncated at `max_rows`: refuse rather than soft-delete a partial list.
+  // A partial soft-delete is idempotent: the rest are found again on the next run.
   if (marked.length >= POSTGREST_MAX_ROWS) {
-    throw new Error(
-      `cleanupEmptySittings: ${marked.length} marked sitting(s) hits PostgREST's max_rows; delete in pages`,
+    console.warn(
+      `cleanupEmptySittings: ${marked.length} marked sitting(s) hits PostgREST's max_rows; soft-deleting this page, the rest on the next run`,
     )
   }
   if (marked.length === 0) return

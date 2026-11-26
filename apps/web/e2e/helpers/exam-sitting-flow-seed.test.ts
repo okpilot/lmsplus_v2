@@ -46,7 +46,13 @@ function fakeAdmin(queues: Record<string, Result[]>) {
 
 const ADMIN_ROW: Result = { data: { id: 'admin-1', organization_id: 'org-1' }, error: null }
 
-beforeEach(() => vi.resetAllMocks())
+beforeEach(async () => {
+  vi.resetAllMocks()
+  // `widenedTimers` is module state: an assertion that throws before a test's trailing restore
+  // leaks an id into the next test. A zero-row restore drops it.
+  fakeAdmin({})
+  await restoreExamTimer().catch(() => {})
+})
 
 describe('findSubject', () => {
   it('returns the subject whose name matches the fragment', async () => {
@@ -255,6 +261,20 @@ describe('widenExamTimer / restoreExamTimer', () => {
       .filter((c) => c.table === 'exam_configs' && c.method === 'update')
       .map((c) => c.args[0])
     expect(updates.at(-1)).toEqual({ time_limit_seconds: 60 })
+  })
+
+  it('drops a config whose row is gone, so a later restore stops re-throwing', async () => {
+    const calls = fakeAdmin({
+      users: [ADMIN_ROW],
+      exam_configs: [cfg('cfg-1', 60), updated('cfg-1'), { data: [], error: null }],
+    })
+    await widenExamTimer('subj-1')
+    await expect(restoreExamTimer()).rejects.toThrow(
+      'exam-sitting-flow-seed exam timer restore: restore: no row cfg-1',
+    )
+    const after = calls.length
+    await expect(restoreExamTimer()).resolves.toBeUndefined()
+    expect(calls.slice(after).filter((c) => c.table === 'exam_configs')).toEqual([])
   })
 
   it('touches no client when nothing was widened', async () => {

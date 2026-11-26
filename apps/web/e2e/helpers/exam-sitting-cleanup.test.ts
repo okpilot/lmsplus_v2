@@ -39,6 +39,7 @@ function mockTables(queues: Record<string, Result[]>) {
 beforeEach(() => {
   vi.resetAllMocks()
   vi.spyOn(console, 'log').mockImplementation(() => {})
+  vi.spyOn(console, 'warn').mockImplementation(() => {})
 })
 
 describe('cleanupE2eExamSittings', () => {
@@ -589,17 +590,19 @@ describe('cleanupE2eExamSittings (page-cap refusals)', () => {
     return Array.from({ length: POSTGREST_MAX_ROWS }, (_, i) => row(i))
   }
 
-  it('refuses a full marked-sitting page instead of soft-deleting a partial list', async () => {
+  it('soft-deletes a full marked-sitting page, warning that the rest wait for the next run', async () => {
     const { calls } = withAuth({
       exam_sittings: [
         { data: fullPage((i) => ({ id: `s${i}` })), error: null },
         { data: [], error: null },
       ],
+      users: [{ data: { id: 'admin-1' }, error: null }],
     })
-    await expect(cleanupE2eExamSittings()).rejects.toThrow(
-      `cleanupEmptySittings: ${POSTGREST_MAX_ROWS} marked sitting(s) hits PostgREST's max_rows`,
+    await expect(cleanupE2eExamSittings()).resolves.toBeUndefined()
+    expect(calls.some((c) => c.table === 'exam_sittings' && c.method === 'update')).toBe(true)
+    expect(vi.mocked(console.warn)).toHaveBeenCalledWith(
+      expect.stringContaining(`cleanupEmptySittings: ${POSTGREST_MAX_ROWS} marked sitting(s)`),
     )
-    expect(calls.some((c) => c.method === 'update')).toBe(false)
   })
 
   it.each(['exam_sitting_entries', 'exam_sitting_candidates'])(
@@ -675,31 +678,81 @@ describe('cleanupE2eExamSittings (page-cap refusals)', () => {
     expect(calls.some((c) => c.method === 'delete')).toBe(false)
   })
 
-  it('refuses a full seeded-group page instead of deleting a partial list', async () => {
+  it('deletes a full seeded-group page, warning that the rest wait for the next run', async () => {
     const { calls } = withAuth({
       exam_sittings: [{ data: [], error: null }],
       student_groups: [{ data: fullPage((i) => ({ id: `g${i}` })), error: null }],
     })
-    await expect(cleanupE2eExamSittings()).rejects.toThrow(
-      `deleteSeededGroups: ${POSTGREST_MAX_ROWS} seeded group(s) hits PostgREST's max_rows`,
-    )
+    await expect(cleanupE2eExamSittings()).resolves.toBeUndefined()
     expect(calls.some((c) => c.table === 'student_group_members' && c.method === 'delete')).toBe(
-      false,
+      true,
     )
-    expect(calls.some((c) => c.table === 'student_groups' && c.method === 'delete')).toBe(false)
+    expect(calls.some((c) => c.table === 'student_groups' && c.method === 'delete')).toBe(true)
+    expect(vi.mocked(console.warn)).toHaveBeenCalledWith(
+      expect.stringContaining(`deleteSeededGroups: ${POSTGREST_MAX_ROWS} seeded group(s)`),
+    )
   })
 
-  it('refuses a full seeded-user page instead of deleting a partial list', async () => {
+  it('deletes a full seeded-user page, warning that the rest wait for the next run', async () => {
     const { calls, deleteUser } = withAuth({
       exam_sittings: [{ data: [], error: null }],
       users: [{ data: fullPage((i) => ({ id: `u${i}` })), error: null }],
     })
-    await expect(cleanupE2eExamSittings()).rejects.toThrow(
-      `deleteSeededUsers: ${POSTGREST_MAX_ROWS} seeded user(s) hits PostgREST's max_rows`,
+    await expect(cleanupE2eExamSittings()).resolves.toBeUndefined()
+    expect(deleteUser).toHaveBeenCalledWith('u0')
+    expect(deleteUser).toHaveBeenCalledWith(`u${POSTGREST_MAX_ROWS - 1}`)
+    expect(calls.some((c) => c.table === 'users' && c.method === 'delete')).toBe(true)
+    expect(vi.mocked(console.warn)).toHaveBeenCalledWith(
+      expect.stringContaining(`deleteSeededUsers: ${POSTGREST_MAX_ROWS} seeded user(s)`),
     )
-    expect(deleteUser).not.toHaveBeenCalled()
-    expect(calls.some((c) => c.table === 'users' && c.method === 'delete')).toBe(false)
-    expect(calls.some((c) => c.table === 'quiz_sessions')).toBe(false)
+  })
+})
+
+describe('cleanupE2eExamSittings (seeded users in chunks)', () => {
+  function withAuth(queues: Record<string, Result[]>) {
+    const calls = mockTables(queues)
+    const deleteUser = vi.fn().mockResolvedValue({ error: null })
+    const client = mockGetAdminClient() as Record<string, unknown>
+    mockGetAdminClient.mockReturnValue({ ...client, auth: { admin: { deleteUser } } })
+    return { calls, deleteUser }
+  }
+
+  const seededUsers = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `u${i}` }))
+
+  it('looks sessions up in batches of at most 100 student ids', async () => {
+    // 1000 uuids in one `.in()` is a ~37 KB query string; the gateway may answer 414/431.
+    const { calls } = withAuth({
+      exam_sittings: [{ data: [], error: null }],
+      users: [{ data: seededUsers(250), error: null }],
+    })
+    await cleanupE2eExamSittings()
+    const lookups = calls.filter(
+      (c) => c.table === 'quiz_sessions' && c.method === 'in' && c.args[0] === 'student_id',
+    )
+    expect(lookups.map((c) => (c.args[1] as string[]).length)).toEqual([100, 100, 50])
+  })
+
+  it('deletes the later batches when one batch session lookup fails', async () => {
+    const { deleteUser } = withAuth({
+      exam_sittings: [{ data: [], error: null }],
+      users: [{ data: seededUsers(150), error: null }],
+      quiz_sessions: [{ data: null, error: { message: 'batch sessions boom' } }],
+    })
+    await expect(cleanupE2eExamSittings()).rejects.toThrow()
+    // `quiz_sessions.student_id` pins only this batch's users; the next batch is independent.
+    expect(deleteUser).not.toHaveBeenCalledWith('u0')
+    expect(deleteUser).toHaveBeenCalledWith('u100')
+  })
+
+  it('reports a failed batch session lookup', async () => {
+    withAuth({
+      exam_sittings: [{ data: [], error: null }],
+      users: [{ data: seededUsers(150), error: null }],
+      quiz_sessions: [{ data: null, error: { message: 'batch sessions boom' } }],
+    })
+    await expect(cleanupE2eExamSittings()).rejects.toThrow(
+      /cleanupE2eExamSittings: .*batch sessions boom/,
+    )
   })
 })
 
