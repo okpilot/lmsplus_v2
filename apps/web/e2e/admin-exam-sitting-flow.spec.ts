@@ -7,7 +7,7 @@
 import { type Browser, expect as baseExpect, type Page, test } from '@playwright/test'
 import { getAdminOrganizationId, signInAsAdmin } from './helpers/admin-supabase'
 import { cleanupCreatedExamConfigs, ensureExamConfigs } from './helpers/exam-config-cleanup'
-import { cleanupE2eExamSittings, markSittingScheduledAt } from './helpers/exam-sitting-cleanup'
+import { cleanupE2eExamSittings, markE2eSitting } from './helpers/exam-sitting-cleanup'
 import {
   findSubject,
   readSittingCodes,
@@ -67,8 +67,7 @@ async function createSittingToday(page: Page): Promise<string> {
   await page.goto(`${LIST}?tab=sittings`)
   await page.getByRole('button', { name: /New sitting/ }).click()
   await expect(page).toHaveURL(/dlg=new/)
-  const scheduledAt = `${todayUtc()}T23:58`
-  await page.getByLabel('Date and time (UTC)').fill(scheduledAt)
+  await page.getByLabel('Date and time (UTC)').fill(`${todayUtc()}T23:58`)
   await page.getByRole('combobox', { name: 'Mode' }).click()
   await page.getByRole('option', { name: 'Remote' }).click()
   await page.getByRole('combobox', { name: 'Invigilator' }).click()
@@ -77,13 +76,15 @@ async function createSittingToday(page: Page): Promise<string> {
     .first()
     .click()
   await page.getByRole('button', { name: 'Save' }).click()
-  // Marked off `scheduled_at`, before the navigation is awaited: the row exists the moment Save's
-  // RPC returns, and a first-hit compile of `/sittings/[id]` can outlast the URL assertion, which
-  // would leave an unmarked sitting no teardown can find.
-  const id = await markSittingScheduledAt(`${scheduledAt}:00.000Z`)
+  // ACCEPTED RESIDUAL: a timeout below leaves this sitting unmarked, where the marker-keyed
+  // cleanup cannot find it. Deliberately unguarded — the row has no people (every `addPerson` runs
+  // after this function returns), so no FK blocks a later teardown: one inert row on a local DB,
+  // on a run that already failed, cleared by `pnpm supabase db reset`. Marking it earlier is not
+  // available: `click()` only dispatches the Save action, so any mark issued before the navigation
+  // races the row's creation.
   await expect(page).toHaveURL(SITTING_URL, { timeout: 30_000 })
-  // The marked row is the one the UI opened, so later steps and teardown act on one sitting.
-  expect(new URL(page.url()).pathname.split('/').pop()).toBe(id)
+  const id = new URL(page.url()).pathname.split('/').pop() ?? ''
+  await markE2eSitting(id, 'seeded')
   return id
 }
 
@@ -163,10 +164,9 @@ async function startExam(page: Page, code: string) {
 async function finishExam(page: Page): Promise<string> {
   await page.getByRole('button', { name: 'Finish Internal Exam' }).click()
   await page.getByRole('button', { name: 'Submit Internal Exam' }).click()
-  // Asserted absent, not swallowed: `answerAll` answered every question, so the unanswered-count
-  // warning must not appear. Catching the click made a short exam indistinguishable from a complete
-  // one, and made the reverse regression — warning on a complete exam — unfailable.
-  await expect(page.getByRole('button', { name: 'Submit anyway' })).toBeHidden()
+  // No assertion on the unanswered-count dialog: `toBeHidden()` here passed on its first poll,
+  // before the warning could render, so it could not fail either way. The `waitForURL` below is
+  // the real proof — the dialog blocks submission, so reaching the report means it never appeared.
   await page.waitForURL(/\/app\/internal-exam\/report\?session=/, { timeout: 30_000 })
   return new URL(page.url()).searchParams.get('session') ?? ''
 }

@@ -4,11 +4,7 @@ const { mockGetAdminClient } = vi.hoisted(() => ({ mockGetAdminClient: vi.fn() }
 vi.mock('./admin-supabase', () => ({ ADMIN_TEST_EMAIL: 'admin@test.local' }))
 vi.mock('./supabase', () => ({ getAdminClient: mockGetAdminClient }))
 
-import {
-  cleanupE2eExamSittings,
-  markE2eSitting,
-  markSittingScheduledAt,
-} from './exam-sitting-cleanup'
+import { cleanupE2eExamSittings, markE2eSitting } from './exam-sitting-cleanup'
 import { EXAM_SITTING_E2E_PREFIX, EXAM_SITTING_SEED_PREFIX } from './exam-sitting-markers'
 
 type Call = { table: string; method: string; args: unknown[] }
@@ -529,37 +525,5 @@ describe('markE2eSitting', () => {
   it('throws when no row matched', async () => {
     mockTables({ exam_sittings: [{ data: [], error: null }] })
     await expect(markE2eSitting('s1')).rejects.toThrow('no sitting s1')
-  })
-})
-
-describe('markSittingScheduledAt', () => {
-  const AT = '2026-11-26T23:58:00.000Z'
-
-  it('marks the unmarked sitting at that instant and returns its id', async () => {
-    const calls = mockTables({ exam_sittings: [{ data: [{ id: 's1' }], error: null }] })
-    await expect(markSittingScheduledAt(AT)).resolves.toBe('s1')
-    // Both filters matter: without `is(null)` it would re-mark an already-seeded sitting, and
-    // without the exact `scheduled_at` it would adopt a sitting this run never created.
-    expect(calls.find((c) => c.method === 'is')?.args).toEqual(['permitted_materials', null])
-    expect(calls.find((c) => c.method === 'eq')?.args).toEqual(['scheduled_at', AT])
-    const patch = (calls.find((c) => c.method === 'update')?.args[0] ?? {}) as {
-      permitted_materials?: string
-    }
-    expect(patch.permitted_materials).toMatch(new RegExp(`^${EXAM_SITTING_SEED_PREFIX}`))
-  })
-
-  it('throws when no sitting matched, rather than reporting a mark that did not happen', async () => {
-    mockTables({ exam_sittings: [{ data: [], error: null }] })
-    await expect(markSittingScheduledAt(AT)).rejects.toThrow('0 unmarked sittings')
-  })
-
-  it('throws when more than one matched, so a widened match cannot pass silently', async () => {
-    mockTables({ exam_sittings: [{ data: [{ id: 's1' }, { id: 's2' }], error: null }] })
-    await expect(markSittingScheduledAt(AT)).rejects.toThrow('2 unmarked sittings')
-  })
-
-  it('throws on a database error', async () => {
-    mockTables({ exam_sittings: [{ data: null, error: { message: 'boom' } }] })
-    await expect(markSittingScheduledAt(AT)).rejects.toThrow('markSittingScheduledAt: boom')
   })
 })

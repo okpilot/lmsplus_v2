@@ -4,6 +4,7 @@ import { getAdminOrganizationId } from './helpers/admin-supabase'
 import { cleanupCreatedExamConfigs, ensureExamConfigs } from './helpers/exam-config-cleanup'
 import { cleanupE2eExamSittings } from './helpers/exam-sitting-cleanup'
 import { seedSitting } from './helpers/exam-sitting-seed'
+import { skipNearUtcRollover } from './helpers/utc-rollover'
 
 // A dev server compiles a popup route on first open: generous timeouts, never sleeps.
 const expect = baseExpect.configure({ timeout: 25_000 })
@@ -15,6 +16,7 @@ const BASE = '/app/admin/internal-exams/sittings'
 const LIST = '/app/admin/internal-exams'
 
 test.beforeEach(async () => {
+  skipNearUtcRollover()
   await ensureExamConfigs(await getAdminOrganizationId())
 })
 
@@ -30,12 +32,6 @@ test.afterEach(async () => {
   }
   if (errors.length > 0) throw new Error(`afterEach: ${errors.join('; ')}`)
 })
-
-const loadedAt = new Date()
-test.skip(
-  loadedAt.getUTCHours() === 23 && loadedAt.getUTCMinutes() >= 55,
-  'UTC day rollover window',
-)
 
 const personRow = (page: Page, name: string) => page.getByRole('row').filter({ hasText: name })
 const popup = (page: Page) => page.getByRole('dialog')

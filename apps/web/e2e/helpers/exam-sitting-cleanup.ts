@@ -291,33 +291,6 @@ async function cleanupEmptySittings(): Promise<void> {
 }
 
 /**
- * Marks the unmarked sitting scheduled at exactly `scheduledAt` as seeded and returns its id.
- *
- * The New-sitting dialog leaves `permitted_materials` NULL, and both cleanup passes key on the
- * marker `.like()`, so a sitting is invisible to teardown until it is marked. Keying on the
- * `scheduled_at` the spec itself filled closes that window without waiting for the post-Save
- * navigation — which a first-hit route compile can outlast — and without a time range: a range
- * would adopt any unmarked sitting created meanwhile and the next teardown would hard-delete it
- * with its people.
- *
- * Throws unless exactly one row matched, so a widened match never passes silently.
- */
-export async function markSittingScheduledAt(scheduledAt: string): Promise<string> {
-  const { data, error } = await getAdminClient()
-    .from('exam_sittings')
-    .update({ permitted_materials: makeSittingSeedMaterials() })
-    .is('permitted_materials', null)
-    .eq('scheduled_at', scheduledAt)
-    .select('id')
-  if (error) throw new Error(`markSittingScheduledAt: ${error.message}`)
-  const ids = (data ?? []).map((r) => r.id)
-  if (ids.length !== 1) {
-    throw new Error(`markSittingScheduledAt: ${ids.length} unmarked sittings at ${scheduledAt}`)
-  }
-  return ids[0] as string
-}
-
-/**
  * Marks a sitting created through the UI so the cleanup finds it (service role, test data only). Throws on error or when no row matched.
  * `empty` (default): removed only while it has no people. `seeded`: removed with its people, codes and sessions.
  */
