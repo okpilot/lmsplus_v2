@@ -655,6 +655,38 @@ describe('cleanupInternalExamStudentActiveSessions', () => {
     )
   })
 
+  it('retires the legacy codes even when the practice discard failed', async () => {
+    const legacyCalls: unknown[][] = []
+    mockCreateClient.mockReturnValue(
+      buildCleanupMockClient({
+        discardError: { message: 'discard down' },
+        legacy: [{ id: 'legacy-1' }],
+        legacyCalls,
+      }),
+    )
+    const adminAuthedClient = { rpc: vi.fn() } as unknown as ReturnType<typeof getAdminClient>
+
+    await expect(cleanupInternalExamStudentActiveSessions(adminAuthedClient)).rejects.toThrow(
+      'practice: discard down',
+    )
+    // The throw carries the practice failure, but the legacy UPDATE still ran.
+    expect(legacyCalls.length).toBeGreaterThan(0)
+  })
+
+  it('reports both failures when the practice discard and the legacy retirement fail', async () => {
+    mockCreateClient.mockReturnValue(
+      buildCleanupMockClient({
+        discardError: { message: 'discard down' },
+        legacyError: { message: 'legacy down' },
+      }),
+    )
+    const adminAuthedClient = { rpc: vi.fn() } as unknown as ReturnType<typeof getAdminClient>
+
+    await expect(cleanupInternalExamStudentActiveSessions(adminAuthedClient)).rejects.toThrow(
+      /practice: discard down; legacy codes: .*legacy down/,
+    )
+  })
+
   it('throws when the practice-session discard update fails after voiding stale codes', async () => {
     mockCreateClient.mockReturnValue(
       buildCleanupMockClient({

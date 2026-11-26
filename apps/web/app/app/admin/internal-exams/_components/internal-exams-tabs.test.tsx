@@ -23,6 +23,31 @@ vi.mock('./codes-table', () => ({
 
 import { InternalExamsTabs } from './internal-exams-tabs'
 
+/** A non-empty row: an empty `codes` array cannot tell row forwarding from a dropped prop. */
+const CODE_ROW = {
+  id: 'code-1',
+  code: 'ABC12345',
+  subjectId: 'subj-1',
+  subjectName: 'Flight Planning',
+  studentId: 'stu-1',
+  studentName: 'Fixture Student',
+  studentEmail: 'stu@test.local',
+  issuedBy: 'admin-1',
+  issuedAt: '2026-11-01T00:00:00Z',
+  expiresAt: '2026-12-01T00:00:00Z',
+  consumedAt: null,
+  consumedSessionId: null,
+  voidedAt: null,
+  voidedBy: null,
+  voidReason: null,
+  emailedAt: null,
+  status: 'active',
+  sittingId: null,
+  sittingEntryId: null,
+  sessionEndedAt: null,
+  sessionDeletedAt: null,
+} as const
+
 function renderTabs() {
   return render(
     <InternalExamsTabs
@@ -128,7 +153,7 @@ describe('InternalExamsTabs', () => {
     render(
       <InternalExamsTabs
         status="active"
-        codes={[]}
+        codes={[CODE_ROW]}
         codesTotalCount={42}
         attempts={[]}
         attemptsTotalCount={0}
@@ -136,7 +161,12 @@ describe('InternalExamsTabs', () => {
       />,
     )
     expect(mockCodesTableProps).toHaveBeenCalledWith(
-      expect.objectContaining({ rows: [], status: 'active', totalCount: 42, pageSize: 20 }),
+      expect.objectContaining({
+        rows: [CODE_ROW],
+        status: 'active',
+        totalCount: 42,
+        pageSize: 20,
+      }),
     )
   })
 

@@ -144,6 +144,7 @@ describe('AvailableTab', () => {
 
     it('shows no Expires line on a sitting row', () => {
       render(<AvailableTab rows={[SITTING_ROW('open')]} />)
+      expect(screen.getByTestId('start-button')).toBeInTheDocument()
       expect(screen.queryByText(/Expires/)).not.toBeInTheDocument()
     })
 

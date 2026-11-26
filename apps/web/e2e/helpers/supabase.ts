@@ -379,15 +379,24 @@ export async function cleanupInternalExamStudentActiveSessions(
     .is('ended_at', null)
     .is('deleted_at', null)
     .select('id')
-  if (discardError)
-    throw new Error(`cleanupInternalExamStudentActiveSessions practice: ${discardError.message}`)
   if ((discarded?.length ?? 0) > 0) {
     console.log(
       `[cleanupInternalExamStudentActiveSessions] discarded ${discarded?.length} leftover practice/study session(s)`,
     )
   }
 
-  await retireLegacyCodes(studentRow.id)
+  // The two steps are independent: a practice-discard failure must not skip the legacy-code
+  // retirement, or the next spec inherits a live code.
+  const failures: string[] = []
+  if (discardError) failures.push(`practice: ${discardError.message}`)
+  try {
+    await retireLegacyCodes(studentRow.id)
+  } catch (e) {
+    failures.push(`legacy codes: ${e instanceof Error ? e.message : String(e)}`)
+  }
+  if (failures.length > 0) {
+    throw new Error(`cleanupInternalExamStudentActiveSessions ${failures.join('; ')}`)
+  }
 }
 
 /**

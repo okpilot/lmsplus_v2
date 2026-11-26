@@ -50,6 +50,8 @@ describe('InternalExamsContent', () => {
 
   it('does not pass students or subjects props to the tabs', async () => {
     const el = await InternalExamsContent({ ...props, tab: 'codes' } as never)
+    // `walk` returns early on a falsy value, so without this the key assertions pass vacuously.
+    expect(el).toBeTruthy()
     const keys = new Set<string>()
     const walk = (v: unknown, depth = 0) => {
       if (!v || typeof v !== 'object' || depth > 6) return
