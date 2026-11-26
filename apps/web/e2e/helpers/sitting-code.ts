@@ -124,7 +124,7 @@ export async function releaseSeededEnrolments(): Promise<void> {
 /** Enrols the user in the course unless already enrolled; `created` says whether this call inserted the row. */
 export async function ensureEnrolment(
   admin: Admin,
-  c: Ids,
+  c: Pick<Ids, 'orgId' | 'adminId' | 'userId' | 'courseId'>,
 ): Promise<{ created: boolean; id: string }> {
   const existing = await admin
     .from('course_enrolments')

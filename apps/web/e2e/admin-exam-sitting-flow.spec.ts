@@ -4,7 +4,7 @@
  * Uses `e2e/.auth/admin.json` and the internal-exam student state (`e2e/.auth/internal-exam-student.json`);
  * the student types the issued code in the code-entry modal. Two further students are seeded (`e2e-sit-` emails).
  */
-import { type BrowserContext, expect as baseExpect, type Page, test } from '@playwright/test'
+import { type Browser, expect as baseExpect, type Page, test } from '@playwright/test'
 import { getAdminOrganizationId, signInAsAdmin } from './helpers/admin-supabase'
 import { cleanupCreatedExamConfigs, ensureExamConfigs } from './helpers/exam-config-cleanup'
 import { cleanupE2eExamSittings, markE2eSitting } from './helpers/exam-sitting-cleanup'
@@ -144,7 +144,7 @@ async function finishExam(page: Page): Promise<string> {
   return new URL(page.url()).searchParams.get('session') ?? ''
 }
 
-async function openStudentContext(browser: BrowserContext['browser']) {
+async function openStudentContext(browser: Browser | null) {
   if (!browser) throw new Error('browser is null')
   const context = await browser.newContext({ storageState: 'e2e/.auth/internal-exam-student.json' })
   return { context, page: await context.newPage() }

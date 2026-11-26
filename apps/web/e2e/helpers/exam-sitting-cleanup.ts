@@ -145,7 +145,19 @@ async function deleteSeededStudentSessions(admin: Admin, userIds: string[]) {
   if (ids.length === 0) return
   // Every id came from a student whose email carries the seed prefix, so there is no fixture
   // session to classify here — unlike `deleteSeededRows`, which reaches sessions through a shared
-  // `consumed_session_id` and can land on one. No code references these, so nothing pins the order.
+  // `consumed_session_id` and can land on one.
+  // Drop the referencing codes rather than assert there are none: `deleteSeededRows` only removes
+  // codes keyed by a seeded sitting's entries, so a seeded student's legacy or unmarked-sitting
+  // code would still pin `internal_exam_codes_consumed_session_id_fkey` here.
+  check(
+    'seed student session codes delete',
+    (await admin.from('internal_exam_codes').delete().in('consumed_session_id', ids)).error,
+  )
+  // Hard delete is safe because `insertPassedSession` is the only writer of these rows and it
+  // inserts no `quiz_session_answers` / `student_responses` (`total_questions: 0`, both FKs NO
+  // ACTION). A seeded student who really answered could not be torn down at all — the
+  // `quiz_sessions.student_id` FK would block the user delete too — so the constraint error is
+  // the enforcement, not something this step can route around.
   check(
     'seed student sessions delete',
     (await admin.from('quiz_sessions').delete().in('id', ids)).error,
