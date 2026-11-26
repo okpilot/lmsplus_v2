@@ -61,7 +61,21 @@ describe('cleanupE2eExamSittings', () => {
     expect(calls.find((c) => c.method === 'is')?.args).toEqual(['deleted_at', null])
   })
 
-  it('leaves marked sittings that have entries or candidates', async () => {
+  it('skips closed sittings in the lookup', async () => {
+    const calls = mockTables({ exam_sittings: [{ data: [], error: null }] })
+    await cleanupE2eExamSittings()
+    const sittingCalls = calls.filter((c) => c.table === 'exam_sittings')
+    expect(sittingCalls.find((c) => c.method === 'like')?.args).toEqual([
+      'permitted_materials',
+      `${EXAM_SITTING_E2E_PREFIX}%`,
+    ])
+    expect(sittingCalls.filter((c) => c.method === 'is').map((c) => c.args)).toContainEqual([
+      'closed_at',
+      null,
+    ])
+  })
+
+  it('leaves marked sittings that have live entries or candidates', async () => {
     const calls = mockTables({
       exam_sittings: [
         { data: [{ id: 's1' }, { id: 's2' }, { id: 's3' }], error: null },

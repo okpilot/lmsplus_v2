@@ -7,6 +7,8 @@
  * internal_exam.code_emailed, internal_exam.started, internal_exam.completed,
  * internal_exam.expired.
  *
+ * Also asserts user.login_instructions_sent (admin record_login_instructions_sent), Vector FP's positive.
+ *
  * internal_exam.code_issued is asserted twice: through issue_sitting_exam_codes and through the
  * legacy issue_internal_exam_code RPC (the legacy test is removed with the RPC in 2e).
  *

@@ -248,7 +248,7 @@ async function cleanupSeededExamSittings(): Promise<void> {
   if (errors.length > 0) throw new Error(errors.join('; '))
 }
 
-/** Soft-deletes the open marked exam_sittings that have no entries or candidates, then hard-deletes the seeded sittings (built by `seedSitting` or marked `seeded`), open or closed, with their people, codes and users (service role, test data only). */
+/** Soft-deletes the open marked exam_sittings that have no live entries or candidates, then hard-deletes the seeded sittings (built by `seedSitting` or marked `seeded`), open or closed, with their people, codes and users (service role, test data only). */
 export async function cleanupE2eExamSittings(): Promise<void> {
   const errors: string[] = []
   for (const step of [cleanupEmptySittings, cleanupSeededExamSittings, releaseSeededEnrolments]) {
@@ -268,6 +268,7 @@ async function cleanupEmptySittings(): Promise<void> {
     .select('id')
     .like('permitted_materials', `${EXAM_SITTING_E2E_PREFIX}%`)
     .is('deleted_at', null)
+    .is('closed_at', null)
   if (error) throw new Error(`cleanupE2eExamSittings lookup: ${error.message}`)
   const marked = (data ?? []).map((r) => r.id)
   // A full page may be truncated at `max_rows`: refuse rather than soft-delete a partial list.
