@@ -1,6 +1,5 @@
-import { randomUUID } from 'node:crypto'
 import { randomCode } from './code-gen'
-import { EXAM_SITTING_SEED_PREFIX } from './exam-sitting-markers'
+import { makeSittingSeedMaterials } from './exam-sitting-markers'
 import { getAdminClient } from './supabase'
 
 const ADMIN_EMAIL = 'admin@lmsplus.local'
@@ -169,7 +168,7 @@ async function insertSitting(
       invigilator_id: c.adminId,
       created_by: c.adminId,
       scheduled_at: now,
-      permitted_materials: `${EXAM_SITTING_SEED_PREFIX}${randomUUID()}`,
+      permitted_materials: makeSittingSeedMaterials(),
       ...(status === 'open' ? { started_at: now, started_by: c.adminId } : {}),
     })
     .select('id')

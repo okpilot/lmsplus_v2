@@ -7,11 +7,7 @@
 import { type Browser, expect as baseExpect, type Page, test } from '@playwright/test'
 import { getAdminOrganizationId, signInAsAdmin } from './helpers/admin-supabase'
 import { cleanupCreatedExamConfigs, ensureExamConfigs } from './helpers/exam-config-cleanup'
-import {
-  cleanupE2eExamSittings,
-  markE2eSitting,
-  markUnmarkedSittingsSince,
-} from './helpers/exam-sitting-cleanup'
+import { cleanupE2eExamSittings, markSittingScheduledAt } from './helpers/exam-sitting-cleanup'
 import {
   findSubject,
   readSittingCodes,
@@ -71,7 +67,8 @@ async function createSittingToday(page: Page): Promise<string> {
   await page.goto(`${LIST}?tab=sittings`)
   await page.getByRole('button', { name: /New sitting/ }).click()
   await expect(page).toHaveURL(/dlg=new/)
-  await page.getByLabel('Date and time (UTC)').fill(`${todayUtc()}T23:58`)
+  const scheduledAt = `${todayUtc()}T23:58`
+  await page.getByLabel('Date and time (UTC)').fill(scheduledAt)
   await page.getByRole('combobox', { name: 'Mode' }).click()
   await page.getByRole('option', { name: 'Remote' }).click()
   await page.getByRole('combobox', { name: 'Invigilator' }).click()
@@ -79,19 +76,14 @@ async function createSittingToday(page: Page): Promise<string> {
     .getByRole('option', { name: /\((admin|instructor)\)$/ })
     .first()
     .click()
-  // Before Save: the RPC creates the row with `permitted_materials` NULL, so a failure between
-  // Save and `markE2eSitting` leaves a sitting no marker-keyed cleanup can find. `markUnmarked...`
-  // adopts it from this instant, bounding the recovery to rows this run created.
-  const before = new Date(Date.now() - 60_000).toISOString()
   await page.getByRole('button', { name: 'Save' }).click()
-  try {
-    await expect(page).toHaveURL(SITTING_URL, { timeout: 30_000 })
-  } catch (e) {
-    await markUnmarkedSittingsSince(before)
-    throw e
-  }
-  const id = new URL(page.url()).pathname.split('/').pop() ?? ''
-  await markE2eSitting(id, 'seeded')
+  // Marked off `scheduled_at`, before the navigation is awaited: the row exists the moment Save's
+  // RPC returns, and a first-hit compile of `/sittings/[id]` can outlast the URL assertion, which
+  // would leave an unmarked sitting no teardown can find.
+  const id = await markSittingScheduledAt(`${scheduledAt}:00.000Z`)
+  await expect(page).toHaveURL(SITTING_URL, { timeout: 30_000 })
+  // The marked row is the one the UI opened, so later steps and teardown act on one sitting.
+  expect(new URL(page.url()).pathname.split('/').pop()).toBe(id)
   return id
 }
 
