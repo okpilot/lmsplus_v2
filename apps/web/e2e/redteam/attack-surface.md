@@ -378,6 +378,7 @@
 | NH | voidInternalExamCode-foreign-org-code-guard-state-oracle-and-reserved-reason | MEDIUM | void-and-email-cross-org-code.spec.ts | BLOCKED |  | cross-tenant |
 | NI | sendInternalExamCodeEmail-foreign-org-code-service-role-org-filter-plaintext-and-emailed_at | HIGH | void-and-email-cross-org-code.spec.ts | BLOCKED |  | cross-tenant |
 | NJ | void_internal_exam_code-direct-rpc-on-sitting-code-bypasses-void_sitting_code | LOW | exam-sitting-legacy-void-refuses-sitting-code.spec.ts | GAP | #1832 | sibling-guard-gap |
+| NK | add_exam_sitting_candidates-issue_sitting_exam_codes-duplicate-inflated-array-past-the-distinct-cap | LOW | exam-sitting-array-cap-duplicates.spec.ts | BLOCKED |  | rate-limit |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
