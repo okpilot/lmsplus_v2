@@ -1,7 +1,27 @@
 import { describe, expect, it } from 'vitest'
-import { codeDisplayStatus, sittingCodeVoidable } from './_void-policy'
+import { codeDisplayStatus, codeRowVoidable, sittingCodeVoidable } from './_void-policy'
 
 const base = { consumed: false, sessionEndedAt: null, sessionVisible: true }
+
+describe('codeRowVoidable', () => {
+  const row = {
+    sittingEntryId: 'e1',
+    consumedAt: '2026-11-25T09:00:00Z',
+    sessionEndedAt: null,
+    sessionDeletedAt: null,
+  }
+
+  // Derived from `consumedAt`, not the badge status: `deriveStatus` ranks `voided_at` above
+  // `consumed_at`, so a status-derived `consumed` would disagree with `checkSittingCode`, which
+  // reads the timestamp.
+  it('calls a consumed-then-voided sitting code consumed, as the server guard does', () => {
+    expect(codeRowVoidable(row)).toBe(true)
+  })
+
+  it('refuses an unconsumed sitting code', () => {
+    expect(codeRowVoidable({ ...row, consumedAt: null })).toBe(false)
+  })
+})
 
 describe('sittingCodeVoidable', () => {
   it('always allows a legacy code', () => {

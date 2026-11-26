@@ -594,7 +594,9 @@ reviews:
     # made CodeRabbit drop EVERY path instruction in this file). The anchor facts that
     # `.claude/hooks/coderabbit-mirror.test.mjs` scans live in the entry above, which is the only
     # one it reads — keep them there. Mechanical guard: #1833.
-    - path: "supabase/migrations/**/*.sql"
+    # Glob differs from the entry above so neither depends on duplicate-key handling; the directory
+    # is flat (`find supabase/migrations -mindepth 1 -type d` → none), so both match the same files.
+    - path: "supabase/migrations/*.sql"
       instructions: |
         Database migration (SECURITY AUDIT), continued. Enforce:
         - Plaintext exam codes (docs/security.md §11b "Plaintext code storage", "Sitting codes"):

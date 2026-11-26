@@ -28,14 +28,17 @@ export function sittingCodeVoidable(input: VoidPolicyInput): boolean {
 export function codeRowVoidable(
   row: Readonly<{
     sittingEntryId: string | null
-    status: string
+    consumedAt: string | null
     sessionEndedAt: string | null
     sessionDeletedAt: string | null
   }>,
 ): boolean {
   return sittingCodeVoidable({
     sittingEntryId: row.sittingEntryId,
-    consumed: row.status === 'consumed',
+    // The raw timestamp, not the derived status: `deriveStatus` ranks `voided_at` first, so a
+    // consumed-then-voided code would arrive here as not-consumed while `checkSittingCode` reads
+    // `consumed_at` and calls it consumed.
+    consumed: row.consumedAt !== null,
     sessionEndedAt: row.sessionEndedAt,
     sessionVisible: row.sessionDeletedAt === null,
   })

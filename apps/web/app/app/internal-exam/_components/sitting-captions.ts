@@ -34,15 +34,17 @@ export function formatRelative(iso: string, now: Date = new Date()): string {
   return `in ${days} d`
 }
 
-/** A closed or cancelled sitting never opens, so it must not promise that it will. */
+/**
+ * `scheduled` and `open` are the only statuses reachable here: `list_my_active_internal_exam_codes`
+ * (mig 20261117001250) needs a live `exam_sittings` row and `voided_at IS NULL`, and close and
+ * cancel both void every unused code first (`private.void_unused_sitting_codes`). Anything else
+ * takes the fallback rather than naming a state this path cannot produce.
+ */
 export function sittingHint(status: SittingStatus | null | undefined): string {
   if (status === 'open') return 'Works while the sitting is open.'
   // The row is server-rendered and nothing refreshes it, so the student has to reload.
   if (status === 'scheduled') {
     return 'Opens when your invigilator starts the sitting — reload this page to check.'
   }
-  // A cancelled sitting never ran, so it cannot be described as having ended.
-  if (status === 'cancelled') return 'This sitting was cancelled. Ask your invigilator.'
-  if (status === 'closed') return 'This sitting has ended. Ask your invigilator.'
   return 'Ask your invigilator about this sitting.'
 }

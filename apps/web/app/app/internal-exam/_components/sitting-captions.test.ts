@@ -49,13 +49,9 @@ describe('sittingHint', () => {
     expect(sittingHint('scheduled')).toContain('reload')
   })
 
-  it('says cancelled, not ended, for a cancelled sitting', () => {
-    expect(sittingHint('cancelled')).toContain('cancelled')
-    expect(sittingHint('cancelled')).not.toContain('ended')
-  })
-
-  it('says ended for a closed sitting', () => {
-    expect(sittingHint('closed')).toContain('ended')
+  // Unreachable from the student RPC, so they take the fallback instead of naming a state.
+  it.each(['cancelled', 'closed'] as const)('claims nothing about a %s sitting', (status) => {
+    expect(sittingHint(status)).toBe('Ask your invigilator about this sitting.')
   })
 
   // An unknown status reaches here as null. Claiming 'cancelled' or 'ended' would describe a

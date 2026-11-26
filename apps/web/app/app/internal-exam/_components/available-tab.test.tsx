@@ -120,9 +120,9 @@ describe('AvailableTab', () => {
       expect(screen.getByTestId('start-button')).toBeDisabled()
     })
 
-    it('shows the ended hint for a closed sitting', () => {
+    it('names no state for a closed sitting, which the RPC cannot return', () => {
       render(<AvailableTab rows={[SITTING_ROW('closed')]} />)
-      expect(screen.getByText('This sitting has ended. Ask your invigilator.')).toBeInTheDocument()
+      expect(screen.getByText('Ask your invigilator about this sitting.')).toBeInTheDocument()
     })
 
     it('omits the date from the caption when scheduledAt is empty', () => {
