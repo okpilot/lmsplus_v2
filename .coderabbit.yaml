@@ -600,6 +600,13 @@ reviews:
           `start_internal_exam_session` that locks the code FOR UPDATE before the sitting FOR SHARE.
           Flag a sitting redeem that checks `already_passed` (`private.sitting_pass_gate`) before the
           `active_session_exists` guard.
+        - Reserved void reasons (docs/security.md §11b "Sitting codes", #1820): the system tokens
+          in `RESERVED_VOID_REASONS` (`packages/db/src/schema.ts`) are refused by `void_sitting_code`
+          (`invalid_input`) but NOT by `void_internal_exam_code`, which validates only a blank or
+          over-long reason. Notice readers key on `sitting_cancelled`, so flag any new caller that
+          can write a caller-supplied `void_reason` without first passing it through
+          `checkSittingCode` (`apps/web/app/app/admin/internal-exams/actions/sitting-code-guard.ts`),
+          which refuses an exact match for EVERY code, legacy ones included.
         - Sibling SECURITY DEFINER RPC guard-set consistency: when a migration adds or
           rewrites a SECURITY DEFINER function, compare its guard set against the siblings
           in its feature family. A guard present in any sibling and absent here is a GAP.
