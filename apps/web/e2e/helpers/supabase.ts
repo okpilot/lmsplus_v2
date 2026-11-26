@@ -304,7 +304,7 @@ export async function ensureInternalExamStudentUser() {
  * Uses `void_internal_exam_code(p_code_id, p_reason)` so cleanup goes through
  * the same SECURITY DEFINER path that the admin "Void" button uses in
  * production: writes the audit event, sets ended_at, marks passed=false, and
- * voids the code. No raw UPDATEs.
+ * voids the code.
  *
  * Last step: soft-deletes the student's remaining legacy codes
  * (sitting_entry_id IS NULL) so none leaks into the next spec.

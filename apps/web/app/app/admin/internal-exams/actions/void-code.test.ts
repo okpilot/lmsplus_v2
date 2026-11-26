@@ -203,6 +203,10 @@ describe('voidInternalExamCode', () => {
         expect(result.sessionEnded).toBe(false)
       }
       expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/internal-exams')
+      expect(mockRevalidatePath).toHaveBeenCalledWith(
+        '/app/admin/internal-exams/sittings/[sittingId]',
+        'page',
+      )
     })
 
     it('returns success with sessionId and sessionEnded when active session was terminated', async () => {
