@@ -31,14 +31,15 @@ async function seedPassedAttempt(userId: string, subjectId: string, score: numbe
   return { endedAt }
 }
 
-/** "17 Nov 2026": the format the app prints a date in (en-GB, UTC). */
+/** "17 Nov 2026 UTC": what the app prints — `formatUtc` labels any output carrying a day part. */
 function utcDay(d: Date): string {
-  return new Intl.DateTimeFormat('en-GB', {
+  const fmt = new Intl.DateTimeFormat('en-GB', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
     timeZone: 'UTC',
-  }).format(d)
+  })
+  return `${fmt.format(d)} UTC`
 }
 
 test('single-person Add exams shows a passed exam with its date and score', async ({ page }) => {

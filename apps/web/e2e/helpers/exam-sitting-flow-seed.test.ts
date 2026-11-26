@@ -9,7 +9,6 @@ import {
   readSittingCodes,
   runCleanupSteps,
   seedEnrolledStudents,
-  softDeleteEnrolment,
 } from './exam-sitting-flow-seed'
 
 type Call = { table: string; method: string; args: unknown[] }
@@ -101,34 +100,6 @@ describe('seedEnrolledStudents', () => {
     await expect(seedEnrolledStudents(['Bea'], 'course-1')).rejects.toThrow(
       'exam-sitting-flow-seed admin lookup: no admin',
     )
-  })
-})
-
-describe('softDeleteEnrolment', () => {
-  it('does nothing for a null id', async () => {
-    const calls = fakeAdmin({})
-    await softDeleteEnrolment(null)
-    expect(calls).toHaveLength(0)
-  })
-
-  it('soft-deletes the live row by id and never hard-deletes', async () => {
-    const calls = fakeAdmin({ course_enrolments: [{ data: [{ id: 'en-1' }], error: null }] })
-    await softDeleteEnrolment('en-1')
-    const methods = calls.map((c) => c.method)
-    expect(methods).not.toContain('delete')
-    expect(calls.find((c) => c.method === 'update')?.args[0]).toHaveProperty('deleted_at')
-    expect(calls.find((c) => c.method === 'eq')?.args).toEqual(['id', 'en-1'])
-    expect(calls.find((c) => c.method === 'is')?.args).toEqual(['deleted_at', null])
-  })
-
-  it('throws when no live row matched', async () => {
-    fakeAdmin({ course_enrolments: [{ data: [], error: null }] })
-    await expect(softDeleteEnrolment('en-1')).rejects.toThrow('no enrolment en-1')
-  })
-
-  it('throws on a database error', async () => {
-    fakeAdmin({ course_enrolments: [{ data: null, error: { message: 'boom' } }] })
-    await expect(softDeleteEnrolment('en-1')).rejects.toThrow('enrolment soft-delete: boom')
   })
 })
 

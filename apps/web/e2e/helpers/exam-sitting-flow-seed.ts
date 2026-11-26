@@ -53,20 +53,6 @@ export async function seedEnrolledStudents(
   return names.map((name, i) => ({ name, userId: ids[i] as string }))
 }
 
-/** Soft-deletes one enrolment a spec created; throws when no live row matched. A null id is a no-op. */
-export async function softDeleteEnrolment(id: string | null): Promise<void> {
-  if (id === null) return
-  const res = await getAdminClient()
-    .from('course_enrolments')
-    .update({ deleted_at: new Date().toISOString() })
-    .eq('id', id)
-    .is('deleted_at', null)
-    .select('id')
-  if (res.error) fail('enrolment soft-delete', res.error)
-  if ((res.data ?? []).length === 0)
-    fail('enrolment soft-delete', { message: `no enrolment ${id}` })
-}
-
 export type SittingCode = {
   code: string
   userId: string

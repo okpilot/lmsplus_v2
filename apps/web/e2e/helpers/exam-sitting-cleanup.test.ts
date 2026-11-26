@@ -349,14 +349,16 @@ describe('cleanupE2eExamSittings (sessions found by student)', () => {
     expect(calls.some((c) => c.table === 'quiz_sessions')).toBe(false)
   })
 
-  it('still deletes the seeded users when the session lookup fails, and reports it', async () => {
+  it('leaves the seeded users alone when the session lookup fails, and reports it', async () => {
     const { deleteUser } = withAuth({
       exam_sittings: [{ data: [], error: null }],
       users: [{ data: [{ id: 'u1' }], error: null }],
       quiz_sessions: [{ data: null, error: { message: 'sessions boom' } }],
     })
     await expect(cleanupE2eExamSittings()).rejects.toThrow(/afterEach: .*sessions boom/)
-    expect(deleteUser).toHaveBeenCalledWith('u1')
+    // `quiz_sessions.student_id` pins sessions before users: deleting the user anyway would raise
+    // a 23503 per user and bury `sessions boom`.
+    expect(deleteUser).not.toHaveBeenCalled()
   })
 })
 

@@ -14,7 +14,6 @@ import {
   readSittingCodes,
   runCleanupSteps,
   seedEnrolledStudents,
-  softDeleteEnrolment,
 } from './helpers/exam-sitting-flow-seed'
 import { ensureEnrolment } from './helpers/sitting-code'
 import {
@@ -39,10 +38,8 @@ test.skip(
 )
 
 /** The fixture student's enrolment, when this test created it (an existing one is left alone). */
-let createdEnrolmentId: string | null = null
 
 test.beforeEach(async () => {
-  createdEnrolmentId = null
   await cleanupInternalExamStudentActiveSessions(await signInAsAdmin())
   await cleanupE2eExamSittings()
   await ensureExamConfigs(await getAdminOrganizationId())
@@ -53,7 +50,6 @@ test.afterEach(async () => {
     cleanupE2eExamSittings,
     async () => cleanupInternalExamStudentActiveSessions(await signInAsAdmin()),
     cleanupCreatedExamConfigs,
-    () => softDeleteEnrolment(createdEnrolmentId),
   ])
 })
 
@@ -174,12 +170,12 @@ test('a sitting runs from creation to closing: codes, student attempt, late add,
   const subject = await findSubject('Meteorology')
   const student = await readStudent()
   const admin = getAdminClient()
-  const enrolment = await ensureEnrolment(admin, {
+  // Enrols for the run; `releaseSeededEnrolments` restores it in the shared cleanup.
+  await ensureEnrolment(admin, {
     ...(await adminIds(admin)),
     userId: student.id,
     courseId: subject.courseId,
   })
-  if (enrolment.created) createdEnrolmentId = enrolment.id
   const [bea, cy] = await seedEnrolledStudents(['E2E Flow Bea', 'E2E Flow Cy'], subject.courseId)
   if (!bea || !cy) throw new Error('seed students')
   const sittingId = await createSittingToday(page)
@@ -214,7 +210,11 @@ test('a sitting runs from creation to closing: codes, student attempt, late add,
       await studentPage.goto('/app/internal-exam')
       const row = studentPage.getByTestId('available-list').getByRole('listitem').first()
       await expect(row).toContainText(`${utcDay()}, 23:58 UTC · Remote`)
-      await expect(row.getByText('Opens when your invigilator starts the sitting.')).toBeVisible()
+      await expect(
+        row.getByText(
+          'Opens when your invigilator starts the sitting — reload this page to check.',
+        ),
+      ).toBeVisible()
       await expect(row.getByTestId('start-button')).toBeDisabled()
     })
 

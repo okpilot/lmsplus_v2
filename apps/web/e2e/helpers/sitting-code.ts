@@ -81,19 +81,22 @@ async function lookupIds(admin: Admin, studentEmail: string, subjectFragment: st
 }
 
 /**
- * Enrolments this run created for the SHARED fixture student, soft-deleted again by
- * `releaseSeededEnrolments`. Decision 38: a spec restores the shared seed data it mutates, and
- * `deleteSeededUsers` only covers users carrying the seed email prefix.
+ * Every enrolment `ensureEnrolment` inserted this run, soft-deleted again by
+ * `releaseSeededEnrolments`. Decision 38: a spec restores the shared seed data it mutates.
+ *
+ * Mixed ownership since the sitting-flow seeders landed: a fixture student's row is only restored
+ * here, while an `e2e-sit-` student's row is hard-deleted first by `deleteSeededUsers`, so an id
+ * that is already gone is normal and only warns.
  *
  * KNOWN LIMIT — in-process only, unlike the rest of this helper family: a worker killed between
- * the insert and teardown loses the ids and the enrolment stays live. It is not DB-derivable:
+ * the insert and teardown loses the ids and a fixture enrolment stays live. It is not DB-derivable:
  * `set_user_enrolments` also writes `enrolled_by` = the calling admin (mig 20261028000500), so no
  * predicate separates this row from an admin-UI enrolment of the same student. Bounded to one
  * fixture student on a local DB and cleared by `pnpm supabase db reset`; CI reseeds per run.
  */
 const seededEnrolmentIds = new Set<string>()
 
-/** Soft-deletes the fixture-student enrolments this run added. Safe to call with none. */
+/** Soft-deletes the enrolments this run added that are still live. Safe to call with none. */
 export async function releaseSeededEnrolments(): Promise<void> {
   if (seededEnrolmentIds.size === 0) return
   const ids = [...seededEnrolmentIds]

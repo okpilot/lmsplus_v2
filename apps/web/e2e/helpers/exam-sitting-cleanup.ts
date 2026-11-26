@@ -172,6 +172,9 @@ async function deleteSeededUsers(admin: Admin) {
   } catch (e) {
     errors.push(e instanceof Error ? e.message : String(e))
   }
+  // Dependent step: `quiz_sessions.student_id` pins sessions before users, so a failed session
+  // delete would turn every user delete below into a cascading 23503 that buries the real cause.
+  if (errors.length > 0) throw new Error(errors.join('; '))
   for (const u of users.data ?? []) {
     try {
       check(
