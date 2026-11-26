@@ -1,3 +1,4 @@
+import { POSTGREST_MAX_ROWS } from '../../lib/supabase-paginate'
 import { ADMIN_TEST_EMAIL } from './admin-supabase'
 import {
   EXAM_SITTING_E2E_PREFIX,
@@ -136,25 +137,22 @@ async function deleteSeededGroups(admin: Admin) {
   check('seed groups delete', (await admin.from('student_groups').delete().in('id', ids)).error)
 }
 
-/** PostgREST's `max_rows` for the local stack — keep in step with `supabase/config.toml`. */
-const PAGE_CAP = 1000
-
 /** Sessions of the seeded students found by student (a spec may seed one with no code), removed before their users. */
 async function deleteSeededStudentSessions(admin: Admin, userIds: string[]) {
   if (userIds.length === 0) return
-  // `.limit()` one past PostgREST's `max_rows` (`supabase/config.toml`), so a truncated page is
-  // detectable: without it the survivors keep pinning `quiz_sessions.student_id` and the user
-  // delete below fails 23503, burying the cause this step exists to surface.
-  const sessions = await admin
-    .from('quiz_sessions')
-    .select('id')
-    .in('student_id', userIds)
-    .limit(PAGE_CAP + 1)
+  const sessions = await admin.from('quiz_sessions').select('id').in('student_id', userIds)
   check('seed student sessions lookup', sessions.error)
   const ids = (sessions.data ?? []).map((r) => r.id)
-  if (ids.length > PAGE_CAP) {
+  // A FULL page means PostgREST may have truncated at `max_rows`, and a client `.limit()` cannot
+  // widen it — PostgREST takes the smaller of the two, so asking for one extra row to tell the
+  // cases apart is unreachable by construction (`supabase-paginate.ts:118`,
+  // `quiz-topic-trees.ts:98` detect the same way). Refuse rather than delete a partial list: the
+  // survivors would keep pinning `quiz_sessions.student_id` and the user delete below would fail
+  // 23503, burying the cause this step exists to surface. Exactly `max_rows` real sessions trips
+  // it too — fail-closed on a count no seed run produces.
+  if (ids.length >= POSTGREST_MAX_ROWS) {
     throw new Error(
-      `deleteSeededStudentSessions: over ${PAGE_CAP} sessions for ${userIds.length} seeded student(s); delete in pages`,
+      `deleteSeededStudentSessions: ${ids.length} sessions for ${userIds.length} seeded student(s) hits PostgREST's max_rows; delete in pages`,
     )
   }
   if (ids.length === 0) return

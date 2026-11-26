@@ -4,6 +4,7 @@ const { mockGetAdminClient } = vi.hoisted(() => ({ mockGetAdminClient: vi.fn() }
 vi.mock('./admin-supabase', () => ({ ADMIN_TEST_EMAIL: 'admin@test.local' }))
 vi.mock('./supabase', () => ({ getAdminClient: mockGetAdminClient }))
 
+import { POSTGREST_MAX_ROWS } from '../../lib/supabase-paginate'
 import { cleanupE2eExamSittings, markE2eSitting } from './exam-sitting-cleanup'
 import { EXAM_SITTING_E2E_PREFIX, EXAM_SITTING_SEED_PREFIX } from './exam-sitting-markers'
 
@@ -349,25 +350,40 @@ describe('cleanupE2eExamSittings (sessions found by student)', () => {
     expect(calls.some((c) => c.table === 'quiz_sessions')).toBe(false)
   })
 
-  it('refuses a truncated session page instead of deleting a partial list', async () => {
-    // PostgREST caps a page at `max_rows`; silently taking the page would leave the survivors
-    // pinning `quiz_sessions.student_id`, and the user delete would fail 23503 with the cause gone.
+  it('refuses a full session page instead of deleting a partial list', async () => {
+    // A page of exactly `max_rows` is what real PostgREST returns when it truncates — the only
+    // signal available, since a client `.limit()` cannot ask for more. Taking it would leave the
+    // survivors pinning `quiz_sessions.student_id`, and the user delete would fail 23503 with the
+    // cause gone.
     const { calls, deleteUser } = withAuth({
       exam_sittings: [{ data: [], error: null }],
       users: [{ data: [{ id: 'u1' }], error: null }],
       quiz_sessions: [
-        { data: Array.from({ length: 1001 }, (_, i) => ({ id: `q${i}` })), error: null },
+        {
+          data: Array.from({ length: POSTGREST_MAX_ROWS }, (_, i) => ({ id: `q${i}` })),
+          error: null,
+        },
       ],
     })
-    await expect(cleanupE2eExamSittings()).rejects.toThrow('delete in pages')
+    await expect(cleanupE2eExamSittings()).rejects.toThrow('max_rows')
     expect(calls.some((c) => c.table === 'quiz_sessions' && c.method === 'delete')).toBe(false)
     expect(deleteUser).not.toHaveBeenCalled()
-    // The asking-for-one-extra-row is the mechanism, and no mock can show it: against real
-    // PostgREST an unbounded select returns exactly `max_rows`, so `length > PAGE_CAP` is never
-    // true and the guard above never fires. Pin the call instead.
-    expect(calls.find((c) => c.table === 'quiz_sessions' && c.method === 'limit')?.args).toEqual([
-      1001,
-    ])
+  })
+
+  it('deletes a session page one row under the cap', async () => {
+    // Pins the boundary: an off-by-one in the guard would refuse every ordinary teardown.
+    const { calls } = withAuth({
+      exam_sittings: [{ data: [], error: null }],
+      users: [{ data: [{ id: 'u1' }], error: null }],
+      quiz_sessions: [
+        {
+          data: Array.from({ length: POSTGREST_MAX_ROWS - 1 }, (_, i) => ({ id: `q${i}` })),
+          error: null,
+        },
+      ],
+    })
+    await cleanupE2eExamSittings()
+    expect(calls.some((c) => c.table === 'quiz_sessions' && c.method === 'delete')).toBe(true)
   })
 
   it('drops the codes consuming a seeded session before deleting the session', async () => {
