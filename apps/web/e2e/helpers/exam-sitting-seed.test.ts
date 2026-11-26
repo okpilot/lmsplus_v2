@@ -262,7 +262,7 @@ describe('insertPassedSession', () => {
   it('throws without inserting when the subject has no enabled exam config', async () => {
     const { admin, insert } = configAdmin({ data: null, error: null })
     await expect(insertPassedSession(admin as never, session)).rejects.toThrow(
-      /^insertPassedSession enabled exam config for subject s \(ensureExamConfigs .*\): no data$/,
+      /^insertPassedSession enabled exam config for subject s \(ensureExamConfigs configures only MIN_CONFIGS subjects\): no data$/,
     )
     expect(insert).not.toHaveBeenCalled()
   })

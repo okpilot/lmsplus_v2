@@ -4,7 +4,7 @@
  * Uses `e2e/.auth/admin.json` and the internal-exam student state (`e2e/.auth/internal-exam-student.json`);
  * the student types the issued code in the code-entry modal. Two further students are seeded (`e2e-sit-` emails).
  */
-import { type Browser, expect as baseExpect, type Page, test } from '@playwright/test'
+import { type Browser, expect as baseExpect, type Locator, type Page, test } from '@playwright/test'
 import { getAdminOrganizationId, signInAsAdmin } from './helpers/admin-supabase'
 import { cleanupCreatedExamConfigs, ensureExamConfigs } from './helpers/exam-config-cleanup'
 import { cleanupE2eExamSittings, markE2eSitting } from './helpers/exam-sitting-cleanup'
@@ -139,8 +139,9 @@ async function answerAll(page: Page): Promise<number> {
   return total
 }
 
-async function startExam(page: Page, code: string) {
-  await page.getByTestId('start-button').first().click()
+async function startExam(sittingRow: Locator, code: string) {
+  const page = sittingRow.page()
+  await sittingRow.getByTestId('start-button').click()
   await page.getByTestId('code-input').fill(code)
   await page.getByRole('button', { name: 'Start exam' }).click()
   await page.waitForURL(/\/app\/quiz\/session/, { timeout: 30_000 })
@@ -259,7 +260,7 @@ test('a sitting runs from creation to closing: codes, student attempt, late add,
       await studentPage.reload()
       await expect(sittingRow.getByText('Works while the sitting is open.')).toBeVisible()
       await expect(sittingRow.getByTestId('start-button')).toBeEnabled()
-      await startExam(studentPage, codeOf(student.id))
+      await startExam(sittingRow, codeOf(student.id))
       const answered = await answerAll(studentPage)
       // The journey under test is a MULTI-question exam: a seed drifting to one question would
       // leave the Next-navigation path untested while every assertion below still passed.
