@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { matchRpcError } from '@/lib/rpc-error-match'
+import { SITTING_BASE, SITTING_ROOT } from '../sittings/types'
 import { checkSittingCode } from './sitting-code-guard'
 
 const VoidCodeSchema = z.object({
@@ -74,9 +75,9 @@ export async function voidInternalExamCode(input: unknown): Promise<VoidCodeResu
     return { success: false, error: 'Failed to void internal exam code' }
   }
 
-  revalidatePath('/app/admin/internal-exams')
+  revalidatePath(SITTING_ROOT)
   // Voiding a running sitting attempt changes the entry a sitting detail page shows.
-  revalidatePath('/app/admin/internal-exams/sittings/[sittingId]', 'page')
+  revalidatePath(`${SITTING_BASE}/[sittingId]`, 'page')
   return {
     success: true,
     codeId: row.code_id,
