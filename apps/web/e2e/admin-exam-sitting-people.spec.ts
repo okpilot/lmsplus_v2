@@ -1,20 +1,30 @@
 import { expect, type Page, test } from '@playwright/test'
+import { getAdminOrganizationId } from './helpers/admin-supabase'
+import { cleanupCreatedExamConfigs, ensureExamConfigs } from './helpers/exam-config-cleanup'
 import { cleanupE2eExamSittings } from './helpers/exam-sitting-cleanup'
 import { seedSitting } from './helpers/exam-sitting-seed'
+import { skipNearUtcRollover } from './helpers/utc-rollover'
 
 test.use({ storageState: 'e2e/.auth/admin.json', viewport: { width: 1280, height: 800 } })
 
 const BASE = '/app/admin/internal-exams/sittings'
 
-test.afterEach(async () => {
-  await cleanupE2eExamSittings()
+test.beforeEach(async () => {
+  skipNearUtcRollover()
+  await ensureExamConfigs(await getAdminOrganizationId())
 })
 
-const loadedAt = new Date()
-test.skip(
-  loadedAt.getUTCHours() === 23 && loadedAt.getUTCMinutes() >= 55,
-  'UTC day rollover window',
-)
+test.afterEach(async () => {
+  const errors: string[] = []
+  for (const step of [cleanupE2eExamSittings, cleanupCreatedExamConfigs]) {
+    try {
+      await step()
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e))
+    }
+  }
+  if (errors.length > 0) throw new Error(`afterEach: ${errors.join('; ')}`)
+})
 
 function personRow(page: Page, name: string) {
   return page.getByRole('row').filter({ hasText: name })

@@ -3,12 +3,7 @@ import { test } from '@playwright/test'
 /** Minutes before midnight UTC within which a sitting spec must not start. */
 export const UTC_ROLLOVER_MARGIN_MINUTES = 15
 
-/**
- * Whether `now` is inside the margin before midnight UTC.
- *
- * Pure so the boundary itself is testable: the `test.skip` wrapper below cannot be, and an
- * off-by-one here fails OPEN — specs merely flake near midnight, which reads as infrastructure.
- */
+/** Whether `now` is inside the margin before midnight UTC. */
 export function isNearUtcRollover(now: Date): boolean {
   const minutesLeft = (24 - now.getUTCHours()) * 60 - now.getUTCMinutes()
   return minutesLeft <= UTC_ROLLOVER_MARGIN_MINUTES

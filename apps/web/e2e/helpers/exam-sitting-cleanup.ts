@@ -21,7 +21,7 @@ function check(what: string, error: { message: string } | null) {
  * Splits the sessions by owner. `internal_exam_codes.consumed_session_id` references
  * `quiz_sessions` with NO ACTION, so a seeded session can only be hard-deleted after its code is
  * gone; a fixture session is retired with UPDATEs, which the FK does not block. The caller runs
- * `retireFixtureSessions` BEFORE deleting the codes, so a failure there cannot orphan a live
+ * `retireSessions` BEFORE deleting the codes, so a failure there cannot orphan a live
  * fixture session whose only link was the code it just deleted.
  */
 async function classifySessions(admin: Admin, sessionIds: string[]) {
@@ -47,9 +47,9 @@ async function classifySessions(admin: Admin, sessionIds: string[]) {
   }
 }
 
-/** A fixture student's session may hold immutable answers: it is ended and soft-deleted, never gone. */
-async function retireFixtureSessions(admin: Admin, fixture: string[]) {
-  if (fixture.length === 0) return
+/** A session may hold immutable answers: it is ended and soft-deleted, never gone. */
+async function retireSessions(admin: Admin, ids: string[]) {
+  if (ids.length === 0) return
   const now = new Date().toISOString()
   // Soft-delete FIRST: the two updates are not atomic, and every history and attempts list filters
   // `deleted_at IS NULL`. A failure after this point leaves the row invisible rather than looking
@@ -59,24 +59,37 @@ async function retireFixtureSessions(admin: Admin, fixture: string[]) {
   const softDeleted = await admin
     .from('quiz_sessions')
     .update({ deleted_at: now })
-    .in('id', fixture)
+    .in('id', ids)
     .select('id')
-  check('fixture sessions soft-delete', softDeleted.error)
-  if ((softDeleted.data?.length ?? 0) !== fixture.length) {
+  check('sessions soft-delete', softDeleted.error)
+  if ((softDeleted.data?.length ?? 0) !== ids.length) {
     throw new Error(
-      `fixture sessions soft-delete: expected ${fixture.length} row(s), updated ${softDeleted.data?.length ?? 0}`,
+      `sessions soft-delete: expected ${ids.length} row(s), updated ${softDeleted.data?.length ?? 0}`,
     )
   }
   check(
-    'fixture sessions end',
-    (
-      await admin
-        .from('quiz_sessions')
-        .update({ ended_at: now })
-        .in('id', fixture)
-        .is('ended_at', null)
-    ).error,
+    'sessions end',
+    (await admin.from('quiz_sessions').update({ ended_at: now }).in('id', ids).is('ended_at', null))
+      .error,
   )
+}
+
+/** Ids among `ids` whose session holds a row in an immutable answer table. */
+async function answeredSessionIds(admin: Admin, ids: string[]): Promise<Set<string>> {
+  const answered = new Set<string>()
+  for (const table of ['quiz_session_answers', 'student_responses'] as const) {
+    const res = await admin.from(table).select('session_id').in('session_id', ids)
+    check(`${table} lookup`, res.error)
+    const rows = res.data ?? []
+    // A truncated page hides an answered session, which is then hard-deleted and fails 23503.
+    if (rows.length >= POSTGREST_MAX_ROWS) {
+      throw new Error(
+        `answeredSessionIds: ${rows.length} ${table} row(s) for ${ids.length} session(s) hits PostgREST's max_rows; read in pages`,
+      )
+    }
+    for (const r of rows) if (r.session_id) answered.add(r.session_id)
+  }
+  return answered
 }
 
 /** Ids of the entries, then the codes and sessions of those entries, deleted for the seeded sittings. */
@@ -95,7 +108,7 @@ async function deleteSeededRows(admin: Admin, sittingIds: string[]) {
     )
     const split = sessionIds.length > 0 ? await classifySessions(admin, sessionIds) : null
     // Retire the fixture sessions while the codes still link to them (see `classifySessions`).
-    if (split) await retireFixtureSessions(admin, split.fixture)
+    if (split) await retireSessions(admin, split.fixture)
     check(
       'seed codes delete',
       (await admin.from('internal_exam_codes').delete().in('sitting_entry_id', entryIds)).error,
@@ -143,28 +156,48 @@ async function deleteSeededGroups(admin: Admin) {
   check('seed groups delete', (await admin.from('student_groups').delete().in('id', ids)).error)
 }
 
-/** Sessions of the seeded students found by student (a spec may seed one with no code), removed before their users. */
-async function deleteSeededStudentSessions(admin: Admin, userIds: string[]) {
-  if (userIds.length === 0) return
-  const sessions = await admin.from('quiz_sessions').select('id').in('student_id', userIds)
+/**
+ * Sessions of the seeded students found by student (a spec may seed one with no code), removed
+ * before their users. An answered session is retired instead: `quiz_session_answers.session_id` and
+ * `student_responses.session_id` are NO ACTION FKs on immutable tables, so the hard delete there is
+ * a 23503 with no legal fix. Returns the ids of the students whose retired sessions still pin
+ * `quiz_sessions.student_id`.
+ */
+async function deleteSeededStudentSessions(admin: Admin, userIds: string[]): Promise<Set<string>> {
+  if (userIds.length === 0) return new Set()
+  const sessions = await admin
+    .from('quiz_sessions')
+    .select('id, student_id')
+    .in('student_id', userIds)
   check('seed student sessions lookup', sessions.error)
-  const ids = (sessions.data ?? []).map((r) => r.id)
+  const rows = sessions.data ?? []
   // A full page may be truncated at `max_rows`: refuse rather than delete a partial list.
-  if (ids.length >= POSTGREST_MAX_ROWS) {
+  if (rows.length >= POSTGREST_MAX_ROWS) {
     throw new Error(
-      `deleteSeededStudentSessions: ${ids.length} sessions for ${userIds.length} seeded student(s) hits PostgREST's max_rows; delete in pages`,
+      `deleteSeededStudentSessions: ${rows.length} sessions for ${userIds.length} seeded student(s) hits PostgREST's max_rows; delete in pages`,
     )
   }
-  if (ids.length === 0) return
+  if (rows.length === 0) return new Set()
+  const ids = rows.map((r) => r.id)
+  const answered = await answeredSessionIds(admin, ids)
+  // Retire while the codes still link to them (see `classifySessions`).
+  await retireSessions(
+    admin,
+    ids.filter((id) => answered.has(id)),
+  )
   // Codes first: `internal_exam_codes_consumed_session_id_fkey` pins these sessions.
   check(
     'seed student session codes delete',
     (await admin.from('internal_exam_codes').delete().in('consumed_session_id', ids)).error,
   )
-  check(
-    'seed student sessions delete',
-    (await admin.from('quiz_sessions').delete().in('id', ids)).error,
-  )
+  const removable = ids.filter((id) => !answered.has(id))
+  if (removable.length > 0) {
+    check(
+      'seed student sessions delete',
+      (await admin.from('quiz_sessions').delete().in('id', removable)).error,
+    )
+  }
+  return new Set(rows.filter((r) => answered.has(r.id)).map((r) => r.student_id))
 }
 
 /** Deletes the students `seedSitting` created (users row, then auth user) once nothing references them. */
@@ -182,8 +215,9 @@ async function deleteSeededUsers(admin: Admin) {
     )
   }
   const errors: string[] = []
+  let retained = new Set<string>()
   try {
-    await deleteSeededStudentSessions(
+    retained = await deleteSeededStudentSessions(
       admin,
       userRows.map((u) => u.id),
     )
@@ -193,6 +227,12 @@ async function deleteSeededUsers(admin: Admin) {
   // Dependent step: `quiz_sessions.student_id` pins sessions before users.
   if (errors.length > 0) throw new Error(errors.join('; '))
   for (const u of userRows) {
+    if (retained.has(u.id)) {
+      errors.push(
+        `seed user ${u.id} kept: a retired session with immutable answers pins quiz_sessions.student_id`,
+      )
+      continue
+    }
     try {
       check(
         'seed enrolments delete',
@@ -279,7 +319,11 @@ async function cleanupEmptySittings(): Promise<void> {
   if (marked.length === 0) return
   const withPeople = new Set<string>()
   for (const table of ['exam_sitting_entries', 'exam_sitting_candidates'] as const) {
-    const res = await admin.from(table).select('sitting_id').in('sitting_id', marked)
+    const res = await admin
+      .from(table)
+      .select('sitting_id')
+      .in('sitting_id', marked)
+      .is('deleted_at', null)
     if (res.error) throw new Error(`cleanupE2eExamSittings ${table}: ${res.error.message}`)
     const rows = res.data ?? []
     // A truncated page drops a sitting that HAS people, which then gets soft-deleted.

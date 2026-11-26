@@ -217,6 +217,62 @@ describe('seedSitting subjects', () => {
 })
 
 describe('insertPassedSession', () => {
+  function configAdmin(res: { data: unknown; error: { message: string } | null }) {
+    const filters: string[] = []
+    const insert = vi.fn()
+    const chain: Record<string, unknown> = {}
+    for (const m of ['select', 'order', 'limit']) chain[m] = () => chain
+    chain.eq = (col: string, v: unknown) => {
+      filters.push(`eq:${col}=${String(v)}`)
+      return chain
+    }
+    chain.is = (col: string, v: unknown) => {
+      filters.push(`is:${col}=${String(v)}`)
+      return chain
+    }
+    chain.maybeSingle = () => Promise.resolve(res)
+    const admin = {
+      from: (t: string) => (t === 'exam_configs' ? chain : { insert }),
+    }
+    return { admin, filters, insert }
+  }
+  const session = {
+    orgId: 'o',
+    userId: 'u',
+    subjectId: 's',
+    score: 83,
+    endedAt: new Date('2026-11-19T10:00:00.000Z'),
+  }
+
+  it('looks the pass mark up by org, subject, enabled and not deleted', async () => {
+    const { admin, filters } = configAdmin({ data: null, error: null })
+    await insertPassedSession(admin as never, session).catch(() => undefined)
+    expect(filters).toEqual(
+      expect.arrayContaining([
+        'eq:organization_id=o',
+        'eq:subject_id=s',
+        'eq:enabled=true',
+        'is:deleted_at=null',
+      ]),
+    )
+  })
+
+  it('throws without inserting when the subject has no enabled exam config', async () => {
+    const { admin, insert } = configAdmin({ data: null, error: null })
+    await expect(insertPassedSession(admin as never, session)).rejects.toThrow(
+      'insertPassedSession enabled exam config for subject s: no data',
+    )
+    expect(insert).not.toHaveBeenCalled()
+  })
+
+  it('throws without inserting when the exam config lookup errors', async () => {
+    const { admin, insert } = configAdmin({ data: null, error: { message: 'boom' } })
+    await expect(insertPassedSession(admin as never, session)).rejects.toThrow(
+      'insertPassedSession exam config lookup: boom',
+    )
+    expect(insert).not.toHaveBeenCalled()
+  })
+
   it("takes the pass mark from the subject's enabled exam config", async () => {
     const { inserts } = fakeAdmin()
     await insertPassedSession(mockGetAdminClient(), {

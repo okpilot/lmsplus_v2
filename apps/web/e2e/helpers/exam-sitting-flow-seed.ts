@@ -34,12 +34,12 @@ export async function findSubject(fragment: string): Promise<FlowSubject> {
     .limit(1)
     .single()
   if (res.error || !res.data) fail(`subject ${fragment}`, res.error)
-  return {
-    id: res.data.id,
-    short: res.data.short ?? '',
-    name: res.data.name,
-    courseId: res.data.course_id,
+  const short = res.data.short
+  // An empty `short` makes the `Add ${short}` checkbox name match every subject's.
+  if (typeof short !== 'string' || short === '') {
+    fail(`subject ${fragment} short (checkbox locators need it)`, null)
   }
+  return { id: res.data.id, short, name: res.data.name, courseId: res.data.course_id }
 }
 
 /** Students with an `e2e-sit-` email (the sitting cleanup deletes them), enrolled in `courseId`. */
@@ -96,10 +96,7 @@ const widenedTimers = new Map<string, number>()
  * Widens the subject's exam timer for this run, remembering the old value for `restoreExamTimer`.
  *
  * The seeded MET config allows 60 s for 10 questions (`scripts/seed-e2e.ts`), and `exam-flow.spec.ts`
- * tests that expiry, so the seed cannot change. A spec that answers EVERY question through a dev
- * server compiling `/app/quiz/session` on first hit loses that race, and `useQuizTimer` then opens
- * the finish dialog as a modal over the question card — the next option click is pointer-intercepted
- * and, having no timeout of its own, burns the whole test budget.
+ * tests that expiry, so the seed cannot change.
  *
  * KNOWN LIMIT (#1837): the restore map is in-process; a killed run leaves the timer widened until `pnpm supabase db reset`.
  *

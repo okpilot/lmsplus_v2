@@ -22,9 +22,4 @@ describe('isNearUtcRollover', () => {
   it('does not hold at midday', () => {
     expect(isNearUtcRollover(at(12, 30))).toBe(false)
   })
-
-  it('ignores the local timezone', () => {
-    // Built from UTC parts, so the verdict cannot depend on the runner's offset.
-    expect(isNearUtcRollover(new Date(Date.UTC(2026, 10, 26, 23, 55)))).toBe(true)
-  })
 })

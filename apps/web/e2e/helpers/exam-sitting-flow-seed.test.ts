@@ -63,6 +63,21 @@ describe('findSubject', () => {
     })
   })
 
+  it.each([
+    ['null', null],
+    ['empty', ''],
+  ])('refuses a subject whose short code is %s', async (_label, short) => {
+    // `getByRole('checkbox', { name: `Add ${short}` })` substring-matches every "Add X" checkbox.
+    fakeAdmin({
+      easa_subjects: [
+        { data: { id: 's1', short, name: 'Meteorology', course_id: 'c1' }, error: null },
+      ],
+    })
+    await expect(findSubject('Meteo')).rejects.toThrow(
+      'exam-sitting-flow-seed subject Meteo short (checkbox locators need it): no data',
+    )
+  })
+
   it('throws when no subject matches', async () => {
     fakeAdmin({ easa_subjects: [{ data: null, error: { message: 'none' } }] })
     await expect(findSubject('Nope')).rejects.toThrow('subject Nope: none')
