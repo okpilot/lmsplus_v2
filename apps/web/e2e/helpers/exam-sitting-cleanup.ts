@@ -136,12 +136,27 @@ async function deleteSeededGroups(admin: Admin) {
   check('seed groups delete', (await admin.from('student_groups').delete().in('id', ids)).error)
 }
 
+/** PostgREST's `max_rows` for the local stack — keep in step with `supabase/config.toml`. */
+const PAGE_CAP = 1000
+
 /** Sessions of the seeded students found by student (a spec may seed one with no code), removed before their users. */
 async function deleteSeededStudentSessions(admin: Admin, userIds: string[]) {
   if (userIds.length === 0) return
-  const sessions = await admin.from('quiz_sessions').select('id').in('student_id', userIds)
+  // `.limit()` one past PostgREST's `max_rows` (`supabase/config.toml`), so a truncated page is
+  // detectable: without it the survivors keep pinning `quiz_sessions.student_id` and the user
+  // delete below fails 23503, burying the cause this step exists to surface.
+  const sessions = await admin
+    .from('quiz_sessions')
+    .select('id')
+    .in('student_id', userIds)
+    .limit(PAGE_CAP + 1)
   check('seed student sessions lookup', sessions.error)
   const ids = (sessions.data ?? []).map((r) => r.id)
+  if (ids.length > PAGE_CAP) {
+    throw new Error(
+      `deleteSeededStudentSessions: over ${PAGE_CAP} sessions for ${userIds.length} seeded student(s); delete in pages`,
+    )
+  }
   if (ids.length === 0) return
   // Every id came from a student whose email carries the seed prefix, so there is no fixture
   // session to classify here — unlike `deleteSeededRows`, which reaches sessions through a shared

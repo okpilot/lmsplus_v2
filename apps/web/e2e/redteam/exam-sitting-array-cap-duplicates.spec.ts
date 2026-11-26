@@ -1,8 +1,9 @@
 /**
  * Red Team Spec: duplicate-inflated id arrays against the sitting RPC caps (Vector NK)
  *
- * Attack: `add_exam_sitting_candidates` and `issue_sitting_exam_codes` cap `cardinality` AFTER
- * `SELECT DISTINCT`, so a direct PostgREST caller (bypassing `uuidList(500)` in
+ * Attack: both RPCs cap the DISTINCT count, not the array length — `add_exam_sitting_candidates`
+ * takes `cardinality` of a deduped array, `issue_sitting_exam_codes` takes `count(DISTINCT x)` for
+ * user ids — so a direct PostgREST caller (bypassing `uuidList(500)` in
  * `AddSittingCandidatesSchema` / `IssueSittingCodesSchema`) can post an arbitrarily long array.
  * Expected: duplicates collapse — one live `exam_sitting_candidates` row per (sitting, user) and
  * one live `internal_exam_codes` row per entry — and a repeated call adds nothing.
@@ -69,8 +70,10 @@ test.describe('Red Team: duplicate-inflated sitting id arrays (NK)', () => {
   const track: SittingTrack = { sittingIds: [], subjectIds: [], adminId: '' }
 
   test.beforeAll(async () => {
-    skipNearUtcRollover()
+    // Before the skip: this suite is already activated, so a skip here still runs `afterAll`, and
+    // an undefined `admin` there would throw a TypeError over the skip reason.
     admin = getAdminClient()
+    skipNearUtcRollover()
     const a = await seedRedTeamAdmin()
     track.adminId = a.adminUserId
     studentId = await upsertUser(admin, NK_STUDENT_EMAIL, NK_STUDENT_PASSWORD, a.orgId)

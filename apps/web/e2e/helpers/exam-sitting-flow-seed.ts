@@ -132,8 +132,9 @@ export async function widenExamTimer(subjectId: string, seconds = 3600): Promise
   if (upd.error) fail('exam timer widen', upd.error)
   if ((upd.data ?? []).length === 0) fail(`exam timer widen: no row ${res.data.id}`, null)
   // Recorded only after the UPDATE lands, so a failed widen cannot restore a value never changed.
-  // `set`, not an overwrite guard: a second widen of the SAME config would only ever record the
-  // value this call already raised, so the first original must win.
+  // Guarded: a second widen of the SAME config to a LARGER value would otherwise record the value
+  // this call already raised, and the restore would put back a widened timer. (Equal values never
+  // reach here — the `>= seconds` early return above takes them.)
   if (!widenedTimers.has(res.data.id)) widenedTimers.set(res.data.id, res.data.time_limit_seconds)
 }
 

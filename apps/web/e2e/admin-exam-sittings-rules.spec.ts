@@ -53,7 +53,9 @@ test('single-person Add exams shows a passed exam with its date and score', asyn
   })
   const subject = subjects[0]
   if (!subject) throw new Error('seedSitting returned no subject')
-  const attempt = await seedPassedAttempt(people[0]?.userId ?? '', subject.id, 83)
+  const first = people[0]
+  if (!first) throw new Error('seedSitting returned no people')
+  const attempt = await seedPassedAttempt(first.userId, subject.id, 83)
 
   await page.goto(`${BASE}/${sittingId}`)
   await page.getByRole('button', { name: 'Actions for E2E Rule Ann' }).click()
@@ -73,7 +75,9 @@ test('a student who passed is removed from the sitting and listed with the pass 
   })
   const subject = subjects[0]
   if (!subject) throw new Error('seedSitting returned no subject')
-  const attempt = await seedPassedAttempt(people[0]?.userId ?? '', subject.id, 91)
+  const first = people[0]
+  if (!first) throw new Error('seedSitting returned no people')
+  const attempt = await seedPassedAttempt(first.userId, subject.id, 91)
 
   await page.goto(`${BASE}/${sittingId}`)
   await expect(page.getByRole('heading', { name: 'Removed automatically (1)' })).toBeVisible()
