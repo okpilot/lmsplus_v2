@@ -7,7 +7,7 @@ const ROW_LABEL: Record<CodeDisplayStatus, string> = {
   waiting: ENTRY_STATUS_LABEL.waiting,
   consumed: 'In progress',
   finished: 'Finished',
-  discarded: 'Discarded',
+  discarded: ENTRY_STATUS_LABEL.discarded,
   voided: 'Voided',
   expired: 'Expired',
 }

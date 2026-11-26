@@ -11,7 +11,7 @@ describe('statusLabel', () => {
     ['waiting', 'Waiting for start'],
     ['consumed', 'In progress'],
     ['finished', 'Finished'],
-    ['discarded', 'Discarded'],
+    ['discarded', 'Attempt discarded'],
     ['voided', 'Voided'],
     ['expired', 'Expired'],
   ])('labels %s as %s', (status, label) => {

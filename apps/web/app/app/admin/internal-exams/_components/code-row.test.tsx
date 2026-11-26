@@ -217,7 +217,7 @@ describe('CodeRow sitting codes', () => {
       consumedAt: '2026-04-28T11:00:00.000Z',
       sessionDeletedAt: '2026-04-28T12:00:00.000Z',
     })
-    expect(screen.getByText('Discarded')).toBeInTheDocument()
+    expect(screen.getByText('Attempt discarded')).toBeInTheDocument()
     expect(screen.queryByText('In progress')).not.toBeInTheDocument()
   })
 
@@ -231,7 +231,7 @@ describe('CodeRow sitting codes', () => {
       consumedAt: '2026-04-28T11:00:00.000Z',
       sessionDeletedAt: '2026-04-28T12:00:00.000Z',
     })
-    expect(screen.getByText('Discarded')).toBeInTheDocument()
+    expect(screen.getByText('Attempt discarded')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Void' })).toBeDisabled()
   })
 

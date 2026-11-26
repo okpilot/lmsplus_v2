@@ -240,6 +240,28 @@ describe('cleanupE2eExamSittings (seeded sittings)', () => {
     )
   })
 
+  it('throws when the fixture soft-delete updates fewer rows than it looked up', async () => {
+    // A 0-row UPDATE returns 200 OK, so without the count check teardown would report success and
+    // leave `ended_at IS NULL` — the next spec then fails with `active_session_exists`.
+    seededClient({
+      exam_sittings: [
+        { data: [], error: null },
+        { data: [{ id: 's1' }], error: null },
+      ],
+      exam_sitting_entries: [{ data: [{ id: 'e1' }], error: null }],
+      internal_exam_codes: [{ data: [{ id: 'c1', consumed_session_id: 'q1' }], error: null }],
+      quiz_sessions: [
+        { data: [{ id: 'q1', users: { email: 'e2e-internal-exam@lmsplus.local' } }], error: null },
+        { data: [], error: null },
+      ],
+    })
+    const err = await cleanupE2eExamSittings().then(
+      () => null,
+      (e: Error) => e,
+    )
+    expect(err?.message).toMatch(/fixture sessions soft-delete: expected 1 row\(s\), updated 0/)
+  })
+
   it('throws, rather than guessing, when a session embed resolves no student', async () => {
     // Routed to the fixture branch a seeded row is only soft-deleted, and `deleteSeededUsers` then
     // fails on the `student_id` FK — a 23503 that buries this cause.
