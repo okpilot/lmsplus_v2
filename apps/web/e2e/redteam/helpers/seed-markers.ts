@@ -175,3 +175,11 @@ export const E2E_REDTEAM_SIT_SUBJECT_PREFIX = 'RTSIT-'
 // sitting redeem gate spec (Vectors MO, MP, #1777): internal_exam_codes.code prefix of seeded legacy
 // codes; written into fixture quiz_sessions as `config.e2e_marker`.
 export const E2E_REDTEAM_SIT_REDEEM_MARKER = 'RTMOP'
+// internal-exam code-existence unified-message spec (Vector NL, #1777): internal_exam_codes.code
+// prefix of the probe codes it seeds (8 chars total, Crockford alphabet, so the code-entry input's
+// sanitizer keeps them intact). Dedicated throwaway students bound the fixtures.
+export const E2E_REDTEAM_NL_CODE_PREFIX = 'RTNL'
+export const E2E_REDTEAM_NL_PROBER_EMAIL = 'redteam-nl-prober@lmsplus.local'
+export const E2E_REDTEAM_NL_PROBER_PASSWORD = 'redteam-nl-prober-2026!'
+export const E2E_REDTEAM_NL_CROSSORG_EMAIL = 'redteam-nl-crossorg-owner@lmsplus.local'
+export const E2E_REDTEAM_NL_CROSSORG_PASSWORD = 'redteam-nl-crossorg-owner-2026!'

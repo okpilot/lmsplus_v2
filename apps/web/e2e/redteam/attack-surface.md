@@ -1,6 +1,6 @@
 # Red Team — Attack Surface Map
 
-> Last updated: 2026-11-26 (#1777: MH–NK exam sitting rows)
+> Last updated: 2026-11-26 (#1777: MH–NL exam sitting rows)
 
 > `answer_matches`: EXECUTE revoked from PUBLIC, anon, authenticated; granted to service_role.
 
@@ -77,7 +77,7 @@
 | CV | start_quiz_session: empty/null p_question_ids array (was 23502 NOT NULL violation, now 'no_questions_provided') | MEDIUM | server-action-unauthenticated.spec.ts | COVERED AT INTEGRATION LAYER; E2E spec passes a 1-element array (not empty) | The unauthenticated spec passes a valid 1-element array to start_quiz_session — it tests auth, not the empty-array path. The integration test explicitly covers []. No E2E spec exercises the empty-array path. Low priority for a dedicated E2E spec since the fix is purely server-side input validation with no UI path to trigger it. |
 | CW | start_quiz_session: rate-limiting spec now uses status='active' filter — aligns with new RPC contract | LOW | rate-limiting.spec.ts | PASSING | The rate-limiting spec's beforeAll now filters questions with .eq('status', 'active') before passing IDs to start_quiz_session. Without this fix the spec would have started failing post-hardening when inactive questions were inadvertently passed. No new coverage gap; this was a fixture correctness fix, not an attack vector change. |
 | CX | start_internal_exam_session: unauthenticated caller redeems a code → denied (42501, privilege layer) | HIGH | rpc-start-internal-exam-session.spec.ts | COVERED — anon client calls the RPC → `42501`/`permission denied for function` at the privilege layer (auth.uid() IS NULL gate never reached). | Renamed in #802 from the spec's self-label BJ, which collided with the unrelated start_quiz_session TOCTOU row (matrix BJ). |
-| CY | start_internal_exam_session: student-B redeems student-A's code (cross-student IDOR) → code_not_yours | HIGH | rpc-start-internal-exam-session.spec.ts | COVERED — existence-hiding: a different student's code is rejected with 'code_not_yours' without disclosing whether it exists. | Renamed in #802 from self-label BK, which collided with the batch_submit_quiz TOCTOU row (matrix BK). |
+| CY | start_internal_exam_session: student-B redeems student-A's code (cross-student IDOR) → code_not_yours | HIGH | rpc-start-internal-exam-session.spec.ts | COVERED — a different student's code is refused with 'code_not_yours'; the code is not consumed and no session starts. The RPC does NOT hide existence: it looks the code up by `code` alone and returns 'code_not_found' for an absent one (Vectors LK control arm, NL). Existence-hiding lives in START_INTERNAL_EXAM_ERROR_MESSAGES, which maps both tokens to one string — Vector NL. | Renamed in #802 from self-label BK, which collided with the batch_submit_quiz TOCTOU row (matrix BK). |
 | CZ | start_internal_exam_session: expired code → code_expired | HIGH | rpc-start-internal-exam-session.spec.ts | COVERED — redeeming a code past its expiry → 'code_expired'. | Renamed in #802 from self-label BL-1, which collided with the #611 score-forgery family (matrix BL). |
 | DA | start_internal_exam_session: voided code (voided_at IS NOT NULL) → code_voided | HIGH | rpc-start-internal-exam-session.spec.ts | COVERED — redeeming a code whose voided_at is set → 'code_voided' (the guard checks voided_at presence, not who set it; the test seeds voided_by as the student). | Renamed in #802 from self-label BL-2, which collided with the score-forgery family numbering. |
 | DB | start_internal_exam_session: double-redemption / already-consumed code → code_already_used | HIGH | rpc-start-internal-exam-session.spec.ts | COVERED — re-redeeming a consumed code → 'code_already_used'. | Renamed in #802 from self-label BM, which collided with score-forgery BM (matrix BM). |
@@ -379,6 +379,7 @@
 | NI | sendInternalExamCodeEmail-foreign-org-code-service-role-org-filter-plaintext-and-emailed_at | HIGH | void-and-email-cross-org-code.spec.ts | BLOCKED |  | cross-tenant |
 | NJ | void_internal_exam_code-direct-rpc-on-sitting-code-bypasses-void_sitting_code | LOW | exam-sitting-legacy-void-refuses-sitting-code.spec.ts | GAP | #1832 | sibling-guard-gap |
 | NK | add_exam_sitting_candidates-issue_sitting_exam_codes-duplicate-inflated-array-past-the-distinct-cap | LOW | exam-sitting-array-cap-duplicates.spec.ts | BLOCKED |  | input-injection |
+| NL | start_internal_exam_session-code-existence-oracle-unified-at-the-server-action | LOW | internal-exam-code-existence-unified.spec.ts | BLOCKED |  | enumeration |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
