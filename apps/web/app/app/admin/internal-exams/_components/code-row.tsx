@@ -48,6 +48,10 @@ export function CodeRow({
           <Link
             href={`${SITTING_BASE}/${r.sittingId}`}
             prefetch={false}
+            // Every row's link reads "Sitting code", so a link list cannot tell them apart. The
+            // label STARTS with the visible text, which keeps the visible string inside the
+            // accessible name (WCAG 2.5.3 Label in Name).
+            aria-label={`Sitting code ${r.code}`}
             className="block text-caption text-muted-foreground underline"
           >
             Sitting code

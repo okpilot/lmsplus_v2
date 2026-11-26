@@ -159,15 +159,32 @@ describe('CodeRow sitting codes', () => {
 
   it('shows a "Sitting code" link to the sitting page', () => {
     renderRow(sitting)
-    expect(screen.getByRole('link', { name: 'Sitting code' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Sitting code ABCD-1234-X' })).toHaveAttribute(
       'href',
       '/app/admin/internal-exams/sittings/sit-9',
     )
   })
 
+  it("names each row's sitting link after its own code", () => {
+    render(
+      <table>
+        <tbody>
+          <CodeRow r={sitting} onVoid={vi.fn()} />
+          <CodeRow r={{ ...sitting, id: 'code-2', code: 'WXYZ-9876-Q' }} onVoid={vi.fn()} />
+        </tbody>
+      </table>,
+    )
+    const names = screen
+      .getAllByRole('link', { name: /^Sitting code/ })
+      .map((l) => l.getAttribute('aria-label'))
+    expect(names).toEqual(['Sitting code ABCD-1234-X', 'Sitting code WXYZ-9876-Q'])
+    // Without the per-row label both entries read the same in a screen-reader link list.
+    expect(new Set(names).size).toBe(2)
+  })
+
   it('shows the Sitting code link for a voided (removed-entry) code too', () => {
     renderRow({ ...sitting, status: 'voided', voidedAt: '2026-04-28T12:00:00.000Z' })
-    expect(screen.getByRole('link', { name: 'Sitting code' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Sitting code ABCD-1234-X' })).toBeInTheDocument()
   })
 
   it('does not render the email button', () => {
@@ -240,7 +257,7 @@ describe('CodeRow sitting codes', () => {
     renderRow({ ...sitting, sittingId: null })
     expect(screen.queryByRole('button', { name: 'Void' })).not.toBeInTheDocument()
     expect(mockSendButton).not.toHaveBeenCalled()
-    expect(screen.queryByRole('link', { name: 'Sitting code' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /^Sitting code/ })).not.toBeInTheDocument()
   })
 
   it('shows Waiting for start for a waiting sitting code', () => {
@@ -250,7 +267,7 @@ describe('CodeRow sitting codes', () => {
 
   it('keeps the email button and Void and no link on a legacy row', () => {
     renderRow(baseRow)
-    expect(screen.queryByRole('link', { name: 'Sitting code' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /^Sitting code/ })).not.toBeInTheDocument()
     expect(mockSendButton).toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'Void' })).toBeInTheDocument()
   })
