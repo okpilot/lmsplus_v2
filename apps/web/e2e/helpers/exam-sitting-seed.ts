@@ -93,7 +93,13 @@ async function examPassMark(admin: Admin, orgId: string, subjectId: string): Pro
     .limit(1)
     .maybeSingle()
   if (res.error) fail('exam config lookup', res.error, 'insertPassedSession')
-  if (!res.data) fail(`enabled exam config for subject ${subjectId}`, null, 'insertPassedSession')
+  if (!res.data) {
+    fail(
+      `enabled exam config for subject ${subjectId} (ensureExamConfigs guarantees only MIN_CONFIGS enabled configs, while the entries cycle over every subject: a later finished_passed entry can land on an unconfigured one)`,
+      null,
+      'insertPassedSession',
+    )
+  }
   return res.data.pass_mark
 }
 

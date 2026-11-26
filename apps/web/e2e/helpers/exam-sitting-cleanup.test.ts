@@ -79,8 +79,7 @@ describe('cleanupE2eExamSittings', () => {
   it.each(['exam_sitting_entries', 'exam_sitting_candidates'])(
     'treats a sitting whose %s rows are all soft-deleted as empty',
     async (table) => {
-      // Without the filter the guard counts soft-deleted rows and the closed red-team sittings',
-      // which accumulate until they cross `max_rows` and refuse every teardown.
+      // Soft-deleted rows counted as people make a sitting immortal, up to `max_rows`.
       const calls = mockTables({
         exam_sittings: [
           { data: [{ id: 's1' }], error: null },
@@ -282,7 +281,7 @@ describe('cleanupE2eExamSittings (seeded sittings)', () => {
       () => null,
       (e: Error) => e,
     )
-    expect(err?.message).toMatch(/sessions soft-delete: expected 1 row\(s\), updated 0/)
+    expect(err?.message).toMatch(/fixture sessions soft-delete: expected 1 row\(s\), updated 0/)
   })
 
   it('throws, rather than guessing, when a session embed resolves no student', async () => {
@@ -364,75 +363,6 @@ describe('cleanupE2eExamSittings (sessions found by student)', () => {
     const userDelete = calls.findIndex((c) => c.table === 'users' && c.method === 'delete')
     expect(sessionDelete).toBeGreaterThan(-1)
     expect(sessionDelete).toBeLessThan(userDelete)
-  })
-
-  it("retires a seeded student's answered session and deletes only the unanswered one", async () => {
-    const { calls, deleteUser } = withAuth({
-      exam_sittings: [{ data: [], error: null }],
-      users: [{ data: [{ id: 'u1' }], error: null }],
-      quiz_sessions: [
-        {
-          data: [
-            { id: 'q1', student_id: 'u1' },
-            { id: 'q2', student_id: 'u1' },
-          ],
-          error: null,
-        },
-        { data: [{ id: 'q1' }], error: null },
-      ],
-      quiz_session_answers: [{ data: [{ session_id: 'q1' }], error: null }],
-    })
-    // `quiz_session_answers.session_id` is a NO ACTION FK on an immutable table: hard-deleting q1
-    // raises 23503, and the dependent gate then skips every later step.
-    const err = await cleanupE2eExamSittings().then(
-      () => null,
-      (e: Error) => e,
-    )
-    const sessionCalls = calls.filter((c) => c.table === 'quiz_sessions')
-    expect(sessionCalls.filter((c) => c.method === 'update').map((c) => c.args[0])).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ deleted_at: expect.any(String) }),
-        expect.objectContaining({ ended_at: expect.any(String) }),
-      ]),
-    )
-    const del = sessionCalls.find((c) => c.method === 'delete')
-    expect(del).toBeDefined()
-    expect(sessionCalls.filter((c) => c.method === 'in').at(-1)?.args).toEqual(['id', ['q2']])
-    // The retired session still pins `quiz_sessions.student_id`, so the user cannot be hard-deleted.
-    expect(err?.message).toMatch(/seed user u1 kept: a retired session with immutable answers/)
-    expect(deleteUser).not.toHaveBeenCalled()
-    expect(calls.some((c) => c.table === 'users' && c.method === 'delete')).toBe(false)
-  })
-
-  it("deletes a seeded student's unanswered session and the student", async () => {
-    // Non-vacuous control for the test above: the same shape with no answer row takes the
-    // hard-delete path and removes the user.
-    const { calls, deleteUser } = withAuth({
-      exam_sittings: [{ data: [], error: null }],
-      users: [{ data: [{ id: 'u1' }], error: null }],
-      quiz_sessions: [{ data: [{ id: 'q1', student_id: 'u1' }], error: null }],
-    })
-    await cleanupE2eExamSittings()
-    const sessionCalls = calls.filter((c) => c.table === 'quiz_sessions')
-    expect(sessionCalls.some((c) => c.method === 'update')).toBe(false)
-    expect(sessionCalls.filter((c) => c.method === 'in').at(-1)?.args).toEqual(['id', ['q1']])
-    expect(deleteUser).toHaveBeenCalledWith('u1')
-  })
-
-  it("retires a seeded student's session recorded only in student_responses", async () => {
-    const { calls } = withAuth({
-      exam_sittings: [{ data: [], error: null }],
-      users: [{ data: [{ id: 'u1' }], error: null }],
-      quiz_sessions: [
-        { data: [{ id: 'q1', student_id: 'u1' }], error: null },
-        { data: [{ id: 'q1' }], error: null },
-      ],
-      student_responses: [{ data: [{ session_id: 'q1' }], error: null }],
-    })
-    await expect(cleanupE2eExamSittings()).rejects.toThrow(/seed user u1 kept/)
-    const sessionCalls = calls.filter((c) => c.table === 'quiz_sessions')
-    expect(sessionCalls.some((c) => c.method === 'delete')).toBe(false)
-    expect(sessionCalls.some((c) => c.method === 'update')).toBe(true)
   })
 
   it('queries no sessions when there are no seeded students', async () => {
@@ -688,23 +618,6 @@ describe('cleanupE2eExamSittings (page-cap refusals)', () => {
     expect(calls.some((c) => c.method === 'delete')).toBe(false)
     expect(deleteUser).not.toHaveBeenCalled()
   })
-
-  it.each(['quiz_session_answers', 'student_responses'])(
-    'refuses a full %s page instead of hard-deleting a session whose answers it could not see',
-    async (table) => {
-      const { calls, deleteUser } = withAuth({
-        exam_sittings: [{ data: [], error: null }],
-        users: [{ data: [{ id: 'u1' }], error: null }],
-        quiz_sessions: [{ data: [{ id: 'q1', student_id: 'u1' }], error: null }],
-        [table]: [{ data: fullPage(() => ({ session_id: 'q1' })), error: null }],
-      })
-      await expect(cleanupE2eExamSittings()).rejects.toThrow(
-        `answeredSessionIds: ${POSTGREST_MAX_ROWS} ${table} row(s) for 1 session(s)`,
-      )
-      expect(calls.some((c) => c.table === 'quiz_sessions' && c.method === 'delete')).toBe(false)
-      expect(deleteUser).not.toHaveBeenCalled()
-    },
-  )
 
   it('refuses a full seeded-group page instead of deleting a partial list', async () => {
     const { calls } = withAuth({

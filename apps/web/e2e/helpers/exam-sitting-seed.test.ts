@@ -13,6 +13,7 @@ function fakeAdmin(
   opts: { failUsersInsert?: boolean; failRollback?: boolean; dropFirstEntryId?: boolean } = {},
 ) {
   const inserts: Insert[] = []
+  const createUserArgs: Record<string, unknown>[] = []
   const created: string[] = []
   const deleted: string[] = []
   const updates: Insert[] = []
@@ -67,7 +68,8 @@ function fakeAdmin(
     from: builder,
     auth: {
       admin: {
-        createUser: async () => {
+        createUser: async (attrs: Record<string, unknown>) => {
+          createUserArgs.push(attrs)
           const id = `u-${++n}`
           created.push(id)
           return { data: { user: { id } }, error: null }
@@ -79,7 +81,7 @@ function fakeAdmin(
       },
     },
   })
-  return { inserts, created, deleted, updates }
+  return { inserts, createUserArgs, created, deleted, updates }
 }
 
 beforeEach(() => vi.resetAllMocks())
@@ -260,7 +262,7 @@ describe('insertPassedSession', () => {
   it('throws without inserting when the subject has no enabled exam config', async () => {
     const { admin, insert } = configAdmin({ data: null, error: null })
     await expect(insertPassedSession(admin as never, session)).rejects.toThrow(
-      'insertPassedSession enabled exam config for subject s: no data',
+      /^insertPassedSession enabled exam config for subject s \(ensureExamConfigs .*\): no data$/,
     )
     expect(insert).not.toHaveBeenCalled()
   })
@@ -310,6 +312,17 @@ describe('insertPassedSession', () => {
 })
 
 describe('createStudent', () => {
+  it('creates an auth user with no credential, so a seeded student can never sign in', async () => {
+    // The teardown hard-deletes these students' sessions; answers are immutable, so a student
+    // that could sign in and answer would make that delete a 23503 with no legal fix.
+    const { createUserArgs } = fakeAdmin()
+    await createStudent(mockGetAdminClient(), 'o', 'Ann')
+    expect(createUserArgs).toHaveLength(1)
+    expect(createUserArgs[0]).toHaveProperty('email')
+    expect(createUserArgs[0]).not.toHaveProperty('password')
+    expect(createUserArgs[0]).not.toHaveProperty('phone')
+  })
+
   it('heads a failure with the caller prefix', async () => {
     mockGetAdminClient.mockReturnValue({
       auth: { admin: { createUser: async () => ({ data: {}, error: { message: 'nope' } }) } },
