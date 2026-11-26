@@ -32,7 +32,7 @@ type Ids = {
 }
 
 function fail(what: string, error: { message: string } | null): never {
-  throw new Error(`issueSittingCodeFor ${what}: ${error?.message ?? 'no data'}`)
+  throw new Error(`sitting-code ${what}: ${error?.message ?? 'no data'}`)
 }
 
 function randomCode(): string {
@@ -98,7 +98,15 @@ export async function releaseSeededEnrolments(): Promise<void> {
     .update({ deleted_at: new Date().toISOString() })
     .in('id', ids)
     .is('deleted_at', null)
+    .select('id')
   if (res.error) fail('seeded enrolment release', res.error)
+  // Zero rows is reachable without a fault: an admin unenrol or another spec can soft-delete the
+  // same row first, and the restore is then already done. So this warns rather than throwing —
+  // code-style.md §5 service-role-cleanup form. Warning on the EMPTY case, not the mutating one:
+  // here a restore is the normal outcome, so logging it would print on every teardown.
+  if ((res.data?.length ?? 0) === 0) {
+    console.warn(`[releaseSeededEnrolments] no live row for ${ids.length} seeded id(s)`)
+  }
   // Cleared only on success: `ensureEnrolment` skips an enrolment that is already live, so a set
   // cleared before a failed update leaves it live for good.
   seededEnrolmentIds.clear()

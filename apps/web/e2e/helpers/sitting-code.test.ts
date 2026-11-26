@@ -101,7 +101,7 @@ describe('seedSittingFor', () => {
 
   it('fails loudly when the code insert errors', async () => {
     fakeAdmin('internal_exam_codes')
-    await expect(seedSittingFor(STUDENT)).rejects.toThrow('issueSittingCodeFor code: boom')
+    await expect(seedSittingFor(STUDENT)).rejects.toThrow('sitting-code code: boom')
   })
 })
 
@@ -117,9 +117,7 @@ describe('insertLegacyCodeFor', () => {
 
   it('fails loudly when the insert errors', async () => {
     fakeAdmin('internal_exam_codes')
-    await expect(insertLegacyCodeFor(STUDENT)).rejects.toThrow(
-      'issueSittingCodeFor legacy code: boom',
-    )
+    await expect(insertLegacyCodeFor(STUDENT)).rejects.toThrow('sitting-code legacy code: boom')
   })
 })
 
@@ -139,8 +137,14 @@ function fakeAdminSeq(queues: Record<string, Resp[]>) {
   }
   const builder = (table: string) => {
     const api: Record<string, unknown> = {}
-    for (const m of ['select', 'eq', 'is', 'in', 'order', 'limit', 'like', 'ilike', 'neq']) {
+    for (const m of ['eq', 'is', 'in', 'order', 'limit', 'like', 'ilike', 'neq']) {
       api[m] = () => api
+    }
+    // Recorded, unlike the filters: on a mutation `.select()` is what makes the affected rows
+    // observable, so dropping it is a behaviour change a test must be able to see.
+    api.select = () => {
+      calls.push(`select:${table}`)
+      return api
     }
     api.insert = () => {
       calls.push(`insert:${table}`)
@@ -171,12 +175,12 @@ const issueFor = () =>
 describe('lookupIds error paths', () => {
   it('fails on the admin lookup', async () => {
     fakeAdminSeq({ users: [boom('no admin')] })
-    await expect(issueFor()).rejects.toThrow('issueSittingCodeFor admin lookup: no admin')
+    await expect(issueFor()).rejects.toThrow('sitting-code admin lookup: no admin')
   })
 
   it('fails on the student lookup', async () => {
     fakeAdminSeq({ users: [ok(ADMIN_ROW), boom('no student')] })
-    await expect(issueFor()).rejects.toThrow('issueSittingCodeFor student lookup: no student')
+    await expect(issueFor()).rejects.toThrow('sitting-code student lookup: no student')
   })
 
   it('fails on the subject lookup', async () => {
@@ -184,7 +188,7 @@ describe('lookupIds error paths', () => {
       users: [ok(ADMIN_ROW), ok(STUDENT_ROW)],
       easa_subjects: [boom('no subject')],
     })
-    await expect(issueFor()).rejects.toThrow('issueSittingCodeFor subject lookup: no subject')
+    await expect(issueFor()).rejects.toThrow('sitting-code subject lookup: no subject')
   })
 
   it('fails when the student row carries no full_name, which row locators need', async () => {
@@ -203,7 +207,7 @@ describe('ensureEnrolment error paths', () => {
       easa_subjects: [ok(SUBJECT_ROW)],
       course_enrolments: [boom('lookup down')],
     })
-    await expect(issueFor()).rejects.toThrow('issueSittingCodeFor enrolment lookup: lookup down')
+    await expect(issueFor()).rejects.toThrow('sitting-code enrolment lookup: lookup down')
   })
 
   it('fails on the enrolment insert', async () => {
@@ -212,7 +216,7 @@ describe('ensureEnrolment error paths', () => {
       easa_subjects: [ok(SUBJECT_ROW)],
       course_enrolments: [ok(null), boom('insert down')],
     })
-    await expect(issueFor()).rejects.toThrow('issueSittingCodeFor enrolment: insert down')
+    await expect(issueFor()).rejects.toThrow('sitting-code enrolment: insert down')
   })
 })
 
@@ -243,9 +247,11 @@ describe('releaseSeededEnrolments', () => {
       subjectFragment: 'Flight Planning',
     })
 
-    const release = fakeAdminSeq({ course_enrolments: [ok(null)] })
+    const release = fakeAdminSeq({ course_enrolments: [ok([{ id: 'enr-1' }])] })
     await fresh.releaseSeededEnrolments()
     expect(release).toContain('update:course_enrolments')
+    // Without the `.select('id')` the update cannot report how many rows it touched.
+    expect(release).toContain('select:course_enrolments')
 
     // Second call: the set was cleared, so it is a no-op rather than a repeat update.
     const again = fakeAdminSeq({})
@@ -273,7 +279,39 @@ describe('releaseSeededEnrolments', () => {
 
     fakeAdminSeq({ course_enrolments: [boom('release down')] })
     await expect(fresh.releaseSeededEnrolments()).rejects.toThrow(
-      'issueSittingCodeFor seeded enrolment release: release down',
+      'sitting-code seeded enrolment release: release down',
     )
+  })
+
+  // Supabase returns 200 with zero rows on a filter miss, so without the `.select('id')` the
+  // helper cannot tell a restore from a no-op. Zero rows is not a fault here (the row may have
+  // been soft-deleted elsewhere already), so the no-op warns and the set still clears.
+  it('warns instead of throwing when no live enrolment row matched', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    vi.resetModules()
+    const fresh = await import('./sitting-code')
+    fakeAdminSeq({
+      users: [ok(ADMIN_ROW), ok(STUDENT_ROW)],
+      easa_subjects: [ok(SUBJECT_ROW)],
+      course_enrolments: [ok(null), ok({ id: 'enr-1' })],
+      exam_sittings: [ok({ id: 'sit-1' })],
+      exam_sitting_candidates: [ok({ id: 'cand-1' })],
+      exam_sitting_entries: [ok({ id: 'entry-1' })],
+      internal_exam_codes: [ok({ id: 'code-1', code: 'ABC12345' })],
+    })
+    await fresh.issueSittingCodeFor({
+      studentEmail: 'stu@test.local',
+      subjectFragment: 'Flight Planning',
+    })
+
+    const release = fakeAdminSeq({ course_enrolments: [ok([])] })
+    await expect(fresh.releaseSeededEnrolments()).resolves.toBeUndefined()
+    expect(release).toContain('select:course_enrolments')
+    expect(warn).toHaveBeenCalledWith('[releaseSeededEnrolments] no live row for 1 seeded id(s)')
+
+    // The set cleared despite the no-op, so a second teardown does not retry it.
+    const again = fakeAdminSeq({})
+    await fresh.releaseSeededEnrolments()
+    expect(again).toEqual([])
   })
 })

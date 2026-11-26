@@ -393,11 +393,15 @@ describe('listInternalExamCodes — sitting codes (real DB FK hint)', () => {
   let sStudent: string
   let sStudent2: string
   let sStudent3: string
+  let sStudent4: string
+  let sStudent5: string
   let sRefs: ReferenceIds
   let sittingId: string
   const sCodeValue = `SIT-${sfx}-A`
   const sConsumedValue = `SIT-${sfx}-C`
   const sDiscardedValue = `SIT-${sfx}-D`
+  const sFinishedValue = `SIT-${sfx}-F`
+  const sLiveDiscardedValue = `SIT-${sfx}-G`
 
   beforeAll(async () => {
     sOrg = await createTestOrg({ admin, name: `int-iexam-sit ${sfx}`, slug: `ies-${sfx}` })
@@ -428,6 +432,23 @@ describe('listInternalExamCodes — sitting codes (real DB FK hint)', () => {
       admin,
       orgId: sOrg,
       email: `int-iexam-sit-stu3-${sfx}@test.local`,
+      password,
+      role: 'student',
+    })
+    // Ended and still live: the only row the `finished` filter may return.
+    sStudent4 = await createTestUser({
+      admin,
+      orgId: sOrg,
+      email: `int-iexam-sit-stu4-${sfx}@test.local`,
+      password,
+      role: 'student',
+    })
+    // Soft-deleted while still running — what discarding an active attempt leaves behind. It is
+    // the only row that separates `consumed`'s `deleted_at IS NULL` from its `ended_at IS NULL`.
+    sStudent5 = await createTestUser({
+      admin,
+      orgId: sOrg,
+      email: `int-iexam-sit-stu5-${sfx}@test.local`,
       password,
       role: 'student',
     })
@@ -472,10 +493,25 @@ describe('listInternalExamCodes — sitting codes (real DB FK hint)', () => {
           user_id: sStudent3,
           subject_id: sRefs.subjectId,
         },
+        {
+          organization_id: sOrg,
+          sitting_id: sittingId,
+          user_id: sStudent4,
+          subject_id: sRefs.subjectId,
+        },
+        {
+          organization_id: sOrg,
+          sitting_id: sittingId,
+          user_id: sStudent5,
+          subject_id: sRefs.subjectId,
+        },
       ])
       .select('id, user_id')
     const entryOf = (uid: string) => entries.data?.find((e) => e.user_id === uid)?.id
-    if (entries.error || !entryOf(sStudent) || !entryOf(sStudent2) || !entryOf(sStudent3))
+    if (
+      entries.error ||
+      [sStudent, sStudent2, sStudent3, sStudent4, sStudent5].some((u) => !entryOf(u))
+    )
       throw new Error(`seed entry: ${entries.error?.message}`)
     const session = await admin
       .from('quiz_sessions')
@@ -489,9 +525,10 @@ describe('listInternalExamCodes — sitting codes (real DB FK hint)', () => {
       .single()
     if (session.error || !session.data) throw new Error(`seed session: ${session.error?.message}`)
     // Ended AND soft-deleted. `codeDisplayStatus` reads deletion first, so this attempt is
-    // discarded, not finished — the `finished` filter's `deleted_at IS NULL` must exclude it.
-    // The one-active-session index is partial on `ended_at IS NULL AND deleted_at IS NULL`,
-    // so this row sits outside it.
+    // discarded, not finished. It is the row the `finished` test asserts is absent, which is what
+    // pins that filter's `deleted_at IS NULL` — F is ended and live, so dropping the predicate
+    // admits D and nothing else. The one-active-session index is partial on
+    // `ended_at IS NULL AND deleted_at IS NULL`, so this row sits outside it.
     const discarded = await admin
       .from('quiz_sessions')
       .insert({
@@ -505,6 +542,33 @@ describe('listInternalExamCodes — sitting codes (real DB FK hint)', () => {
       .single()
     if (discarded.error || !discarded.data)
       throw new Error(`seed discarded session: ${discarded.error?.message}`)
+    const finished = await admin
+      .from('quiz_sessions')
+      .insert({
+        organization_id: sOrg,
+        student_id: sStudent4,
+        mode: 'internal_exam',
+        ended_at: new Date().toISOString(),
+      })
+      .select('id')
+      .single()
+    if (finished.error || !finished.data)
+      throw new Error(`seed finished session: ${finished.error?.message}`)
+    // Not ended, soft-deleted. Outside the one-active-session index on `deleted_at`, not
+    // `ended_at` — so it coexists with C, which is the running attempt for another student.
+    const liveDiscarded = await admin
+      .from('quiz_sessions')
+      .insert({
+        organization_id: sOrg,
+        student_id: sStudent5,
+        mode: 'internal_exam',
+        ended_at: null,
+        deleted_at: new Date().toISOString(),
+      })
+      .select('id')
+      .single()
+    if (liveDiscarded.error || !liveDiscarded.data)
+      throw new Error(`seed live-discarded session: ${liveDiscarded.error?.message}`)
     const base = {
       subject_id: sRefs.subjectId,
       student_id: sStudent,
@@ -531,6 +595,22 @@ describe('listInternalExamCodes — sitting codes (real DB FK hint)', () => {
         consumed_at: new Date().toISOString(),
         consumed_session_id: discarded.data.id,
       },
+      {
+        ...base,
+        student_id: sStudent4,
+        sitting_entry_id: entryOf(sStudent4),
+        code: sFinishedValue,
+        consumed_at: new Date().toISOString(),
+        consumed_session_id: finished.data.id,
+      },
+      {
+        ...base,
+        student_id: sStudent5,
+        sitting_entry_id: entryOf(sStudent5),
+        code: sLiveDiscardedValue,
+        consumed_at: new Date().toISOString(),
+        consumed_session_id: liveDiscarded.data.id,
+      },
     ])
     if (codes.error) throw new Error(`seed sitting codes: ${codes.error.message}`)
   })
@@ -554,7 +634,7 @@ describe('listInternalExamCodes — sitting codes (real DB FK hint)', () => {
         await cleanupTestData({
           admin,
           orgId: sOrg,
-          userIds: [sAdmin, sStudent, sStudent2, sStudent3],
+          userIds: [sAdmin, sStudent, sStudent2, sStudent3, sStudent4, sStudent5],
         })
       } catch (e) {
         errors.push(`cleanupTestData: ${e instanceof Error ? e.message : String(e)}`)
@@ -581,9 +661,22 @@ describe('listInternalExamCodes — sitting codes (real DB FK hint)', () => {
 
   it('resolves the sitting embed in the consumed (!inner quiz_sessions) select', async () => {
     await signInAs(`int-iexam-sit-admin-${sfx}@test.local`, password)
-    const { rows } = await listInternalExamCodes({ status: 'consumed' })
+    const { rows, totalCount } = await listInternalExamCodes({ status: 'consumed' })
     const row = rows.find((r) => r.code === sConsumedValue)
     expect(row).toMatchObject({ sittingId, status: 'consumed' })
+    // G is not ended either, so it clears this filter's `ended_at IS NULL` and only
+    // `deleted_at IS NULL` keeps it out. Dropping that predicate admits G and nothing else.
+    expect(totalCount).toBe(1)
+    expect(rows.map((r) => r.code)).not.toContain(sLiveDiscardedValue)
+  })
+
+  it('returns the ended attempt that is still live, and no discarded one', async () => {
+    await signInAs(`int-iexam-sit-admin-${sfx}@test.local`, password)
+    const { rows, totalCount } = await listInternalExamCodes({ status: 'finished' })
+    expect(totalCount).toBe(1)
+    expect(rows.find((r) => r.code === sFinishedValue)).toMatchObject({ sittingId })
+    // D is ended AND soft-deleted, so only `deleted_at IS NULL` excludes it here.
+    expect(rows.map((r) => r.code)).not.toContain(sDiscardedValue)
   })
 
   it('returns the code whose attempt was discarded, not the one still running', async () => {
@@ -592,12 +685,15 @@ describe('listInternalExamCodes — sitting codes (real DB FK hint)', () => {
     // `!inner` is a PostgREST 400 (PGRST108) that runOffsetCount throws on. Only a real database
     // raises it; reaching a row at all proves both selects resolved.
     const { rows, totalCount } = await listInternalExamCodes({ status: 'discarded' })
-    // D is this org's only discarded code, so the exact count catches a dropped deleted_at
-    // predicate directly, not just via the absence check below.
-    expect(totalCount).toBe(1)
-    expect(rows).toHaveLength(1)
-    expect(rows[0]).toMatchObject({ code: sDiscardedValue, sittingId })
-    expect(rows[0]?.sessionDeletedAt).not.toBeNull()
+    // Both of this org's soft-deleted attempts, ended (D) and still running (G): the filter keys
+    // on deletion alone, so an added `ended_at` predicate would drop one of them.
+    expect(totalCount).toBe(2)
+    const byCode = new Map(rows.map((r) => [r.code, r]))
+    expect(byCode.get(sDiscardedValue)).toMatchObject({ sittingId })
+    expect(byCode.get(sLiveDiscardedValue)).toMatchObject({ sittingId })
+    expect(byCode.get(sDiscardedValue)?.sessionDeletedAt).not.toBeNull()
+    expect(byCode.get(sLiveDiscardedValue)?.sessionDeletedAt).not.toBeNull()
+    // C is consumed and live — the one attempt a deletion-keyed filter must not claim.
     expect(rows.map((r) => r.code)).not.toContain(sConsumedValue)
   })
 })

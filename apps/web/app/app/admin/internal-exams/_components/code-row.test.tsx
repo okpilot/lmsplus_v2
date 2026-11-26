@@ -204,7 +204,7 @@ describe('CodeRow sitting codes', () => {
     expect(screen.queryByText('In progress')).not.toBeInTheDocument()
   })
 
-  it('offers no Void for a legacy code whose attempt was discarded', () => {
+  it('disables Void for a legacy code whose attempt was discarded', () => {
     // `void_internal_exam_code` raises `session_state_changed` for it on every click.
     renderRow({
       ...sitting,
