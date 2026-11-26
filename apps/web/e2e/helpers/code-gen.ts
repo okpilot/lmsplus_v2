@@ -1,13 +1,17 @@
-import { randomUUID } from 'node:crypto'
+import { randomBytes } from 'node:crypto'
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 const CODE_LENGTH = 8
 
-/** A random 8-character internal-exam code over the product alphabet (no 0, 1, I, O). */
+/**
+ * A random 8-character internal-exam code over the product alphabet (no 0, 1, I, O).
+ *
+ * `randomBytes`, not `randomUUID`: a stripped UUID's hex digit 12 is the fixed version nibble `4`,
+ * which pinned code index 6 to `0x4_ % 32`, half the alphabet. 256 is a multiple of 32, so
+ * reducing a byte adds no bias.
+ */
 export function randomCode(): string {
-  const bytes = randomUUID().replaceAll('-', '')
-  return Array.from({ length: CODE_LENGTH }, (_, i) => {
-    const n = Number.parseInt(bytes.slice(i * 2, i * 2 + 2), 16)
-    return CODE_ALPHABET[n % CODE_ALPHABET.length]
-  }).join('')
+  return Array.from(randomBytes(CODE_LENGTH), (b) => CODE_ALPHABET[b % CODE_ALPHABET.length]).join(
+    '',
+  )
 }

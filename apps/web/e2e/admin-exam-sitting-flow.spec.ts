@@ -12,8 +12,10 @@ import {
   adminIds,
   findSubject,
   readSittingCodes,
+  restoreExamTimer,
   runCleanupSteps,
   seedEnrolledStudents,
+  widenExamTimer,
 } from './helpers/exam-sitting-flow-seed'
 import { ensureEnrolment } from './helpers/sitting-code'
 import {
@@ -46,6 +48,7 @@ test.afterEach(async () => {
   await runCleanupSteps([
     cleanupE2eExamSittings,
     async () => cleanupInternalExamStudentActiveSessions(await signInAsAdmin()),
+    restoreExamTimer,
     cleanupCreatedExamConfigs,
   ])
 })
@@ -121,7 +124,11 @@ async function answerAll(page: Page) {
     // click alone has no timeout of its own and would block until the test budget ran out.
     await expect(options.first()).toBeVisible()
     await options.first().click()
-    await page.getByRole('button', { name: 'Confirm Answer' }).click()
+    const confirm = page.getByRole('button', { name: 'Confirm Answer' })
+    // Enabled only once an option is locked (`quiz-nav-bar.tsx`), and the click is untimed: assert
+    // first so a missed option fails here instead of burning the test budget.
+    await expect(confirm).toBeEnabled()
+    await confirm.click()
     await expect(options.first()).toBeDisabled()
     if (!(await next.isEnabled())) return
     await next.click()
@@ -177,6 +184,8 @@ test('a sitting runs from creation to closing: codes, student attempt, late add,
     userId: student.id,
     courseId: subject.courseId,
   })
+  // This spec answers every question, which the seeded 60 s MET timer does not allow.
+  await widenExamTimer(subject.id)
   const [bea, cy] = await seedEnrolledStudents(['E2E Flow Bea', 'E2E Flow Cy'], subject.courseId)
   if (!bea || !cy) throw new Error('seed students')
   const sittingId = await createSittingToday(page)
@@ -305,6 +314,9 @@ test('a sitting runs from creation to closing: codes, student attempt, late add,
       await page.reload()
       await expect(personRow(page, 'E2E Flow Bea')).toContainText('Absent')
       await expect(personRow(page, 'E2E Flow Cy')).toContainText('Absent')
+      // Assert the row exists first: `not.toContainText` resolves immediately on zero matches, so
+      // dropping the finished student from the closed roster would otherwise pass.
+      await expect(personRow(page, student.name)).toHaveCount(1)
       await expect(personRow(page, student.name)).not.toContainText('Absent')
       await page.getByRole('button', { name: 'Show exams for E2E Flow Bea' }).click()
       await expect(page.getByText('Did not start')).toBeVisible()

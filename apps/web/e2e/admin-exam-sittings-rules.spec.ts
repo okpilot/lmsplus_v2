@@ -1,6 +1,8 @@
 import { expect as baseExpect, test } from '@playwright/test'
+import { getAdminOrganizationId } from './helpers/admin-supabase'
+import { cleanupCreatedExamConfigs, ensureExamConfigs } from './helpers/exam-config-cleanup'
 import { cleanupE2eExamSittings } from './helpers/exam-sitting-cleanup'
-import { adminIds } from './helpers/exam-sitting-flow-seed'
+import { adminIds, runCleanupSteps } from './helpers/exam-sitting-flow-seed'
 import { insertPassedSession, seedSitting } from './helpers/exam-sitting-seed'
 import { getAdminClient } from './helpers/supabase'
 
@@ -11,15 +13,19 @@ test.setTimeout(120_000)
 
 const BASE = '/app/admin/internal-exams/sittings'
 
-const loadedAt = new Date()
-test.skip(
-  loadedAt.getUTCHours() === 23 && loadedAt.getUTCMinutes() >= 55,
-  'UTC day rollover window',
-)
+test.beforeEach(async () => {
+  // Per test, not at import: the body runs for minutes against a 120 s budget, and the sitting
+  // rules key off the UTC day.
+  const now = new Date()
+  test.skip(now.getUTCHours() === 23 && now.getUTCMinutes() >= 50, 'UTC day rollover window')
+  // `subjects[0]` must carry a live enabled exam config: `seedSitting` only SORTS a configured
+  // subject first, so with none the eligibility and prune assertions fail for an unrelated reason.
+  await ensureExamConfigs(await getAdminOrganizationId())
+})
 
 // The cleanup also removes the passed sessions of the seeded students (found by student).
 test.afterEach(async () => {
-  await cleanupE2eExamSittings()
+  await runCleanupSteps([cleanupE2eExamSittings, cleanupCreatedExamConfigs])
 })
 
 /** A passed session ended 30 minutes ago for a seeded student. */

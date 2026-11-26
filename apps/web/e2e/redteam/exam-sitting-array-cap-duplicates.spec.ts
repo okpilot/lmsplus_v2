@@ -82,15 +82,19 @@ test.describe('Red Team: duplicate-inflated sitting id arrays (NK)', () => {
 
   test.afterAll(async () => {
     const errors: string[] = []
-    try {
-      const { error } = await admin
-        .from('internal_exam_codes')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('student_id', studentId)
-        .is('deleted_at', null)
-      if (error) throw new Error(`codes: ${error.message}`)
-    } catch (e) {
-      errors.push(e instanceof Error ? e.message : String(e))
+    // Only when `beforeAll` reached the student seed: `eq('student_id', undefined)` raises 22P02,
+    // and accumulating that would bury the real cause.
+    if (studentId) {
+      try {
+        const { error } = await admin
+          .from('internal_exam_codes')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('student_id', studentId)
+          .is('deleted_at', null)
+        if (error) throw new Error(`codes: ${error.message}`)
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      }
     }
     try {
       await cleanupSittingFixtures(admin, track)

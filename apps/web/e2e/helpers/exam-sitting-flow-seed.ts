@@ -30,6 +30,7 @@ export async function findSubject(fragment: string): Promise<FlowSubject> {
     .select('id, short, name, course_id')
     .ilike('name', `%${fragment}%`)
     .is('deleted_at', null)
+    .order('name')
     .limit(1)
     .single()
   if (res.error || !res.data) fail(`subject ${fragment}`, res.error)
@@ -63,7 +64,11 @@ export type SittingCode = {
 /** Every code of the sitting's entries (service role read). */
 export async function readSittingCodes(sittingId: string): Promise<SittingCode[]> {
   const admin = getAdminClient()
-  const entries = await admin.from('exam_sitting_entries').select('id').eq('sitting_id', sittingId)
+  const entries = await admin
+    .from('exam_sitting_entries')
+    .select('id')
+    .eq('sitting_id', sittingId)
+    .is('deleted_at', null)
   if (entries.error) fail('entries', entries.error)
   const ids = (entries.data ?? []).map((e) => e.id)
   if (ids.length === 0) return []
@@ -71,6 +76,7 @@ export async function readSittingCodes(sittingId: string): Promise<SittingCode[]
     .from('internal_exam_codes')
     .select('code, student_id, voided_at, void_reason')
     .in('sitting_entry_id', ids)
+    .is('deleted_at', null)
   if (codes.error) fail('codes', codes.error)
   return (codes.data ?? []).map((c) => ({
     code: c.code,
@@ -81,6 +87,59 @@ export async function readSittingCodes(sittingId: string): Promise<SittingCode[]
 }
 
 /** Runs each cleanup step, collecting every error so one failing step never skips the others. */
+let widenedTimer: { id: string; seconds: number } | null = null
+
+/**
+ * Widens the subject's exam timer for this run, remembering the old value for `restoreExamTimer`.
+ *
+ * The seeded MET config allows 60 s for 10 questions (`scripts/seed-e2e.ts`), and `exam-flow.spec.ts`
+ * tests that expiry, so the seed cannot change. A spec that answers EVERY question through a dev
+ * server compiling `/app/quiz/session` on first hit loses that race, and `useQuizTimer` then opens
+ * the finish dialog as a modal over the question card — the next option click is pointer-intercepted
+ * and, having no timeout of its own, burns the whole test budget.
+ *
+ * Mutating shared seed data is safe here only because `playwright.config.ts` runs `workers: 1` with
+ * `fullyParallel: false`; the restore is Decision 38.
+ */
+export async function widenExamTimer(subjectId: string, seconds = 3600): Promise<void> {
+  const admin = getAdminClient()
+  const res = await admin
+    .from('exam_configs')
+    .select('id, time_limit_seconds')
+    .eq('subject_id', subjectId)
+    .eq('enabled', true)
+    .is('deleted_at', null)
+    .order('created_at')
+    .limit(1)
+    .maybeSingle()
+  if (res.error) fail('exam config lookup', res.error)
+  if (!res.data) fail(`enabled exam config for subject ${subjectId}`, null)
+  if (res.data.time_limit_seconds >= seconds) return
+  const upd = await admin
+    .from('exam_configs')
+    .update({ time_limit_seconds: seconds })
+    .eq('id', res.data.id)
+    .select('id')
+  if (upd.error) fail('exam timer widen', upd.error)
+  if ((upd.data ?? []).length === 0) fail(`exam timer widen: no row ${res.data.id}`, null)
+  // Recorded only after the UPDATE lands, so a failed widen cannot restore a value never changed.
+  widenedTimer = { id: res.data.id, seconds: res.data.time_limit_seconds }
+}
+
+/** Restores the timer `widenExamTimer` changed. Safe to call with none. */
+export async function restoreExamTimer(): Promise<void> {
+  if (!widenedTimer) return
+  const { id, seconds } = widenedTimer
+  const res = await getAdminClient()
+    .from('exam_configs')
+    .update({ time_limit_seconds: seconds })
+    .eq('id', id)
+    .select('id')
+  if (res.error) fail('exam timer restore', res.error)
+  if ((res.data ?? []).length === 0) fail(`exam timer restore: no row ${id}`, null)
+  widenedTimer = null
+}
+
 export async function runCleanupSteps(steps: readonly (() => Promise<void>)[]): Promise<void> {
   const errors: string[] = []
   for (const step of steps) {
