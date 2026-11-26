@@ -10,7 +10,6 @@ describe('isNearUtcRollover', () => {
   })
 
   it('does not hold one minute before the margin opens', () => {
-    // The boundary case an `=== 23 && >= N` spelling gets wrong in either direction.
     expect(isNearUtcRollover(at(23, 59 - UTC_ROLLOVER_MARGIN_MINUTES))).toBe(false)
   })
 

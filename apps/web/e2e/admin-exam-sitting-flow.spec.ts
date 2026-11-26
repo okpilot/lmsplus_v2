@@ -164,9 +164,7 @@ async function startExam(page: Page, code: string) {
 async function finishExam(page: Page): Promise<string> {
   await page.getByRole('button', { name: 'Finish Internal Exam' }).click()
   await page.getByRole('button', { name: 'Submit Internal Exam' }).click()
-  // No assertion on the unanswered-count dialog: `toBeHidden()` here passed on its first poll,
-  // before the warning could render, so it could not fail either way. The `waitForURL` below is
-  // the real proof — the dialog blocks submission, so reaching the report means it never appeared.
+  // The unanswered-count dialog blocks submission, so reaching the report proves it never appeared.
   await page.waitForURL(/\/app\/internal-exam\/report\?session=/, { timeout: 30_000 })
   return new URL(page.url()).searchParams.get('session') ?? ''
 }

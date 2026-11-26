@@ -145,8 +145,8 @@ async function deleteSeededStudentSessions(admin: Admin, userIds: string[]) {
   const ids = (sessions.data ?? []).map((r) => r.id)
   // A FULL page means PostgREST may have truncated at `max_rows`, and a client `.limit()` cannot
   // widen it — PostgREST takes the smaller of the two, so asking for one extra row to tell the
-  // cases apart is unreachable by construction (`supabase-paginate.ts:118`,
-  // `quiz-topic-trees.ts:98` detect the same way). Refuse rather than delete a partial list: the
+  // cases apart is unreachable by construction (`fetchAllRows` and `fetchTopicTreeRows` detect the
+  // same way). Refuse rather than delete a partial list: the
   // survivors would keep pinning `quiz_sessions.student_id` and the user delete below would fail
   // 23503, burying the cause this step exists to surface. Exactly `max_rows` real sessions trips
   // it too — fail-closed on a count no seed run produces.
@@ -256,7 +256,7 @@ export async function cleanupE2eExamSittings(): Promise<void> {
       errors.push(e instanceof Error ? e.message : String(e))
     }
   }
-  if (errors.length > 0) throw new Error(`afterEach: ${errors.join('; ')}`)
+  if (errors.length > 0) throw new Error(`cleanupE2eExamSittings: ${errors.join('; ')}`)
 }
 
 async function cleanupEmptySittings(): Promise<void> {

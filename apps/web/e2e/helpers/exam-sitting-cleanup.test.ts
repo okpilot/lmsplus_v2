@@ -412,7 +412,9 @@ describe('cleanupE2eExamSittings (sessions found by student)', () => {
       users: [{ data: [{ id: 'u1' }], error: null }],
       quiz_sessions: [{ data: null, error: { message: 'sessions boom' } }],
     })
-    await expect(cleanupE2eExamSittings()).rejects.toThrow(/afterEach: .*sessions boom/)
+    await expect(cleanupE2eExamSittings()).rejects.toThrow(
+      /cleanupE2eExamSittings: .*sessions boom/,
+    )
     // `quiz_sessions.student_id` pins sessions before users: deleting the user anyway would raise
     // a 23503 per user and bury `sessions boom`.
     expect(deleteUser).not.toHaveBeenCalled()
@@ -432,7 +434,7 @@ describe('cleanupE2eExamSittings (per-step isolation)', () => {
     const base = mockGetAdminClient.getMockImplementation?.()
     const client = (base ? base() : mockGetAdminClient()) as Record<string, unknown>
     mockGetAdminClient.mockReturnValue({ ...client, auth: { admin: { deleteUser } } })
-    await expect(cleanupE2eExamSittings()).rejects.toThrow(/afterEach: .*lookup/)
+    await expect(cleanupE2eExamSittings()).rejects.toThrow(/cleanupE2eExamSittings: .*lookup/)
     expect(calls.some((c) => c.table === 'exam_sittings' && c.method === 'delete')).toBe(true)
     expect(deleteUser).toHaveBeenCalledWith('u1')
   })
@@ -477,7 +479,7 @@ describe('cleanupE2eExamSittings (per-step isolation)', () => {
     })
     const client = mockGetAdminClient() as Record<string, unknown>
     mockGetAdminClient.mockReturnValue({ ...client, auth: { admin: { deleteUser } } })
-    await expect(cleanupE2eExamSittings()).rejects.toThrow(/afterEach: .*u1 blocked/)
+    await expect(cleanupE2eExamSittings()).rejects.toThrow(/cleanupE2eExamSittings: .*u1 blocked/)
     expect(deleteUser).toHaveBeenCalledWith('u2')
     expect(deleteUser).not.toHaveBeenCalledWith('u1')
   })
@@ -530,7 +532,9 @@ describe('cleanupE2eExamSittings (seeded groups)', () => {
       student_group_members: [{ data: null, error: { message: 'members blocked' } }],
       users: [{ data: [{ id: 'u1' }], error: null }],
     })
-    await expect(cleanupE2eExamSittings()).rejects.toThrow(/afterEach: .*members blocked/)
+    await expect(cleanupE2eExamSittings()).rejects.toThrow(
+      /cleanupE2eExamSittings: .*members blocked/,
+    )
     expect(deleteUser).toHaveBeenCalledWith('u1')
   })
 })

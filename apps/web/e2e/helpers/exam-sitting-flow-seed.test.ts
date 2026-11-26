@@ -196,6 +196,41 @@ describe('widenExamTimer / restoreExamTimer', () => {
     expect(restored).toContainEqual({ time_limit_seconds: 90 })
   })
 
+  it('leaves a config already at or above the target untouched', async () => {
+    // The early return is what keeps a shared seed's own limit out of `widenedTimers`: recording
+    // it would make the restore write a value this helper never changed.
+    const calls = fakeAdmin({
+      users: [ADMIN_ROW],
+      exam_configs: [cfg('cfg-1', 3600)],
+    })
+    await widenExamTimer('subj-1', 3600)
+    expect(calls.filter((c) => c.table === 'exam_configs' && c.method === 'update')).toEqual([])
+    await restoreExamTimer()
+    expect(calls.filter((c) => c.table === 'exam_configs' && c.method === 'update')).toEqual([])
+  })
+
+  it('restores the ORIGINAL limit after the same config is widened twice', async () => {
+    // Without the `widenedTimers.has` guard the second widen records 120 — the value the first
+    // call raised — and the restore puts back a widened timer instead of the seed's own 60.
+    const calls = fakeAdmin({
+      users: [ADMIN_ROW, ADMIN_ROW],
+      exam_configs: [
+        cfg('cfg-1', 60),
+        updated('cfg-1'),
+        cfg('cfg-1', 120),
+        updated('cfg-1'),
+        updated('cfg-1'),
+      ],
+    })
+    await widenExamTimer('subj-1', 120)
+    await widenExamTimer('subj-1', 3600)
+    await restoreExamTimer()
+    const updates = calls
+      .filter((c) => c.table === 'exam_configs' && c.method === 'update')
+      .map((c) => c.args[0])
+    expect(updates.at(-1)).toEqual({ time_limit_seconds: 60 })
+  })
+
   it('touches no client when nothing was widened', async () => {
     const calls = fakeAdmin({})
     await restoreExamTimer()

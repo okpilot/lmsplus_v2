@@ -12,9 +12,8 @@ describe('randomCode', () => {
   })
 
   it('reaches the whole alphabet at every position', () => {
-    // A UUID-derived code could not: hex digit 12 is the fixed version nibble, so index 6 only
-    // ever drew the first 16 symbols. Over 400 draws a live position misses 16 with probability
-    // (16/32)**400, so a >16 floor cannot flake.
+    // Over 400 draws a live position misses 16 symbols with probability (16/32)**400, so a >16
+    // floor cannot flake.
     const seen = Array.from({ length: 8 }, () => new Set<string>())
     for (let i = 0; i < 400; i++) {
       const code = randomCode()

@@ -104,6 +104,12 @@ const widenedTimers = new Map<string, number>()
  * Mutating shared seed data is safe here only because `playwright.config.ts` runs `workers: 1` with
  * `fullyParallel: false`; the restore is Decision 38.
  *
+ * KNOWN LIMIT: `widenedTimers` is in-process. A run killed between the widen and
+ * `restoreExamTimer` leaves the config at `seconds`, and every later run then takes the
+ * `>= seconds` early return and records nothing to restore — so `exam-flow.spec.ts`, which asserts
+ * the seed's 60 s expiry, fails until `pnpm supabase db reset`. Not repaired here: restoring a
+ * hardcoded 60 would clobber a config someone set deliberately.
+ *
  * Org-scoped like the RPC: `start_internal_exam_session` resolves the config with
  * `ec.organization_id = v_org_id` (mig 20261117001400), so an unscoped lookup could widen another
  * tenant's row — leaving the exam under test on its 60 s limit and the foreign row never restored.
