@@ -61,7 +61,7 @@ export async function checkSittingCode(
     console.error('[checkSittingCode] lookup error:', error.message)
     return { ok: false, error: 'Failed to void internal exam code' }
   }
-  // Fail closed: the legacy `void_internal_exam_code` has no sitting guard of its own (#1820).
+  // Fail closed: the legacy `void_internal_exam_code` has no sitting guard of its own (#1832).
   if (!data) return { ok: false, error: 'Code not found' }
   if (data.sitting_entry_id === null) return { ok: true }
 
