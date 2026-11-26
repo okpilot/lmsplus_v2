@@ -236,7 +236,13 @@ describe('checkSittingCode (app-layer integration)', () => {
     await signInAs(adminEmail, password)
     const supabase = await createServerSupabaseClient()
 
-    expect(await checkSittingCode(supabase, liveCodeId, REASON)).toEqual({ ok: true })
+    expect(
+      await checkSittingCode(supabase, {
+        organizationId: orgId,
+        codeId: liveCodeId,
+        reason: REASON,
+      }),
+    ).toEqual({ ok: true })
   })
 
   it('refuses the same shape once the session is soft-deleted and so hidden by RLS', async () => {
@@ -245,7 +251,13 @@ describe('checkSittingCode (app-layer integration)', () => {
 
     // The CONTROL above proves the embed resolves at all, so this refusal comes from the policy
     // hiding the row, not from a broken FK hint that would null every embed.
-    expect(await checkSittingCode(supabase, hiddenCodeId, REASON)).toEqual({
+    expect(
+      await checkSittingCode(supabase, {
+        organizationId: orgId,
+        codeId: hiddenCodeId,
+        reason: REASON,
+      }),
+    ).toEqual({
       ok: false,
       error: 'This attempt is no longer live — there is nothing to void',
     })
@@ -255,7 +267,13 @@ describe('checkSittingCode (app-layer integration)', () => {
     await signInAs(adminEmail, password)
     const supabase = await createServerSupabaseClient()
 
-    expect(await checkSittingCode(supabase, liveCodeId, 'sitting_closed')).toEqual({
+    expect(
+      await checkSittingCode(supabase, {
+        organizationId: orgId,
+        codeId: liveCodeId,
+        reason: 'sitting_closed',
+      }),
+    ).toEqual({
       ok: false,
       error: 'That reason is reserved for the system — type a different one',
     })
@@ -265,14 +283,26 @@ describe('checkSittingCode (app-layer integration)', () => {
     await signInAs(adminEmail, password)
     const supabase = await createServerSupabaseClient()
 
-    expect(await checkSittingCode(supabase, legacyCodeId, REASON)).toEqual({ ok: true })
+    expect(
+      await checkSittingCode(supabase, {
+        organizationId: orgId,
+        codeId: legacyCodeId,
+        reason: REASON,
+      }),
+    ).toEqual({ ok: true })
   })
 
   it('refuses a system void reason on a legacy code too', async () => {
     await signInAs(adminEmail, password)
     const supabase = await createServerSupabaseClient()
 
-    expect(await checkSittingCode(supabase, legacyCodeId, 'sitting_closed')).toEqual({
+    expect(
+      await checkSittingCode(supabase, {
+        organizationId: orgId,
+        codeId: legacyCodeId,
+        reason: 'sitting_closed',
+      }),
+    ).toEqual({
       ok: false,
       error: 'That reason is reserved for the system — type a different one',
     })
@@ -282,7 +312,13 @@ describe('checkSittingCode (app-layer integration)', () => {
     await signInAs(adminEmail, password)
     const supabase = await createServerSupabaseClient()
 
-    expect(await checkSittingCode(supabase, deletedCodeId, REASON)).toEqual({
+    expect(
+      await checkSittingCode(supabase, {
+        organizationId: orgId,
+        codeId: deletedCodeId,
+        reason: REASON,
+      }),
+    ).toEqual({
       ok: false,
       error: 'Code not found',
     })
@@ -293,7 +329,11 @@ describe('checkSittingCode (app-layer integration)', () => {
     const supabase = await createServerSupabaseClient()
 
     expect(
-      await checkSittingCode(supabase, '00000000-0000-0000-0000-000000000000', REASON),
+      await checkSittingCode(supabase, {
+        organizationId: orgId,
+        codeId: '00000000-0000-0000-0000-000000000000',
+        reason: REASON,
+      }),
     ).toEqual({ ok: false, error: 'Code not found' })
   })
 })

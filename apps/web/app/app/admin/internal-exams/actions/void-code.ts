@@ -48,10 +48,14 @@ export async function voidInternalExamCode(input: unknown): Promise<VoidCodeResu
   const parsed = VoidCodeSchema.safeParse(input)
   if (!parsed.success) return { success: false, error: 'Invalid input' }
 
-  const { supabase } = await requireAdmin()
+  const { supabase, organizationId } = await requireAdmin()
   const { codeId, reason } = parsed.data
 
-  const guard = await checkSittingCode(supabase, codeId, reason)
+  const guard = await checkSittingCode(supabase, {
+    organizationId: organizationId,
+    codeId: codeId,
+    reason: reason,
+  })
   if (!guard.ok) return { success: false, error: guard.error }
 
   const { data, error } = await supabase.rpc('void_internal_exam_code', {

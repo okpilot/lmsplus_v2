@@ -3,13 +3,17 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { checkSittingCode } from './sitting-code-guard'
 
+const ORG_ID = '00000000-0000-0000-0000-0000000000aa'
+
 const mockMaybeSingle = vi.hoisted(() => vi.fn())
 const mockIs = vi.hoisted(() => vi.fn())
 
 const supabase = {
   from: () => ({
     select: () => ({
-      eq: () => ({ is: mockIs.mockReturnValue({ maybeSingle: mockMaybeSingle }) }),
+      eq: () => ({
+        eq: () => ({ is: mockIs.mockReturnValue({ maybeSingle: mockMaybeSingle }) }),
+      }),
     }),
   }),
 } as unknown as SupabaseClient<Database>
@@ -26,14 +30,26 @@ describe('checkSittingCode', () => {
       error: null,
     })
     // Without this the row would be voidable: a running attempt is decision 264's exception.
-    expect(await checkSittingCode(supabase, 'c1', 'sitting_closed')).toEqual({
+    expect(
+      await checkSittingCode(supabase, {
+        organizationId: ORG_ID,
+        codeId: 'c1',
+        reason: 'sitting_closed',
+      }),
+    ).toEqual({
       ok: false,
       error: 'That reason is reserved for the system — type a different one',
     })
   })
 
   it('refuses a system void reason on a legacy code too, and never looks it up', async () => {
-    expect(await checkSittingCode(supabase, 'c1', 'sitting_closed')).toEqual({
+    expect(
+      await checkSittingCode(supabase, {
+        organizationId: ORG_ID,
+        codeId: 'c1',
+        reason: 'sitting_closed',
+      }),
+    ).toEqual({
       ok: false,
       error: 'That reason is reserved for the system — type a different one',
     })
@@ -49,7 +65,11 @@ describe('checkSittingCode', () => {
       data: { sitting_entry_id: null, voided_at: null, consumed_at: null, quiz_sessions: null },
       error: null,
     })
-    await checkSittingCode(supabase, 'c1', 'typed by the admin')
+    await checkSittingCode(supabase, {
+      organizationId: ORG_ID,
+      codeId: 'c1',
+      reason: 'typed by the admin',
+    })
     expect(mockIs).toHaveBeenCalledWith('deleted_at', null)
   })
 
@@ -58,7 +78,15 @@ describe('checkSittingCode', () => {
       data: { sitting_entry_id: null, voided_at: null, consumed_at: null, quiz_sessions: null },
       error: null,
     })
-    expect(await checkSittingCode(supabase, 'c1', 'typed by the admin')).toEqual({ ok: true })
+    expect(
+      await checkSittingCode(supabase, {
+        organizationId: ORG_ID,
+        codeId: 'c1',
+        reason: 'typed by the admin',
+      }),
+    ).toEqual({
+      ok: true,
+    })
   })
 
   it('does not claim which state a hidden session was in', async () => {
@@ -71,7 +99,13 @@ describe('checkSittingCode', () => {
       },
       error: null,
     })
-    expect(await checkSittingCode(supabase, 'c1', 'admin typed reason')).toEqual({
+    expect(
+      await checkSittingCode(supabase, {
+        organizationId: ORG_ID,
+        codeId: 'c1',
+        reason: 'admin typed reason',
+      }),
+    ).toEqual({
       ok: false,
       error: 'This attempt is no longer live — there is nothing to void',
     })
@@ -83,7 +117,13 @@ describe('checkSittingCode', () => {
 
   it('fails closed with "Code not found" when no row is visible', async () => {
     mockMaybeSingle.mockResolvedValue({ data: null, error: null })
-    expect(await checkSittingCode(supabase, 'c1', 'admin typed reason')).toEqual({
+    expect(
+      await checkSittingCode(supabase, {
+        organizationId: ORG_ID,
+        codeId: 'c1',
+        reason: 'admin typed reason',
+      }),
+    ).toEqual({
       ok: false,
       error: 'Code not found',
     })
@@ -92,7 +132,13 @@ describe('checkSittingCode', () => {
   it('returns a generic error on lookup failure', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     mockMaybeSingle.mockResolvedValue({ data: null, error: { message: 'boom' } })
-    expect(await checkSittingCode(supabase, 'c1', 'admin typed reason')).toEqual({
+    expect(
+      await checkSittingCode(supabase, {
+        organizationId: ORG_ID,
+        codeId: 'c1',
+        reason: 'admin typed reason',
+      }),
+    ).toEqual({
       ok: false,
       error: 'Failed to void internal exam code',
     })
@@ -103,7 +149,15 @@ describe('checkSittingCode', () => {
       data: { sitting_entry_id: null, consumed_at: null, quiz_sessions: null },
       error: null,
     })
-    expect(await checkSittingCode(supabase, 'c1', 'admin typed reason')).toEqual({ ok: true })
+    expect(
+      await checkSittingCode(supabase, {
+        organizationId: ORG_ID,
+        codeId: 'c1',
+        reason: 'admin typed reason',
+      }),
+    ).toEqual({
+      ok: true,
+    })
   })
 
   it('says the code is already voided rather than naming the sitting', async () => {
@@ -116,7 +170,13 @@ describe('checkSittingCode', () => {
       },
       error: null,
     })
-    expect(await checkSittingCode(supabase, 'c1', 'admin typed reason')).toEqual({
+    expect(
+      await checkSittingCode(supabase, {
+        organizationId: ORG_ID,
+        codeId: 'c1',
+        reason: 'admin typed reason',
+      }),
+    ).toEqual({
       ok: false,
       error: 'Code is already voided',
     })
@@ -132,7 +192,13 @@ describe('checkSittingCode', () => {
       },
       error: null,
     })
-    expect(await checkSittingCode(supabase, 'c1', 'admin typed reason')).toEqual({
+    expect(
+      await checkSittingCode(supabase, {
+        organizationId: ORG_ID,
+        codeId: 'c1',
+        reason: 'admin typed reason',
+      }),
+    ).toEqual({
       ok: false,
       error: 'Cannot void a finished attempt — record is final',
     })
@@ -148,6 +214,14 @@ describe('checkSittingCode', () => {
       },
       error: null,
     })
-    expect(await checkSittingCode(supabase, 'c1', 'admin typed reason')).toEqual({ ok: true })
+    expect(
+      await checkSittingCode(supabase, {
+        organizationId: ORG_ID,
+        codeId: 'c1',
+        reason: 'admin typed reason',
+      }),
+    ).toEqual({
+      ok: true,
+    })
   })
 })

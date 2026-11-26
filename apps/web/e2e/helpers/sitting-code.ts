@@ -65,6 +65,20 @@ async function lookupIds(admin: Admin, studentEmail: string, subjectFragment: st
     .limit(1)
     .single()
   if (subject.error || !subject.data) fail('subject lookup', subject.error)
+  // `issue_sitting_exam_codes` marks an entry issuable only when `config_ok`
+  // (`private.sitting_issue_plan`, mig 20261116000800), and `start_internal_exam_session` raises
+  // `exam_config_required`. The replaced admin-UI path sourced the subject from `exam_configs`
+  // WHERE enabled, so a drifted seed failed here instead of inside a spec.
+  const config = await admin
+    .from('exam_configs')
+    .select('id')
+    .eq('organization_id', adminRow.data.organization_id)
+    .eq('subject_id', subject.data.id)
+    .eq('enabled', true)
+    .is('deleted_at', null)
+    .maybeSingle()
+  if (config.error) fail('exam_config lookup', config.error)
+  if (!config.data) fail(`enabled exam_config for subject ${subjectFragment}`, null)
   return {
     orgId: adminRow.data.organization_id,
     adminId: adminRow.data.id,

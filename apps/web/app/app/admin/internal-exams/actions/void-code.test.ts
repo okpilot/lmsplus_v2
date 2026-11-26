@@ -22,7 +22,9 @@ const SUPABASE = {
   __marker: 'supabase',
   rpc: mockRpc,
   from: vi.fn(() => ({
-    select: () => ({ eq: () => ({ is: () => ({ maybeSingle: mockMaybeSingle }) }) }),
+    select: () => ({
+      eq: () => ({ eq: () => ({ is: () => ({ maybeSingle: mockMaybeSingle }) }) }),
+    }),
   })),
 }
 
@@ -98,7 +100,7 @@ describe('voidInternalExamCode', () => {
 
       const result = await voidInternalExamCode(VALID_INPUT)
 
-      expect(result).toEqual({ success: false, error: 'Void sitting codes from their sitting' })
+      expect(result).toEqual({ success: false, error: 'Manage this sitting code from its sitting' })
       expect(mockRpc).not.toHaveBeenCalled()
     })
 

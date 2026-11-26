@@ -36,7 +36,7 @@ describe('STATUS_ITEMS covers the filter statuses', () => {
 
   it('labels every offered status', () => {
     for (const item of STATUS_ITEMS) {
-      expect(item.label).not.toBe('')
+      expect(item.label).toMatch(/\S/)
     }
   })
 })

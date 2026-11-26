@@ -251,7 +251,7 @@ test.describe('Red Team: codes-tab void Server Action guard (NF)', () => {
 
     await page.locator('#void-reason').fill(NF_FREE_TEXT)
     await page.getByRole('button', { name: 'Void code' }).click()
-    await expect(page.getByRole('alert')).toHaveText(/Void sitting codes from their sitting/i)
+    await expect(page.getByRole('alert')).toHaveText(/Manage this sitting code from its sitting/i)
 
     // The legacy RPC has no sitting guard (#1820), so a bypass here voids a sitting code from the
     // wrong screen; the first test's control proves this same submit voids a legacy code.

@@ -19,7 +19,9 @@ function isReservedReason(reason: string): boolean {
 /** Why this code cannot be voided. Reached only once `sittingCodeVoidable` has said no. */
 function refusal(row: CodeRow): string {
   if (row.voided_at) return 'Code is already voided'
-  if (row.consumed_at === null) return 'Void sitting codes from their sitting'
+  // Not 'void it from the sitting': `examActions` offers Void only for a waiting or ready entry
+  // (`sittings/_utils/next-step.ts`), so an expired code's row there offers Remove, not Void.
+  if (row.consumed_at === null) return 'Manage this sitting code from its sitting'
   if (row.quiz_sessions?.ended_at) return 'Cannot void a finished attempt — record is final'
   return 'This attempt is no longer live — there is nothing to void'
 }
@@ -31,8 +33,15 @@ function refusal(row: CodeRow): string {
  */
 export async function checkSittingCode(
   supabase: SupabaseClient<Database>,
-  codeId: string,
-  reason: string,
+  {
+    organizationId,
+    codeId,
+    reason,
+  }: Readonly<{
+    organizationId: string
+    codeId: string
+    reason: string
+  }>,
 ): Promise<GuardVerdict> {
   if (isReservedReason(reason)) {
     return { ok: false, error: 'That reason is reserved for the system — type a different one' }
@@ -41,6 +50,8 @@ export async function checkSittingCode(
     .from('internal_exam_codes')
     .select('sitting_entry_id, consumed_at, voided_at, quiz_sessions!consumed_session_id(ended_at)')
     .eq('id', codeId)
+    // Second layer under `admin_read_org_codes`, matching `getInternalExamCodeForEmail`.
+    .eq('organization_id', organizationId)
     // The RPC reads the code WHERE deleted_at IS NULL and raises `code_not_found`
     // (mig 20260601000003), so a verdict computed from a soft-deleted row would name a state the
     // write path cannot see.
