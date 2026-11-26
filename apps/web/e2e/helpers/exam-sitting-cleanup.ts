@@ -25,12 +25,17 @@ function check(what: string, error: { message: string } | null) {
  * fixture session whose only link was the code it just deleted.
  */
 async function classifySessions(admin: Admin, sessionIds: string[]) {
-  const rows = await admin
-    .from('quiz_sessions')
-    .select('id, users!student_id(email)')
-    .in('id', sessionIds)
-  check('seed sessions lookup', rows.error)
-  const classified = (rows.data ?? []).map((r) => {
+  const found = new Map<string, { id: string; users: { email: unknown } | null }>()
+  for (const part of chunk(sessionIds, ID_CHUNK)) {
+    const rows = await admin
+      .from('quiz_sessions')
+      .select('id, users!student_id(email)')
+      .in('id', part)
+    check('seed sessions lookup', rows.error)
+    // Keyed by id: a session reported by two chunks is classified once.
+    for (const r of rows.data ?? []) found.set(r.id, r)
+  }
+  const classified = [...found.values()].map((r) => {
     const email = r.users?.email
     // An unresolved embed is unclassifiable. Routed to the fixture branch, a seeded row is only
     // soft-deleted and `deleteSeededUsers` then fails on the `student_id` FK, burying the cause.
@@ -51,92 +56,109 @@ async function classifySessions(admin: Admin, sessionIds: string[]) {
 async function retireFixtureSessions(admin: Admin, fixture: string[]) {
   if (fixture.length === 0) return
   const now = new Date().toISOString()
+  const parts = chunk(fixture, ID_CHUNK)
   // Soft-delete FIRST: the two updates are not atomic, and every history and attempts list filters
   // `deleted_at IS NULL`. A failure after this point leaves the row invisible rather than looking
   // like an unscored finished attempt.
   // Row count, not just `error`: a 0-row UPDATE returns 200 OK. The ids were looked up in this
   // same teardown and this UPDATE carries no filter, so every one must match.
-  const softDeleted = await admin
-    .from('quiz_sessions')
-    .update({ deleted_at: now })
-    .in('id', fixture)
-    .select('id')
-  check('fixture sessions soft-delete', softDeleted.error)
-  if ((softDeleted.data?.length ?? 0) !== fixture.length) {
-    throw new Error(
-      `fixture sessions soft-delete: expected ${fixture.length} row(s), updated ${softDeleted.data?.length ?? 0}`,
+  for (const part of parts) {
+    const softDeleted = await admin
+      .from('quiz_sessions')
+      .update({ deleted_at: now })
+      .in('id', part)
+      .select('id')
+    check('fixture sessions soft-delete', softDeleted.error)
+    if ((softDeleted.data?.length ?? 0) !== part.length) {
+      throw new Error(
+        `fixture sessions soft-delete: expected ${part.length} row(s), updated ${softDeleted.data?.length ?? 0}`,
+      )
+    }
+  }
+  for (const part of parts) {
+    check(
+      'fixture sessions end',
+      (
+        await admin
+          .from('quiz_sessions')
+          .update({ ended_at: now })
+          .in('id', part)
+          .is('ended_at', null)
+      ).error,
     )
   }
-  check(
-    'fixture sessions end',
-    (
-      await admin
-        .from('quiz_sessions')
-        .update({ ended_at: now })
-        .in('id', fixture)
-        .is('ended_at', null)
-    ).error,
-  )
 }
 
-/** Ids of the entries, then the codes and sessions of those entries, deleted for the seeded sittings. */
-async function deleteSeededRows(admin: Admin, sittingIds: string[]) {
-  const entries = await admin.from('exam_sitting_entries').select('id').in('sitting_id', sittingIds)
+/** Ids of the entries, then the codes and sessions of those entries, deleted for one seeded sitting. */
+async function deleteSeededRows(admin: Admin, sittingId: string) {
+  const entries = await admin.from('exam_sitting_entries').select('id').eq('sitting_id', sittingId)
   check('seed entries lookup', entries.error)
   const entryIds = (entries.data ?? []).map((e) => e.id)
   // A full page may be truncated at `max_rows`: refuse rather than delete a partial list.
   if (entryIds.length >= POSTGREST_MAX_ROWS) {
     throw new Error(
-      `deleteSeededRows: ${entryIds.length} seeded entry(s) for ${sittingIds.length} seeded sitting(s) hits PostgREST's max_rows; delete in pages`,
+      `deleteSeededRows: ${entryIds.length} seeded entry(s) for sitting ${sittingId} hits PostgREST's max_rows; delete in pages`,
     )
   }
   if (entryIds.length > 0) {
-    const codes = await admin
-      .from('internal_exam_codes')
-      .select('id, consumed_session_id')
-      .in('sitting_entry_id', entryIds)
-    check('seed codes lookup', codes.error)
-    const codeRows = codes.data ?? []
-    // A truncated page hides a session the unpaged code delete then orphans: refuse instead.
-    if (codeRows.length >= POSTGREST_MAX_ROWS) {
-      throw new Error(
-        `deleteSeededRows: ${codeRows.length} seeded code(s) for ${entryIds.length} seeded entry(s) hits PostgREST's max_rows; delete in pages`,
-      )
+    const entryParts = chunk(entryIds, ID_CHUNK)
+    const codeRows: { id: string; consumed_session_id: string | null }[] = []
+    for (const part of entryParts) {
+      const codes = await admin
+        .from('internal_exam_codes')
+        .select('id, consumed_session_id')
+        .in('sitting_entry_id', part)
+      check('seed codes lookup', codes.error)
+      const rows = codes.data ?? []
+      // Per response: a page clipped at `max_rows` hides a session the code delete then orphans.
+      if (rows.length >= POSTGREST_MAX_ROWS) {
+        throw new Error(
+          `deleteSeededRows: ${rows.length} seeded code(s) for ${part.length} seeded entry(s) hits PostgREST's max_rows; delete in pages`,
+        )
+      }
+      codeRows.push(...rows)
     }
-    const sessionIds = codeRows.flatMap((c) =>
-      c.consumed_session_id ? [c.consumed_session_id] : [],
-    )
+    // Two codes may share one session (`consumed_session_id` is not unique).
+    const sessionIds = [
+      ...new Set(codeRows.flatMap((c) => (c.consumed_session_id ? [c.consumed_session_id] : []))),
+    ]
     const split = sessionIds.length > 0 ? await classifySessions(admin, sessionIds) : null
     // Retire the fixture sessions while the codes still link to them (see `classifySessions`).
     if (split) await retireFixtureSessions(admin, split.fixture)
-    check(
-      'seed codes delete',
-      (await admin.from('internal_exam_codes').delete().in('sitting_entry_id', entryIds)).error,
-    )
-    if (split && split.seeded.length > 0) {
+    // Every code goes before any session: codes and sessions are partitioned by different keys,
+    // so a seeded session's consuming code may sit in a later entry chunk.
+    for (const part of entryParts) {
+      check(
+        'seed codes delete',
+        (await admin.from('internal_exam_codes').delete().in('sitting_entry_id', part)).error,
+      )
+    }
+    for (const part of chunk(split?.seeded ?? [], ID_CHUNK)) {
       check(
         'seed sessions delete',
-        (await admin.from('quiz_sessions').delete().in('id', split.seeded)).error,
+        (await admin.from('quiz_sessions').delete().in('id', part)).error,
       )
     }
   }
   check(
     'seed entries delete',
-    (await admin.from('exam_sitting_entries').delete().in('sitting_id', sittingIds)).error,
+    (await admin.from('exam_sitting_entries').delete().eq('sitting_id', sittingId)).error,
   )
   check(
     'seed candidates delete',
-    (await admin.from('exam_sitting_candidates').delete().in('sitting_id', sittingIds)).error,
+    (await admin.from('exam_sitting_candidates').delete().eq('sitting_id', sittingId)).error,
   )
   check(
     'seed sittings delete',
-    (await admin.from('exam_sittings').delete().in('id', sittingIds)).error,
+    (await admin.from('exam_sittings').delete().eq('id', sittingId)).error,
   )
 }
 
 /**
- * Largest id list this file puts in one `.in()`, and the `.limit()` of every prefix lookup that
- * feeds one. Kong refuses a request line between ~7.4 KB (200 uuids: 401, reached PostgREST) and
+ * Largest id list any `.in()` in this file carries. A list that can outgrow it is split with
+ * `chunk(…, ID_CHUNK)`; `deleteSeededRows` takes one sitting id, and every prefix lookup that feeds
+ * an `.in()` is capped by `.limit(ID_CHUNK)`. The `>= POSTGREST_MAX_ROWS` guards check read-page
+ * truncation, a separate failure. Kong refuses a request line between ~7.4 KB (200 uuids: 401, reached PostgREST) and
  * ~9.2 KB (250 uuids: 414); 100 uuids is ~3.7 KB. The uuid count that fits moves with the base
  * URL, the `select=` list and the other filters, so budget bytes, not a count.
  */
@@ -251,7 +273,7 @@ async function cleanupSeededExamSittings(): Promise<void> {
   // of reach.
   for (const id of ids) {
     try {
-      await deleteSeededRows(admin, [id])
+      await deleteSeededRows(admin, id)
     } catch (e) {
       errors.push(e instanceof Error ? e.message : String(e))
     }
