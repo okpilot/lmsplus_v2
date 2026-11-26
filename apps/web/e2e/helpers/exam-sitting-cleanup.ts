@@ -5,6 +5,7 @@ import {
   EXAM_SITTING_SEED_GROUP_PREFIX,
   EXAM_SITTING_SEED_PREFIX,
   makeSittingE2eMaterials,
+  makeSittingSeedMaterials,
 } from './exam-sitting-markers'
 import { releaseSeededEnrolments } from './sitting-code'
 import { getAdminClient } from './supabase'
@@ -135,6 +136,26 @@ async function deleteSeededGroups(admin: Admin) {
   check('seed groups delete', (await admin.from('student_groups').delete().in('id', ids)).error)
 }
 
+/** Sessions of the seeded students found by student (a spec may seed one with no code), removed before their users. */
+async function deleteSeededStudentSessions(admin: Admin, userIds: string[]) {
+  if (userIds.length === 0) return
+  const sessions = await admin.from('quiz_sessions').select('id').in('student_id', userIds)
+  check('seed student sessions lookup', sessions.error)
+  const ids = (sessions.data ?? []).map((r) => r.id)
+  if (ids.length === 0) return
+  // No code references these, so nothing pins the delete order here — but a session is still
+  // classified: `student_id` matched the seed email prefix, and a fixture session reached through
+  // a shared id must be retired, never hard-deleted (see `classifySessions`).
+  const split = await classifySessions(admin, ids)
+  await retireFixtureSessions(admin, split.fixture)
+  if (split.seeded.length > 0) {
+    check(
+      'seed student sessions delete',
+      (await admin.from('quiz_sessions').delete().in('id', split.seeded)).error,
+    )
+  }
+}
+
 /** Deletes the students `seedSitting` created (users row, then auth user) once nothing references them. */
 async function deleteSeededUsers(admin: Admin) {
   const users = await admin
@@ -143,6 +164,14 @@ async function deleteSeededUsers(admin: Admin) {
     .like('email', `${EXAM_SITTING_SEED_EMAIL_PREFIX}%`)
   check('seed users lookup', users.error)
   const errors: string[] = []
+  try {
+    await deleteSeededStudentSessions(
+      admin,
+      (users.data ?? []).map((u) => u.id),
+    )
+  } catch (e) {
+    errors.push(e instanceof Error ? e.message : String(e))
+  }
   for (const u of users.data ?? []) {
     try {
       check(
@@ -250,11 +279,20 @@ async function cleanupEmptySittings(): Promise<void> {
   if (n > 0) console.log(`cleanupE2eExamSittings: soft-deleted ${n} sitting(s)`)
 }
 
-/** Marks a sitting created through the UI so the cleanup finds it (service role, test data only). Throws on error or when no row matched. */
-export async function markE2eSitting(id: string): Promise<void> {
+/**
+ * Marks a sitting created through the UI so the cleanup finds it (service role, test data only). Throws on error or when no row matched.
+ * `empty` (default): removed only while it has no people. `seeded`: removed with its people, codes and sessions.
+ */
+export async function markE2eSitting(
+  id: string,
+  kind: 'empty' | 'seeded' = 'empty',
+): Promise<void> {
   const { data, error } = await getAdminClient()
     .from('exam_sittings')
-    .update({ permitted_materials: makeSittingE2eMaterials() })
+    .update({
+      permitted_materials:
+        kind === 'seeded' ? makeSittingSeedMaterials() : makeSittingE2eMaterials(),
+    })
     .eq('id', id)
     .select('id')
   if (error) throw new Error(`markE2eSitting: ${error.message}`)

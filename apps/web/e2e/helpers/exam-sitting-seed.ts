@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { randomCode } from './code-gen'
 import {
   EXAM_SITTING_SEED_EMAIL_PREFIX,
   EXAM_SITTING_SEED_GROUP_PREFIX,
@@ -31,18 +32,26 @@ export type SeedResult = {
   people: { name: string; userId: string }[]
   addable: { name: string; userId: string }[]
   groups: { name: string; id: string }[]
+  /** The subjects the sitting's exams are drawn from, configured subjects first. */
+  subjects: Subject[]
 }
 
 type Admin = ReturnType<typeof getAdminClient>
 
-function fail(what: string, error: { message: string } | null): never {
-  throw new Error(`seedSitting ${what}: ${error?.message ?? 'no data'}`)
+function fail(what: string, error: { message: string } | null, prefix = 'seedSitting'): never {
+  throw new Error(`${prefix} ${what}: ${error?.message ?? 'no data'}`)
 }
 
-async function createStudent(admin: Admin, orgId: string, name: string): Promise<string> {
+/** A student with an `e2e-sit-` email (the sitting cleanup deletes it); `prefix` heads error messages. */
+export async function createStudent(
+  admin: Admin,
+  orgId: string,
+  name: string,
+  prefix = 'seedSitting',
+): Promise<string> {
   const email = `${EXAM_SITTING_SEED_EMAIL_PREFIX}${randomUUID()}@lmsplus.local`
   const { data, error } = await admin.auth.admin.createUser({ email, email_confirm: true })
-  if (error || !data.user) fail('auth user', error)
+  if (error || !data.user) fail('auth user', error, prefix)
   const id = data.user.id
   const row = { id, organization_id: orgId, email, full_name: name, role: 'student' }
   const res = await admin.from('users').insert(row)
@@ -51,23 +60,49 @@ async function createStudent(admin: Admin, orgId: string, name: string): Promise
     // orphaned auth user is unreachable by teardown. deleteUser resolves `{ error }`.
     const { error: rollbackError } = await admin.auth.admin.deleteUser(id)
     throw new Error(
-      `seedSitting users row: ${res.error.message}${rollbackError ? ` (rollback also failed: ${rollbackError.message})` : ''}`,
+      `${prefix} users row: ${res.error.message}${rollbackError ? ` (rollback also failed: ${rollbackError.message})` : ''}`,
     )
   }
   return id
 }
 
-async function createStudents(admin: Admin, orgId: string, names: string[]): Promise<string[]> {
+export async function createStudents(
+  admin: Admin,
+  orgId: string,
+  names: string[],
+  prefix = 'seedSitting',
+): Promise<string[]> {
   const ids: string[] = []
   for (let i = 0; i < names.length; i += BATCH) {
     const batch = names.slice(i, i + BATCH)
-    ids.push(...(await Promise.all(batch.map((n) => createStudent(admin, orgId, n)))))
+    ids.push(...(await Promise.all(batch.map((n) => createStudent(admin, orgId, n, prefix)))))
   }
   return ids
 }
 
-function code(): string {
-  return randomUUID().replaceAll('-', '').slice(0, 8).toUpperCase()
+/** A finished, passed internal-exam session with a score for a student and subject (service role, no code). */
+export async function insertPassedSession(
+  admin: Admin,
+  c: { orgId: string; userId: string; subjectId: string; score: number; endedAt: Date },
+): Promise<string> {
+  const res = await admin
+    .from('quiz_sessions')
+    .insert({
+      organization_id: c.orgId,
+      student_id: c.userId,
+      mode: 'internal_exam',
+      subject_id: c.subjectId,
+      config: { pass_mark: 75, question_ids: [] },
+      total_questions: 0,
+      started_at: new Date(c.endedAt.getTime() - 1_800_000).toISOString(),
+      ended_at: c.endedAt.toISOString(),
+      passed: true,
+      score_percentage: c.score,
+    })
+    .select('id')
+    .single()
+  if (res.error || !res.data) fail('quiz session', res.error)
+  return res.data.id
 }
 
 const endOfTodayUtc = () => `${new Date().toISOString().slice(0, 10)}T23:59:59.000Z`
@@ -80,7 +115,7 @@ async function seedCode(
   if (state === 'no_code') return
   const now = Date.now()
   const base: Record<string, unknown> = {
-    code: code(),
+    code: randomCode(),
     organization_id: c.orgId,
     issued_by: c.adminId,
     sitting_entry_id: c.entryId,
@@ -96,33 +131,23 @@ async function seedCode(
     })
   }
   if (state === 'finished_passed') {
-    const session = await admin
-      .from('quiz_sessions')
-      .insert({
-        organization_id: c.orgId,
-        student_id: c.userId,
-        mode: 'internal_exam',
-        subject_id: c.subjectId,
-        config: { pass_mark: 75, question_ids: [] },
-        total_questions: 0,
-        started_at: new Date(now - 3_600_000).toISOString(),
-        ended_at: new Date(now - 1_800_000).toISOString(),
-        passed: true,
-        score_percentage: 90,
-      })
-      .select('id')
-      .single()
-    if (session.error || !session.data) fail('quiz session', session.error)
+    const sessionId = await insertPassedSession(admin, {
+      orgId: c.orgId,
+      userId: c.userId,
+      subjectId: c.subjectId,
+      score: 90,
+      endedAt: new Date(now - 1_800_000),
+    })
     Object.assign(base, {
       consumed_at: new Date().toISOString(),
-      consumed_session_id: session.data.id,
+      consumed_session_id: sessionId,
     })
   }
   const res = await admin.from('internal_exam_codes').insert(base)
   if (res.error) fail('code', res.error)
 }
 
-type Subject = { id: string; short: string; course_id: string }
+export type Subject = { id: string; short: string; course_id: string }
 
 async function seedEntries(
   admin: Admin,
@@ -338,5 +363,5 @@ export async function seedSitting(input: SeedInput): Promise<SeedResult> {
   const addable = await seedAddable(admin, orgId, input.addable ?? [])
   const byName = new Map([...people, ...addable].map((p) => [p.name, p.userId]))
   const groups = await seedGroups(admin, { orgId, adminId, byName }, input.groups ?? [])
-  return { sittingId, people, addable, groups }
+  return { sittingId, people, addable, groups, subjects }
 }

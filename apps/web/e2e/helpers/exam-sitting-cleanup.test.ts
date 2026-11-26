@@ -5,7 +5,7 @@ vi.mock('./admin-supabase', () => ({ ADMIN_TEST_EMAIL: 'admin@test.local' }))
 vi.mock('./supabase', () => ({ getAdminClient: mockGetAdminClient }))
 
 import { cleanupE2eExamSittings, markE2eSitting } from './exam-sitting-cleanup'
-import { EXAM_SITTING_E2E_PREFIX } from './exam-sitting-markers'
+import { EXAM_SITTING_E2E_PREFIX, EXAM_SITTING_SEED_PREFIX } from './exam-sitting-markers'
 
 type Call = { table: string; method: string; args: unknown[] }
 type Result = { data: unknown; error: { message: string } | null }
@@ -314,6 +314,52 @@ describe('cleanupE2eExamSittings (seeded sittings)', () => {
   })
 })
 
+describe('cleanupE2eExamSittings (sessions found by student)', () => {
+  function withAuth(queues: Record<string, Result[]>) {
+    const calls = mockTables(queues)
+    const deleteUser = vi.fn().mockResolvedValue({ error: null })
+    const client = mockGetAdminClient() as Record<string, unknown>
+    mockGetAdminClient.mockReturnValue({ ...client, auth: { admin: { deleteUser } } })
+    return { calls, deleteUser }
+  }
+
+  it("deletes a seeded student's session that no code references, before the user", async () => {
+    const { calls } = withAuth({
+      exam_sittings: [{ data: [], error: null }],
+      users: [{ data: [{ id: 'u1' }], error: null }],
+      quiz_sessions: [
+        { data: [{ id: 'q1' }], error: null },
+        { data: [{ id: 'q1', users: { email: 'e2e-sit-a@lmsplus.local' } }], error: null },
+      ],
+    })
+    await cleanupE2eExamSittings()
+    const byStudent = calls.find((c) => c.table === 'quiz_sessions' && c.method === 'in')
+    expect(byStudent?.args).toEqual(['student_id', ['u1']])
+    const sessionDelete = calls.findIndex(
+      (c) => c.table === 'quiz_sessions' && c.method === 'delete',
+    )
+    const userDelete = calls.findIndex((c) => c.table === 'users' && c.method === 'delete')
+    expect(sessionDelete).toBeGreaterThan(-1)
+    expect(sessionDelete).toBeLessThan(userDelete)
+  })
+
+  it('queries no sessions when there are no seeded students', async () => {
+    const { calls } = withAuth({ exam_sittings: [{ data: [], error: null }] })
+    await cleanupE2eExamSittings()
+    expect(calls.some((c) => c.table === 'quiz_sessions')).toBe(false)
+  })
+
+  it('still deletes the seeded users when the session lookup fails, and reports it', async () => {
+    const { deleteUser } = withAuth({
+      exam_sittings: [{ data: [], error: null }],
+      users: [{ data: [{ id: 'u1' }], error: null }],
+      quiz_sessions: [{ data: null, error: { message: 'sessions boom' } }],
+    })
+    await expect(cleanupE2eExamSittings()).rejects.toThrow(/afterEach: .*sessions boom/)
+    expect(deleteUser).toHaveBeenCalledWith('u1')
+  })
+})
+
 describe('cleanupE2eExamSittings (per-step isolation)', () => {
   it('still runs the seeded cleanup when the empty-sitting lookup fails', async () => {
     const deleteUser = vi.fn().mockResolvedValue({ error: null })
@@ -438,6 +484,15 @@ describe('markE2eSitting', () => {
     const patch = (upd?.args[0] ?? {}) as { permitted_materials?: string }
     expect(patch.permitted_materials).toMatch(new RegExp(`^${EXAM_SITTING_E2E_PREFIX}`))
     expect(calls.find((c) => c.method === 'eq')?.args).toEqual(['id', 's1'])
+  })
+
+  it('writes the E2E-SIT-SEED- marker when the sitting is marked as seeded', async () => {
+    const calls = mockTables({ exam_sittings: [{ data: [{ id: 's1' }], error: null }] })
+    await markE2eSitting('s1', 'seeded')
+    const patch = (calls.find((c) => c.method === 'update')?.args[0] ?? {}) as {
+      permitted_materials?: string
+    }
+    expect(patch.permitted_materials).toMatch(new RegExp(`^${EXAM_SITTING_SEED_PREFIX}`))
   })
 
   it('throws on a database error', async () => {
