@@ -97,7 +97,7 @@ const widenedTimers = new Map<string, number>()
  * The seeded MET config allows 60 s for 10 questions (`scripts/seed-e2e.ts`), and `exam-flow.spec.ts`
  * tests that expiry, so the seed cannot change.
  *
- * KNOWN LIMIT (#1837): the restore map is in-process; a killed run leaves the timer widened until `pnpm supabase db reset`.
+ * KNOWN LIMIT (#1837): the restore map is in-process; a killed run leaves the timer widened until `pnpm supabase db reset`, and `e2e/exam-flow.spec.ts` then fails its 60 s expiry assertion.
  *
  * Org-scoped like the RPC: `start_internal_exam_session` resolves the config with `ec.organization_id = v_org_id` (mig 20261117001400).
  */

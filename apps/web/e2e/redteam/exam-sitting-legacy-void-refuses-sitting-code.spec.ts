@@ -60,11 +60,12 @@ test.describe('Red Team: legacy void refuses a sitting code (NJ)', () => {
   let legacyCodeId: string
   const track: SittingTrack = { sittingIds: [], subjectIds: [], adminId: '' }
 
-  test.beforeAll(async () => {
-    // Before the skip: `afterAll` still runs after one, and an undefined `admin` there would throw
-    // a TypeError over the skip reason.
-    admin = getAdminClient()
+  test.beforeEach(() => {
     skipNearUtcRollover()
+  })
+
+  test.beforeAll(async () => {
+    admin = getAdminClient()
     const a = await seedRedTeamAdmin()
     track.adminId = a.adminUserId
     studentId = await upsertUser(admin, NJ_STUDENT_EMAIL, NJ_STUDENT_PASSWORD, a.orgId)

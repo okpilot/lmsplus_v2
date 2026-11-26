@@ -69,11 +69,12 @@ test.describe('Red Team: duplicate-inflated sitting id arrays (NK)', () => {
   let entryId: string
   const track: SittingTrack = { sittingIds: [], subjectIds: [], adminId: '' }
 
-  test.beforeAll(async () => {
-    // Before the skip: this suite is already activated, so a skip here still runs `afterAll`, and
-    // an undefined `admin` there would throw a TypeError over the skip reason.
-    admin = getAdminClient()
+  test.beforeEach(() => {
     skipNearUtcRollover()
+  })
+
+  test.beforeAll(async () => {
+    admin = getAdminClient()
     const a = await seedRedTeamAdmin()
     track.adminId = a.adminUserId
     studentId = await upsertUser(admin, NK_STUDENT_EMAIL, NK_STUDENT_PASSWORD, a.orgId)
