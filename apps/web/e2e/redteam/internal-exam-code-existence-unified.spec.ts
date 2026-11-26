@@ -195,6 +195,7 @@ test.describe('Red Team: internal-exam code existence is not disclosed to a prob
       .from('internal_exam_codes')
       .select('code, student_id, organization_id, consumed_at, voided_at, deleted_at, expires_at')
       .in('code', [sameOrgForeignCode, crossOrgCode, missingCode])
+      .is('deleted_at', null)
     if (liveErr) throw new Error(`fixture read: ${liveErr.message}`)
     expect(live?.map((r) => r.code).sort()).toEqual([sameOrgForeignCode, crossOrgCode].sort())
     for (const row of live ?? []) {

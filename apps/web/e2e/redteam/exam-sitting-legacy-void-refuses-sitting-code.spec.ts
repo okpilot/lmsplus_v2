@@ -69,6 +69,7 @@ test.describe('Red Team: legacy void refuses a sitting code (NJ)', () => {
 
   test.beforeAll(async () => {
     admin = getAdminClient()
+    skipNearUtcRollover()
     const a = await seedRedTeamAdmin()
     track.adminId = a.adminUserId
     orgId = a.orgId
@@ -119,16 +120,21 @@ test.describe('Red Team: legacy void refuses a sitting code (NJ)', () => {
 
   test.afterAll(async () => {
     const errors: string[] = []
-    try {
-      const { error } = await admin
-        .from('internal_exam_codes')
-        .update({ deleted_at: new Date().toISOString() })
-        .in('student_id', [studentId, legacyStudentId].filter(Boolean))
-        .eq('organization_id', orgId)
-        .is('deleted_at', null)
-      if (error) throw new Error(`codes: ${error.message}`)
-    } catch (e) {
-      errors.push(e instanceof Error ? e.message : String(e))
+    // Only when `beforeAll` reached the org and student seeds: `organization_id=eq.undefined`
+    // raises 22P02, and accumulating that would bury the real cause.
+    const ids = [studentId, legacyStudentId].filter(Boolean)
+    if (orgId && ids.length > 0) {
+      try {
+        const { error } = await admin
+          .from('internal_exam_codes')
+          .update({ deleted_at: new Date().toISOString() })
+          .in('student_id', ids)
+          .eq('organization_id', orgId)
+          .is('deleted_at', null)
+        if (error) throw new Error(`codes: ${error.message}`)
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      }
     }
     try {
       await cleanupSittingFixtures(admin, track)

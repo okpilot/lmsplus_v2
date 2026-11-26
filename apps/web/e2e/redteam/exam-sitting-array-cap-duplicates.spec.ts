@@ -75,6 +75,7 @@ test.describe('Red Team: duplicate-inflated sitting id arrays (NK)', () => {
 
   test.beforeAll(async () => {
     admin = getAdminClient()
+    skipNearUtcRollover()
     const a = await seedRedTeamAdmin()
     track.adminId = a.adminUserId
     studentId = await upsertUser(admin, NK_STUDENT_EMAIL, NK_STUDENT_PASSWORD, a.orgId)
