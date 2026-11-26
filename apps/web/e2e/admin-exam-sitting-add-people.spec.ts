@@ -57,10 +57,10 @@ async function pickOption(page: Page, label: string, option: string) {
   await page.getByRole('option', { name: option, exact: true }).click()
 }
 
-async function expectPopupFits(page: Page) {
+async function expectPopupFits(page: Page, action: RegExp) {
   const vp = page.viewportSize()
   if (!vp) throw new Error('no viewport')
-  const button = popup(page).getByRole('button', { name: /^Add selected/ })
+  const button = popup(page).getByRole('button', { name: action })
   const box = await button.boundingBox()
   expect(box).not.toBeNull()
   expect((box?.y ?? -1) >= 0).toBe(true)
@@ -71,6 +71,11 @@ async function expectPopupFits(page: Page) {
   expect(fits).toBe(true)
   const dialogFits = await popup(page).evaluate((el) => el.scrollWidth <= el.clientWidth)
   expect(dialogFits).toBe(true)
+  const dialogBox = await popup(page).boundingBox()
+  expect(dialogBox?.x).toBeGreaterThanOrEqual(0)
+  expect((dialogBox?.x ?? 0) + (dialogBox?.width ?? Number.POSITIVE_INFINITY)).toBeLessThanOrEqual(
+    vp.width,
+  )
 }
 
 test('Add people: filter, tick across filters, reload, add, close paths, group and deactivated', async ({
@@ -111,7 +116,7 @@ test('Add people: filter, tick across filters, reload, add, close paths, group a
     ]) {
       await page.setViewportSize(size)
       await expect(popup(page).getByRole('button', { name: /^Add selected/ })).toBeVisible()
-      await expectPopupFits(page)
+      await expectPopupFits(page, /^Add selected/)
     }
     await popup(page).getByRole('checkbox', { name: 'Select E2E Add Zoe' }).click()
   })
@@ -408,24 +413,18 @@ test('Add exams and Issue codes popups at 375 px: no sideways scroll, Esc closes
   await page.goto(`${BASE}/${sittingId}`)
   await page.getByRole('checkbox', { name: 'Select E2E Phone Ann' }).click()
 
-  for (const [opener, dlg] of [
-    ['Add exams', /dlg=exams/],
-    ['Issue codes', /dlg=issue/],
+  for (const [opener, dlg, action] of [
+    ['Add exams', /dlg=exams/, /^Add exams$/],
+    ['Issue codes', /dlg=issue/, /^Issue 1 code$/],
   ] as const) {
     await test.step(`${opener} popup`, async () => {
       const button = page.getByRole('button', { name: opener, exact: true })
       await button.click()
       await expect(page).toHaveURL(dlg)
       await expect(popup(page).getByRole('heading', { name: opener })).toBeVisible()
-      const pageFits = await page.evaluate(
-        () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
-      )
-      expect(pageFits).toBe(true)
-      const dialogFits = await popup(page).evaluate((el) => el.scrollWidth <= el.clientWidth)
-      expect(dialogFits).toBe(true)
-      const box = await popup(page).boundingBox()
-      expect(box?.x).toBeGreaterThanOrEqual(0)
-      expect((box?.x ?? 0) + (box?.width ?? Number.POSITIVE_INFINITY)).toBeLessThanOrEqual(375)
+      // The shared helper carries the vertical check too: on a phone the regression is a footer
+      // pushed below the fold, which neither scrollWidth assertion can see.
+      await expectPopupFits(page, action)
       await page.keyboard.press('Escape')
       await noPopup(page)
       await expect(page).not.toHaveURL(/dlg=/)

@@ -143,17 +143,13 @@ async function deleteSeededStudentSessions(admin: Admin, userIds: string[]) {
   check('seed student sessions lookup', sessions.error)
   const ids = (sessions.data ?? []).map((r) => r.id)
   if (ids.length === 0) return
-  // No code references these, so nothing pins the delete order here — but a session is still
-  // classified: `student_id` matched the seed email prefix, and a fixture session reached through
-  // a shared id must be retired, never hard-deleted (see `classifySessions`).
-  const split = await classifySessions(admin, ids)
-  await retireFixtureSessions(admin, split.fixture)
-  if (split.seeded.length > 0) {
-    check(
-      'seed student sessions delete',
-      (await admin.from('quiz_sessions').delete().in('id', split.seeded)).error,
-    )
-  }
+  // Every id came from a student whose email carries the seed prefix, so there is no fixture
+  // session to classify here — unlike `deleteSeededRows`, which reaches sessions through a shared
+  // `consumed_session_id` and can land on one. No code references these, so nothing pins the order.
+  check(
+    'seed student sessions delete',
+    (await admin.from('quiz_sessions').delete().in('id', ids)).error,
+  )
 }
 
 /** Deletes the students `seedSitting` created (users row, then auth user) once nothing references them. */

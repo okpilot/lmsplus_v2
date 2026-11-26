@@ -31,15 +31,12 @@ test.setTimeout(240_000)
 const LIST = '/app/admin/internal-exams'
 const SITTING_URL = /\/app\/admin\/internal-exams\/sittings\/[0-9a-f-]{36}$/
 
-const loadedAt = new Date()
-test.skip(
-  loadedAt.getUTCHours() === 23 && loadedAt.getUTCMinutes() >= 55,
-  'UTC day rollover window',
-)
-
-/** The fixture student's enrolment, when this test created it (an existing one is left alone). */
-
 test.beforeEach(async () => {
+  // Per test, not at import: the body runs for minutes against a 240 s budget, and
+  // `sitting_day_ended`, `close_expired_sittings`, `private.sitting_code_expiry` and `utcDay()`
+  // all stop agreeing once the sitting's UTC day turns over.
+  const now = new Date()
+  test.skip(now.getUTCHours() === 23 && now.getUTCMinutes() >= 50, 'UTC day rollover window')
   await cleanupInternalExamStudentActiveSessions(await signInAsAdmin())
   await cleanupE2eExamSittings()
   await ensureExamConfigs(await getAdminOrganizationId())
@@ -232,7 +229,13 @@ test('a sitting runs from creation to closing: codes, student attempt, late add,
     })
 
     const codes = await readSittingCodes(sittingId)
-    const codeOf = (userId: string) => codes.find((c) => c.userId === userId)?.code ?? ''
+    const codeOf = (userId: string) => {
+      const code = codes.find((c) => c.userId === userId)?.code
+      // Failing soft would submit an empty code, surfacing minutes later as a nav timeout, and
+      // would match every Codes row in a `hasText` filter.
+      if (!code) throw new Error(`no sitting code for ${userId}`)
+      return code
+    }
     expect(codes).toHaveLength(3)
 
     await test.step('the admin starts the sitting', async () => {

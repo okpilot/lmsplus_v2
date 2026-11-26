@@ -85,8 +85,9 @@ async function lookupIds(admin: Admin, studentEmail: string, subjectFragment: st
  * `releaseSeededEnrolments`. Decision 38: a spec restores the shared seed data it mutates.
  *
  * Mixed ownership since the sitting-flow seeders landed: a fixture student's row is only restored
- * here, while an `e2e-sit-` student's row is hard-deleted first by `deleteSeededUsers`, so an id
- * that is already gone is normal and only warns.
+ * here, while an `e2e-sit-` student's row is hard-deleted first by `deleteSeededUsers`. A gone id
+ * matches nothing, so a normal run updates fewer rows than it holds ids; the warning below fires
+ * only when NONE of them is still live.
  *
  * KNOWN LIMIT — in-process only, unlike the rest of this helper family: a worker killed between
  * the insert and teardown loses the ids and a fixture enrolment stays live. It is not DB-derivable:
