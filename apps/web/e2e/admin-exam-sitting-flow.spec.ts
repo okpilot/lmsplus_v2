@@ -116,6 +116,10 @@ async function answerAll(page: Page) {
   const options = page.locator('button[data-testid^="option-"]')
   const next = page.getByRole('button', { name: /^Next/ })
   for (let i = 0; i < 60; i++) {
+    // The draw in `start_internal_exam_session` has no `question_type` predicate, so a non-MC
+    // question in a configured topic renders no `option-` button. Assert before clicking: the
+    // click alone has no timeout of its own and would block until the test budget ran out.
+    await expect(options.first()).toBeVisible()
     await options.first().click()
     await page.getByRole('button', { name: 'Confirm Answer' }).click()
     await expect(options.first()).toBeDisabled()

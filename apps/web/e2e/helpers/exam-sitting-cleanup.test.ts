@@ -349,6 +349,26 @@ describe('cleanupE2eExamSittings (sessions found by student)', () => {
     expect(calls.some((c) => c.table === 'quiz_sessions')).toBe(false)
   })
 
+  it('drops the codes consuming a seeded session before deleting the session', async () => {
+    const { calls } = withAuth({
+      exam_sittings: [{ data: [], error: null }],
+      users: [{ data: [{ id: 'u1' }], error: null }],
+      quiz_sessions: [{ data: [{ id: 'qs1' }], error: null }],
+    })
+    await cleanupE2eExamSittings()
+    const codeDelete = calls.findIndex(
+      (c) => c.table === 'internal_exam_codes' && c.method === 'delete',
+    )
+    const sessionDelete = calls.findIndex(
+      (c) => c.table === 'quiz_sessions' && c.method === 'delete',
+    )
+    expect(codeDelete).toBeGreaterThan(-1)
+    expect(codeDelete).toBeLessThan(sessionDelete)
+    expect(calls.find((c) => c.table === 'internal_exam_codes' && c.method === 'in')?.args).toEqual(
+      ['consumed_session_id', ['qs1']],
+    )
+  })
+
   it('leaves the seeded users alone when the session lookup fails, and reports it', async () => {
     const { deleteUser } = withAuth({
       exam_sittings: [{ data: [], error: null }],
