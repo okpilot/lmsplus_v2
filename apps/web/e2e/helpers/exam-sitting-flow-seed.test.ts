@@ -50,7 +50,7 @@ beforeEach(() => vi.resetAllMocks())
 
 describe('findSubject', () => {
   it('returns the subject whose name matches the fragment', async () => {
-    fakeAdmin({
+    const calls = fakeAdmin({
       easa_subjects: [
         { data: { id: 's1', short: 'MET', name: 'Meteorology', course_id: 'c1' }, error: null },
       ],
@@ -60,6 +60,16 @@ describe('findSubject', () => {
       short: 'MET',
       name: 'Meteorology',
       courseId: 'c1',
+    })
+    expect(calls).toContainEqual({
+      table: 'easa_subjects',
+      method: 'ilike',
+      args: ['name', '%Meteo%'],
+    })
+    expect(calls).toContainEqual({
+      table: 'easa_subjects',
+      method: 'is',
+      args: ['deleted_at', null],
     })
   })
 

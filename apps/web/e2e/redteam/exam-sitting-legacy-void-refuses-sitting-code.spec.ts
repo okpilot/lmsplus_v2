@@ -163,6 +163,7 @@ test.describe('Red Team: legacy void refuses a sitting code (NJ)', () => {
       p_reason: NJ_REASON,
     })
     expect(ok.error).toBeNull()
+    expect(ok.data).toEqual([{ code_id: legacyCodeId, session_id: null, session_ended: false }])
     expect(await codeState(admin, legacyCodeId, orgId)).toEqual({ voided: true, audits: 1 })
   })
 })

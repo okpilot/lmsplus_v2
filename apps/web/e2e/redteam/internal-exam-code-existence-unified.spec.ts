@@ -284,6 +284,16 @@ test.describe('Red Team: internal-exam code existence is not disclosed to a prob
     const tokens = new Set([foreign.error?.message, cross.error?.message, absent.error?.message])
     expect(tokens.size).toBe(2)
     // The prober's own code is untouched by the control arm — it is never submitted.
-    expect(ownCode).toMatch(new RegExp(`^${E2E_REDTEAM_NL_CODE_PREFIX}[${ALPHABET}]{4}$`))
+    const { data: own, error: ownErr } = await admin
+      .from('internal_exam_codes')
+      .select('consumed_at, voided_at, deleted_at')
+      .eq('code', ownCode)
+      .eq('organization_id', orgId)
+      .single()
+    if (ownErr) throw new Error(`own code read: ${ownErr.message}`)
+    expect(own).not.toBeNull()
+    expect(own?.consumed_at).toBeNull()
+    expect(own?.voided_at).toBeNull()
+    expect(own?.deleted_at).toBeNull()
   })
 })
