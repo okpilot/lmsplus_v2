@@ -101,7 +101,11 @@ test.describe('Red Team: internal-exam code existence is not disclosed to a prob
     await expect(page.getByTestId('available-list')).toBeVisible({ timeout: 20_000 })
     const form = page.getByTestId('code-entry-form')
     // The row's Start handler only fires once AvailableTab has hydrated, so retry the click.
+    // Escape first: a dialog that opened but lost the visibility race would otherwise leave its
+    // scrim over the button, and every later click would time out on pointer interception.
     await expect(async () => {
+      await page.keyboard.press('Escape')
+      await expect(form).toBeHidden({ timeout: 2_000 })
       await page.getByTestId('start-button').first().click({ timeout: 2_000 })
       await expect(form).toBeVisible({ timeout: 2_000 })
     }).toPass({ timeout: 30_000 })

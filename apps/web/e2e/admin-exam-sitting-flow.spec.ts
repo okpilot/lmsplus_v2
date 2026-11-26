@@ -135,11 +135,18 @@ async function answerAll(page: Page): Promise<number> {
   return total
 }
 
-async function startExam(sittingRow: Locator, code: string) {
+async function startExam(sittingRow: Locator, code: string, subjectLabel: string) {
   const page = sittingRow.page()
-  const codeInput = page.getByTestId('code-input')
+  // One dialog exists in this subtree. Its description is its only identity, and the click is
+  // row-scoped while the dialog is not: scope the input to THIS row's subject.
+  const dialog = page.getByRole('dialog').filter({ hasText: subjectLabel })
+  const codeInput = dialog.getByTestId('code-input')
   // The row's Start handler only fires once AvailableTab has hydrated, so retry the click.
+  // Escape first: a dialog that opened but lost the visibility race would otherwise leave its
+  // scrim over the button, and every later click would time out on pointer interception.
   await expect(async () => {
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('code-input')).toBeHidden({ timeout: 2_000 })
     await sittingRow.getByTestId('start-button').click({ timeout: 2_000 })
     await expect(codeInput).toBeVisible({ timeout: 2_000 })
   }).toPass({ timeout: 30_000 })
@@ -260,7 +267,7 @@ test('a sitting runs from creation to closing: codes, student attempt, late add,
       await studentPage.reload()
       await expect(sittingRow.getByText('Works while the sitting is open.')).toBeVisible()
       await expect(sittingRow.getByTestId('start-button')).toBeEnabled()
-      await startExam(sittingRow, codeOf(student.id))
+      await startExam(sittingRow, codeOf(student.id), `${subject.short} — ${subject.name}`)
       const answered = await answerAll(studentPage)
       // The journey under test is a MULTI-question exam: a seed drifting to one question would
       // leave the Next-navigation path untested while every assertion below still passed.
