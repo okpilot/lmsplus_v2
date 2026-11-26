@@ -54,6 +54,11 @@ function fakeAdmin(
       return api
     }
     api.single = () => Promise.resolve({ data: { id: `id-${++n}` }, error: null })
+    api.maybeSingle = () =>
+      Promise.resolve({
+        data: table === 'exam_configs' ? { pass_mark: 70 } : { id: `id-${++n}` },
+        error: null,
+      })
     // biome-ignore lint/suspicious/noThenProperty: awaitable mock
     api.then = (r: (v: unknown) => void) => Promise.resolve(result()).then(r)
     return api
@@ -212,6 +217,20 @@ describe('seedSitting subjects', () => {
 })
 
 describe('insertPassedSession', () => {
+  it("takes the pass mark from the subject's enabled exam config", async () => {
+    const { inserts } = fakeAdmin()
+    await insertPassedSession(mockGetAdminClient(), {
+      orgId: 'o',
+      userId: 'u',
+      subjectId: 's',
+      score: 83,
+      endedAt: new Date('2026-11-19T10:00:00.000Z'),
+    })
+    expect(inserts.find((i) => i.table === 'quiz_sessions')?.rows[0]).toMatchObject({
+      config: { pass_mark: 70, question_ids: [] },
+    })
+  })
+
   it('inserts a passed internal-exam session ending at the given time with the score', async () => {
     const { inserts } = fakeAdmin()
     const endedAt = new Date('2026-11-19T10:00:00.000Z')

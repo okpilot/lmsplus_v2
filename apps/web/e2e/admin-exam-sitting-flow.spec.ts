@@ -240,8 +240,6 @@ test('a sitting runs from creation to closing: codes, student attempt, late add,
     const codes = await readSittingCodes(sittingId)
     const codeOf = (userId: string) => {
       const code = codes.find((c) => c.userId === userId)?.code
-      // Failing soft would submit an empty code, surfacing minutes later as a nav timeout, and
-      // would match every Codes row in a `hasText` filter.
       if (!code) throw new Error(`no sitting code for ${userId}`)
       return code
     }

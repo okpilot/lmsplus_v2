@@ -3,7 +3,7 @@ import { randomCode } from './code-gen'
 import {
   EXAM_SITTING_SEED_EMAIL_PREFIX,
   EXAM_SITTING_SEED_GROUP_PREFIX,
-  EXAM_SITTING_SEED_PREFIX,
+  makeSittingSeedMaterials,
 } from './exam-sitting-markers'
 import { getAdminClient } from './supabase'
 
@@ -80,11 +80,29 @@ export async function createStudents(
   return ids
 }
 
+/** `pass_mark` of the org's oldest enabled exam config for the subject. */
+async function examPassMark(admin: Admin, orgId: string, subjectId: string): Promise<number> {
+  const res = await admin
+    .from('exam_configs')
+    .select('pass_mark')
+    .eq('organization_id', orgId)
+    .eq('subject_id', subjectId)
+    .eq('enabled', true)
+    .is('deleted_at', null)
+    .order('created_at')
+    .limit(1)
+    .maybeSingle()
+  if (res.error) fail('exam config lookup', res.error, 'insertPassedSession')
+  if (!res.data) fail(`enabled exam config for subject ${subjectId}`, null, 'insertPassedSession')
+  return res.data.pass_mark
+}
+
 /** A finished, passed internal-exam session with a score for a student and subject (service role, no code). */
 export async function insertPassedSession(
   admin: Admin,
   c: { orgId: string; userId: string; subjectId: string; score: number; endedAt: Date },
 ): Promise<string> {
+  const passMark = await examPassMark(admin, c.orgId, c.subjectId)
   const res = await admin
     .from('quiz_sessions')
     .insert({
@@ -92,7 +110,7 @@ export async function insertPassedSession(
       student_id: c.userId,
       mode: 'internal_exam',
       subject_id: c.subjectId,
-      config: { pass_mark: 75, question_ids: [] },
+      config: { pass_mark: passMark, question_ids: [] },
       total_questions: 0,
       started_at: new Date(c.endedAt.getTime() - 1_800_000).toISOString(),
       ended_at: c.endedAt.toISOString(),
@@ -320,7 +338,7 @@ export async function seedSitting(input: SeedInput): Promise<SeedResult> {
       invigilator_id: adminId,
       created_by: adminId,
       scheduled_at: now,
-      permitted_materials: `${EXAM_SITTING_SEED_PREFIX}${randomUUID()}`,
+      permitted_materials: makeSittingSeedMaterials(),
       ...(status !== 'scheduled' ? { started_at: now, started_by: adminId } : {}),
       ...(status === 'closed' ? { closed_at: now, closed_by: adminId } : {}),
     })

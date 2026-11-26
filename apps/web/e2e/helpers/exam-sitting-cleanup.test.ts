@@ -539,6 +539,93 @@ describe('cleanupE2eExamSittings (seeded groups)', () => {
   })
 })
 
+describe('cleanupE2eExamSittings (page-cap refusals)', () => {
+  function withAuth(queues: Record<string, Result[]>) {
+    const calls = mockTables(queues)
+    const deleteUser = vi.fn().mockResolvedValue({ error: null })
+    const client = mockGetAdminClient() as Record<string, unknown>
+    mockGetAdminClient.mockReturnValue({ ...client, auth: { admin: { deleteUser } } })
+    return { calls, deleteUser }
+  }
+
+  // A page of exactly `max_rows` is what PostgREST returns when it truncates — the only signal
+  // available, since a client `.limit()` cannot ask for more.
+  function fullPage(row: (i: number) => Record<string, unknown>) {
+    return Array.from({ length: POSTGREST_MAX_ROWS }, (_, i) => row(i))
+  }
+
+  it('refuses a full marked-sitting page instead of soft-deleting a partial list', async () => {
+    const { calls } = withAuth({
+      exam_sittings: [
+        { data: fullPage((i) => ({ id: `s${i}` })), error: null },
+        { data: [], error: null },
+      ],
+    })
+    await expect(cleanupE2eExamSittings()).rejects.toThrow(
+      `cleanupEmptySittings: ${POSTGREST_MAX_ROWS} marked sitting(s) hits PostgREST's max_rows`,
+    )
+    expect(calls.some((c) => c.method === 'update')).toBe(false)
+  })
+
+  it.each(['exam_sitting_entries', 'exam_sitting_candidates'])(
+    'refuses a full %s page instead of soft-deleting a sitting whose people it could not see',
+    async (table) => {
+      const { calls } = withAuth({
+        exam_sittings: [
+          { data: [{ id: 's1' }, { id: 's2' }], error: null },
+          { data: [], error: null },
+        ],
+        [table]: [{ data: fullPage(() => ({ sitting_id: 's1' })), error: null }],
+      })
+      await expect(cleanupE2eExamSittings()).rejects.toThrow(
+        `cleanupEmptySittings: ${POSTGREST_MAX_ROWS} ${table} row(s) for 2 marked sitting(s)`,
+      )
+      expect(calls.some((c) => c.method === 'update')).toBe(false)
+    },
+  )
+
+  it('refuses a full seeded-sitting page instead of deleting a partial list', async () => {
+    const { calls, deleteUser } = withAuth({
+      exam_sittings: [
+        { data: [], error: null },
+        { data: fullPage((i) => ({ id: `s${i}` })), error: null },
+      ],
+    })
+    await expect(cleanupE2eExamSittings()).rejects.toThrow(
+      `cleanupSeededExamSittings: ${POSTGREST_MAX_ROWS} seeded sitting(s) hits PostgREST's max_rows`,
+    )
+    expect(calls.some((c) => c.method === 'delete')).toBe(false)
+    expect(deleteUser).not.toHaveBeenCalled()
+  })
+
+  it('refuses a full seeded-group page instead of deleting a partial list', async () => {
+    const { calls } = withAuth({
+      exam_sittings: [{ data: [], error: null }],
+      student_groups: [{ data: fullPage((i) => ({ id: `g${i}` })), error: null }],
+    })
+    await expect(cleanupE2eExamSittings()).rejects.toThrow(
+      `deleteSeededGroups: ${POSTGREST_MAX_ROWS} seeded group(s) hits PostgREST's max_rows`,
+    )
+    expect(calls.some((c) => c.table === 'student_group_members' && c.method === 'delete')).toBe(
+      false,
+    )
+    expect(calls.some((c) => c.table === 'student_groups' && c.method === 'delete')).toBe(false)
+  })
+
+  it('refuses a full seeded-user page instead of deleting a partial list', async () => {
+    const { calls, deleteUser } = withAuth({
+      exam_sittings: [{ data: [], error: null }],
+      users: [{ data: fullPage((i) => ({ id: `u${i}` })), error: null }],
+    })
+    await expect(cleanupE2eExamSittings()).rejects.toThrow(
+      `deleteSeededUsers: ${POSTGREST_MAX_ROWS} seeded user(s) hits PostgREST's max_rows`,
+    )
+    expect(deleteUser).not.toHaveBeenCalled()
+    expect(calls.some((c) => c.table === 'users' && c.method === 'delete')).toBe(false)
+    expect(calls.some((c) => c.table === 'quiz_sessions')).toBe(false)
+  })
+})
+
 describe('markE2eSitting', () => {
   it('writes the E2E-SIT- marker to the sitting id', async () => {
     const calls = mockTables({ exam_sittings: [{ data: [{ id: 's1' }], error: null }] })

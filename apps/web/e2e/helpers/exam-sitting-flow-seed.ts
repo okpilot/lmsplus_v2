@@ -101,9 +101,6 @@ const widenedTimers = new Map<string, number>()
  * the finish dialog as a modal over the question card — the next option click is pointer-intercepted
  * and, having no timeout of its own, burns the whole test budget.
  *
- * Mutating shared seed data is safe here only because `playwright.config.ts` runs `workers: 1` with
- * `fullyParallel: false`; the restore is Decision 38.
- *
  * KNOWN LIMIT (#1837): the restore map is in-process; a killed run leaves the timer widened until `pnpm supabase db reset`.
  *
  * Org-scoped like the RPC: `start_internal_exam_session` resolves the config with `ec.organization_id = v_org_id` (mig 20261117001400).

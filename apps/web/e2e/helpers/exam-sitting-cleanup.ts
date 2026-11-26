@@ -129,6 +129,12 @@ async function deleteSeededGroups(admin: Admin) {
     .like('name', `${EXAM_SITTING_SEED_GROUP_PREFIX}%`)
   check('seed groups lookup', groups.error)
   const ids = (groups.data ?? []).map((g) => g.id)
+  // A full page may be truncated at `max_rows`: refuse rather than delete a partial list.
+  if (ids.length >= POSTGREST_MAX_ROWS) {
+    throw new Error(
+      `deleteSeededGroups: ${ids.length} seeded group(s) hits PostgREST's max_rows; delete in pages`,
+    )
+  }
   if (ids.length === 0) return
   check(
     'seed group members delete',
@@ -168,19 +174,25 @@ async function deleteSeededUsers(admin: Admin) {
     .select('id')
     .like('email', `${EXAM_SITTING_SEED_EMAIL_PREFIX}%`)
   check('seed users lookup', users.error)
+  const userRows = users.data ?? []
+  // A full page may be truncated at `max_rows`: refuse rather than delete a partial list.
+  if (userRows.length >= POSTGREST_MAX_ROWS) {
+    throw new Error(
+      `deleteSeededUsers: ${userRows.length} seeded user(s) hits PostgREST's max_rows; delete in pages`,
+    )
+  }
   const errors: string[] = []
   try {
     await deleteSeededStudentSessions(
       admin,
-      (users.data ?? []).map((u) => u.id),
+      userRows.map((u) => u.id),
     )
   } catch (e) {
     errors.push(e instanceof Error ? e.message : String(e))
   }
-  // Dependent step: `quiz_sessions.student_id` pins sessions before users, so a failed session
-  // delete would turn every user delete below into a cascading 23503 that buries the real cause.
+  // Dependent step: `quiz_sessions.student_id` pins sessions before users.
   if (errors.length > 0) throw new Error(errors.join('; '))
-  for (const u of users.data ?? []) {
+  for (const u of userRows) {
     try {
       check(
         'seed enrolments delete',
@@ -205,6 +217,12 @@ async function cleanupSeededExamSittings(): Promise<void> {
     .like('permitted_materials', `${EXAM_SITTING_SEED_PREFIX}%`)
   check('seed lookup', error)
   const ids = (data ?? []).map((r) => r.id)
+  // A full page may be truncated at `max_rows`: refuse rather than delete a partial list.
+  if (ids.length >= POSTGREST_MAX_ROWS) {
+    throw new Error(
+      `cleanupSeededExamSittings: ${ids.length} seeded sitting(s) hits PostgREST's max_rows; delete in pages`,
+    )
+  }
   const errors: string[] = []
   if (ids.length > 0) {
     try {
@@ -252,12 +270,25 @@ async function cleanupEmptySittings(): Promise<void> {
     .is('deleted_at', null)
   if (error) throw new Error(`cleanupE2eExamSittings lookup: ${error.message}`)
   const marked = (data ?? []).map((r) => r.id)
+  // A full page may be truncated at `max_rows`: refuse rather than soft-delete a partial list.
+  if (marked.length >= POSTGREST_MAX_ROWS) {
+    throw new Error(
+      `cleanupEmptySittings: ${marked.length} marked sitting(s) hits PostgREST's max_rows; delete in pages`,
+    )
+  }
   if (marked.length === 0) return
   const withPeople = new Set<string>()
   for (const table of ['exam_sitting_entries', 'exam_sitting_candidates'] as const) {
     const res = await admin.from(table).select('sitting_id').in('sitting_id', marked)
     if (res.error) throw new Error(`cleanupE2eExamSittings ${table}: ${res.error.message}`)
-    for (const r of res.data ?? []) withPeople.add(r.sitting_id)
+    const rows = res.data ?? []
+    // A truncated page drops a sitting that HAS people, which then gets soft-deleted.
+    if (rows.length >= POSTGREST_MAX_ROWS) {
+      throw new Error(
+        `cleanupEmptySittings: ${rows.length} ${table} row(s) for ${marked.length} marked sitting(s) hits PostgREST's max_rows; read in pages`,
+      )
+    }
+    for (const r of rows) withPeople.add(r.sitting_id)
   }
   const ids = marked.filter((id) => !withPeople.has(id))
   if (ids.length === 0) return
