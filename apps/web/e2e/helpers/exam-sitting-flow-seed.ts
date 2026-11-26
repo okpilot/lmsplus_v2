@@ -104,15 +104,9 @@ const widenedTimers = new Map<string, number>()
  * Mutating shared seed data is safe here only because `playwright.config.ts` runs `workers: 1` with
  * `fullyParallel: false`; the restore is Decision 38.
  *
- * KNOWN LIMIT: `widenedTimers` is in-process. A run killed between the widen and
- * `restoreExamTimer` leaves the config at `seconds`, and every later run then takes the
- * `>= seconds` early return and records nothing to restore — so `exam-flow.spec.ts`, which asserts
- * the seed's 60 s expiry, fails until `pnpm supabase db reset`. Not repaired here: restoring a
- * hardcoded 60 would clobber a config someone set deliberately.
+ * KNOWN LIMIT (#1837): the restore map is in-process; a killed run leaves the timer widened until `pnpm supabase db reset`.
  *
- * Org-scoped like the RPC: `start_internal_exam_session` resolves the config with
- * `ec.organization_id = v_org_id` (mig 20261117001400), so an unscoped lookup could widen another
- * tenant's row — leaving the exam under test on its 60 s limit and the foreign row never restored.
+ * Org-scoped like the RPC: `start_internal_exam_session` resolves the config with `ec.organization_id = v_org_id` (mig 20261117001400).
  */
 export async function widenExamTimer(subjectId: string, seconds = 3600): Promise<void> {
   const admin = getAdminClient()
@@ -137,10 +131,6 @@ export async function widenExamTimer(subjectId: string, seconds = 3600): Promise
     .select('id')
   if (upd.error) fail('exam timer widen', upd.error)
   if ((upd.data ?? []).length === 0) fail(`exam timer widen: no row ${res.data.id}`, null)
-  // Recorded only after the UPDATE lands, so a failed widen cannot restore a value never changed.
-  // Guarded: a second widen of the SAME config to a LARGER value would otherwise record the value
-  // this call already raised, and the restore would put back a widened timer. (Equal values never
-  // reach here — the `>= seconds` early return above takes them.)
   if (!widenedTimers.has(res.data.id)) widenedTimers.set(res.data.id, res.data.time_limit_seconds)
 }
 

@@ -296,7 +296,6 @@ test.describe('Red Team: Audit Event Completeness', () => {
       .is('deleted_at', null)
       .single()
     if (codeErr || !codeRow) throw new Error(`sitting code: ${codeErr?.message}`)
-    tracker.codes.add(codeRow.id)
 
     await expectAuditRow(admin, 'internal_exam.code_issued', adminUserId, testStart, codeRow.id)
   })

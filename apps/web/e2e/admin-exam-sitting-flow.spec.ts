@@ -76,12 +76,7 @@ async function createSittingToday(page: Page): Promise<string> {
     .first()
     .click()
   await page.getByRole('button', { name: 'Save' }).click()
-  // ACCEPTED RESIDUAL: a timeout below leaves this sitting unmarked, where the marker-keyed
-  // cleanup cannot find it. Deliberately unguarded — the row has no people (every `addPerson` runs
-  // after this function returns), so no FK blocks a later teardown: one inert row on a local DB,
-  // on a run that already failed, cleared by `pnpm supabase db reset`. Marking it earlier is not
-  // available: `click()` only dispatches the Save action, so any mark issued before the navigation
-  // races the row's creation.
+  // A timeout here leaves an unmarked sitting; `pnpm supabase db reset` clears it.
   await expect(page).toHaveURL(SITTING_URL, { timeout: 30_000 })
   const id = new URL(page.url()).pathname.split('/').pop() ?? ''
   await markE2eSitting(id, 'seeded')
@@ -115,16 +110,7 @@ async function issueAll(page: Page, count: number) {
   await expect(page.getByText(`Issued ${count} ${noun}.`).first()).toBeVisible()
 }
 
-/**
- * Answers and confirms every question of the running exam, returning how many it answered.
- *
- * Bounded by the header's own `Question i of N`, never by probing the Next button: while an answer
- * is in flight `inFlightAnswers > 0` (`use-answer-handler.ts` increments BEFORE awaiting
- * `input.check`), so `slotAction` returns `'submit'` and renders the ghost Next as
- * `disabled={isLast || submitting}` (`quiz-nav-bar.tsx`). A non-retrying `isEnabled()` read inside
- * that window reports false on a question that is not the last, and the loop would exit after the
- * first answer with the exam 1/N complete.
- */
+/** Answers and confirms every question, bounded by the header's own `Question i of N`, never by probing Next; returns how many it answered. */
 async function answerAll(page: Page): Promise<number> {
   const options = page.locator('button[data-testid^="option-"]')
   const next = page.getByRole('button', { name: /^Next/ })
@@ -197,6 +183,10 @@ test('a sitting runs from creation to closing: codes, student attempt, late add,
   if (!bea || !cy) throw new Error('seed students')
   const sittingId = await createSittingToday(page)
   const { context: studentCtx, page: studentPage } = await openStudentContext(adminCtx.browser())
+  const sittingRow = studentPage
+    .getByTestId('available-list')
+    .getByRole('listitem')
+    .filter({ hasText: `${utcDay()}, 23:58 UTC · Remote` })
 
   try {
     await test.step('add the student and Bea', async () => {
@@ -225,14 +215,13 @@ test('a sitting runs from creation to closing: codes, student attempt, late add,
 
     await test.step('the student sees the sitting with Start disabled and the reason', async () => {
       await studentPage.goto('/app/internal-exam')
-      const row = studentPage.getByTestId('available-list').getByRole('listitem').first()
-      await expect(row).toContainText(`${utcDay()}, 23:58 UTC · Remote`)
+      await expect(sittingRow).toHaveCount(1)
       await expect(
-        row.getByText(
+        sittingRow.getByText(
           'Opens when your invigilator starts the sitting — reload this page to check.',
         ),
       ).toBeVisible()
-      await expect(row.getByTestId('start-button')).toBeDisabled()
+      await expect(sittingRow.getByTestId('start-button')).toBeDisabled()
     })
 
     await test.step('a late person and exam get the only new code', async () => {
@@ -270,9 +259,8 @@ test('a sitting runs from creation to closing: codes, student attempt, late add,
     let sessionId = ''
     await test.step('the student reloads, types the code, answers every question and finishes', async () => {
       await studentPage.reload()
-      const row = studentPage.getByTestId('available-list').getByRole('listitem').first()
-      await expect(row.getByText('Works while the sitting is open.')).toBeVisible()
-      await expect(row.getByTestId('start-button')).toBeEnabled()
+      await expect(sittingRow.getByText('Works while the sitting is open.')).toBeVisible()
+      await expect(sittingRow.getByTestId('start-button')).toBeEnabled()
       await startExam(studentPage, codeOf(student.id))
       const answered = await answerAll(studentPage)
       // The journey under test is a MULTI-question exam: a seed drifting to one question would

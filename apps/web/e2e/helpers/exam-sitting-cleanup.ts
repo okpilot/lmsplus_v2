@@ -143,34 +143,18 @@ async function deleteSeededStudentSessions(admin: Admin, userIds: string[]) {
   const sessions = await admin.from('quiz_sessions').select('id').in('student_id', userIds)
   check('seed student sessions lookup', sessions.error)
   const ids = (sessions.data ?? []).map((r) => r.id)
-  // A FULL page means PostgREST may have truncated at `max_rows`, and a client `.limit()` cannot
-  // widen it — PostgREST takes the smaller of the two, so asking for one extra row to tell the
-  // cases apart is unreachable by construction (`fetchAllRows` and `fetchTopicTreeRows` detect the
-  // same way). Refuse rather than delete a partial list: the
-  // survivors would keep pinning `quiz_sessions.student_id` and the user delete below would fail
-  // 23503, burying the cause this step exists to surface. Exactly `max_rows` real sessions trips
-  // it too — fail-closed on a count no seed run produces.
+  // A full page may be truncated at `max_rows`: refuse rather than delete a partial list.
   if (ids.length >= POSTGREST_MAX_ROWS) {
     throw new Error(
       `deleteSeededStudentSessions: ${ids.length} sessions for ${userIds.length} seeded student(s) hits PostgREST's max_rows; delete in pages`,
     )
   }
   if (ids.length === 0) return
-  // Every id came from a student whose email carries the seed prefix, so there is no fixture
-  // session to classify here — unlike `deleteSeededRows`, which reaches sessions through a shared
-  // `consumed_session_id` and can land on one.
-  // Drop the referencing codes rather than assert there are none: `deleteSeededRows` only removes
-  // codes keyed by a seeded sitting's entries, so a seeded student's legacy or unmarked-sitting
-  // code would still pin `internal_exam_codes_consumed_session_id_fkey` here.
+  // Codes first: `internal_exam_codes_consumed_session_id_fkey` pins these sessions.
   check(
     'seed student session codes delete',
     (await admin.from('internal_exam_codes').delete().in('consumed_session_id', ids)).error,
   )
-  // Hard delete is safe because `insertPassedSession` is the only writer of these rows and it
-  // inserts no `quiz_session_answers` / `student_responses` (`total_questions: 0`, both FKs NO
-  // ACTION). A seeded student who really answered could not be torn down at all — the
-  // `quiz_sessions.student_id` FK would block the user delete too — so the constraint error is
-  // the enforcement, not something this step can route around.
   check(
     'seed student sessions delete',
     (await admin.from('quiz_sessions').delete().in('id', ids)).error,
@@ -212,7 +196,7 @@ async function deleteSeededUsers(admin: Admin) {
   if (errors.length > 0) throw new Error(errors.join('; '))
 }
 
-/** Hard-deletes the sittings `seedSitting` built, with their people, codes and users (service role, test data only). */
+/** Hard-deletes the seeded sittings (built by `seedSitting` or marked `seeded`), with their people, codes and users (service role, test data only). */
 async function cleanupSeededExamSittings(): Promise<void> {
   const admin = getAdminClient()
   const { data, error } = await admin
@@ -246,7 +230,7 @@ async function cleanupSeededExamSittings(): Promise<void> {
   if (errors.length > 0) throw new Error(errors.join('; '))
 }
 
-/** Soft-deletes the open marked exam_sittings that have no entries or candidates, then hard-deletes the sittings `seedSitting` built with their people, codes and users (service role, test data only); closed sittings (CHECK exam_sittings_closed_not_cancelled) and red-team seeds with people are left alone. */
+/** Soft-deletes the open marked exam_sittings that have no entries or candidates, then hard-deletes the seeded sittings (built by `seedSitting` or marked `seeded`), open or closed, with their people, codes and users (service role, test data only). */
 export async function cleanupE2eExamSittings(): Promise<void> {
   const errors: string[] = []
   for (const step of [cleanupEmptySittings, cleanupSeededExamSittings, releaseSeededEnrolments]) {

@@ -84,8 +84,9 @@ type Step = [
   run: () => PromiseLike<{ data: { id: string }[] | null; error: { message: string } | null }>,
 ]
 
-/** Soft-deletes the tracked sittings' entries, candidates and unclosed sittings, then configs and
- *  subjects; per-step accumulator; resets the tracked ids. */
+/** Soft-deletes the tracked sittings' codes, entries, candidates and unclosed sittings, then configs
+ *  and subjects; per-step accumulator; resets the tracked ids. Codes run first: the entries step
+ *  filters `deleted_at IS NULL`. */
 export async function cleanupSittingFixtures(admin: Admin, track: SittingTrack): Promise<void> {
   const errors: string[] = []
   const now = new Date().toISOString()
@@ -97,6 +98,24 @@ export async function cleanupSittingFixtures(admin: Admin, track: SittingTrack):
   const steps: Step[] = []
   if (sids.length > 0) {
     steps.push(
+      [
+        'codes',
+        async () => {
+          const entries = await admin
+            .from('exam_sitting_entries')
+            .select('id')
+            .in('sitting_id', sids)
+          if (entries.error) return { data: null, error: entries.error }
+          const eids = (entries.data ?? []).map((e) => e.id)
+          if (eids.length === 0) return { data: [], error: null }
+          return admin
+            .from('internal_exam_codes')
+            .update({ deleted_at: now })
+            .in('sitting_entry_id', eids)
+            .is('deleted_at', null)
+            .select('id')
+        },
+      ],
       [
         'entries',
         () =>
