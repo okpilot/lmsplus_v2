@@ -169,6 +169,7 @@ const boom = (message: string): Resp => ({ data: null, error: { message } })
 const ADMIN_ROW = { id: 'admin-1', organization_id: 'org-1' }
 const STUDENT_ROW = { id: 'stu-1', full_name: 'Fixture Student' }
 const SUBJECT_ROW = { id: 'subj-1', course_id: 'course-1' }
+const CONFIG_ROW = { id: 'cfg-1' }
 const issueFor = () =>
   issueSittingCodeFor({ studentEmail: 'stu@test.local', subjectFragment: 'Flight Planning' })
 
@@ -195,8 +196,29 @@ describe('lookupIds error paths', () => {
     fakeAdminSeq({
       users: [ok(ADMIN_ROW), ok({ id: 'stu-1', full_name: null })],
       easa_subjects: [ok(SUBJECT_ROW)],
+      exam_configs: [ok(CONFIG_ROW)],
     })
     await expect(issueFor()).rejects.toThrow('student full_name')
+  })
+})
+
+describe('exam_config precondition', () => {
+  it('fails on the exam_config lookup', async () => {
+    fakeAdminSeq({
+      users: [ok(ADMIN_ROW), ok(STUDENT_ROW)],
+      easa_subjects: [ok(SUBJECT_ROW)],
+      exam_configs: [boom('config down')],
+    })
+    await expect(issueFor()).rejects.toThrow('sitting-code exam_config lookup: config down')
+  })
+
+  it('fails when no enabled exam_config exists for the subject', async () => {
+    fakeAdminSeq({
+      users: [ok(ADMIN_ROW), ok(STUDENT_ROW)],
+      easa_subjects: [ok(SUBJECT_ROW)],
+      exam_configs: [ok(null)],
+    })
+    await expect(issueFor()).rejects.toThrow('enabled exam_config for subject Flight Planning')
   })
 })
 
@@ -205,6 +227,7 @@ describe('ensureEnrolment error paths', () => {
     fakeAdminSeq({
       users: [ok(ADMIN_ROW), ok(STUDENT_ROW)],
       easa_subjects: [ok(SUBJECT_ROW)],
+      exam_configs: [ok(CONFIG_ROW)],
       course_enrolments: [boom('lookup down')],
     })
     await expect(issueFor()).rejects.toThrow('sitting-code enrolment lookup: lookup down')
@@ -214,6 +237,7 @@ describe('ensureEnrolment error paths', () => {
     fakeAdminSeq({
       users: [ok(ADMIN_ROW), ok(STUDENT_ROW)],
       easa_subjects: [ok(SUBJECT_ROW)],
+      exam_configs: [ok(CONFIG_ROW)],
       course_enrolments: [ok(null), boom('insert down')],
     })
     await expect(issueFor()).rejects.toThrow('sitting-code enrolment: insert down')
@@ -236,6 +260,7 @@ describe('releaseSeededEnrolments', () => {
     const calls = fakeAdminSeq({
       users: [ok(ADMIN_ROW), ok(STUDENT_ROW)],
       easa_subjects: [ok(SUBJECT_ROW)],
+      exam_configs: [ok(CONFIG_ROW)],
       course_enrolments: [ok(null), ok({ id: 'enr-1' })],
       exam_sittings: [ok({ id: 'sit-1' })],
       exam_sitting_candidates: [ok({ id: 'cand-1' })],
@@ -266,6 +291,7 @@ describe('releaseSeededEnrolments', () => {
     fakeAdminSeq({
       users: [ok(ADMIN_ROW), ok(STUDENT_ROW)],
       easa_subjects: [ok(SUBJECT_ROW)],
+      exam_configs: [ok(CONFIG_ROW)],
       course_enrolments: [ok(null), ok({ id: 'enr-1' })],
       exam_sittings: [ok({ id: 'sit-1' })],
       exam_sitting_candidates: [ok({ id: 'cand-1' })],
@@ -293,6 +319,7 @@ describe('releaseSeededEnrolments', () => {
     fakeAdminSeq({
       users: [ok(ADMIN_ROW), ok(STUDENT_ROW)],
       easa_subjects: [ok(SUBJECT_ROW)],
+      exam_configs: [ok(CONFIG_ROW)],
       course_enrolments: [ok(null), ok({ id: 'enr-1' })],
       exam_sittings: [ok({ id: 'sit-1' })],
       exam_sitting_candidates: [ok({ id: 'cand-1' })],
