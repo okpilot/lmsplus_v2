@@ -329,7 +329,7 @@ test.describe('Red Team: Audit Event Completeness', () => {
       throw new Error(`unexpected RPC row: ${JSON.stringify(row)}`)
     }
     tracker.codes.add(row.code_id)
-    // Alphabet and length derived from CODE_ALPHABET / CODE_LENGTH in e2e/helpers/code-gen.ts.
+    // Alphabet and length come from `issue_internal_exam_code`'s `v_charset`, not from any helper.
     expect(typeof row.code).toBe('string')
     expect(String(row.code)).toMatch(/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{8}$/)
     expect(typeof row.expires_at).toBe('string')
