@@ -245,12 +245,13 @@ describe('cleanupE2eExamSittings (seeded sittings)', () => {
     expect(deleted).toEqual(
       expect.arrayContaining([
         'internal_exam_codes',
-        'quiz_sessions',
         'exam_sitting_entries',
         'exam_sitting_candidates',
         'exam_sittings',
       ]),
     )
+    // The per-sitting pass deletes no session: `deleteSeededStudentSessions` does, after every sitting.
+    expect(deleted).not.toContain('quiz_sessions')
   })
 
   it("ends and soft-deletes a fixture student's session instead of deleting it", async () => {
@@ -853,11 +854,11 @@ describe('cleanupE2eExamSittings (seeded rows in chunks)', () => {
     expect(lens(calls, 'internal_exam_codes', 'sitting_entry_id', 'delete')).toEqual([100, 100, 50])
   })
 
-  it('classifies and deletes the seeded sessions of 250 codes in lists of 100, 100, 50', async () => {
+  it('classifies the sessions of 250 codes in lists of 100, 100, 50 and deletes none per sitting', async () => {
     const calls = seededRun()
     await cleanupE2eExamSittings()
     expect(lens(calls, 'quiz_sessions', 'id', 'select')).toEqual([100, 100, 50])
-    expect(lens(calls, 'quiz_sessions', 'id', 'delete')).toEqual([100, 100, 50])
+    expect(calls.some((c) => c.table === 'quiz_sessions' && c.method === 'delete')).toBe(false)
   })
 
   it('retires the fixture sessions of 250 codes in lists of 100, 100, 50, soft-delete first', async () => {
@@ -872,20 +873,6 @@ describe('cleanupE2eExamSittings (seeded rows in chunks)', () => {
       (c) => c.method === 'update' && JSON.stringify(c.args[0]).includes('deleted_at'),
     )
     expect(lastSoft).toBeLessThan(firstEnd)
-  })
-
-  it('deletes every code before the first seeded session', async () => {
-    const calls = seededRun()
-    await cleanupE2eExamSittings()
-    const codeDeletes = calls
-      .map((c, i) => (c.table === 'internal_exam_codes' && c.method === 'delete' ? i : -1))
-      .filter((i) => i >= 0)
-    const firstSession = calls.findIndex(
-      (c) => c.table === 'quiz_sessions' && c.method === 'delete',
-    )
-    expect(codeDeletes).toHaveLength(3)
-    expect(firstSession).toBeGreaterThan(-1)
-    expect(Math.max(...codeDeletes)).toBeLessThan(firstSession)
   })
 
   it('retires the fixture sessions before the first code delete', async () => {

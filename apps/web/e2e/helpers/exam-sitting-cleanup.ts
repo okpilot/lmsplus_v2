@@ -18,9 +18,9 @@ function check(what: string, error: { message: string } | null) {
 }
 
 /**
- * Splits the sessions by owner. `internal_exam_codes.consumed_session_id` references
- * `quiz_sessions` with NO ACTION, so a seeded session can only be hard-deleted after its code is
- * gone; a fixture session is retired with UPDATEs, which the FK does not block. The caller runs
+ * Returns the ids of the fixture-owned sessions; a seeded student's session is left for
+ * `deleteSeededStudentSessions`. A fixture session is retired with UPDATEs, which the
+ * `internal_exam_codes.consumed_session_id` FK (NO ACTION) does not block. The caller runs
  * `retireFixtureSessions` BEFORE deleting the codes, so a failure there cannot orphan a live
  * fixture session whose only link was the code it just deleted.
  */
@@ -46,10 +46,7 @@ async function classifySessions(admin: Admin, sessionIds: string[]) {
     }
     return { id: r.id, seeded: email.startsWith(EXAM_SITTING_SEED_EMAIL_PREFIX) }
   })
-  return {
-    seeded: classified.filter((r) => r.seeded).map((r) => r.id),
-    fixture: classified.filter((r) => !r.seeded).map((r) => r.id),
-  }
+  return classified.filter((r) => !r.seeded).map((r) => r.id)
 }
 
 /** A fixture student's session may hold immutable answers: it is ended and soft-deleted, never gone. */
@@ -89,7 +86,7 @@ async function retireFixtureSessions(admin: Admin, fixture: string[]) {
   }
 }
 
-/** Ids of the entries, then the codes and sessions of those entries, deleted for one seeded sitting. */
+/** Ids of the entries, then the codes of those entries deleted and their fixture sessions retired, for one seeded sitting. */
 async function deleteSeededRows(admin: Admin, sittingId: string) {
   const entries = await admin.from('exam_sitting_entries').select('id').eq('sitting_id', sittingId)
   check('seed entries lookup', entries.error)
@@ -122,21 +119,13 @@ async function deleteSeededRows(admin: Admin, sittingId: string) {
     const sessionIds = [
       ...new Set(codeRows.flatMap((c) => (c.consumed_session_id ? [c.consumed_session_id] : []))),
     ]
-    const split = sessionIds.length > 0 ? await classifySessions(admin, sessionIds) : null
+    const fixture = sessionIds.length > 0 ? await classifySessions(admin, sessionIds) : []
     // Retire the fixture sessions while the codes still link to them (see `classifySessions`).
-    if (split) await retireFixtureSessions(admin, split.fixture)
-    // Every code goes before any session: codes and sessions are partitioned by different keys,
-    // so a seeded session's consuming code may sit in a later entry chunk.
+    await retireFixtureSessions(admin, fixture)
     for (const part of entryParts) {
       check(
         'seed codes delete',
         (await admin.from('internal_exam_codes').delete().in('sitting_entry_id', part)).error,
-      )
-    }
-    for (const part of chunk(split?.seeded ?? [], ID_CHUNK)) {
-      check(
-        'seed sessions delete',
-        (await admin.from('quiz_sessions').delete().in('id', part)).error,
       )
     }
   }

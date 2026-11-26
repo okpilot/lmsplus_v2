@@ -238,11 +238,22 @@ test.describe('Red Team: internal-exam code existence is not disclosed to a prob
       { name: CONSENT_COOKIE, value: buildConsentCookieValue(proberId), url: BASE_URL },
     ])
     const page = await ctx.newPage()
+    let auditBefore: number | null = null
     try {
       await signInViaForm(page, {
         email: E2E_REDTEAM_NL_PROBER_EMAIL,
         password: E2E_REDTEAM_NL_PROBER_PASSWORD,
       })
+
+      // Window opens after sign-in: /auth/login-complete calls record_login (route.ts:18), rate-limited at 60s.
+      // Capturing before sign-in passes on a fast re-run and fails on a cold one.
+      const { count, error: abErr } = await admin
+        .from('audit_events')
+        .select('id', { count: 'exact', head: true })
+        .eq('actor_id', proberId)
+      auditBefore = count
+      expect(abErr).toBeNull()
+      expect(auditBefore).not.toBeNull()
 
       const seen: Record<string, string> = {}
       for (const [label, code] of [
@@ -264,7 +275,7 @@ test.describe('Red Team: internal-exam code existence is not disclosed to a prob
       await ctx.close()
     }
 
-    // Nothing consumed, no session, no audit row for the prober.
+    // Nothing consumed, no live session, no new audit row for the prober.
     const { data: after, error: afterErr } = await admin
       .from('internal_exam_codes')
       .select('id, consumed_at, consumed_session_id')
@@ -282,13 +293,16 @@ test.describe('Red Team: internal-exam code existence is not disclosed to a prob
       .is('deleted_at', null)
     if (sErr) throw new Error(`sessions: ${sErr.message}`)
     expect(sessions ?? -1).toBe(0)
-    const { count: audits, error: aErr } = await admin
+    // `audit_events` is append-only and the prober account is reused, so the assertion is a delta over the probes only (sign-in excluded):
+    // no audit row of any type was written for the prober while the probes ran.
+    // complete_overdue_exam_session (20261004000400:109-115) writes an actor-scoped row and is reachable from the
+    // active-session read, but only when the prober already owns an overdue live session; the quiz_sessions count above catches that.
+    const { count: auditAfter, error: aErr } = await admin
       .from('audit_events')
       .select('id', { count: 'exact', head: true })
       .eq('actor_id', proberId)
-      .eq('event_type', 'internal_exam.started')
-    if (aErr) throw new Error(`audits: ${aErr.message}`)
-    expect(audits ?? -1).toBe(0)
+    expect(aErr).toBeNull()
+    expect(auditAfter).toBe(auditBefore)
   })
 
   test('NL2: control — the RPC itself still distinguishes the three codes', async () => {
