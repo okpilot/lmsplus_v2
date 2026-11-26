@@ -4,7 +4,11 @@ const { mockGetAdminClient } = vi.hoisted(() => ({ mockGetAdminClient: vi.fn() }
 vi.mock('./admin-supabase', () => ({ ADMIN_TEST_EMAIL: 'admin@test.local' }))
 vi.mock('./supabase', () => ({ getAdminClient: mockGetAdminClient }))
 
-import { cleanupE2eExamSittings, markE2eSitting } from './exam-sitting-cleanup'
+import {
+  cleanupE2eExamSittings,
+  markE2eSitting,
+  markUnmarkedSittingsSince,
+} from './exam-sitting-cleanup'
 import { EXAM_SITTING_E2E_PREFIX, EXAM_SITTING_SEED_PREFIX } from './exam-sitting-markers'
 
 type Call = { table: string; method: string; args: unknown[] }
@@ -525,5 +529,34 @@ describe('markE2eSitting', () => {
   it('throws when no row matched', async () => {
     mockTables({ exam_sittings: [{ data: [], error: null }] })
     await expect(markE2eSitting('s1')).rejects.toThrow('no sitting s1')
+  })
+})
+
+describe('markUnmarkedSittingsSince', () => {
+  const SINCE = '2026-11-26T00:00:00.000Z'
+
+  it('adopts only unmarked sittings created since the given instant', async () => {
+    const calls = mockTables({ exam_sittings: [{ data: [{ id: 's1' }], error: null }] })
+    await expect(markUnmarkedSittingsSince(SINCE)).resolves.toBe(1)
+    // Both filters matter: without `is(null)` it would re-mark seeded rows, and without `gte` it
+    // would adopt unmarked sittings that have nothing to do with this run.
+    expect(calls.find((c) => c.method === 'is')?.args).toEqual(['permitted_materials', null])
+    expect(calls.find((c) => c.method === 'gte')?.args).toEqual(['created_at', SINCE])
+    const patch = (calls.find((c) => c.method === 'update')?.args[0] ?? {}) as {
+      permitted_materials?: string
+    }
+    expect(patch.permitted_materials).toMatch(new RegExp(`^${EXAM_SITTING_SEED_PREFIX}`))
+  })
+
+  it('reports zero when the run leaked nothing', async () => {
+    mockTables({ exam_sittings: [{ data: [], error: null }] })
+    await expect(markUnmarkedSittingsSince(SINCE)).resolves.toBe(0)
+  })
+
+  it('throws on a database error', async () => {
+    mockTables({ exam_sittings: [{ data: null, error: { message: 'boom' } }] })
+    await expect(markUnmarkedSittingsSince(SINCE)).rejects.toThrow(
+      'markUnmarkedSittingsSince: boom',
+    )
   })
 })

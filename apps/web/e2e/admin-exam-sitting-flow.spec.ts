@@ -7,7 +7,11 @@
 import { type Browser, expect as baseExpect, type Page, test } from '@playwright/test'
 import { getAdminOrganizationId, signInAsAdmin } from './helpers/admin-supabase'
 import { cleanupCreatedExamConfigs, ensureExamConfigs } from './helpers/exam-config-cleanup'
-import { cleanupE2eExamSittings, markE2eSitting } from './helpers/exam-sitting-cleanup'
+import {
+  cleanupE2eExamSittings,
+  markE2eSitting,
+  markUnmarkedSittingsSince,
+} from './helpers/exam-sitting-cleanup'
 import {
   findSubject,
   readSittingCodes,
@@ -75,8 +79,17 @@ async function createSittingToday(page: Page): Promise<string> {
     .getByRole('option', { name: /\((admin|instructor)\)$/ })
     .first()
     .click()
+  // Before Save: the RPC creates the row with `permitted_materials` NULL, so a failure between
+  // Save and `markE2eSitting` leaves a sitting no marker-keyed cleanup can find. `markUnmarked...`
+  // adopts it from this instant, bounding the recovery to rows this run created.
+  const before = new Date(Date.now() - 60_000).toISOString()
   await page.getByRole('button', { name: 'Save' }).click()
-  await expect(page).toHaveURL(SITTING_URL, { timeout: 30_000 })
+  try {
+    await expect(page).toHaveURL(SITTING_URL, { timeout: 30_000 })
+  } catch (e) {
+    await markUnmarkedSittingsSince(before)
+    throw e
+  }
   const id = new URL(page.url()).pathname.split('/').pop() ?? ''
   await markE2eSitting(id, 'seeded')
   return id
@@ -109,11 +122,25 @@ async function issueAll(page: Page, count: number) {
   await expect(page.getByText(`Issued ${count} ${noun}.`).first()).toBeVisible()
 }
 
-/** Answers and confirms every question of the running exam. */
-async function answerAll(page: Page) {
+/**
+ * Answers and confirms every question of the running exam, returning how many it answered.
+ *
+ * Bounded by the header's own `Question i of N`, never by probing the Next button: while an answer
+ * is in flight `inFlightAnswers > 0` (`use-answer-handler.ts` increments BEFORE awaiting
+ * `input.check`), so `slotAction` returns `'submit'` and renders the ghost Next as
+ * `disabled={isLast || submitting}` (`quiz-nav-bar.tsx`). A non-retrying `isEnabled()` read inside
+ * that window reports false on a question that is not the last, and the loop would exit after the
+ * first answer with the exam 1/N complete.
+ */
+async function answerAll(page: Page): Promise<number> {
   const options = page.locator('button[data-testid^="option-"]')
   const next = page.getByRole('button', { name: /^Next/ })
-  for (let i = 0; i < 60; i++) {
+  const header = page.getByText(/Question \d+ of \d+/)
+  await expect(header).toBeVisible()
+  const total = Number(/of (\d+)/.exec((await header.textContent()) ?? '')?.[1])
+  if (!Number.isInteger(total) || total < 1) throw new Error('no question total in the header')
+  for (let i = 1; i <= total; i++) {
+    await expect(header).toHaveText(`Question ${i} of ${total}`)
     // The draw in `start_internal_exam_session` has no `question_type` predicate, so a non-MC
     // question in a configured topic renders no `option-` button. Assert before clicking: the
     // click alone has no timeout of its own and would block until the test budget ran out.
@@ -125,10 +152,12 @@ async function answerAll(page: Page) {
     await expect(confirm).toBeEnabled()
     await confirm.click()
     await expect(options.first()).toBeDisabled()
-    if (!(await next.isEnabled())) return
+    if (i === total) break
+    // Retrying, so it waits out the in-flight window instead of reading through it.
+    await expect(next).toBeEnabled()
     await next.click()
   }
-  throw new Error('exam has more than 60 questions')
+  return total
 }
 
 async function startExam(page: Page, code: string) {
@@ -142,10 +171,10 @@ async function startExam(page: Page, code: string) {
 async function finishExam(page: Page): Promise<string> {
   await page.getByRole('button', { name: 'Finish Internal Exam' }).click()
   await page.getByRole('button', { name: 'Submit Internal Exam' }).click()
-  await page
-    .getByRole('button', { name: 'Submit anyway' })
-    .click({ timeout: 3_000 })
-    .catch(() => {})
+  // Asserted absent, not swallowed: `answerAll` answered every question, so the unanswered-count
+  // warning must not appear. Catching the click made a short exam indistinguishable from a complete
+  // one, and made the reverse regression — warning on a complete exam — unfailable.
+  await expect(page.getByRole('button', { name: 'Submit anyway' })).toBeHidden()
   await page.waitForURL(/\/app\/internal-exam\/report\?session=/, { timeout: 30_000 })
   return new URL(page.url()).searchParams.get('session') ?? ''
 }
@@ -255,7 +284,10 @@ test('a sitting runs from creation to closing: codes, student attempt, late add,
       await expect(row.getByText('Works while the sitting is open.')).toBeVisible()
       await expect(row.getByTestId('start-button')).toBeEnabled()
       await startExam(studentPage, codeOf(student.id))
-      await answerAll(studentPage)
+      const answered = await answerAll(studentPage)
+      // The journey under test is a MULTI-question exam: a seed drifting to one question would
+      // leave the Next-navigation path untested while every assertion below still passed.
+      expect(answered).toBeGreaterThan(1)
       sessionId = await finishExam(studentPage)
       await expect(studentPage.getByText('Internal Exam Complete')).toBeVisible()
       await expect(studentPage.getByRole('heading', { name: 'Question Breakdown' })).toBeVisible()

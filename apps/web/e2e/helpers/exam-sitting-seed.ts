@@ -101,7 +101,7 @@ export async function insertPassedSession(
     })
     .select('id')
     .single()
-  if (res.error || !res.data) fail('quiz session', res.error)
+  if (res.error || !res.data) fail('quiz session', res.error, 'insertPassedSession')
   return res.data.id
 }
 

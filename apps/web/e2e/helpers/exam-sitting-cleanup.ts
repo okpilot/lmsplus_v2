@@ -294,6 +294,25 @@ async function cleanupEmptySittings(): Promise<void> {
  * Marks a sitting created through the UI so the cleanup finds it (service role, test data only). Throws on error or when no row matched.
  * `empty` (default): removed only while it has no people. `seeded`: removed with its people, codes and sessions.
  */
+/**
+ * Marks every unmarked sitting created since `since`, so a run that created one through the UI and
+ * then failed before `markE2eSitting` does not leak it.
+ *
+ * `permitted_materials IS NULL` is the tell: the New-sitting dialog never sets it, and both cleanup
+ * passes key on the marker `.like()`, so an unmarked row is invisible to them and accumulates in
+ * the admin Sittings list across runs.
+ */
+export async function markUnmarkedSittingsSince(since: string): Promise<number> {
+  const { data, error } = await getAdminClient()
+    .from('exam_sittings')
+    .update({ permitted_materials: makeSittingSeedMaterials() })
+    .is('permitted_materials', null)
+    .gte('created_at', since)
+    .select('id')
+  if (error) throw new Error(`markUnmarkedSittingsSince: ${error.message}`)
+  return (data ?? []).length
+}
+
 export async function markE2eSitting(
   id: string,
   kind: 'empty' | 'seeded' = 'empty',
