@@ -130,17 +130,24 @@ export async function widenExamTimer(subjectId: string, seconds = 3600): Promise
 /** Restores every timer `widenExamTimer` changed. Safe to call with none. */
 export async function restoreExamTimer(): Promise<void> {
   const admin = getAdminClient()
+  const errors: string[] = []
   for (const [id, seconds] of [...widenedTimers]) {
     const res = await admin
       .from('exam_configs')
       .update({ time_limit_seconds: seconds })
       .eq('id', id)
       .select('id')
-    if (res.error) fail('exam timer restore', res.error)
-    if ((res.data ?? []).length === 0) fail(`exam timer restore: no row ${id}`, null)
-    // Dropped per id, so a failure above leaves the rest to a later call.
+    if (res.error) {
+      errors.push(`restore ${id}: ${res.error.message}`)
+      continue
+    }
+    if ((res.data ?? []).length === 0) {
+      errors.push(`restore: no row ${id}`)
+      continue
+    }
     widenedTimers.delete(id)
   }
+  if (errors.length > 0) throw new Error(`${PREFIX} exam timer restore: ${errors.join('; ')}`)
 }
 
 /** Runs each cleanup step, collecting every error so one failing step never skips the others. */

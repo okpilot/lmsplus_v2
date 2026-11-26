@@ -252,4 +252,35 @@ describe('widenExamTimer / restoreExamTimer', () => {
     await restoreExamTimer()
     expect(calls.filter((c) => c.table === 'exam_configs')).toEqual([])
   })
+
+  it('attempts every restore after one fails, then throws', async () => {
+    const calls = fakeAdmin({
+      users: [ADMIN_ROW, ADMIN_ROW],
+      exam_configs: [
+        cfg('cfg-1', 60),
+        updated('cfg-1'),
+        cfg('cfg-2', 90),
+        updated('cfg-2'),
+        { data: null, error: { message: 'boom' } },
+        updated('cfg-2'),
+        updated('cfg-1'),
+      ],
+    })
+    await widenExamTimer('subj-1')
+    await widenExamTimer('subj-2')
+    const thrown = await restoreExamTimer().then(
+      () => null,
+      (e: unknown) => e,
+    )
+    const restored = calls
+      .filter((c) => c.table === 'exam_configs' && c.method === 'update')
+      .map((c) => c.args[0])
+    expect(restored).toContainEqual({ time_limit_seconds: 90 })
+    expect(thrown).toBeInstanceOf(Error)
+    expect((thrown as Error).message).toBe(
+      'exam-sitting-flow-seed exam timer restore: restore cfg-1: boom',
+    )
+    // cfg-1 stays in the map; drain it so the next test starts empty.
+    await restoreExamTimer()
+  })
 })

@@ -102,7 +102,7 @@ test.describe('Red Team: internal-exam code existence is not disclosed to a prob
     const form = page.getByTestId('code-entry-form')
     // The row's Start handler only fires once AvailableTab has hydrated, so retry the click.
     await expect(async () => {
-      await page.getByTestId('start-button').first().click()
+      await page.getByTestId('start-button').first().click({ timeout: 2_000 })
       await expect(form).toBeVisible({ timeout: 2_000 })
     }).toPass({ timeout: 30_000 })
     await page.getByTestId('code-input').fill(code)

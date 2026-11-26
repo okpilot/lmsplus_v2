@@ -8,9 +8,10 @@
  * CONTROL: the same RPC voids a legacy code (sitting_entry_id NULL) of another throwaway student.
  *
  * Skipped: proven gap; the DB refusal is planned for PR 2e (`.work/invigilation/slice2-plan.md`).
+ * Hooks do not run while skipped.
  *
- * Hermetic: throwaway students; sittings carry EXAM_SITTING_E2E_PREFIX; afterAll soft-deletes the
- * created codes, then cleanupSittingFixtures (per-step accumulator).
+ * Hermetic once un-skipped: throwaway students; sittings carry EXAM_SITTING_E2E_PREFIX; afterAll
+ * soft-deletes the created codes, then cleanupSittingFixtures (per-step accumulator).
  */
 
 import { expect, test } from '@playwright/test'

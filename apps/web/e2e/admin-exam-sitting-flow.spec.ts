@@ -137,8 +137,13 @@ async function answerAll(page: Page): Promise<number> {
 
 async function startExam(sittingRow: Locator, code: string) {
   const page = sittingRow.page()
-  await sittingRow.getByTestId('start-button').click()
-  await page.getByTestId('code-input').fill(code)
+  const codeInput = page.getByTestId('code-input')
+  // The row's Start handler only fires once AvailableTab has hydrated, so retry the click.
+  await expect(async () => {
+    await sittingRow.getByTestId('start-button').click({ timeout: 2_000 })
+    await expect(codeInput).toBeVisible({ timeout: 2_000 })
+  }).toPass({ timeout: 30_000 })
+  await codeInput.fill(code)
   await page.getByRole('button', { name: 'Start exam' }).click()
   await page.waitForURL(/\/app\/quiz\/session/, { timeout: 30_000 })
   await expect(page.getByText(/Question \d/)).toBeVisible()
