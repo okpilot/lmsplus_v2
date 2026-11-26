@@ -13,15 +13,44 @@ vi.mock('../sittings/_components/sittings-tab', () => ({
   SittingsTab: () => <div>sittings content</div>,
 }))
 vi.mock('./attempts-table', () => ({ AttemptsTable: () => <div>attempts content</div> }))
-vi.mock('./codes-tab', () => ({ CodesTab: () => <div>codes content</div> }))
+const mockCodesTableProps = vi.hoisted(() => vi.fn())
+vi.mock('./codes-table', () => ({
+  CodesTable: (props: unknown) => {
+    mockCodesTableProps(props)
+    return <div>codes content</div>
+  },
+}))
 
 import { InternalExamsTabs } from './internal-exams-tabs'
+
+/** A non-empty row: an empty `codes` array cannot tell row forwarding from a dropped prop. */
+const CODE_ROW = {
+  id: 'code-1',
+  code: 'ABC12345',
+  subjectId: 'subj-1',
+  subjectName: 'Flight Planning',
+  studentId: 'stu-1',
+  studentName: 'Fixture Student',
+  studentEmail: 'stu@test.local',
+  issuedBy: 'admin-1',
+  issuedAt: '2026-11-01T00:00:00Z',
+  expiresAt: '2026-12-01T00:00:00Z',
+  consumedAt: null,
+  consumedSessionId: null,
+  voidedAt: null,
+  voidedBy: null,
+  voidReason: null,
+  emailedAt: null,
+  status: 'active',
+  sittingId: null,
+  sittingEntryId: null,
+  sessionEndedAt: null,
+  sessionDeletedAt: null,
+} as const
 
 function renderTabs() {
   return render(
     <InternalExamsTabs
-      students={[]}
-      subjects={[]}
       codes={[]}
       codesTotalCount={0}
       attempts={[]}
@@ -33,6 +62,7 @@ function renderTabs() {
 
 beforeEach(() => {
   mockReplace.mockReset()
+  mockCodesTableProps.mockReset()
   mockSearch.value = ''
 })
 
@@ -71,8 +101,6 @@ describe('InternalExamsTabs', () => {
     mockSearch.value = 'tab=sittings'
     view.rerender(
       <InternalExamsTabs
-        students={[]}
-        subjects={[]}
         codes={[]}
         codesTotalCount={0}
         attempts={[]}
@@ -93,8 +121,6 @@ describe('InternalExamsTabs', () => {
     mockSearch.value = 'page=2'
     view.rerender(
       <InternalExamsTabs
-        students={[]}
-        subjects={[]}
         codes={[]}
         codesTotalCount={0}
         attempts={[]}
@@ -120,6 +146,28 @@ describe('InternalExamsTabs', () => {
     expect(screen.getByTestId('tab-sittings')).toHaveAttribute('aria-selected', 'true')
     const tabs = screen.getAllByRole('tab').map((t) => t.getAttribute('data-testid'))
     expect(tabs).toEqual(['tab-sittings', 'tab-codes', 'tab-attempts'])
+  })
+
+  it('passes the codes rows, status filter and pagination totals to the codes table', () => {
+    mockSearch.value = 'tab=codes'
+    render(
+      <InternalExamsTabs
+        status="active"
+        codes={[CODE_ROW]}
+        codesTotalCount={42}
+        attempts={[]}
+        attemptsTotalCount={0}
+        pageSize={20}
+      />,
+    )
+    expect(mockCodesTableProps).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rows: [CODE_ROW],
+        status: 'active',
+        totalCount: 42,
+        pageSize: 20,
+      }),
+    )
   })
 
   it('styles the active tab with the shared segmented look', () => {

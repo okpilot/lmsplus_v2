@@ -7,10 +7,17 @@ import {
 } from './_offset-query'
 import { type CodeRowRaw, mapCodeRow } from './_row-mappers'
 import { clampPage, PAGE_SIZE } from './pagination'
-import type { ExamSubjectOption, InternalExamCodeRow, ListCodesFilters } from './types'
+import type { InternalExamCodeRow, ListCodesFilters } from './types'
 
+// The sitting embeds carry no `deleted_at IS NULL`: docs/security.md §15 (g) for `exam_sittings`
+// (cancel soft-deletes it, and the row still names the sitting this code belonged to). The
+// `exam_sitting_entries` hop is outside (g) and PostgREST can only filter it by promoting the embed
+// to an inner join, which would drop every legacy code (they have no entry). `deriveStatus` ranks
+// `voided` above the embed, and removal and cancel both
+// void first (`private.void_unused_sitting_codes`), so no status reads a soft-deleted row.
 const CODE_COLS_BASE = `id, code, subject_id, student_id, issued_by, issued_at, expires_at,
-       consumed_at, consumed_session_id, voided_at, voided_by, void_reason, emailed_at,
+       consumed_at, consumed_session_id, voided_at, voided_by, void_reason, emailed_at, sitting_entry_id,
+       exam_sitting_entries!internal_exam_codes_sitting_entry_fkey(sitting_id, exam_sittings!exam_sitting_entries_sitting_id_organization_id_fkey(status)),
        easa_subjects!subject_id(name),
        users!student_id(full_name, email)`
 
@@ -34,17 +41,26 @@ function applyCodeFilters(
     case 'expired':
       return b.is('voided_at', null).is('consumed_at', null).lte('expires_at', nowIso)
     case 'consumed':
-      // linked session still in flight (ended_at IS NULL)
+      // This service-role read sees soft-deleted sessions, so in-flight needs both filters.
       return b
         .not('consumed_at', 'is', null)
         .is('voided_at', null)
         .is('quiz_sessions.ended_at', null)
+        .is('quiz_sessions.deleted_at', null)
+    case 'discarded':
+      // Only this service-role read sees the session row, so only here is the state filterable.
+      // Ended or not: a soft-deleted attempt is discarded (`codeDisplayStatus`).
+      return b
+        .not('consumed_at', 'is', null)
+        .is('voided_at', null)
+        .not('quiz_sessions.deleted_at', 'is', null)
     case 'finished':
-      // linked session has ended (ended_at IS NOT NULL)
+      // Ended AND still live — an ended-then-deleted attempt belongs under `discarded`.
       return b
         .not('consumed_at', 'is', null)
         .is('voided_at', null)
         .not('quiz_sessions.ended_at', 'is', null)
+        .is('quiz_sessions.deleted_at', null)
     case 'active':
       return b.is('consumed_at', null).is('voided_at', null).gt('expires_at', nowIso)
     default:
@@ -59,12 +75,14 @@ export async function listInternalExamCodes(
   const page = clampPage(filters.page)
   const client = offsetAdminClient
   const nowIso = new Date().toISOString()
-  // 'consumed'/'finished' filter the embedded session's ended_at → both selects need an INNER
-  // join (a count select filtering quiz_sessions.ended_at without !inner 400s — PostgREST PGRST108).
-  const splitOnSession = filters.status === 'consumed' || filters.status === 'finished'
+  // 'consumed', 'finished' and 'discarded' filter the embedded session on ended_at, deleted_at or
+  // both → all three need an INNER join on BOTH selects (a count select filtering a
+  // quiz_sessions column without !inner 400s — PostgREST PGRST108).
+  const splitOnSession =
+    filters.status === 'consumed' || filters.status === 'finished' || filters.status === 'discarded'
   const embed = splitOnSession
-    ? 'quiz_sessions!consumed_session_id!inner(ended_at)'
-    : 'quiz_sessions!consumed_session_id(ended_at)'
+    ? 'quiz_sessions!consumed_session_id!inner(ended_at, deleted_at)'
+    : 'quiz_sessions!consumed_session_id(ended_at, deleted_at)'
 
   const countBuilder = applyCodeFilters(
     client
@@ -104,27 +122,4 @@ export async function listInternalExamCodes(
   const nowMs = new Date(nowIso).getTime()
   const rows: InternalExamCodeRow[] = raw.map((r) => mapCodeRow(r, nowMs))
   return { rows, totalCount }
-}
-
-type SubjectRowRaw = { id: string; code: string; name: string }
-
-export async function listExamSubjects(): Promise<ExamSubjectOption[]> {
-  const { supabase, organizationId } = await requireAdmin()
-  const { data, error } = await supabase
-    .from('exam_configs')
-    .select('subject_id, easa_subjects!subject_id(id, code, name)')
-    .eq('organization_id', organizationId)
-    .eq('enabled', true)
-    .is('deleted_at', null)
-  if (error) {
-    console.error('[listExamSubjects] DB error:', error.message)
-    throw new Error('Failed to load subjects')
-  }
-  type Joined = { easa_subjects: SubjectRowRaw | null }
-  const rows = (data ?? []) as Joined[]
-  return rows
-    .map((r) => r.easa_subjects)
-    .filter((s): s is SubjectRowRaw => s !== null)
-    .sort((a, b) => a.code.localeCompare(b.code))
-    .map((s) => ({ id: s.id, code: s.code, name: s.name }))
 }

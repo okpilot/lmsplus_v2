@@ -1,12 +1,35 @@
-export const STATUS_ITEMS = [
-  { value: '__all__', label: 'All' },
-  { value: 'active', label: 'Active' },
-  { value: 'consumed', label: 'In progress' },
-  { value: 'finished', label: 'Finished' },
-  { value: 'voided', label: 'Voided' },
-  { value: 'expired', label: 'Expired' },
-] as const
+import type { CodeDisplayStatus } from '../_void-policy'
+import { ENTRY_STATUS_LABEL } from '../sittings/_utils/entry-text'
+import { CODE_FILTER_STATUSES, type CodeFilterStatus } from '../types'
 
-export function statusLabel(status: string): string {
-  return STATUS_ITEMS.find((i) => i.value === status)?.label ?? status
+const ROW_LABEL: Record<CodeDisplayStatus, string> = {
+  active: 'Active',
+  waiting: ENTRY_STATUS_LABEL.waiting,
+  consumed: 'In progress',
+  finished: 'Finished',
+  discarded: ENTRY_STATUS_LABEL.discarded,
+  voided: 'Voided',
+  expired: 'Expired',
+}
+
+/**
+ * Filter labels, not row labels. The `active` filter has no sitting predicate, so it also returns
+ * the codes of a scheduled sitting, which the row badge calls Waiting.
+ */
+const FILTER_LABEL: Record<CodeFilterStatus, string> = {
+  active: 'Active / Waiting',
+  consumed: 'In progress',
+  finished: 'Finished',
+  discarded: 'Discarded',
+  voided: 'Voided',
+  expired: 'Expired',
+}
+
+export const STATUS_ITEMS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: '__all__', label: 'All' },
+  ...CODE_FILTER_STATUSES.map((value) => ({ value, label: FILTER_LABEL[value] })),
+]
+
+export function statusLabel(status: CodeDisplayStatus): string {
+  return ROW_LABEL[status]
 }

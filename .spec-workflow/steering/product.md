@@ -44,7 +44,7 @@ The primary competitive baseline is Aviationexam. LMS Plus differentiates by off
 
 11. **Mock Exam Mode**: Timed exam simulation (mode `mock_exam`) with admin-configured per-subject exam configs (`apps/web/app/app/admin/exam-config/`), server-side timer/overdue enforcement, and post-exam score reports.
 
-12. **Internal Exams (code-based)**: Admins issue single-use exam codes (`apps/web/app/app/admin/internal-exams/`, with email delivery via Resend); students start a proctored internal exam by entering the code (`apps/web/app/app/internal-exam/`). Code lifecycle (issue/start/void) enforced via SECURITY DEFINER RPCs.
+12. **Internal Exams (code-based)**: Admins issue single-use exam codes from a sitting (`apps/web/app/app/admin/internal-exams/sittings/`, RPC `issue_sitting_exam_codes`; pre-existing legacy codes are emailable via Resend); students start a proctored internal exam by entering the code (`apps/web/app/app/internal-exam/`). Code lifecycle (issue/start/void) enforced via SECURITY DEFINER RPCs.
 
 13. **VFR RT Training**: Slovenia VFR radiotelephony practice (`apps/web/app/app/vfr-rt/`) with five question types — MC, short_answer, dialog_fill, ordering, diagram_label — delivered on the shared quiz UI.
 

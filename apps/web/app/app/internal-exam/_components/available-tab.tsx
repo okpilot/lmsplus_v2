@@ -1,33 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { CardList, CardListRow } from '@/components/ui/card'
+import { CardList } from '@/components/ui/card'
 import { Empty, EmptyDescription } from '@/components/ui/empty'
-import { formatUtc } from '@/lib/utils/format-utc'
 import type { AvailableInternalExam } from '../queries'
+import { AvailableRow } from './available-row'
 import { CodeEntryModal } from './code-entry-modal'
 
 type Props = { rows: AvailableInternalExam[] }
-
-function formatAbsolute(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return iso
-  return formatUtc(d, { dateStyle: 'medium', timeStyle: 'short' })
-}
-
-function formatRelative(iso: string, now: Date = new Date()): string {
-  const target = new Date(iso)
-  if (Number.isNaN(target.getTime())) return ''
-  const diffMs = target.getTime() - now.getTime()
-  if (diffMs <= 0) return 'expired'
-  const minutes = Math.round(diffMs / 60_000)
-  if (minutes < 60) return `in ${minutes} min`
-  const hours = Math.round(minutes / 60)
-  if (hours < 48) return `in ${hours} h`
-  const days = Math.round(hours / 24)
-  return `in ${days} d`
-}
 
 export function AvailableTab({ rows }: Readonly<Props>) {
   const [selected, setSelected] = useState<AvailableInternalExam | null>(null)
@@ -46,31 +26,7 @@ export function AvailableTab({ rows }: Readonly<Props>) {
     <div className="space-y-stack">
       <CardList role="list" data-testid="available-list">
         {rows.map((row) => (
-          <CardListRow
-            key={row.id}
-            role="listitem"
-            data-testid={`available-row-${row.id}`}
-            className="flex items-center justify-between gap-4"
-          >
-            <div className="min-w-0">
-              <p className="text-label-strong text-foreground">
-                {row.subjectShort ? `${row.subjectShort} — ` : ''}
-                {row.subjectName}
-              </p>
-              <p className="mt-1 text-caption text-muted-foreground">
-                Expires {formatAbsolute(row.expiresAt)}
-                {formatRelative(row.expiresAt) && (
-                  <>
-                    {' '}
-                    <span className="text-muted-foreground">({formatRelative(row.expiresAt)})</span>
-                  </>
-                )}
-              </p>
-            </div>
-            <Button type="button" onClick={() => setSelected(row)} data-testid="start-button">
-              Start
-            </Button>
-          </CardListRow>
+          <AvailableRow key={row.id} row={row} onStart={setSelected} />
         ))}
       </CardList>
       <CodeEntryModal

@@ -7,19 +7,11 @@ import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
 import { parseTab, readTabParam, type TabKey } from '../_search-params'
 import { SittingsTab } from '../sittings/_components/sittings-tab'
 import type { SittingRow, SittingScope } from '../sittings/types'
-import type {
-  ExamSubjectOption,
-  InternalExamAttemptRow,
-  InternalExamCodeRow,
-  ListCodesFilters,
-  OrgStudentOption,
-} from '../types'
+import type { InternalExamAttemptRow, InternalExamCodeRow, ListCodesFilters } from '../types'
 import { AttemptsTable } from './attempts-table'
-import { CodesTab } from './codes-tab'
+import { CodesTable } from './codes-table'
 
 type Props = {
-  students: OrgStudentOption[]
-  subjects: ExamSubjectOption[]
   status?: ListCodesFilters['status']
   codes: InternalExamCodeRow[]
   codesTotalCount: number
@@ -30,8 +22,6 @@ type Props = {
 }
 
 export function InternalExamsTabs({
-  students,
-  subjects,
   status,
   codes,
   codesTotalCount,
@@ -74,14 +64,7 @@ export function InternalExamsTabs({
         {sittings && <SittingsTab {...sittings} />}
       </TabsPanel>
       <TabsPanel value="codes" data-testid="tabpanel-codes">
-        <CodesTab
-          students={students}
-          subjects={subjects}
-          status={status}
-          codes={codes}
-          totalCount={codesTotalCount}
-          pageSize={pageSize}
-        />
+        <CodesTable rows={codes} status={status} totalCount={codesTotalCount} pageSize={pageSize} />
       </TabsPanel>
       <TabsPanel value="attempts" data-testid="tabpanel-attempts">
         <AttemptsTable rows={attempts} totalCount={attemptsTotalCount} pageSize={pageSize} />

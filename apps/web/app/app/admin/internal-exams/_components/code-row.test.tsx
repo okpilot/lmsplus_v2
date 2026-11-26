@@ -52,6 +52,9 @@ const baseRow: InternalExamCodeRow = {
   emailedAt: null,
   status: 'active',
   sessionEndedAt: null,
+  sessionDeletedAt: null,
+  sittingId: null,
+  sittingEntryId: null,
 }
 
 describe('CodeRow status text', () => {
@@ -61,7 +64,7 @@ describe('CodeRow status text', () => {
     ['Finished', { status: 'consumed', sessionEndedAt: '2026-10-31T10:00:00Z' }, false],
     ['In progress', { status: 'consumed' }, false],
     ['Expired', { status: 'expired' }, true],
-  ] as const)('shows status %s as plain text, muted only when %s', (label, patch, muted) => {
+  ] as const)('shows status %s (row %s) as plain text, muted %s', (label, patch, muted) => {
     const { container } = renderRow({ ...baseRow, ...patch })
     expect(container.querySelector('[data-slot="badge"]')).toBeNull()
     const el = screen.getByText(label)
@@ -148,5 +151,124 @@ describe('CodeRow', () => {
       expect(text).toContain('15/03/2026, 23:45')
       expect(text).not.toContain('UTC')
     })
+  })
+})
+
+describe('CodeRow sitting codes', () => {
+  const sitting = { ...baseRow, sittingId: 'sit-9', sittingEntryId: 'ent-9' }
+
+  it('shows a "Sitting code" link to the sitting page', () => {
+    renderRow(sitting)
+    expect(screen.getByRole('link', { name: 'Sitting code ABCD-1234-X' })).toHaveAttribute(
+      'href',
+      '/app/admin/internal-exams/sittings/sit-9',
+    )
+  })
+
+  it("names each row's sitting link after its own code", () => {
+    render(
+      <table>
+        <tbody>
+          <CodeRow r={sitting} onVoid={vi.fn()} />
+          <CodeRow r={{ ...sitting, id: 'code-2', code: 'WXYZ-9876-Q' }} onVoid={vi.fn()} />
+        </tbody>
+      </table>,
+    )
+    const names = screen
+      .getAllByRole('link', { name: /^Sitting code/ })
+      .map((l) => l.getAttribute('aria-label'))
+    expect(names).toEqual(['Sitting code ABCD-1234-X', 'Sitting code WXYZ-9876-Q'])
+    // Without the per-row label both entries read the same in a screen-reader link list.
+    expect(new Set(names).size).toBe(2)
+  })
+
+  it('shows the Sitting code link for a voided (removed-entry) code too', () => {
+    renderRow({ ...sitting, status: 'voided', voidedAt: '2026-04-28T12:00:00.000Z' })
+    expect(screen.getByRole('link', { name: 'Sitting code ABCD-1234-X' })).toBeInTheDocument()
+  })
+
+  it('does not render the email button', () => {
+    renderRow(sitting)
+    expect(mockSendButton).not.toHaveBeenCalled()
+  })
+
+  it('offers Void for a sitting code whose attempt is still running', () => {
+    renderRow({ ...sitting, status: 'consumed', consumedAt: '2026-04-28T11:00:00.000Z' })
+    expect(screen.getByRole('button', { name: 'Void' })).toBeEnabled()
+  })
+
+  it('does not offer Void when the attempt session is soft-deleted', () => {
+    // The list reads with the service role and sees the row; the server guard reads through RLS
+    // and does not. Offering Void here would give the admin a button that always fails.
+    renderRow({
+      ...sitting,
+      status: 'consumed',
+      consumedAt: '2026-04-28T11:00:00.000Z',
+      sessionDeletedAt: '2026-04-28T12:00:00.000Z',
+    })
+    expect(screen.queryByRole('button', { name: 'Void' })).not.toBeInTheDocument()
+  })
+
+  it('reads the soft-deleted attempt as Discarded, not as still running', () => {
+    // "In progress" plus no Void is a row the admin can neither finish nor stop.
+    renderRow({
+      ...sitting,
+      status: 'consumed',
+      consumedAt: '2026-04-28T11:00:00.000Z',
+      sessionDeletedAt: '2026-04-28T12:00:00.000Z',
+    })
+    expect(screen.getByText('Attempt discarded')).toBeInTheDocument()
+    expect(screen.queryByText('In progress')).not.toBeInTheDocument()
+  })
+
+  it('disables Void for a legacy code whose attempt was discarded', () => {
+    // `void_internal_exam_code` raises `session_state_changed` for it on every click.
+    renderRow({
+      ...sitting,
+      sittingEntryId: null,
+      sittingId: null,
+      status: 'consumed',
+      consumedAt: '2026-04-28T11:00:00.000Z',
+      sessionDeletedAt: '2026-04-28T12:00:00.000Z',
+    })
+    expect(screen.getByText('Attempt discarded')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Void' })).toBeDisabled()
+  })
+
+  it('does not offer Void once the attempt has ended', () => {
+    renderRow({
+      ...sitting,
+      status: 'consumed',
+      consumedAt: '2026-04-28T11:00:00.000Z',
+      sessionEndedAt: '2026-04-28T12:00:00.000Z',
+    })
+    expect(screen.queryByRole('button', { name: 'Void' })).not.toBeInTheDocument()
+  })
+
+  it.each(['active', 'waiting'] as const)(
+    'does not render Void for a %s sitting code',
+    (status) => {
+      renderRow({ ...sitting, status })
+      expect(screen.queryByRole('button', { name: 'Void' })).not.toBeInTheDocument()
+    },
+  )
+
+  it('hides Void, email and link for a sitting code whose embed is null', () => {
+    renderRow({ ...sitting, sittingId: null })
+    expect(screen.queryByRole('button', { name: 'Void' })).not.toBeInTheDocument()
+    expect(mockSendButton).not.toHaveBeenCalled()
+    expect(screen.queryByRole('link', { name: /^Sitting code/ })).not.toBeInTheDocument()
+  })
+
+  it('shows Waiting for start for a waiting sitting code', () => {
+    renderRow({ ...sitting, status: 'waiting' })
+    expect(screen.getByText('Waiting for start')).toBeInTheDocument()
+  })
+
+  it('keeps the email button and Void and no link on a legacy row', () => {
+    renderRow(baseRow)
+    expect(screen.queryByRole('link', { name: /^Sitting code/ })).not.toBeInTheDocument()
+    expect(mockSendButton).toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Void' })).toBeInTheDocument()
   })
 })

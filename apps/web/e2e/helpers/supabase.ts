@@ -304,7 +304,10 @@ export async function ensureInternalExamStudentUser() {
  * Uses `void_internal_exam_code(p_code_id, p_reason)` so cleanup goes through
  * the same SECURITY DEFINER path that the admin "Void" button uses in
  * production: writes the audit event, sets ended_at, marks passed=false, and
- * voids the code. No raw UPDATEs.
+ * voids the code.
+ *
+ * Last step: soft-deletes the student's remaining legacy codes
+ * (sitting_entry_id IS NULL) so none leaks into the next spec.
  */
 export async function cleanupInternalExamStudentActiveSessions(
   adminAuthedClient: SupabaseClient,
@@ -376,11 +379,46 @@ export async function cleanupInternalExamStudentActiveSessions(
     .is('ended_at', null)
     .is('deleted_at', null)
     .select('id')
-  if (discardError)
-    throw new Error(`cleanupInternalExamStudentActiveSessions practice: ${discardError.message}`)
   if ((discarded?.length ?? 0) > 0) {
     console.log(
       `[cleanupInternalExamStudentActiveSessions] discarded ${discarded?.length} leftover practice/study session(s)`,
+    )
+  }
+
+  // The two steps are independent: a practice-discard failure must not skip the legacy-code
+  // retirement, or the next spec inherits a live code.
+  const failures: string[] = []
+  if (discardError) failures.push(`practice: ${discardError.message}`)
+  try {
+    await retireLegacyCodes(studentRow.id)
+  } catch (e) {
+    failures.push(`legacy codes: ${e instanceof Error ? e.message : String(e)}`)
+  }
+  if (failures.length > 0) {
+    throw new Error(`cleanupInternalExamStudentActiveSessions ${failures.join('; ')}`)
+  }
+}
+
+/**
+ * Soft-deletes the student's legacy codes (`sitting_entry_id IS NULL`). Sitting codes belong to
+ * `cleanupE2eExamSittings`. Runs after the void loop so a redeemed code is voided first. Zero rows
+ * is a valid steady state.
+ */
+async function retireLegacyCodes(studentId: string): Promise<void> {
+  const admin = getAdminClient()
+  const { data, error } = await admin
+    .from('internal_exam_codes')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('student_id', studentId)
+    .is('sitting_entry_id', null)
+    .is('deleted_at', null)
+    .select('id')
+  if (error) {
+    throw new Error(error.message)
+  }
+  if ((data?.length ?? 0) > 0) {
+    console.log(
+      `[cleanupInternalExamStudentActiveSessions] soft-deleted ${data?.length} legacy code(s)`,
     )
   }
 }

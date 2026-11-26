@@ -1,37 +1,37 @@
 'use client'
 
+import Link from 'next/link'
 import { StatusText } from '@/components/kit/status-text'
 import { Button } from '@/components/ui/button'
 import { TableCell, TableRow } from '@/components/ui/table'
 import { formatUtc } from '@/lib/utils/format-utc'
+import {
+  type CodeDisplayStatus,
+  codeDisplayStatus,
+  codeRowVoidable,
+  codeVoidDisabled,
+} from '../_void-policy'
+import { SITTING_BASE } from '../sittings/types'
 import type { InternalExamCodeRow } from '../types'
 import { statusLabel } from './code-status-items'
 import { SendCodeEmailButton } from './send-code-email-button'
 
-type DisplayStatus = InternalExamCodeRow['status'] | 'finished'
-
-function displayStatus(row: InternalExamCodeRow): DisplayStatus {
-  if (row.status === 'consumed' && row.sessionEndedAt) return 'finished'
-  return row.status
-}
-
-const STATUS_MUTED: ReadonlySet<DisplayStatus> = new Set(['expired', 'voided'])
+const STATUS_MUTED: ReadonlySet<CodeDisplayStatus> = new Set<CodeDisplayStatus>([
+  'expired',
+  'voided',
+  'discarded',
+])
 
 function formatAbsolute(iso: string | null): string {
   if (!iso) return '—'
   return formatUtc(iso, { dateStyle: 'short', timeStyle: 'short' }, { label: false })
 }
 
-function isVoidDisabled(r: InternalExamCodeRow): boolean {
-  if (r.status === 'voided') return true
-  return r.status === 'consumed' && r.sessionEndedAt !== null
-}
-
 export function CodeRow({
   r,
   onVoid,
 }: Readonly<{ r: InternalExamCodeRow; onVoid: (id: string) => void }>) {
-  const ds = displayStatus(r)
+  const ds = codeDisplayStatus(r)
   return (
     <TableRow>
       <TableCell>
@@ -42,7 +42,22 @@ export function CodeRow({
       </TableCell>
       <TableCell className="font-medium tracking-code tabular-nums">{r.code}</TableCell>
       <TableCell>{r.studentName || r.studentEmail || '—'}</TableCell>
-      <TableCell>{r.subjectName || '—'}</TableCell>
+      <TableCell>
+        {r.subjectName || '—'}
+        {r.sittingId && (
+          <Link
+            href={`${SITTING_BASE}/${r.sittingId}`}
+            prefetch={false}
+            // Every row's link reads "Sitting code", so a link list cannot tell them apart. The
+            // label STARTS with the visible text, which keeps the visible string inside the
+            // accessible name (WCAG 2.5.3 Label in Name).
+            aria-label={`Sitting code ${r.code}`}
+            className="block text-caption text-muted-foreground underline"
+          >
+            Sitting code
+          </Link>
+        )}
+      </TableCell>
       <TableCell className="text-caption text-muted-foreground">
         {formatAbsolute(r.issuedAt)}
       </TableCell>
@@ -50,24 +65,27 @@ export function CodeRow({
         {formatAbsolute(r.expiresAt)}
       </TableCell>
       <TableCell>
-        {/* Only an active code can be (re)emailed — the send action rejects
-            consumed/voided/expired codes ('Code is no longer active'), so
-            disable the button for every non-active code. */}
-        <SendCodeEmailButton
-          codeId={r.id}
-          emailedAt={r.emailedAt}
-          disabled={r.status !== 'active'}
-        />
+        {/* Legacy codes only: the send action refuses a sitting code, and rejects a
+            consumed, voided or expired code with 'Code is no longer active'. */}
+        {r.sittingEntryId === null && (
+          <SendCodeEmailButton
+            codeId={r.id}
+            emailedAt={r.emailedAt}
+            disabled={r.status !== 'active'}
+          />
+        )}
       </TableCell>
       <TableCell>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={isVoidDisabled(r)}
-          onClick={() => onVoid(r.id)}
-        >
-          Void
-        </Button>
+        {codeRowVoidable(r) && (
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={codeVoidDisabled(r)}
+            onClick={() => onVoid(r.id)}
+          >
+            Void
+          </Button>
+        )}
       </TableCell>
     </TableRow>
   )

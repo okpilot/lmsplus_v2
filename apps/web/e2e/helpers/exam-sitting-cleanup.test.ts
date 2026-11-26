@@ -194,6 +194,9 @@ describe('cleanupE2eExamSittings (seeded sittings)', () => {
       ],
       exam_sitting_entries: [{ data: [{ id: 'e1' }], error: null }],
       internal_exam_codes: [{ data: [{ id: 'c1', consumed_session_id: 'q1' }], error: null }],
+      quiz_sessions: [
+        { data: [{ id: 'q1', users: { email: 'e2e-sit-a@lmsplus.local' } }], error: null },
+      ],
     })
     await cleanupE2eExamSittings()
     const likes = calls.filter((c) => c.method === 'like').map((c) => c.args[1])
@@ -208,6 +211,96 @@ describe('cleanupE2eExamSittings (seeded sittings)', () => {
         'exam_sittings',
       ]),
     )
+  })
+
+  it("ends and soft-deletes a fixture student's session instead of deleting it", async () => {
+    const { calls } = seededClient({
+      exam_sittings: [
+        { data: [], error: null },
+        { data: [{ id: 's1' }], error: null },
+      ],
+      exam_sitting_entries: [{ data: [{ id: 'e1' }], error: null }],
+      internal_exam_codes: [{ data: [{ id: 'c1', consumed_session_id: 'q1' }], error: null }],
+      quiz_sessions: [
+        { data: [{ id: 'q1', users: { email: 'e2e-internal-exam@lmsplus.local' } }], error: null },
+        // The soft-delete UPDATE now chains `.select('id')` and checks the row count, so it draws a
+        // second result: the row it updated.
+        { data: [{ id: 'q1' }], error: null },
+      ],
+    })
+    await cleanupE2eExamSittings()
+    const sessionCalls = calls.filter((c) => c.table === 'quiz_sessions')
+    expect(sessionCalls.some((c) => c.method === 'delete')).toBe(false)
+    const updates = sessionCalls.filter((c) => c.method === 'update').map((c) => c.args[0])
+    expect(updates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ ended_at: expect.any(String) }),
+        expect.objectContaining({ deleted_at: expect.any(String) }),
+      ]),
+    )
+  })
+
+  it('throws when the fixture soft-delete updates fewer rows than it looked up', async () => {
+    // A 0-row UPDATE returns 200 OK, so without the count check teardown would report success and
+    // leave `ended_at IS NULL` — the next spec then fails with `active_session_exists`.
+    seededClient({
+      exam_sittings: [
+        { data: [], error: null },
+        { data: [{ id: 's1' }], error: null },
+      ],
+      exam_sitting_entries: [{ data: [{ id: 'e1' }], error: null }],
+      internal_exam_codes: [{ data: [{ id: 'c1', consumed_session_id: 'q1' }], error: null }],
+      quiz_sessions: [
+        { data: [{ id: 'q1', users: { email: 'e2e-internal-exam@lmsplus.local' } }], error: null },
+        { data: [], error: null },
+      ],
+    })
+    const err = await cleanupE2eExamSittings().then(
+      () => null,
+      (e: Error) => e,
+    )
+    expect(err?.message).toMatch(/fixture sessions soft-delete: expected 1 row\(s\), updated 0/)
+  })
+
+  it('throws, rather than guessing, when a session embed resolves no student', async () => {
+    // Routed to the fixture branch a seeded row is only soft-deleted, and `deleteSeededUsers` then
+    // fails on the `student_id` FK — a 23503 that buries this cause.
+    const { calls } = seededClient({
+      exam_sittings: [
+        { data: [], error: null },
+        { data: [{ id: 's1' }], error: null },
+      ],
+      exam_sitting_entries: [{ data: [{ id: 'e1' }], error: null }],
+      internal_exam_codes: [{ data: [{ id: 'c1', consumed_session_id: 'q1' }], error: null }],
+      quiz_sessions: [{ data: [{ id: 'q1', users: null }], error: null }],
+    })
+    const err = await cleanupE2eExamSittings().then(
+      () => null,
+      (e: Error) => e,
+    )
+    expect(err?.message).toMatch(/no student for session q1/)
+    const sessionCalls = calls.filter((c) => c.table === 'quiz_sessions')
+    expect(sessionCalls.some((c) => c.method === 'delete' || c.method === 'update')).toBe(false)
+  })
+
+  it('reports the session lookup error and retires no session', async () => {
+    const { calls } = seededClient({
+      exam_sittings: [
+        { data: [], error: null },
+        { data: [{ id: 's1' }], error: null },
+      ],
+      exam_sitting_entries: [{ data: [{ id: 'e1' }], error: null }],
+      internal_exam_codes: [{ data: [{ id: 'c1', consumed_session_id: 'q1' }], error: null }],
+      quiz_sessions: [{ data: null, error: { message: 'sessions boom' } }],
+    })
+    const err = await cleanupE2eExamSittings().then(
+      () => null,
+      (e: Error) => e,
+    )
+    expect(err?.message).toMatch(/seed sessions lookup/)
+    expect(err?.message).toMatch(/sessions boom/)
+    const sessionCalls = calls.filter((c) => c.table === 'quiz_sessions')
+    expect(sessionCalls.some((c) => c.method === 'delete' || c.method === 'update')).toBe(false)
   })
 
   it('deletes the seeded students from users and auth', async () => {

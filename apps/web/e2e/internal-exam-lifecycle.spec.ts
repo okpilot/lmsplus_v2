@@ -1,7 +1,8 @@
 /**
  * E2E spec — Internal Exam end-to-end lifecycle.
  *
- * Covers: admin issues a code → student starts → submits → views report →
+ * Covers: admin issues a code from the sitting page (a service-role seed creates the open
+ * sitting and its roster entry) → student starts → submits → views report →
  * sees the attempt listed in My Reports → admin opens the attempt report;
  * unknown and missing session ids are refused on the admin report.
  *
@@ -11,8 +12,7 @@
  * (admin@lmsplus.local + INTERNAL_EXAM_STUDENT_EMAIL) are loaded; it does not seed its own users.
  *
  * NOTE: requires migrations 057a..065 (internal_exam_codes table, RPCs
- *       issue_internal_exam_code / start_internal_exam_session /
- *       complete_internal_exam_session) to be applied. Until then the
+ *       start_internal_exam_session / complete_internal_exam_session) to be applied. Until then the
  *       Server Action calls will fail and these specs will not pass.
  *
  * Auth: uses `e2e/.auth/admin.json` and `e2e/.auth/internal-exam-student.json`.
@@ -24,8 +24,11 @@
 
 import { type BrowserContext, expect, type Page, test } from '@playwright/test'
 import { signInAsAdmin } from './helpers/admin-supabase'
+import { cleanupE2eExamSittings } from './helpers/exam-sitting-cleanup'
+import { insertLegacyCodeFor, seedSittingFor } from './helpers/sitting-code'
 import {
   cleanupInternalExamStudentActiveSessions,
+  getAdminClient,
   INTERNAL_EXAM_STUDENT_EMAIL,
 } from './helpers/supabase'
 
@@ -34,39 +37,33 @@ test.use({ storageState: 'e2e/.auth/admin.json' })
 
 const SUBJECT_LABEL_FRAGMENT = 'Meteorology'
 
-async function issueCodeAsAdmin(adminPage: Page, subjectFragment: string): Promise<string> {
-  await adminPage.goto('/app/admin/internal-exams?tab=codes')
-  await expect(adminPage.getByRole('heading', { name: 'Internal Exams' })).toBeVisible()
+const SITTINGS_BASE = '/app/admin/internal-exams/sittings'
 
-  // Open the issue-code form.
-  const form = adminPage.getByTestId('issue-code-form')
-  await expect(form).toBeVisible()
-
-  // Pin selection to the dedicated internal-exam student fixture.
-  const studentSelect = form.locator('[aria-label="Student"]')
-  await studentSelect.click()
-  await adminPage
-    .locator('[data-slot="select-item"]')
-    .filter({ hasText: INTERNAL_EXAM_STUDENT_EMAIL })
-    .first()
-    .click()
-
-  // Pick the subject by name fragment.
-  const subjectSelect = form.locator('[aria-label="Subject"]')
-  await subjectSelect.click()
-  await adminPage
-    .locator('[data-slot="select-item"]')
-    .filter({ hasText: subjectFragment })
-    .first()
-    .click()
-
-  await form.getByRole('button', { name: 'Issue code' }).click()
-  await expect(adminPage.getByText('Internal exam code issued')).toBeVisible({ timeout: 10_000 })
-
-  const issuedCode = adminPage.getByTestId('issued-code-value')
-  await expect(issuedCode).toBeVisible()
-  const code = (await issuedCode.textContent())?.trim()
-  if (!code) throw new Error('issued code panel had no value')
+/** Admin issues the person's code from the sitting page (row menu, Issue codes popup) and reads it from the roster. */
+async function issueCodeFromSittingPage(
+  adminPage: Page,
+  seed: { sittingId: string; studentName: string },
+): Promise<string> {
+  await adminPage.goto(`${SITTINGS_BASE}/${seed.sittingId}`)
+  const row = adminPage.getByRole('row').filter({ hasText: seed.studentName })
+  await expect(row).toBeVisible()
+  await adminPage.getByRole('button', { name: `Actions for ${seed.studentName}` }).click()
+  await adminPage.getByRole('menuitem', { name: 'Issue codes' }).click()
+  const dialog = adminPage.getByRole('dialog')
+  await dialog.getByRole('button', { name: 'Issue 1 code' }).click()
+  await expect(dialog).toHaveCount(0)
+  await adminPage.getByRole('button', { name: `Show exams for ${seed.studentName}` }).click()
+  // The code sits in the detail row, whose text carries no person name. The expanded toggle
+  // in PersonRow publishes that row's id in aria-controls.
+  const toggle = adminPage.locator(
+    `button[aria-expanded="true"][aria-label$="exams for ${seed.studentName}"]`,
+  )
+  const detailId = await toggle.getAttribute('aria-controls')
+  if (!detailId) throw new Error('expanded roster row exposed no detail row id')
+  const detail = adminPage.locator(`#${detailId}`)
+  await expect(detail).toBeVisible()
+  const code = (await detail.locator('code').first().textContent())?.trim()
+  if (!code) throw new Error('roster showed no code after issuing')
   return code
 }
 
@@ -118,20 +115,42 @@ async function openStudentContext(browser: BrowserContext['browser']): Promise<{
 
 test.describe('internal exam — lifecycle', () => {
   test.setTimeout(120_000)
-
   // Void any active session left over from a prior test before each run.
   // See issue #587 — stale sessions cascade and block start_internal_exam_session.
   test.beforeEach(async () => {
     const adminClient = await signInAsAdmin()
     await cleanupInternalExamStudentActiveSessions(adminClient)
+    await cleanupE2eExamSittings()
+  })
+
+  test.afterEach(async () => {
+    const errors: string[] = []
+    try {
+      await cleanupE2eExamSittings()
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e))
+    }
+    // Voids a redeemed legacy code (ends its session), then soft-deletes legacy codes.
+    try {
+      await cleanupInternalExamStudentActiveSessions(await signInAsAdmin())
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e))
+    }
+    if (errors.length > 0) throw new Error(`afterEach: ${errors.join('; ')}`)
   })
 
   test('admin issues code, student starts + submits, attempt appears in My Reports and the admin report', async ({
     page: adminPage,
     context: adminCtx,
   }) => {
-    // ── 1. Admin issues a code ──────────────────────────────────────────────
-    const code = await issueCodeAsAdmin(adminPage, SUBJECT_LABEL_FRAGMENT)
+    // ── 1. Admin issues a code from an open sitting holding the student ─────
+    const seed = await seedSittingFor({
+      studentEmail: INTERNAL_EXAM_STUDENT_EMAIL,
+      subjectFragment: SUBJECT_LABEL_FRAGMENT,
+      status: 'open',
+      withCode: false,
+    })
+    const code = await issueCodeFromSittingPage(adminPage, seed)
     expect(code).toMatch(/^[A-HJKLMNPQRSTUVWXYZ23456789]{8}$/)
 
     // ── 2. Student logs in via separate context (internal-exam-student.json) ─
@@ -206,5 +225,76 @@ test.describe('internal exam — lifecycle', () => {
     await expect(page.getByRole('heading', { name: 'Question Breakdown' })).toHaveCount(0)
     await page.goto('/app/admin/internal-exams/report')
     await expectAttemptsTab(page)
+  })
+
+  test('a scheduled sitting shows its date and mode, with Start disabled and the reason', async ({
+    browser,
+  }) => {
+    const { sittingId } = await seedSittingFor({
+      studentEmail: INTERNAL_EXAM_STUDENT_EMAIL,
+      subjectFragment: SUBJECT_LABEL_FRAGMENT,
+      status: 'scheduled',
+    })
+    const { context, page } = await openStudentContext(browser)
+    try {
+      await page.goto('/app/internal-exam')
+      const row = () => page.getByTestId('available-list').getByRole('listitem').first()
+      await expect(row()).toContainText(/UTC.*Remote/)
+      await expect(
+        row().getByText(
+          'Opens when your invigilator starts the sitting — reload this page to check.',
+        ),
+      ).toBeVisible()
+      await expect(row().getByTestId('start-button')).toBeDisabled()
+
+      // Reload mid-flow: still gated while scheduled.
+      await page.reload()
+      await expect(page).toHaveURL(/\/app\/internal-exam$/)
+      await expect(row().getByTestId('start-button')).toBeDisabled()
+
+      // Invigilator opens the sitting; the student's reload enables Start.
+      const admin = getAdminClient()
+      const sitting = await admin
+        .from('exam_sittings')
+        .select('invigilator_id')
+        .eq('id', sittingId)
+        .single()
+      if (sitting.error) throw new Error(`read sitting: ${sitting.error.message}`)
+      const invigilatorId = sitting.data.invigilator_id
+      const { data, error } = await admin
+        .from('exam_sittings')
+        .update({ started_at: new Date().toISOString(), started_by: invigilatorId })
+        .eq('id', sittingId)
+        .is('started_at', null)
+        .select('id')
+      if (error) throw new Error(`open sitting: ${error.message}`)
+      if (data?.length !== 1) throw new Error('open sitting: expected exactly one row')
+      await page.reload()
+      await expect(row().getByText('Works while the sitting is open.')).toBeVisible()
+      await expect(row().getByTestId('start-button')).toBeEnabled()
+    } finally {
+      await context.close()
+    }
+  })
+
+  test('a legacy code (no sitting) is redeemable', async ({ browser }) => {
+    const legacyCode = await insertLegacyCodeFor({
+      studentEmail: INTERNAL_EXAM_STUDENT_EMAIL,
+      subjectFragment: SUBJECT_LABEL_FRAGMENT,
+    })
+    const { context, page } = await openStudentContext(browser)
+    try {
+      await page.goto('/app/internal-exam')
+      const start = page.getByTestId('start-button').first()
+      await expect(start).toBeEnabled()
+      await expect(page.getByText(/^Expires /).first()).toBeVisible()
+      await start.click()
+      await page.getByTestId('code-input').fill(legacyCode)
+      await page.getByRole('button', { name: 'Start exam' }).click()
+      await page.waitForURL(/\/app\/quiz\/session/, { timeout: 15_000 })
+      await expect(page.getByText(/Question \d/)).toBeVisible({ timeout: 10_000 })
+    } finally {
+      await context.close()
+    }
   })
 })

@@ -37,6 +37,25 @@ function buildChain(returnValue: unknown) {
   })
 }
 
+/** buildChain that also records each chained call as [method, ...args]. */
+function buildRecordingChain(returnValue: unknown, calls: unknown[][]) {
+  const awaitable = {
+    // biome-ignore lint/suspicious/noThenProperty: required to make Supabase mock awaitable
+    then: (resolve: (v: unknown) => void, reject: (e: unknown) => void) =>
+      Promise.resolve(returnValue).then(resolve, reject),
+  }
+  const proxy: Record<string, unknown> = new Proxy(awaitable as Record<string, unknown>, {
+    get(target, prop) {
+      if (prop === 'then') return target.then
+      return (...args: unknown[]) => {
+        calls.push([String(prop), ...args])
+        return proxy
+      }
+    },
+  })
+  return proxy
+}
+
 type MockClientOptions = {
   org?: { data: { id: string } | null; error: { message: string; code?: string } | null }
   listUsers?: {
@@ -496,6 +515,11 @@ function buildCleanupMockClient(opts: {
   // exercise the observability branch (console.log when length > 0).
   discarded?: Array<{ id: string }> | null
   discardError?: { message: string } | null
+  // Legacy-code soft-delete (last step): second internal_exam_codes query.
+  legacy?: Array<{ id: string }> | null
+  legacyError?: { message: string } | null
+  // Records every chained call on the legacy-code UPDATE as [method, ...args].
+  legacyCalls?: unknown[][]
 }) {
   const {
     studentRow = { id: 'student-uuid' },
@@ -504,7 +528,11 @@ function buildCleanupMockClient(opts: {
     codesError = null,
     discarded = null,
     discardError = null,
+    legacy = null,
+    legacyError = null,
+    legacyCalls = [],
   } = opts
+  let codesQueries = 0
 
   return {
     from: (table: string) => {
@@ -512,7 +540,9 @@ function buildCleanupMockClient(opts: {
         return buildChain({ data: studentRow, error: studentError })
       }
       if (table === 'internal_exam_codes') {
-        return buildChain({ data: codes, error: codesError })
+        codesQueries += 1
+        if (codesQueries === 1) return buildChain({ data: codes, error: codesError })
+        return buildRecordingChain({ data: legacy, error: legacyError }, legacyCalls)
       }
       if (table === 'quiz_sessions') {
         return buildChain({ data: discarded, error: discardError })
@@ -625,6 +655,38 @@ describe('cleanupInternalExamStudentActiveSessions', () => {
     )
   })
 
+  it('retires the legacy codes even when the practice discard failed', async () => {
+    const legacyCalls: unknown[][] = []
+    mockCreateClient.mockReturnValue(
+      buildCleanupMockClient({
+        discardError: { message: 'discard down' },
+        legacy: [{ id: 'legacy-1' }],
+        legacyCalls,
+      }),
+    )
+    const adminAuthedClient = { rpc: vi.fn() } as unknown as ReturnType<typeof getAdminClient>
+
+    await expect(cleanupInternalExamStudentActiveSessions(adminAuthedClient)).rejects.toThrow(
+      'practice: discard down',
+    )
+    // The throw carries the practice failure, but the legacy UPDATE still ran.
+    expect(legacyCalls.length).toBeGreaterThan(0)
+  })
+
+  it('reports both failures when the practice discard and the legacy retirement fail', async () => {
+    mockCreateClient.mockReturnValue(
+      buildCleanupMockClient({
+        discardError: { message: 'discard down' },
+        legacyError: { message: 'legacy down' },
+      }),
+    )
+    const adminAuthedClient = { rpc: vi.fn() } as unknown as ReturnType<typeof getAdminClient>
+
+    await expect(cleanupInternalExamStudentActiveSessions(adminAuthedClient)).rejects.toThrow(
+      'cleanupInternalExamStudentActiveSessions practice: discard down; legacy codes: legacy down',
+    )
+  })
+
   it('throws when the practice-session discard update fails after voiding stale codes', async () => {
     mockCreateClient.mockReturnValue(
       buildCleanupMockClient({
@@ -677,6 +739,48 @@ describe('cleanupInternalExamStudentActiveSessions', () => {
     expect(logSpy).toHaveBeenCalledWith(
       expect.stringContaining('discarded 2 leftover practice/study session(s)'),
     )
+    logSpy.mockRestore()
+  })
+
+  it("soft-deletes only the student's legacy codes (sitting_entry_id IS NULL, not yet deleted)", async () => {
+    const legacyCalls: unknown[][] = []
+    mockCreateClient.mockReturnValue(
+      buildCleanupMockClient({ codes: [], legacy: [{ id: 'legacy-1' }], legacyCalls }),
+    )
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    const adminAuthedClient = { rpc: vi.fn() } as unknown as ReturnType<typeof getAdminClient>
+
+    await cleanupInternalExamStudentActiveSessions(adminAuthedClient)
+
+    const update = legacyCalls.find(([m]) => m === 'update')
+    expect(update?.[1]).toEqual({ deleted_at: expect.any(String) })
+    expect(legacyCalls).toContainEqual(['eq', 'student_id', 'student-uuid'])
+    expect(legacyCalls).toContainEqual(['is', 'sitting_entry_id', null])
+    expect(legacyCalls).toContainEqual(['is', 'deleted_at', null])
+    expect(legacyCalls).toContainEqual(['select', 'id'])
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('soft-deleted 1 legacy code(s)'))
+    logSpy.mockRestore()
+  })
+
+  it('throws when the legacy-code soft-delete fails', async () => {
+    mockCreateClient.mockReturnValue(
+      buildCleanupMockClient({ codes: [], legacyError: { message: 'legacy failed' } }),
+    )
+    const adminAuthedClient = { rpc: vi.fn() } as unknown as ReturnType<typeof getAdminClient>
+
+    await expect(cleanupInternalExamStudentActiveSessions(adminAuthedClient)).rejects.toThrow(
+      'cleanupInternalExamStudentActiveSessions legacy codes: legacy failed',
+    )
+  })
+
+  it('stays silent when no legacy codes were soft-deleted', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    mockCreateClient.mockReturnValue(buildCleanupMockClient({ codes: [], legacy: [] }))
+    const adminAuthedClient = { rpc: vi.fn() } as unknown as ReturnType<typeof getAdminClient>
+
+    await cleanupInternalExamStudentActiveSessions(adminAuthedClient)
+
+    expect(logSpy).not.toHaveBeenCalled()
     logSpy.mockRestore()
   })
 

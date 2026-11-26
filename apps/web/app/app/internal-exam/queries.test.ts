@@ -67,6 +67,7 @@ describe('listAvailableInternalExams', () => {
           subjectShort: 'ALW',
           expiresAt: '2026-05-01T12:00:00.000Z',
           issuedAt: '2026-04-29T12:00:00.000Z',
+          sitting: null,
         },
       ],
     })
@@ -104,7 +105,7 @@ describe('listAvailableInternalExams', () => {
     if (!entry) return
     // The returned shape is fixed and intentionally omits `code`.
     expect(Object.keys(entry).sort()).toEqual(
-      ['id', 'subjectId', 'subjectName', 'subjectShort', 'expiresAt', 'issuedAt'].sort(),
+      ['id', 'subjectId', 'subjectName', 'subjectShort', 'expiresAt', 'issuedAt', 'sitting'].sort(),
     )
   })
 
@@ -361,5 +362,98 @@ describe('listMyInternalExamHistory', () => {
     const result = await listMyInternalExamHistory()
     // asNumber(0) returns 0, then || 1 coerces to 1
     expect(result.data[0]?.attemptNumber).toBe(1)
+  })
+})
+
+describe('listAvailableInternalExams sitting mapping', () => {
+  const base = {
+    id: 'code-1',
+    subject_id: 'sub-1',
+    subject_name: 'Air Law',
+    subject_short: 'ALW',
+    expires_at: '2026-05-01T12:00:00.000Z',
+    issued_at: '2026-04-29T12:00:00.000Z',
+  }
+
+  it('maps the sitting fields into sitting for a sitting code', async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          ...base,
+          sitting_id: 'sit-1',
+          sitting_scheduled_at: '2026-05-01T09:00:00.000Z',
+          sitting_mode: 'remote',
+          sitting_status: 'scheduled',
+        },
+      ],
+      error: null,
+    })
+    const result = await listAvailableInternalExams()
+    expect(result.data[0]?.sitting).toEqual({
+      id: 'sit-1',
+      scheduledAt: '2026-05-01T09:00:00.000Z',
+      mode: 'remote',
+      status: 'scheduled',
+    })
+  })
+
+  it('maps an unknown sitting status to null rather than to cancelled', async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          ...base,
+          sitting_id: 'sit-1',
+          sitting_scheduled_at: '2026-05-01T09:00:00.000Z',
+          sitting_mode: 'remote',
+          sitting_status: 'paused',
+        },
+      ],
+      error: null,
+    })
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const result = await listAvailableInternalExams()
+    expect(result.data[0]?.sitting?.status).toBeNull()
+  })
+
+  it('maps an unknown sitting mode to null rather than guessing', async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          ...base,
+          sitting_id: 'sit-1',
+          sitting_scheduled_at: '2026-05-01T09:00:00.000Z',
+          sitting_mode: 'hybrid',
+          sitting_status: 'open',
+        },
+      ],
+      error: null,
+    })
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const result = await listAvailableInternalExams()
+    expect(result.data[0]?.sitting?.mode).toBeNull()
+    expect(result.data[0]?.sitting?.status).toBe('open')
+  })
+
+  it('maps a legacy code (null sitting_id) to sitting null', async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          ...base,
+          sitting_id: null,
+          sitting_scheduled_at: null,
+          sitting_mode: null,
+          sitting_status: null,
+        },
+      ],
+      error: null,
+    })
+    const result = await listAvailableInternalExams()
+    expect(result.data[0]?.sitting).toBeNull()
+  })
+
+  it('maps a row without sitting columns to sitting null', async () => {
+    mockRpc.mockResolvedValue({ data: [base], error: null })
+    const result = await listAvailableInternalExams()
+    expect(result.data[0]?.sitting).toBeNull()
   })
 })

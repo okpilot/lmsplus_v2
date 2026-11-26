@@ -25,9 +25,7 @@ describe('breakpoints: md and 2xl removed (AC scan)', () => {
     }
   })
 
-  it('issue-code form changes at lg', () => {
-    const s = src('app/app/admin/internal-exams/_components/issue-code-form.tsx')
-    expect(s).toContain('lg:grid-cols-(--layout-issue-code')
-    expect(s).toContain('lg:items-end')
+  it('has no issue-code layout token left in the design scale', () => {
+    expect(src('lib/design/scale.ts')).not.toContain('layout-issue-code')
   })
 })

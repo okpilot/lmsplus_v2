@@ -1,5 +1,5 @@
 /**
- * E2E spec — Internal Exam: "Send via email" pre-send state guard (red-team EC,
+ * E2E spec — Internal Exam: "Send email" pre-send state guard (red-team EC,
  * Server-Action/UI half — issue #915).
  *
  * The RPC layer (record_internal_exam_code_emailed) + integration tests already
@@ -32,6 +32,8 @@
 
 import { expect, type Page, test } from '@playwright/test'
 import { ADMIN_TEST_EMAIL, signInAsAdmin } from './helpers/admin-supabase'
+import { cleanupE2eExamSittings } from './helpers/exam-sitting-cleanup'
+import { insertLegacyCodeFor, issueSittingCodeFor, seedSittingFor } from './helpers/sitting-code'
 import {
   cleanupInternalExamStudentActiveSessions,
   getAdminClient,
@@ -50,27 +52,23 @@ type AdminClient = ReturnType<typeof getAdminClient>
 // issued codes would pollute the downstream internal-exam-*.spec.ts specs.
 const issuedCodeIds = new Set<string>()
 
-async function issueCodeAsAdmin(adminPage: Page, subjectFragment: string): Promise<string> {
+/** Legacy code seeded, Codes tab open on its row (the page stays mounted while the test mutates the DB). */
+async function openLegacyCodeRow(
+  adminPage: Page,
+  admin: AdminClient,
+): Promise<{ codeId: string; code: string }> {
+  const code = await insertLegacyCodeFor({
+    studentEmail: INTERNAL_EXAM_STUDENT_EMAIL,
+    subjectFragment: SUBJECT_LABEL_FRAGMENT,
+  })
+  const codeId = await lookupCodeId(admin, code)
   await adminPage.goto('/app/admin/internal-exams?tab=codes')
-  await expect(adminPage.getByRole('heading', { name: 'Internal Exams' })).toBeVisible()
-  const form = adminPage.getByTestId('issue-code-form')
-  await form.locator('[aria-label="Student"]').click()
-  await adminPage
-    .locator('[data-slot="select-item"]')
-    .filter({ hasText: INTERNAL_EXAM_STUDENT_EMAIL })
-    .first()
-    .click()
-  await form.locator('[aria-label="Subject"]').click()
-  await adminPage
-    .locator('[data-slot="select-item"]')
-    .filter({ hasText: subjectFragment })
-    .first()
-    .click()
-  await form.getByRole('button', { name: 'Issue code' }).click()
-  await expect(adminPage.getByText('Internal exam code issued')).toBeVisible({ timeout: 10_000 })
-  const code = (await adminPage.getByTestId('issued-code-value').textContent())?.trim()
-  if (!code) throw new Error('issued code panel had no value')
-  return code
+  await expect(adminPage.locator('tr', { hasText: code })).toBeVisible()
+  return { codeId, code }
+}
+
+function sendButton(adminPage: Page, code: string) {
+  return adminPage.locator('tr', { hasText: code }).getByRole('button', { name: /send email/i })
 }
 
 /** Resolve the issued code's row id by its (globally UNIQUE) code string. */
@@ -100,6 +98,23 @@ async function lookupAdminUserId(admin: AdminClient): Promise<string> {
   return data.id
 }
 
+async function softDeleteIssuedCodes(ids: Set<string>): Promise<void> {
+  if (ids.size === 0) return
+  try {
+    const { data, error } = await getAdminClient()
+      .from('internal_exam_codes')
+      .update({ deleted_at: new Date().toISOString() })
+      .in('id', [...ids])
+      .select('id')
+    if (error) throw new Error(error.message)
+    if ((data?.length ?? 0) > 0) {
+      console.log(`[cleanup] soft-deleted ${data?.length} internal exam code(s)`)
+    }
+  } finally {
+    ids.clear()
+  }
+}
+
 test.describe('internal exam — send-code-email pre-send state guard', () => {
   test.setTimeout(120_000)
 
@@ -107,35 +122,32 @@ test.describe('internal exam — send-code-email pre-send state guard', () => {
   test.beforeEach(async () => {
     const adminClient = await signInAsAdmin()
     await cleanupInternalExamStudentActiveSessions(adminClient)
+    await cleanupE2eExamSittings()
   })
 
-  // Hermeticity (§7) — soft-delete every code this spec issued so downstream
-  // internal-exam specs don't inherit active/issued codes. Single cleanup step.
+  // Hermeticity (§7) — soft-delete every code this spec issued so downstream internal-exam specs
+  // don't inherit active/issued codes. Two steps, each with its own error slot: a failed sitting
+  // teardown must not skip the code soft-delete, which is what keeps the shared fixture clean.
   test.afterEach(async () => {
-    if (issuedCodeIds.size === 0) return
+    const errors: string[] = []
     try {
-      const admin = getAdminClient()
-      const ids = [...issuedCodeIds]
-      const { data, error } = await admin
-        .from('internal_exam_codes')
-        .update({ deleted_at: new Date().toISOString() })
-        .in('id', ids)
-        .select('id')
-      if (error) throw new Error(`afterEach soft-delete: ${error.message}`)
-      if ((data?.length ?? 0) > 0) {
-        console.log(`[cleanup] soft-deleted ${data?.length} internal exam code(s)`)
-      }
-    } finally {
-      issuedCodeIds.clear()
+      await cleanupE2eExamSittings()
+    } catch (e) {
+      errors.push(`sittings cleanup: ${e instanceof Error ? e.message : String(e)}`)
     }
+    try {
+      await softDeleteIssuedCodes(issuedCodeIds)
+    } catch (e) {
+      errors.push(`code soft-delete: ${e instanceof Error ? e.message : String(e)}`)
+    }
+    if (errors.length > 0) throw new Error(errors.join('; '))
   })
 
   test('accepts an active code past the pre-send state guard', async ({ page: adminPage }) => {
     const admin = getAdminClient()
-    const code = await issueCodeAsAdmin(adminPage, SUBJECT_LABEL_FRAGMENT)
-    await lookupCodeId(admin, code) // track for hermetic cleanup
+    const { code } = await openLegacyCodeRow(adminPage, admin)
 
-    await adminPage.getByRole('button', { name: /send via email/i }).click()
+    await sendButton(adminPage, code).click()
 
     // Discrimination control: an ACTIVE code must NOT be rejected by the state
     // guard. This makes the two stale-code tests non-vacuous — the rejection
@@ -153,8 +165,7 @@ test.describe('internal exam — send-code-email pre-send state guard', () => {
     const admin = getAdminClient()
     const adminUserId = await lookupAdminUserId(admin)
 
-    const code = await issueCodeAsAdmin(adminPage, SUBJECT_LABEL_FRAGMENT)
-    const codeId = await lookupCodeId(admin, code)
+    const { codeId, code } = await openLegacyCodeRow(adminPage, admin)
 
     // Void the freshly issued code while the panel (and its Send button) is
     // still mounted. CHECK voided_pair_consistency requires BOTH columns.
@@ -166,15 +177,14 @@ test.describe('internal exam — send-code-email pre-send state guard', () => {
     if (voidErr) throw new Error(`void update: ${voidErr.message}`)
     if (!voided?.length) throw new Error('void update: no row affected')
 
-    await adminPage.getByRole('button', { name: /send via email/i }).click()
+    await sendButton(adminPage, code).click()
 
     await expect(adminPage.getByText(STALE_CODE_TOAST)).toBeVisible({ timeout: 10_000 })
   })
 
   test('rejects an expired code with "Code is no longer active"', async ({ page: adminPage }) => {
     const admin = getAdminClient()
-    const code = await issueCodeAsAdmin(adminPage, SUBJECT_LABEL_FRAGMENT)
-    const codeId = await lookupCodeId(admin, code)
+    const { codeId, code } = await openLegacyCodeRow(adminPage, admin)
 
     // Expire the freshly issued code while the panel is still mounted.
     const { data: expired, error: expireErr } = await admin
@@ -185,8 +195,40 @@ test.describe('internal exam — send-code-email pre-send state guard', () => {
     if (expireErr) throw new Error(`expire update: ${expireErr.message}`)
     if (!expired?.length) throw new Error('expire update: no row affected')
 
-    await adminPage.getByRole('button', { name: /send via email/i }).click()
+    await sendButton(adminPage, code).click()
 
     await expect(adminPage.getByText(STALE_CODE_TOAST)).toBeVisible({ timeout: 10_000 })
+  })
+
+  test('a sitting code row has no email button', async ({ page: adminPage }) => {
+    const { code } = await issueSittingCodeFor({
+      studentEmail: INTERNAL_EXAM_STUDENT_EMAIL,
+      subjectFragment: SUBJECT_LABEL_FRAGMENT,
+    })
+    await adminPage.goto('/app/admin/internal-exams?tab=codes')
+    const row = adminPage.locator('tr', { hasText: code })
+    await expect(row).toBeVisible()
+    await expect(row.getByRole('link', { name: 'Sitting code' })).toBeVisible()
+    await expect(row.getByRole('button', { name: /send email/i })).toHaveCount(0)
+  })
+
+  test('a sitting code on a scheduled sitting shows "Waiting for start" and links to the sitting', async ({
+    page: adminPage,
+  }) => {
+    const { code, sittingId } = await seedSittingFor({
+      studentEmail: INTERNAL_EXAM_STUDENT_EMAIL,
+      subjectFragment: SUBJECT_LABEL_FRAGMENT,
+      status: 'scheduled',
+    })
+    if (code === null) throw new Error('no code seeded')
+    await adminPage.goto('/app/admin/internal-exams?tab=codes')
+    const row = adminPage.locator('tr', { hasText: code })
+    await expect(row).toContainText('Waiting for start')
+    await adminPage.reload()
+    await expect(row).toContainText('Waiting for start')
+    await row.getByRole('link', { name: 'Sitting code' }).click()
+    await expect(adminPage).toHaveURL(
+      new RegExp(`/app/admin/internal-exams/sittings/${sittingId}$`),
+    )
   })
 })

@@ -249,10 +249,24 @@ describe('listInternalExamCodes', () => {
       await listInternalExamCodes({ status: 'consumed' })
 
       expect(chain.select).toHaveBeenCalledWith(
-        expect.stringContaining('quiz_sessions!consumed_session_id!inner(ended_at)'),
+        expect.stringContaining('quiz_sessions!consumed_session_id!inner(ended_at, deleted_at)'),
         { count: 'exact', head: true },
       )
       expect(chain.is).toHaveBeenCalledWith('quiz_sessions.ended_at', null)
+    })
+
+    it('returns only codes whose linked session was discarded for status=discarded', async () => {
+      mockAdmin()
+      const chain = buildChain([], null, 0)
+      mockAdminFrom.mockReturnValue(chain)
+
+      await listInternalExamCodes({ status: 'discarded' })
+
+      expect(chain.select).toHaveBeenCalledWith(
+        expect.stringContaining('quiz_sessions!consumed_session_id!inner(ended_at, deleted_at)'),
+        { count: 'exact', head: true },
+      )
+      expect(chain.not).toHaveBeenCalledWith('quiz_sessions.deleted_at', 'is', null)
     })
 
     it('returns only codes whose linked session has ended for status=finished', async () => {
@@ -418,5 +432,38 @@ describe('listInternalExamCodes', () => {
 
       await expect(listInternalExamCodes()).rejects.toThrow('Forbidden')
     })
+  })
+})
+
+describe('listInternalExamCodes sitting embed', () => {
+  it('selects sitting_entry_id and the FK-hinted sitting status embed', async () => {
+    mockAdmin()
+    const chain = buildChain([], null, 1)
+    mockAdminFrom.mockReturnValue(chain)
+
+    await listInternalExamCodes({})
+
+    const selects = chain.select!.mock.calls.map((c) => String(c[0]))
+    const dataSelect = selects.find((q) => q.includes('sitting_entry_id'))
+    expect(dataSelect).toContain(
+      'exam_sitting_entries!internal_exam_codes_sitting_entry_fkey(sitting_id, exam_sittings!exam_sitting_entries_sitting_id_organization_id_fkey(status))',
+    )
+  })
+
+  it('keeps the embed in the consumed (!inner quiz_sessions) select', async () => {
+    mockAdmin()
+    const chain = buildChain([], null, 1)
+    mockAdminFrom.mockReturnValue(chain)
+
+    await listInternalExamCodes({ status: 'consumed' })
+
+    const selects = chain.select!.mock.calls.map((c) => String(c[0]))
+    expect(
+      selects.some(
+        (q) =>
+          q.includes('quiz_sessions!consumed_session_id!inner(ended_at, deleted_at)') &&
+          q.includes('exam_sitting_entries!internal_exam_codes_sitting_entry_fkey('),
+      ),
+    ).toBe(true)
   })
 })

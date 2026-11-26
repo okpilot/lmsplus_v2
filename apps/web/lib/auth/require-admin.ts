@@ -13,11 +13,11 @@ type AdminAuth = {
  * Resolve the calling admin's identity, org and Supabase client, or redirect.
  *
  * Wrapped in React `cache()` for per-request memoization (#1169). A single admin
- * render consults this gate repeatedly — `/app/admin/internal-exams` calls it 5
- * times (the page gate plus four queries `Promise.all`d in
- * `_components/internal-exams-content.tsx`), `/app/admin/dashboard` 4 times via
- * its four Suspense children (counts measured 2026-08-20, before
- * `app/app/admin/layout.tsx` existed) — and each call re-ran the whole body:
+ * render consults this gate repeatedly — measured 2026-08-20, before
+ * `app/app/admin/layout.tsx` existed: `/app/admin/internal-exams` called it 5 times
+ * and `/app/admin/dashboard` 4 times via its four Suspense children. Both routes have
+ * been reworked since; derive the current shape with
+ * `grep -rn 'requireAdmin()' apps/web/app/app/admin/<route>`. Each call re-ran the whole body:
  * build a client, await `getUser()`, await the `users` SELECT
  * (`getCallerProfile`, shared with the `/app` layout's `loadShellUser` read in the same
  * render). Measured 2026-08-20 on Next 16.3.0 (dev server): body executions per

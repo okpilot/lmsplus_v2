@@ -1,5 +1,7 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { getSessionUser } from '@/lib/auth/get-session-user'
+import type { SittingMode } from '@/lib/utils/sitting-mode-label'
+import { isSittingStatus, type SittingStatus } from '@/lib/utils/sitting-status'
 
 // SECURITY: code values are NEVER returned from this query. Admin distributes
 // codes out-of-band; student types via the redemption modal. Shape omits `code`.
@@ -10,6 +12,12 @@ export type AvailableInternalExam = {
   subjectShort: string
   expiresAt: string
   issuedAt: string
+  sitting: {
+    id: string
+    scheduledAt: string
+    mode: SittingMode | null
+    status: SittingStatus | null
+  } | null
 }
 
 export type InternalExamHistoryEntry = {
@@ -38,6 +46,36 @@ function asNullableString(v: unknown): string | null {
   return typeof v === 'string' ? v : null
 }
 
+/** Null, not a guess: `cancelled` would tell the student a live sitting had been called off. */
+function asSittingStatus(v: unknown): SittingStatus | null {
+  if (isSittingStatus(v)) return v
+  console.error('[listAvailableInternalExams] unknown sitting status:', v)
+  return null
+}
+
+/** Null, not a guess: naming the wrong mode would send the student to the wrong place. */
+function asSittingMode(v: unknown): SittingMode | null {
+  if (v === 'in_person' || v === 'remote') return v
+  console.error('[listAvailableInternalExams] unknown sitting mode:', v)
+  return null
+}
+
+function mapSitting(row: {
+  sitting_id?: unknown
+  sitting_scheduled_at?: unknown
+  sitting_mode?: unknown
+  sitting_status?: unknown
+}): AvailableInternalExam['sitting'] {
+  const id = asNullableString(row.sitting_id)
+  if (id === null) return null
+  return {
+    id,
+    scheduledAt: asString(row.sitting_scheduled_at),
+    mode: asSittingMode(row.sitting_mode),
+    status: asSittingStatus(row.sitting_status),
+  }
+}
+
 function asNumber(v: unknown): number {
   if (v === null || v === undefined) return 0
   const n = Number(v)
@@ -56,8 +94,9 @@ function asNullableBoolean(v: unknown): boolean | null {
 }
 
 /**
- * Returns the current student's unconsumed, unvoided, unexpired internal-exam
- * codes via the SECURITY DEFINER RPC list_my_active_internal_exam_codes.
+ * Returns the current student's unconsumed, unvoided, unexpired internal-exam codes via the
+ * SECURITY DEFINER RPC list_my_active_internal_exam_codes. A sitting code is listed before its
+ * sitting opens, with Start disabled, and drops out once the sitting day has ended.
  * NEVER returns the code value itself — that is a privileged secret the admin
  * gives to the student out-of-band.
  */
@@ -85,6 +124,7 @@ export async function listAvailableInternalExams(): Promise<
       subjectShort: asString(row.subject_short),
       expiresAt: asString(row.expires_at),
       issuedAt: asString(row.issued_at),
+      sitting: mapSitting(row),
     })),
   }
 }

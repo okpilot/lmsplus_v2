@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { matchRpcError } from '@/lib/rpc-error-match'
+import { SITTING_BASE, SITTING_ROOT } from '../sittings/types'
+import { checkSittingCode } from './sitting-code-guard'
 
 const VoidCodeSchema = z.object({
   codeId: z.uuid(),
@@ -47,8 +49,15 @@ export async function voidInternalExamCode(input: unknown): Promise<VoidCodeResu
   const parsed = VoidCodeSchema.safeParse(input)
   if (!parsed.success) return { success: false, error: 'Invalid input' }
 
-  const { supabase } = await requireAdmin()
+  const { supabase, organizationId } = await requireAdmin()
   const { codeId, reason } = parsed.data
+
+  const guard = await checkSittingCode(supabase, {
+    organizationId: organizationId,
+    codeId: codeId,
+    reason: reason,
+  })
+  if (!guard.ok) return { success: false, error: guard.error }
 
   const { data, error } = await supabase.rpc('void_internal_exam_code', {
     p_code_id: codeId,
@@ -66,7 +75,9 @@ export async function voidInternalExamCode(input: unknown): Promise<VoidCodeResu
     return { success: false, error: 'Failed to void internal exam code' }
   }
 
-  revalidatePath('/app/admin/internal-exams')
+  revalidatePath(SITTING_ROOT)
+  // Voiding a running sitting attempt changes the entry a sitting detail page shows.
+  revalidatePath(`${SITTING_BASE}/[sittingId]`, 'page')
   return {
     success: true,
     codeId: row.code_id,

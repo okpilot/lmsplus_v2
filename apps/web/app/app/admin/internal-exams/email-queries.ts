@@ -9,6 +9,7 @@ export type InternalExamCodeForEmail = {
   expiresAt: string
   consumedAt: string | null
   voidedAt: string | null
+  sittingEntryId: string | null
 }
 
 type CodeRowRaw = {
@@ -16,6 +17,7 @@ type CodeRowRaw = {
   expires_at: string
   consumed_at: string | null
   voided_at: string | null
+  sitting_entry_id: string | null
   easa_subjects: { name: string | null } | null
   users: { full_name: string | null; email: string | null; deleted_at: string | null } | null
 }
@@ -36,7 +38,8 @@ function isCodeRow(value: unknown): value is CodeRowRaw {
     typeof v.code === 'string' &&
     typeof v.expires_at === 'string' &&
     (v.consumed_at === null || typeof v.consumed_at === 'string') &&
-    (v.voided_at === null || typeof v.voided_at === 'string')
+    (v.voided_at === null || typeof v.voided_at === 'string') &&
+    (v.sitting_entry_id === null || typeof v.sitting_entry_id === 'string')
   )
 }
 
@@ -58,7 +61,7 @@ export async function getInternalExamCodeForEmail(
   const { data, error } = await client
     .from('internal_exam_codes')
     .select(
-      `code, expires_at, consumed_at, voided_at,
+      `code, expires_at, consumed_at, voided_at, sitting_entry_id,
        easa_subjects!subject_id(name),
        users!student_id(full_name, email, deleted_at)`,
     )
@@ -90,5 +93,6 @@ export async function getInternalExamCodeForEmail(
     expiresAt: data.expires_at,
     consumedAt: data.consumed_at,
     voidedAt: data.voided_at,
+    sittingEntryId: data.sitting_entry_id,
   }
 }

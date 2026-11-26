@@ -1,6 +1,5 @@
+import { type SittingMode, sittingModeLabel } from '@/lib/utils/sitting-mode-label'
 import type { SittingStatus } from '../types'
-
-const MODE_LABEL = { remote: 'Remote', in_person: 'In person' } as const
 
 const STATUS_LABEL: Record<SittingStatus, string> = {
   scheduled: 'Scheduled',
@@ -13,8 +12,8 @@ export function statusLabel(status: SittingStatus): string {
   return STATUS_LABEL[status]
 }
 
-export function modeLabel(mode: keyof typeof MODE_LABEL): string {
-  return MODE_LABEL[mode]
+export function modeLabel(mode: SittingMode): string {
+  return sittingModeLabel(mode)
 }
 
 /** datetime-local value (no zone) read as UTC. Throws on a malformed value. */

@@ -241,11 +241,9 @@ describe('redundant weights (AC 19)', () => {
 })
 
 describe('missed sites (AC 21)', () => {
-  it('issued code is stat, global error is title, no 2xl-9xl', () => {
-    const a = src('app/app/admin/internal-exams/_components/issued-code-panel.tsx')
+  it('global error is title, no 2xl-9xl', () => {
     const b = src('app/global-error.tsx')
-    expect(a).toContain('text-stat')
     expect(b).toContain('<Heading level={1}')
-    expect(a + b).not.toMatch(/text-[2-9]xl/)
+    expect(b).not.toMatch(/text-[2-9]xl/)
   })
 })

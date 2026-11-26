@@ -1,3 +1,6 @@
+import type { SittingMode } from '@/lib/utils/sitting-mode-label'
+import type { SittingStatus } from '@/lib/utils/sitting-status'
+
 export const SITTING_BASE = '/app/admin/internal-exams/sittings'
 
 export type SittingScope = 'upcoming' | 'open' | 'past' | 'cancelled'
@@ -5,12 +8,12 @@ export const SITTING_SCOPES: readonly SittingScope[] = ['upcoming', 'open', 'pas
 
 export const SITTINGS_PAGE_SIZE = 50
 
-export type SittingStatus = 'scheduled' | 'open' | 'closed' | 'cancelled'
+export type { SittingStatus }
 
 export type SittingRow = {
   id: string
   scheduledAt: string
-  mode: 'remote' | 'in_person'
+  mode: SittingMode
   status: SittingStatus
   invigilatorId: string
   invigilatorName: string

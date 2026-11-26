@@ -20,14 +20,14 @@ import {
 } from '@/components/ui/table'
 import { parsePageParam } from '@/lib/utils/parse-page-param'
 import { PaginationBar } from '../../../_components/pagination-bar'
-import type { InternalExamCodeRow, InternalExamCodeStatus } from '../types'
+import type { InternalExamCodeRow, ListCodesFilters } from '../types'
 import { CodeRow } from './code-row'
 import { STATUS_ITEMS } from './code-status-items'
 import { VoidCodeDialog } from './void-code-dialog'
 
 type Props = {
   rows: InternalExamCodeRow[]
-  status?: InternalExamCodeStatus | 'finished'
+  status?: ListCodesFilters['status']
   totalCount: number
   pageSize: number
 }
