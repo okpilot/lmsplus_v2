@@ -395,4 +395,29 @@ describe('ensureEnrolment', () => {
     )
     await expect(ensureEnrolment(admin, ARGS)).rejects.toThrow('sitting-code enrolment: ins')
   })
+
+  it('leaves an enrolment untracked when the caller opts out of the restore', async () => {
+    vi.resetModules()
+    const fresh = await import('./sitting-code')
+    const { admin } = enrolAdmin({ data: null, error: null })
+    await expect(fresh.ensureEnrolment(admin, ARGS, { track: false })).resolves.toEqual({
+      created: true,
+      id: 'new-1',
+    })
+    // Nothing tracked, so the teardown touches no client at all — the `e2e-sit-` row is gone with
+    // its cascade-deleted user, and a tracked id would warn on every green run.
+    const release = fakeAdminSeq({})
+    await fresh.releaseSeededEnrolments()
+    expect(release).toEqual([])
+  })
+
+  it('tracks an inserted enrolment when the caller does not opt out', async () => {
+    vi.resetModules()
+    const fresh = await import('./sitting-code')
+    const { admin } = enrolAdmin({ data: null, error: null })
+    await fresh.ensureEnrolment(admin, ARGS)
+    const release = fakeAdminSeq({ course_enrolments: [ok([{ id: 'new-1' }])] })
+    await fresh.releaseSeededEnrolments()
+    expect(release).toContain('update:course_enrolments')
+  })
 })

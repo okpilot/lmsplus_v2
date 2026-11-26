@@ -7,8 +7,10 @@ vi.mock('./admin-supabase', () => ({ getAdminClient: mockGetAdminClient }))
 import {
   findSubject,
   readSittingCodes,
+  restoreExamTimer,
   runCleanupSteps,
   seedEnrolledStudents,
+  widenExamTimer,
 } from './exam-sitting-flow-seed'
 
 type Call = { table: string; method: string; args: unknown[] }
@@ -148,5 +150,55 @@ describe('runCleanupSteps', () => {
 
   it('resolves when every step succeeds', async () => {
     await expect(runCleanupSteps([async () => {}])).resolves.toBeUndefined()
+  })
+})
+
+describe('widenExamTimer / restoreExamTimer', () => {
+  const cfg = (id: string, seconds: number): Result => ({
+    data: { id, time_limit_seconds: seconds },
+    error: null,
+  })
+  const updated = (id: string): Result => ({ data: [{ id }], error: null })
+
+  it('scopes the config lookup to the admin organisation', async () => {
+    // `start_internal_exam_session` resolves it with `ec.organization_id = v_org_id`, so an
+    // unscoped lookup can widen another tenant's row and leave the exam on its own limit.
+    const calls = fakeAdmin({
+      users: [ADMIN_ROW],
+      exam_configs: [cfg('cfg-1', 60), updated('cfg-1'), updated('cfg-1')],
+    })
+    await widenExamTimer('subj-1')
+    expect(
+      calls.filter((c) => c.table === 'exam_configs' && c.method === 'eq').map((c) => c.args),
+    ).toContainEqual(['organization_id', 'org-1'])
+    await restoreExamTimer()
+  })
+
+  it('restores every config it widened, not only the last', async () => {
+    const calls = fakeAdmin({
+      users: [ADMIN_ROW, ADMIN_ROW],
+      exam_configs: [
+        cfg('cfg-1', 60),
+        updated('cfg-1'),
+        cfg('cfg-2', 90),
+        updated('cfg-2'),
+        updated('cfg-1'),
+        updated('cfg-2'),
+      ],
+    })
+    await widenExamTimer('subj-1')
+    await widenExamTimer('subj-2')
+    await restoreExamTimer()
+    const restored = calls
+      .filter((c) => c.table === 'exam_configs' && c.method === 'update')
+      .map((c) => c.args[0])
+    expect(restored).toContainEqual({ time_limit_seconds: 60 })
+    expect(restored).toContainEqual({ time_limit_seconds: 90 })
+  })
+
+  it('touches no client when nothing was widened', async () => {
+    const calls = fakeAdmin({})
+    await restoreExamTimer()
+    expect(calls.filter((c) => c.table === 'exam_configs')).toEqual([])
   })
 })

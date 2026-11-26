@@ -81,13 +81,13 @@ async function lookupIds(admin: Admin, studentEmail: string, subjectFragment: st
 }
 
 /**
- * Every enrolment `ensureEnrolment` inserted this run, soft-deleted again by
+ * Every enrolment `ensureEnrolment` inserted this run with tracking on, soft-deleted again by
  * `releaseSeededEnrolments`. Decision 38: a spec restores the shared seed data it mutates.
  *
- * Mixed ownership since the sitting-flow seeders landed: a fixture student's row is only restored
- * here, while an `e2e-sit-` student's row is hard-deleted first by `deleteSeededUsers`. A gone id
- * matches nothing, so a normal run updates fewer rows than it holds ids; the warning below fires
- * only when NONE of them is still live.
+ * Only enrolments that OUTLIVE the run belong here. A caller whose user is hard-deleted at teardown
+ * passes `track: false`: `course_enrolments.user_id` is ON DELETE CASCADE (mig 20261027000100), so
+ * the row is already gone and a tracked id would make the warning below fire on every green run —
+ * drowning the one signal it exists for.
  *
  * KNOWN LIMIT — in-process only, unlike the rest of this helper family: a worker killed between
  * the insert and teardown loses the ids and a fixture enrolment stays live. It is not DB-derivable:
@@ -121,10 +121,14 @@ export async function releaseSeededEnrolments(): Promise<void> {
   seededEnrolmentIds.clear()
 }
 
-/** Enrols the user in the course unless already enrolled; `created` says whether this call inserted the row. */
+/**
+ * Enrols the user in the course unless already enrolled; `created` says whether this call inserted
+ * the row. An inserted row is tracked for `releaseSeededEnrolments` unless `track` is false.
+ */
 export async function ensureEnrolment(
   admin: Admin,
   c: Pick<Ids, 'orgId' | 'adminId' | 'userId' | 'courseId'>,
+  opts: { track?: boolean } = {},
 ): Promise<{ created: boolean; id: string }> {
   const existing = await admin
     .from('course_enrolments')
@@ -147,7 +151,7 @@ export async function ensureEnrolment(
     .select('id')
     .single()
   if (res.error || !res.data) fail('enrolment', res.error)
-  seededEnrolmentIds.add(res.data.id)
+  if (opts.track !== false) seededEnrolmentIds.add(res.data.id)
   return { created: true, id: res.data.id }
 }
 

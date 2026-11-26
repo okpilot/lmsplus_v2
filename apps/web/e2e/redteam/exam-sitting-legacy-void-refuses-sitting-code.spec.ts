@@ -16,6 +16,7 @@
 import { expect, test } from '@playwright/test'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getAdminClient } from '../helpers/supabase'
+import { skipNearUtcRollover } from '../helpers/utc-rollover'
 import {
   cleanupSittingFixtures,
   createSittingRpc,
@@ -60,6 +61,7 @@ test.describe('Red Team: legacy void refuses a sitting code (NJ)', () => {
   const track: SittingTrack = { sittingIds: [], subjectIds: [], adminId: '' }
 
   test.beforeAll(async () => {
+    skipNearUtcRollover()
     admin = getAdminClient()
     const a = await seedRedTeamAdmin()
     track.adminId = a.adminUserId

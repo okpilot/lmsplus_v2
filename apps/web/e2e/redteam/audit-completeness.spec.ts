@@ -22,6 +22,7 @@
 
 import { expect, test } from '@playwright/test'
 import { getAdminClient } from '../helpers/supabase'
+import { skipNearUtcRollover } from '../helpers/utc-rollover'
 import {
   backdateSession,
   expectAuditRow,
@@ -259,6 +260,7 @@ test.describe('Red Team: Audit Event Completeness', () => {
   })
 
   test('writes internal_exam.code_issued when admin issues sitting codes (actor=admin)', async () => {
+    skipNearUtcRollover()
     const testStart = new Date().toISOString()
 
     const sittingId = await createSittingRpc(adminAuthedClient, adminUserId)

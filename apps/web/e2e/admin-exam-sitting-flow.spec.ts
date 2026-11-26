@@ -9,7 +9,6 @@ import { getAdminOrganizationId, signInAsAdmin } from './helpers/admin-supabase'
 import { cleanupCreatedExamConfigs, ensureExamConfigs } from './helpers/exam-config-cleanup'
 import { cleanupE2eExamSittings, markE2eSitting } from './helpers/exam-sitting-cleanup'
 import {
-  adminIds,
   findSubject,
   readSittingCodes,
   restoreExamTimer,
@@ -17,12 +16,12 @@ import {
   seedEnrolledStudents,
   widenExamTimer,
 } from './helpers/exam-sitting-flow-seed'
-import { ensureEnrolment } from './helpers/sitting-code'
 import {
   cleanupInternalExamStudentActiveSessions,
   getAdminClient,
   INTERNAL_EXAM_STUDENT_EMAIL,
 } from './helpers/supabase'
+import { skipNearUtcRollover } from './helpers/utc-rollover'
 
 // A dev server compiles each route on first open: generous timeouts, never sleeps.
 const expect = baseExpect.configure({ timeout: 25_000 })
@@ -34,11 +33,7 @@ const LIST = '/app/admin/internal-exams'
 const SITTING_URL = /\/app\/admin\/internal-exams\/sittings\/[0-9a-f-]{36}$/
 
 test.beforeEach(async () => {
-  // Per test, not at import: the body runs for minutes against a 240 s budget, and
-  // `sitting_day_ended`, `close_expired_sittings`, `private.sitting_code_expiry` and `utcDay()`
-  // all stop agreeing once the sitting's UTC day turns over.
-  const now = new Date()
-  test.skip(now.getUTCHours() === 23 && now.getUTCMinutes() >= 50, 'UTC day rollover window')
+  skipNearUtcRollover()
   await cleanupInternalExamStudentActiveSessions(await signInAsAdmin())
   await cleanupE2eExamSittings()
   await ensureExamConfigs(await getAdminOrganizationId())
@@ -177,13 +172,6 @@ test('a sitting runs from creation to closing: codes, student attempt, late add,
 }) => {
   const subject = await findSubject('Meteorology')
   const student = await readStudent()
-  const admin = getAdminClient()
-  // Enrols for the run; `releaseSeededEnrolments` restores it in the shared cleanup.
-  await ensureEnrolment(admin, {
-    ...(await adminIds(admin)),
-    userId: student.id,
-    courseId: subject.courseId,
-  })
   // This spec answers every question, which the seeded 60 s MET timer does not allow.
   await widenExamTimer(subject.id)
   const [bea, cy] = await seedEnrolledStudents(['E2E Flow Bea', 'E2E Flow Cy'], subject.courseId)

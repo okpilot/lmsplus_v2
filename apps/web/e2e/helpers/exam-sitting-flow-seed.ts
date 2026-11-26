@@ -50,7 +50,10 @@ export async function seedEnrolledStudents(
   const admin = getAdminClient()
   const { adminId, orgId } = await adminIds(admin)
   const ids = await createStudents(admin, orgId, names, PREFIX)
-  for (const userId of ids) await ensureEnrolment(admin, { orgId, adminId, userId, courseId })
+  // `track: false` — `deleteSeededUsers` hard-deletes these users and `course_enrolments.user_id`
+  // is ON DELETE CASCADE, so the row is gone before any restore could run.
+  for (const userId of ids)
+    await ensureEnrolment(admin, { orgId, adminId, userId, courseId }, { track: false })
   return names.map((name, i) => ({ name, userId: ids[i] as string }))
 }
 
@@ -86,8 +89,8 @@ export async function readSittingCodes(sittingId: string): Promise<SittingCode[]
   }))
 }
 
-/** Runs each cleanup step, collecting every error so one failing step never skips the others. */
-let widenedTimer: { id: string; seconds: number } | null = null
+/** Original `time_limit_seconds` per config id widened this run, keyed so two subjects both restore. */
+const widenedTimers = new Map<string, number>()
 
 /**
  * Widens the subject's exam timer for this run, remembering the old value for `restoreExamTimer`.
@@ -100,12 +103,18 @@ let widenedTimer: { id: string; seconds: number } | null = null
  *
  * Mutating shared seed data is safe here only because `playwright.config.ts` runs `workers: 1` with
  * `fullyParallel: false`; the restore is Decision 38.
+ *
+ * Org-scoped like the RPC: `start_internal_exam_session` resolves the config with
+ * `ec.organization_id = v_org_id` (mig 20261117001400), so an unscoped lookup could widen another
+ * tenant's row — leaving the exam under test on its 60 s limit and the foreign row never restored.
  */
 export async function widenExamTimer(subjectId: string, seconds = 3600): Promise<void> {
   const admin = getAdminClient()
+  const { orgId } = await adminIds(admin)
   const res = await admin
     .from('exam_configs')
     .select('id, time_limit_seconds')
+    .eq('organization_id', orgId)
     .eq('subject_id', subjectId)
     .eq('enabled', true)
     .is('deleted_at', null)
@@ -123,23 +132,28 @@ export async function widenExamTimer(subjectId: string, seconds = 3600): Promise
   if (upd.error) fail('exam timer widen', upd.error)
   if ((upd.data ?? []).length === 0) fail(`exam timer widen: no row ${res.data.id}`, null)
   // Recorded only after the UPDATE lands, so a failed widen cannot restore a value never changed.
-  widenedTimer = { id: res.data.id, seconds: res.data.time_limit_seconds }
+  // `set`, not an overwrite guard: a second widen of the SAME config would only ever record the
+  // value this call already raised, so the first original must win.
+  if (!widenedTimers.has(res.data.id)) widenedTimers.set(res.data.id, res.data.time_limit_seconds)
 }
 
-/** Restores the timer `widenExamTimer` changed. Safe to call with none. */
+/** Restores every timer `widenExamTimer` changed. Safe to call with none. */
 export async function restoreExamTimer(): Promise<void> {
-  if (!widenedTimer) return
-  const { id, seconds } = widenedTimer
-  const res = await getAdminClient()
-    .from('exam_configs')
-    .update({ time_limit_seconds: seconds })
-    .eq('id', id)
-    .select('id')
-  if (res.error) fail('exam timer restore', res.error)
-  if ((res.data ?? []).length === 0) fail(`exam timer restore: no row ${id}`, null)
-  widenedTimer = null
+  const admin = getAdminClient()
+  for (const [id, seconds] of [...widenedTimers]) {
+    const res = await admin
+      .from('exam_configs')
+      .update({ time_limit_seconds: seconds })
+      .eq('id', id)
+      .select('id')
+    if (res.error) fail('exam timer restore', res.error)
+    if ((res.data ?? []).length === 0) fail(`exam timer restore: no row ${id}`, null)
+    // Dropped per id, so a failure above leaves the rest to a later call.
+    widenedTimers.delete(id)
+  }
 }
 
+/** Runs each cleanup step, collecting every error so one failing step never skips the others. */
 export async function runCleanupSteps(steps: readonly (() => Promise<void>)[]): Promise<void> {
   const errors: string[] = []
   for (const step of steps) {

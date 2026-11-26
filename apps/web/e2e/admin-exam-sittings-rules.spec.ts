@@ -5,6 +5,7 @@ import { cleanupE2eExamSittings } from './helpers/exam-sitting-cleanup'
 import { adminIds, runCleanupSteps } from './helpers/exam-sitting-flow-seed'
 import { insertPassedSession, seedSitting } from './helpers/exam-sitting-seed'
 import { getAdminClient } from './helpers/supabase'
+import { skipNearUtcRollover } from './helpers/utc-rollover'
 
 const expect = baseExpect.configure({ timeout: 25_000 })
 
@@ -14,10 +15,7 @@ test.setTimeout(120_000)
 const BASE = '/app/admin/internal-exams/sittings'
 
 test.beforeEach(async () => {
-  // Per test, not at import: the body runs for minutes against a 120 s budget, and the sitting
-  // rules key off the UTC day.
-  const now = new Date()
-  test.skip(now.getUTCHours() === 23 && now.getUTCMinutes() >= 50, 'UTC day rollover window')
+  skipNearUtcRollover()
   // `subjects[0]` must carry a live enabled exam config: `seedSitting` only SORTS a configured
   // subject first, so with none the eligibility and prune assertions fail for an unrelated reason.
   await ensureExamConfigs(await getAdminOrganizationId())
