@@ -683,7 +683,7 @@ describe('cleanupInternalExamStudentActiveSessions', () => {
     const adminAuthedClient = { rpc: vi.fn() } as unknown as ReturnType<typeof getAdminClient>
 
     await expect(cleanupInternalExamStudentActiveSessions(adminAuthedClient)).rejects.toThrow(
-      /practice: discard down; legacy codes: .*legacy down/,
+      'cleanupInternalExamStudentActiveSessions practice: discard down; legacy codes: legacy down',
     )
   })
 

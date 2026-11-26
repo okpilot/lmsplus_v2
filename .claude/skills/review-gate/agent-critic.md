@@ -11,7 +11,6 @@ Governs every reviewer in the pre-push gate. NOT plan-critic, which runs ONCE (�
 - **A fixup with NO executable change starts NO round.** Scope by CONTENT, not extension: strip comments and blank lines from the fixup diff; if nothing remains, the fixup cannot alter behaviour and no reviewer can learn anything from it. Covers an `.md`-only fix, a comment-only fix in any source file, and any mix of the two. Derive it, do not judge it:
   `git diff <fixup>^ <fixup> -U0 | grep -E '^[+-]' | grep -Ev '^(\+\+\+|---)' | grep -Ev '^[+-][[:space:]]*(//|#|\*|/\*|\*/|--)' | grep -Ev '^[+-][[:space:]]*$'`
   Empty output → commit, run the `/fullpush` checks, push; cloud CodeRabbit and Claude Review cover the prose. Any surviving line → the round runs as normal.
-  Origin: PR #1519 (a one-line `docs/security.md` fix re-launched four reviewers) and PR #1809 round 40 (four words deleted from one `.ts` comment re-launched five agents over an 82-file branch; all reported clean).
 - **Wording-refinement findings are bounded to ONE round — a FALSE claim is not a wording finding.**
   - **Refinement** — prose is true but could be clearer. If a round returns a refinement on prose the PREVIOUS round just rewrote, LOG IT AND STOP.
   - **False claim** — prose asserts something the code does not do. **Never bounded**, whatever round it lands on. Same for an enumeration standing in for a derivation of an OPEN set (code-style.md §10 cl.2): a rule violation, never refinement; the test is whether the set can gain a member.

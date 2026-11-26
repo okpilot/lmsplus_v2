@@ -414,7 +414,7 @@ async function retireLegacyCodes(studentId: string): Promise<void> {
     .is('deleted_at', null)
     .select('id')
   if (error) {
-    throw new Error(`cleanupInternalExamStudentActiveSessions legacy codes: ${error.message}`)
+    throw new Error(error.message)
   }
   if ((data?.length ?? 0) > 0) {
     console.log(

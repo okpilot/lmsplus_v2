@@ -9,6 +9,12 @@ import { type CodeRowRaw, mapCodeRow } from './_row-mappers'
 import { clampPage, PAGE_SIZE } from './pagination'
 import type { InternalExamCodeRow, ListCodesFilters } from './types'
 
+// The sitting embeds carry no `deleted_at IS NULL`: docs/security.md §15 (g) for `exam_sittings`
+// (cancel soft-deletes it, and the row still names the sitting this code belonged to). The
+// `exam_sitting_entries` hop is outside (g) and PostgREST can only filter it by promoting the embed
+// to an inner join, which would drop every legacy code (they have no entry). `deriveStatus` ranks
+// `voided` above the embed, and removal and cancel both
+// void first (`private.void_unused_sitting_codes`), so no status reads a soft-deleted row.
 const CODE_COLS_BASE = `id, code, subject_id, student_id, issued_by, issued_at, expires_at,
        consumed_at, consumed_session_id, voided_at, voided_by, void_reason, emailed_at, sitting_entry_id,
        exam_sitting_entries!internal_exam_codes_sitting_entry_fkey(sitting_id, exam_sittings!exam_sitting_entries_sitting_id_organization_id_fkey(status)),
