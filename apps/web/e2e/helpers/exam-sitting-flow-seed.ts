@@ -50,8 +50,7 @@ export async function seedEnrolledStudents(
   const admin = getAdminClient()
   const { adminId, orgId } = await adminIds(admin)
   const ids = await createStudents(admin, orgId, names, PREFIX)
-  // `track: false` — `deleteSeededUsers` hard-deletes these users and `course_enrolments.user_id`
-  // is ON DELETE CASCADE, so the row is gone before any restore could run.
+  // track: false — deleteSeededUsers deletes these users (enrolments cascade), so a release would warn on zero rows.
   for (const userId of ids)
     await ensureEnrolment(admin, { orgId, adminId, userId, courseId }, { track: false })
   return names.map((name, i) => ({ name, userId: ids[i] as string }))

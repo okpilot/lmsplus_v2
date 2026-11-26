@@ -15,7 +15,10 @@ export type SeedEntryState = 'live' | 'no_code' | 'expired' | 'voided' | 'finish
 
 export type SeedInput = {
   status?: 'scheduled' | 'open' | 'closed'
-  /** `enrolled`: enrol a person without exams in the course of the first configured subject (so they can sit it). */
+  /**
+   * `enrolled`: enrol a person without exams in the course of the first configured subject (so they can sit it).
+   * A `finished_passed` entry needs an enabled exam config for its subject: a person's i-th entry takes the i-th subject, configured subjects first.
+   */
   people: { name: string; entries: { state: SeedEntryState }[]; enrolled?: boolean }[]
   /** Extra people without exams, named `E2E Extra NN`. */
   extraPeople?: number
@@ -329,7 +332,7 @@ export async function seedSitting(input: SeedInput): Promise<SeedResult> {
     .is('deleted_at', null)
   if (configs.error) fail('exam configs', configs.error)
   const configured = new Set((configs.data ?? []).map((c) => c.subject_id))
-  // Subjects with an exam config first: only those can be issued a code.
+  // Subjects with an exam config first.
   const subjects = [...(subjectRes.data as Subject[])]
     .sort((a, b) => Number(configured.has(b.id)) - Number(configured.has(a.id)))
     .slice(0, 12)

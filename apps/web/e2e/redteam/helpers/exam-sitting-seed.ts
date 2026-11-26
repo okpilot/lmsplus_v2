@@ -85,8 +85,7 @@ type Step = [
 ]
 
 /** Soft-deletes the tracked sittings' codes, entries, candidates and unclosed sittings, then configs
- *  and subjects; per-step accumulator; resets the tracked ids. Codes run first: the entries step
- *  filters `deleted_at IS NULL`. */
+ *  and subjects; per-step accumulator; resets the tracked ids. */
 export async function cleanupSittingFixtures(admin: Admin, track: SittingTrack): Promise<void> {
   const errors: string[] = []
   const now = new Date().toISOString()

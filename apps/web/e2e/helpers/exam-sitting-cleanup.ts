@@ -84,13 +84,26 @@ async function deleteSeededRows(admin: Admin, sittingIds: string[]) {
   const entries = await admin.from('exam_sitting_entries').select('id').in('sitting_id', sittingIds)
   check('seed entries lookup', entries.error)
   const entryIds = (entries.data ?? []).map((e) => e.id)
+  // A full page may be truncated at `max_rows`: refuse rather than delete a partial list.
+  if (entryIds.length >= POSTGREST_MAX_ROWS) {
+    throw new Error(
+      `deleteSeededRows: ${entryIds.length} seeded entry(s) for ${sittingIds.length} seeded sitting(s) hits PostgREST's max_rows; delete in pages`,
+    )
+  }
   if (entryIds.length > 0) {
     const codes = await admin
       .from('internal_exam_codes')
       .select('id, consumed_session_id')
       .in('sitting_entry_id', entryIds)
     check('seed codes lookup', codes.error)
-    const sessionIds = (codes.data ?? []).flatMap((c) =>
+    const codeRows = codes.data ?? []
+    // A truncated page hides a session the unpaged code delete then orphans: refuse instead.
+    if (codeRows.length >= POSTGREST_MAX_ROWS) {
+      throw new Error(
+        `deleteSeededRows: ${codeRows.length} seeded code(s) for ${entryIds.length} seeded entry(s) hits PostgREST's max_rows; delete in pages`,
+      )
+    }
+    const sessionIds = codeRows.flatMap((c) =>
       c.consumed_session_id ? [c.consumed_session_id] : [],
     )
     const split = sessionIds.length > 0 ? await classifySessions(admin, sessionIds) : null
@@ -143,7 +156,7 @@ async function deleteSeededGroups(admin: Admin) {
   check('seed groups delete', (await admin.from('student_groups').delete().in('id', ids)).error)
 }
 
-/** Sessions of the seeded students found by student (a spec may seed one with no code), removed before their users. */
+/** Sessions of the seeded students found by student (a spec may seed one with no code), removed before their users; the hard delete is safe because `createStudent` sets no password, so a seeded student cannot sign in and cannot produce `quiz_session_answers` or `student_responses` rows. */
 async function deleteSeededStudentSessions(admin: Admin, userIds: string[]) {
   if (userIds.length === 0) return
   const sessions = await admin.from('quiz_sessions').select('id').in('student_id', userIds)

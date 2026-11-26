@@ -633,6 +633,48 @@ describe('cleanupE2eExamSittings (page-cap refusals)', () => {
     expect(deleteUser).not.toHaveBeenCalled()
   })
 
+  it('refuses a full seeded-entry page instead of deleting a partial list', async () => {
+    const { calls } = withAuth({
+      exam_sittings: [
+        { data: [], error: null },
+        { data: [{ id: 's1' }], error: null },
+      ],
+      exam_sitting_entries: [{ data: fullPage((i) => ({ id: `e${i}` })), error: null }],
+    })
+    await expect(cleanupE2eExamSittings()).rejects.toThrow(
+      `deleteSeededRows: ${POSTGREST_MAX_ROWS} seeded entry(s) for 1 seeded sitting(s) hits PostgREST's max_rows`,
+    )
+    // The entries lookup ran: the refusal is the guard's, not an earlier step's.
+    expect(
+      calls.find((c) => c.table === 'exam_sitting_entries' && c.method === 'in')?.args,
+    ).toEqual(['sitting_id', ['s1']])
+    expect(calls.some((c) => c.table === 'internal_exam_codes')).toBe(false)
+    expect(calls.some((c) => c.method === 'delete')).toBe(false)
+  })
+
+  it('refuses a full seeded-code page instead of orphaning a session beyond the page', async () => {
+    const { calls } = withAuth({
+      exam_sittings: [
+        { data: [], error: null },
+        { data: [{ id: 's1' }], error: null },
+      ],
+      exam_sitting_entries: [{ data: [{ id: 'e1' }], error: null }],
+      internal_exam_codes: [
+        { data: fullPage((i) => ({ id: `c${i}`, consumed_session_id: `q${i}` })), error: null },
+      ],
+    })
+    await expect(cleanupE2eExamSittings()).rejects.toThrow(
+      `deleteSeededRows: ${POSTGREST_MAX_ROWS} seeded code(s) for 1 seeded entry(s) hits PostgREST's max_rows`,
+    )
+    // The codes lookup ran: the refusal is the guard's, not the entries guard's.
+    expect(calls.find((c) => c.table === 'internal_exam_codes' && c.method === 'in')?.args).toEqual(
+      ['sitting_entry_id', ['e1']],
+    )
+    // No session was classified, retired or deleted, and no code was deleted.
+    expect(calls.some((c) => c.table === 'quiz_sessions')).toBe(false)
+    expect(calls.some((c) => c.method === 'delete')).toBe(false)
+  })
+
   it('refuses a full seeded-group page instead of deleting a partial list', async () => {
     const { calls } = withAuth({
       exam_sittings: [{ data: [], error: null }],

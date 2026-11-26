@@ -120,19 +120,15 @@ async function answerAll(page: Page): Promise<number> {
   if (!Number.isInteger(total) || total < 1) throw new Error('no question total in the header')
   for (let i = 1; i <= total; i++) {
     await expect(header).toHaveText(`Question ${i} of ${total}`)
-    // The draw in `start_internal_exam_session` has no `question_type` predicate, so a non-MC
-    // question in a configured topic renders no `option-` button. Assert before clicking: the
-    // click alone has no timeout of its own and would block until the test budget ran out.
+    // Non-MC questions render no option- button and click is untimed: assert first.
     await expect(options.first()).toBeVisible()
     await options.first().click()
     const confirm = page.getByRole('button', { name: 'Confirm Answer' })
-    // Enabled only once an option is locked (`quiz-nav-bar.tsx`), and the click is untimed: assert
-    // first so a missed option fails here instead of burning the test budget.
+    // click is untimed: assert enabled first.
     await expect(confirm).toBeEnabled()
     await confirm.click()
     await expect(options.first()).toBeDisabled()
     if (i === total) break
-    // Retrying, so it waits out the in-flight window instead of reading through it.
     await expect(next).toBeEnabled()
     await next.click()
   }
@@ -151,7 +147,6 @@ async function startExam(sittingRow: Locator, code: string) {
 async function finishExam(page: Page): Promise<string> {
   await page.getByRole('button', { name: 'Finish Internal Exam' }).click()
   await page.getByRole('button', { name: 'Submit Internal Exam' }).click()
-  // The unanswered-count dialog blocks submission, so reaching the report proves it never appeared.
   await page.waitForURL(/\/app\/internal-exam\/report\?session=/, { timeout: 30_000 })
   return new URL(page.url()).searchParams.get('session') ?? ''
 }
@@ -311,8 +306,7 @@ test('a sitting runs from creation to closing: codes, student attempt, late add,
       await page.reload()
       await expect(personRow(page, 'E2E Flow Bea')).toContainText('Absent')
       await expect(personRow(page, 'E2E Flow Cy')).toContainText('Absent')
-      // Assert the row exists first: `not.toContainText` resolves immediately on zero matches, so
-      // dropping the finished student from the closed roster would otherwise pass.
+      // not.toContainText passes on zero matches.
       await expect(personRow(page, student.name)).toHaveCount(1)
       await expect(personRow(page, student.name)).not.toContainText('Absent')
       await page.getByRole('button', { name: 'Show exams for E2E Flow Bea' }).click()

@@ -43,23 +43,6 @@ beforeEach(() => {
 })
 
 describe('cleanupSittingFixtures codes step', () => {
-  it('soft-deletes the codes before the entries they hang off are retired', async () => {
-    const { admin, calls } = mockAdmin({
-      exam_sitting_entries: [liveEntries, { data: [{ id: 'e1' }], error: null }],
-      internal_exam_codes: [{ data: [{ id: 'c1' }], error: null }],
-    })
-    await cleanupSittingFixtures(admin, track(['s1']))
-    const codesUpdate = calls.findIndex(
-      (c) => c.table === 'internal_exam_codes' && c.method === 'update',
-    )
-    const entriesUpdate = calls.findIndex(
-      (c) => c.table === 'exam_sitting_entries' && c.method === 'update',
-    )
-    expect(codesUpdate).toBeGreaterThan(-1)
-    expect(entriesUpdate).toBeGreaterThan(-1)
-    expect(codesUpdate).toBeLessThan(entriesUpdate)
-  })
-
   it('looks the entries up without a live-row filter, so already-retired entries still match', async () => {
     const { admin, calls } = mockAdmin({
       exam_sitting_entries: [liveEntries, { data: [{ id: 'e1' }], error: null }],
