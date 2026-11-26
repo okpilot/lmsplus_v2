@@ -1,6 +1,6 @@
 # Red Team — Attack Surface Map
 
-> Last updated: 2026-11-26 (#1777: MH–NJ exam sitting rows)
+> Last updated: 2026-11-26 (#1777: MH–NK exam sitting rows)
 
 > `answer_matches`: EXECUTE revoked from PUBLIC, anon, authenticated; granted to service_role.
 
@@ -620,7 +620,7 @@ These files contain the attack surface. Changes here should trigger a red-team r
 - injection-sql.spec.ts covers two parameterised-text RPC inputs: start_internal_exam_session.p_code (DB_LAYER + TRANSPORT_LAYER), void_internal_exam_code.p_reason (DB_LAYER + TRANSPORT_LAYER + WHITESPACE); submit_quiz_answer.p_selected_option was dropped with its RPC (mig 20261108000100). Both RPCs use parameterised queries and no SQL string interpolation is present in the SECURITY DEFINER bodies. The payloads confirm that. Vectors BO, BP closed; BQ retired.
 - injection-xss.spec.ts covers three user-rendered fields where admin-authored content reaches student views: student full_name in the admin list, question_text in the quiz, explanation_text in the feedback panel. React's JSX escaping and react-markdown + remark-gfm sanitization are both exercised. DOM canary assertions confirm no payload execution in any path. Vector BR closed.
 - header-validation.spec.ts exercises next.config.ts securityHeaders on three paths (/, /app/dashboard, /auth/forgot-password). CSP assertions are structural (default-src 'self', frame-ancestors 'none', script-src 'self', supabase.co in connect-src) to avoid exact-match brittleness across envs. HSTS asserts max-age >= 15552000 (6 months). Vector BS closed.
-- audit-completeness.spec.ts covers the 8 audit event_type literals that had zero positive spec coverage: quiz_session.batch_submitted, exam.started, exam.completed, exam.expired, internal_exam.code_issued (asserted through `issue_sitting_exam_codes` on a seeded sitting and through the legacy `issue_internal_exam_code`), internal_exam.code_voided, internal_exam.started, internal_exam.expired. Notably internal_exam.completed is NOT among the 8 — confirmed present in migrations but commit message's "8 currently-untested" list does not include it (pinned since; see the BT row). Vector BT closed for the 8 listed literals.
+- audit-completeness.spec.ts covers the 8 audit event_type literals that had zero positive spec coverage: quiz_session.batch_submitted, exam.started, exam.completed, exam.expired, internal_exam.code_issued (asserted through `issue_sitting_exam_codes` on a seeded sitting and through the legacy `issue_internal_exam_code`), internal_exam.code_voided, internal_exam.started, internal_exam.expired. Notably internal_exam.completed is NOT among the 8 — Vector BT closed for the 8 listed literals.
 - REMAINING GAPS — deferred per plan:
   - BU: start_quiz_session.p_mode injection — FIXED 2026-05-08 (migration 081 / commit 5b4223b, closes #629). Hard whitelist `p_mode IN ('smart_review','quick_quiz')` in `start_quiz_session`; `mock_exam` and `internal_exam` raise `mode_not_allowed`. Spec: `start-quiz-session-mode-confusion.spec.ts` (2 attacks + positive no-insert assertion). Integration: `rpc-start-session.integration.test.ts` (commit fc5d47e, 2 cases against local Postgres).
   - BV: upsert_exam_config.p_distributions JSONB injection — no issue yet. Admin-only surface, lower priority.
