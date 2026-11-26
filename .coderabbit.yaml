@@ -589,6 +589,14 @@ reviews:
           Sitting carve-out (docs/security.md §15 (f)): sitting RPCs may read users without the filter for the purposes §15 (f) lists (admin-gated, org-scoped, named inline).
           Cancelled-sitting carve-out (docs/security.md §15 (g)): sitting reads may reach a cancelled (soft-deleted) exam_sittings row without the filter (admin-gated, org-scoped, named inline).
           (security.md §9 / docs/security.md §15; docs/database.md §3.)
+
+    # Split only for CodeRabbit's 20,000-character `instructions` limit (a 20,393-char string
+    # made CodeRabbit drop EVERY path instruction in this file). The anchor facts that
+    # `.claude/hooks/coderabbit-mirror.test.mjs` scans live in the entry above, which is the only
+    # one it reads — keep them there. Mechanical guard: #1833.
+    - path: "supabase/migrations/**/*.sql"
+      instructions: |
+        Database migration (SECURITY AUDIT), continued. Enforce:
         - Plaintext exam codes (docs/security.md §11b "Plaintext code storage", "Sitting codes"):
           flag `internal_exam_codes.code` in a student-callable RPC's result, in any `audit_events`
           metadata, or in an issue/preview RPC result. Admin-gated reads (e.g. `list_exam_sitting_roster`)
