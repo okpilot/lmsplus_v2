@@ -109,6 +109,7 @@ describe('seedEnrolledStudents', () => {
     const users = inserts
       .filter((c) => c.table === 'users')
       .map((c) => c.args[0] as { email: string })
+    expect(users).toHaveLength(2)
     expect(users.every((u) => u.email.startsWith('e2e-sit-'))).toBe(true)
   })
 

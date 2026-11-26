@@ -35,11 +35,12 @@ const NJ_LEGACY_EMAIL = 'redteam-nj-legacy@lmsplus.local'
 const NJ_LEGACY_PASSWORD = 'redteam-nj-legacy-2026!'
 const NJ_REASON = '[E2E_REDTEAM_NJ] legacy void probe'
 
-async function codeState(admin: Admin, codeId: string) {
+async function codeState(admin: Admin, codeId: string, orgId: string) {
   const { data, error } = await admin
     .from('internal_exam_codes')
     .select('id, voided_at')
     .eq('id', codeId)
+    .eq('organization_id', orgId)
     .single()
   if (error || !data) throw new Error(`code: ${error?.message}`)
   const { data: audits, error: aErr } = await admin
@@ -47,6 +48,7 @@ async function codeState(admin: Admin, codeId: string) {
     .select('id')
     .eq('event_type', 'internal_exam.code_voided')
     .eq('resource_id', codeId)
+    .eq('organization_id', orgId)
   if (aErr || !audits) throw new Error(`audit: ${aErr?.message}`)
   return { voided: data.voided_at !== null, audits: audits.length }
 }
@@ -58,6 +60,7 @@ test.describe('Red Team: legacy void refuses a sitting code (NJ)', () => {
   let legacyStudentId: string
   let sittingCodeId: string
   let legacyCodeId: string
+  let orgId: string
   const track: SittingTrack = { sittingIds: [], subjectIds: [], adminId: '' }
 
   test.beforeEach(() => {
@@ -68,6 +71,7 @@ test.describe('Red Team: legacy void refuses a sitting code (NJ)', () => {
     admin = getAdminClient()
     const a = await seedRedTeamAdmin()
     track.adminId = a.adminUserId
+    orgId = a.orgId
     studentId = await upsertUser(admin, NJ_STUDENT_EMAIL, NJ_STUDENT_PASSWORD, a.orgId)
     legacyStudentId = await upsertUser(admin, NJ_LEGACY_EMAIL, NJ_LEGACY_PASSWORD, a.orgId)
     const picked = await pickSubjectWithQuestions(admin, { orgId: a.orgId })
@@ -95,6 +99,7 @@ test.describe('Red Team: legacy void refuses a sitting code (NJ)', () => {
       .from('internal_exam_codes')
       .select('id, sitting_entry_id')
       .eq('student_id', studentId)
+      .eq('organization_id', orgId)
       .not('sitting_entry_id', 'is', null)
       .is('voided_at', null)
       .is('deleted_at', null)
@@ -119,6 +124,7 @@ test.describe('Red Team: legacy void refuses a sitting code (NJ)', () => {
         .from('internal_exam_codes')
         .update({ deleted_at: new Date().toISOString() })
         .in('student_id', [studentId, legacyStudentId].filter(Boolean))
+        .eq('organization_id', orgId)
         .is('deleted_at', null)
       if (error) throw new Error(`codes: ${error.message}`)
     } catch (e) {
@@ -134,22 +140,22 @@ test.describe('Red Team: legacy void refuses a sitting code (NJ)', () => {
 
   // Skipped until `void_internal_exam_code` refuses a `sitting_entry_id` code (#1832).
   test.skip('NJ: void_internal_exam_code refuses a sitting code', async () => {
-    expect(await codeState(admin, sittingCodeId)).toEqual({ voided: false, audits: 0 })
+    expect(await codeState(admin, sittingCodeId, orgId)).toEqual({ voided: false, audits: 0 })
 
     const { data, error } = await egmontAdmin.rpc('void_internal_exam_code', {
       p_code_id: sittingCodeId,
       p_reason: NJ_REASON,
     })
     expect(error?.message ?? `no error ${JSON.stringify(data)}`).toMatch(/sitting|code_not_found/)
-    expect(await codeState(admin, sittingCodeId)).toEqual({ voided: false, audits: 0 })
+    expect(await codeState(admin, sittingCodeId, orgId)).toEqual({ voided: false, audits: 0 })
 
     // CONTROL: a legacy code (sitting_entry_id NULL) is voided by the same RPC.
-    expect(await codeState(admin, legacyCodeId)).toEqual({ voided: false, audits: 0 })
+    expect(await codeState(admin, legacyCodeId, orgId)).toEqual({ voided: false, audits: 0 })
     const ok = await egmontAdmin.rpc('void_internal_exam_code', {
       p_code_id: legacyCodeId,
       p_reason: NJ_REASON,
     })
     expect(ok.error).toBeNull()
-    expect(await codeState(admin, legacyCodeId)).toEqual({ voided: true, audits: 1 })
+    expect(await codeState(admin, legacyCodeId, orgId)).toEqual({ voided: true, audits: 1 })
   })
 })

@@ -281,13 +281,23 @@ test.describe('Red Team: Audit Event Completeness', () => {
     expect(ent.data?.[0]?.added).toBe(1)
     const iss = await adminAuthedClient.rpc('issue_sitting_exam_codes', { p_sitting_id: sittingId })
     expect(iss.error).toBeNull()
-    expect(iss.data?.[0]?.issued).toBe(1)
+    expect(iss.data?.[0]).toEqual({
+      issued: 1,
+      reissued_after_expiry: 0,
+      skipped_already_issued: 0,
+      skipped_attempt_taken: 0,
+      skipped_no_config: 0,
+      skipped_deactivated: 0,
+      skipped_not_enrolled: 0,
+      skipped_passed: 0,
+    })
 
     const { data: entry, error: entryErr } = await admin
       .from('exam_sitting_entries')
       .select('id')
       .eq('sitting_id', sittingId)
       .eq('user_id', studentUserId)
+      .eq('organization_id', orgId)
       .is('deleted_at', null)
       .single()
     if (entryErr || !entry) throw new Error(`sitting entry: ${entryErr?.message}`)
@@ -295,6 +305,7 @@ test.describe('Red Team: Audit Event Completeness', () => {
       .from('internal_exam_codes')
       .select('id')
       .eq('sitting_entry_id', entry.id)
+      .eq('organization_id', orgId)
       .is('deleted_at', null)
       .single()
     if (codeErr || !codeRow) throw new Error(`sitting code: ${codeErr?.message}`)
@@ -311,11 +322,18 @@ test.describe('Red Team: Audit Event Completeness', () => {
       p_student_id: studentUserId,
     })
     expect(error, 'issue_internal_exam_code error').toBeNull()
-    const row = (Array.isArray(data) ? data[0] : undefined) as { code_id?: unknown } | undefined
+    const row = (Array.isArray(data) ? data[0] : undefined) as
+      | { code_id?: unknown; code?: unknown; expires_at?: unknown }
+      | undefined
     if (!row || typeof row.code_id !== 'string') {
       throw new Error(`unexpected RPC row: ${JSON.stringify(row)}`)
     }
     tracker.codes.add(row.code_id)
+    // Alphabet and length derived from CODE_ALPHABET / CODE_LENGTH in e2e/helpers/code-gen.ts.
+    expect(typeof row.code).toBe('string')
+    expect(String(row.code)).toMatch(/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{8}$/)
+    expect(typeof row.expires_at).toBe('string')
+    expect(Date.parse(String(row.expires_at))).toBeGreaterThan(Date.now())
 
     await expectAuditRow(admin, 'internal_exam.code_issued', adminUserId, testStart, row.code_id)
   })
