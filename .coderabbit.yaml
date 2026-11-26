@@ -195,6 +195,12 @@ reviews:
           most commonly `.is('deleted_at', null)` on a no-deleted_at table. PostgREST throws
           42703 at runtime while mocked tests, tsc, and Biome all pass. Mirrors the mechanical
           pre-commit guard .claude/hooks/check-soft-delete-guard.mjs (code-style.md §5).
+        - Reserved void reasons (docs/security.md §11b "Sitting codes", #1820): a caller writing a
+          caller-supplied `void_reason` must pass it through `checkSittingCode`
+          (`apps/web/app/app/admin/internal-exams/actions/sitting-code-guard.ts`) first.
+          `void_internal_exam_code` validates only a blank or over-long reason, so an exact match for a
+          system token in `RESERVED_VOID_REASONS` (`packages/db/src/schema.ts`) reaches the notice
+          readers that key on `sitting_cancelled`.
 
     # React source — every .tsx (code-style.md §3/§5/§6)
     - path: "apps/web/**/*.tsx"
