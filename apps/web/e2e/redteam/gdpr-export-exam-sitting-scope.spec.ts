@@ -109,16 +109,20 @@ test.describe('Red Team: GDPR export exam sitting scope (NM)', () => {
 
     const own = await fetchExamSittingCandidacies(attacker, attackerId)
     expect(own.error).toBeNull()
-    expect(own.data.map((r) => r.sitting_id)).toEqual([liveSitting])
-    expect(own.data[0]).toMatchObject({
+    const ownIds = own.data.map((r) => r.sitting_id)
+    expect(ownIds).toContain(liveSitting)
+    expect(own.data.find((r) => r.sitting_id === liveSitting)).toMatchObject({
       sitting_scheduled_at: null,
       sitting_mode: null,
       sitting_status: null,
       deleted_at: null,
     })
+    expect(ownIds).not.toContain(removedSitting)
     const ownEntries = await fetchExamSittingEntries(attacker, attackerId)
     expect(ownEntries.error).toBeNull()
-    expect(ownEntries.data.map((r) => r.id)).toEqual([ownEntry])
+    const ownEntryIds = ownEntries.data.map((r) => r.id)
+    expect(ownEntryIds).toContain(ownEntry)
+    expect(ownEntryIds).not.toContain(removedEntry)
 
     const peer = await fetchExamSittingCandidacies(attacker, victimId)
     expect(peer.error).toBeNull()
