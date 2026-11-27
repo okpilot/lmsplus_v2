@@ -1,5 +1,4 @@
 import { POSTGREST_MAX_ROWS } from '../../lib/supabase-paginate'
-import { ADMIN_TEST_EMAIL } from './admin-supabase'
 import { adminIds } from './exam-sitting-flow-seed'
 import {
   EXAM_SITTING_E2E_PREFIX,
@@ -25,12 +24,13 @@ function check(what: string, error: { message: string } | null) {
  * `retireFixtureSessions` BEFORE deleting the codes, so a failure there cannot orphan a live
  * fixture session whose only link was the code it just deleted.
  */
-async function classifySessions(admin: Admin, sessionIds: string[]) {
+async function classifySessions(admin: Admin, orgId: string, sessionIds: string[]) {
   const found = new Map<string, { id: string; users: { email: unknown } | null }>()
   for (const part of chunk(sessionIds, ID_CHUNK)) {
     const rows = await admin
       .from('quiz_sessions')
       .select('id, users!student_id(email)')
+      .eq('organization_id', orgId)
       .in('id', part)
     check('seed sessions lookup', rows.error)
     // Keyed by id: a session reported by two chunks is classified once.
@@ -51,7 +51,7 @@ async function classifySessions(admin: Admin, sessionIds: string[]) {
 }
 
 /** A fixture student's session may hold immutable answers: it is ended and soft-deleted, never gone. */
-async function retireFixtureSessions(admin: Admin, fixture: string[]) {
+async function retireFixtureSessions(admin: Admin, orgId: string, fixture: string[]) {
   if (fixture.length === 0) return
   const now = new Date().toISOString()
   const parts = chunk(fixture, ID_CHUNK)
@@ -64,6 +64,7 @@ async function retireFixtureSessions(admin: Admin, fixture: string[]) {
     const softDeleted = await admin
       .from('quiz_sessions')
       .update({ deleted_at: now })
+      .eq('organization_id', orgId)
       .in('id', part)
       .select('id')
     check('fixture sessions soft-delete', softDeleted.error)
@@ -80,6 +81,7 @@ async function retireFixtureSessions(admin: Admin, fixture: string[]) {
         await admin
           .from('quiz_sessions')
           .update({ ended_at: now })
+          .eq('organization_id', orgId)
           .in('id', part)
           .is('ended_at', null)
       ).error,
@@ -89,7 +91,11 @@ async function retireFixtureSessions(admin: Admin, fixture: string[]) {
 
 /** Ids of the entries, then the codes of those entries deleted and their fixture sessions retired, for one seeded sitting. */
 async function deleteSeededRows(admin: Admin, orgId: string, sittingId: string) {
-  const entries = await admin.from('exam_sitting_entries').select('id').eq('sitting_id', sittingId)
+  const entries = await admin
+    .from('exam_sitting_entries')
+    .select('id')
+    .eq('organization_id', orgId)
+    .eq('sitting_id', sittingId)
   check('seed entries lookup', entries.error)
   const entryIds = (entries.data ?? []).map((e) => e.id)
   // A full page may be truncated at `max_rows`: refuse rather than delete a partial list.
@@ -105,6 +111,7 @@ async function deleteSeededRows(admin: Admin, orgId: string, sittingId: string) 
       const codes = await admin
         .from('internal_exam_codes')
         .select('id, consumed_session_id')
+        .eq('organization_id', orgId)
         .in('sitting_entry_id', part)
       check('seed codes lookup', codes.error)
       const rows = codes.data ?? []
@@ -120,9 +127,9 @@ async function deleteSeededRows(admin: Admin, orgId: string, sittingId: string) 
     const sessionIds = [
       ...new Set(codeRows.flatMap((c) => (c.consumed_session_id ? [c.consumed_session_id] : []))),
     ]
-    const fixture = sessionIds.length > 0 ? await classifySessions(admin, sessionIds) : []
+    const fixture = sessionIds.length > 0 ? await classifySessions(admin, orgId, sessionIds) : []
     // Retire the fixture sessions while the codes still link to them (see `classifySessions`).
-    await retireFixtureSessions(admin, fixture)
+    await retireFixtureSessions(admin, orgId, fixture)
     for (const part of entryParts) {
       check(
         'seed codes delete',
@@ -200,9 +207,19 @@ async function deleteSeededGroups(admin: Admin, orgId: string) {
     try {
       check(
         'seed group members delete',
-        (await admin.from('student_group_members').delete().in('group_id', ids)).error,
+        (
+          await admin
+            .from('student_group_members')
+            .delete()
+            .eq('organization_id', orgId)
+            .in('group_id', ids)
+        ).error,
       )
-      check('seed groups delete', (await admin.from('student_groups').delete().in('id', ids)).error)
+      check(
+        'seed groups delete',
+        (await admin.from('student_groups').delete().eq('organization_id', orgId).in('id', ids))
+          .error,
+      )
     } catch (e) {
       errors.push(e instanceof Error ? e.message : String(e))
     }
@@ -285,9 +302,18 @@ async function deleteSeededUsers(admin: Admin, orgId: string) {
         try {
           check(
             'seed enrolments delete',
-            (await admin.from('course_enrolments').delete().eq('user_id', u.id)).error,
+            (
+              await admin
+                .from('course_enrolments')
+                .delete()
+                .eq('organization_id', orgId)
+                .eq('user_id', u.id)
+            ).error,
           )
-          check('seed user delete', (await admin.from('users').delete().eq('id', u.id)).error)
+          check(
+            'seed user delete',
+            (await admin.from('users').delete().eq('organization_id', orgId).eq('id', u.id)).error,
+          )
           const authDelete = await admin.auth.admin.deleteUser(u.id)
           check('seed auth user delete', authDelete.error)
         } catch (e) {
@@ -350,15 +376,18 @@ async function cleanupSeededExamSittings(orgId: string): Promise<void> {
 export async function cleanupE2eExamSittings(): Promise<void> {
   const errors: string[] = []
   const note = (e: unknown) => errors.push(e instanceof Error ? e.message : String(e))
-  // Service-role deletes carry an organization predicate (docs/security.md §13).
-  let orgId: string | null = null
+  // Every service-role query on a table with `organization_id` carries `.eq('organization_id', orgId)`.
+  // Exempt: tables without that column and `auth.admin` calls.
+  let ids: { adminId: string; orgId: string } | null = null
   try {
-    orgId = (await adminIds(getAdminClient())).orgId
+    ids = await adminIds(getAdminClient())
   } catch (e) {
     note(e)
   }
-  const seeded = orgId === null ? null : () => cleanupSeededExamSittings(orgId)
-  for (const step of [cleanupEmptySittings, seeded, releaseSeededEnrolments]) {
+  const scoped = ids
+  const empty = scoped === null ? null : () => cleanupEmptySittings(scoped.orgId, scoped.adminId)
+  const seeded = scoped === null ? null : () => cleanupSeededExamSittings(scoped.orgId)
+  for (const step of [empty, seeded, releaseSeededEnrolments]) {
     if (step === null) continue
     try {
       await step()
@@ -369,7 +398,7 @@ export async function cleanupE2eExamSittings(): Promise<void> {
   if (errors.length > 0) throw new Error(`cleanupE2eExamSittings: ${errors.join('; ')}`)
 }
 
-async function cleanupEmptySittings(): Promise<void> {
+async function cleanupEmptySittings(orgId: string, adminId: string): Promise<void> {
   const admin = getAdminClient()
   const errors: string[] = []
   let after: string | null = null
@@ -377,6 +406,7 @@ async function cleanupEmptySittings(): Promise<void> {
     let q = admin
       .from('exam_sittings')
       .select('id')
+      .eq('organization_id', orgId)
       .like('permitted_materials', `${EXAM_SITTING_E2E_PREFIX}%`)
       .is('deleted_at', null)
       .is('closed_at', null)
@@ -388,10 +418,12 @@ async function cleanupEmptySittings(): Promise<void> {
     const rows = page.data ?? []
     if (rows.length === 0) break
     try {
-      await softDeleteEmptyPage(
+      await softDeleteEmptyPage({
         admin,
-        rows.map((r) => r.id),
-      )
+        marked: rows.map((r) => r.id),
+        orgId,
+        adminId,
+      })
     } catch (e) {
       errors.push(e instanceof Error ? e.message : String(e))
     }
@@ -402,12 +434,19 @@ async function cleanupEmptySittings(): Promise<void> {
 }
 
 /** Soft-deletes the marked sittings of one page that have no live entries or candidates. */
-async function softDeleteEmptyPage(admin: Admin, marked: string[]): Promise<void> {
+async function softDeleteEmptyPage(opts: {
+  admin: Admin
+  marked: string[]
+  orgId: string
+  adminId: string
+}): Promise<void> {
+  const { admin, marked, orgId, adminId } = opts
   const withPeople = new Set<string>()
   for (const table of ['exam_sitting_entries', 'exam_sitting_candidates'] as const) {
     const res = await admin
       .from(table)
       .select('sitting_id')
+      .eq('organization_id', orgId)
       .in('sitting_id', marked)
       .is('deleted_at', null)
     if (res.error) throw new Error(`cleanupE2eExamSittings ${table}: ${res.error.message}`)
@@ -423,22 +462,11 @@ async function softDeleteEmptyPage(admin: Admin, marked: string[]): Promise<void
   const ids = marked.filter((id) => !withPeople.has(id))
   if (ids.length === 0) return
 
-  const { data: adminUser, error: adminError } = await admin
-    .from('users')
-    .select('id')
-    .eq('email', ADMIN_TEST_EMAIL)
-    .is('deleted_at', null)
-    .single()
-  if (adminError || !adminUser) {
-    throw new Error(
-      `cleanupE2eExamSittings admin: ${adminError?.message ?? 'admin user not found'}`,
-    )
-  }
-
   const now = new Date().toISOString()
   const { data: deleted, error: deleteError } = await admin
     .from('exam_sittings')
-    .update({ deleted_at: now, deleted_by: adminUser.id })
+    .update({ deleted_at: now, deleted_by: adminId })
+    .eq('organization_id', orgId)
     .in('id', ids)
     .is('closed_at', null)
     .is('deleted_at', null)
@@ -456,12 +484,15 @@ export async function markE2eSitting(
   id: string,
   kind: 'empty' | 'seeded' = 'empty',
 ): Promise<void> {
-  const { data, error } = await getAdminClient()
+  const admin = getAdminClient()
+  const { orgId } = await adminIds(admin)
+  const { data, error } = await admin
     .from('exam_sittings')
     .update({
       permitted_materials:
         kind === 'seeded' ? makeSittingSeedMaterials() : makeSittingE2eMaterials(),
     })
+    .eq('organization_id', orgId)
     .eq('id', id)
     .select('id')
   if (error) throw new Error(`markE2eSitting: ${error.message}`)
