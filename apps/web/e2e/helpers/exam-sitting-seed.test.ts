@@ -2,17 +2,23 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockGetAdminClient } = vi.hoisted(() => ({ mockGetAdminClient: vi.fn() }))
 vi.mock('./supabase', () => ({ getAdminClient: mockGetAdminClient }))
-vi.mock('./admin-supabase', () => ({ getAdminClient: mockGetAdminClient }))
+vi.mock('./admin-supabase', () => ({
+  getAdminClient: mockGetAdminClient,
+  ADMIN_TEST_EMAIL: 'admin@lmsplus.local',
+}))
 
 import { EXAM_SITTING_E2E_PREFIX } from './exam-sitting-markers'
 import { createStudent, insertPassedSession, seedSitting } from './exam-sitting-seed'
 
 type Insert = { table: string; rows: Record<string, unknown>[] }
 
+const isCalls: string[] = []
+
 function fakeAdmin(
   opts: { failUsersInsert?: boolean; failRollback?: boolean; dropFirstEntryId?: boolean } = {},
 ) {
   const inserts: Insert[] = []
+  isCalls.length = 0
   const createUserArgs: Record<string, unknown>[] = []
   const created: string[] = []
   const deleted: string[] = []
@@ -39,8 +45,12 @@ function fakeAdmin(
       }
       return { data: [{ id: `id-${++n}`, short: 'FPM', course_id: 'course-1' }], error: null }
     }
-    for (const m of ['select', 'eq', 'is', 'in', 'order', 'limit', 'like', 'neq']) {
+    for (const m of ['select', 'eq', 'in', 'order', 'limit', 'like', 'neq']) {
       api[m] = () => api
+    }
+    api.is = (col: string, val: unknown) => {
+      isCalls.push(`is:${table}:${col}=${val}`)
+      return api
     }
     api.insert = (rows: Record<string, unknown> | Record<string, unknown>[]) => {
       lastInsert = Array.isArray(rows) ? rows : [rows]
@@ -94,6 +104,12 @@ describe('seedSitting', () => {
     expect(String(sitting?.rows[0]?.permitted_materials)).toMatch(
       new RegExp(`^${EXAM_SITTING_E2E_PREFIX}`),
     )
+  })
+
+  it('filters the admin lookup to non-deleted users', async () => {
+    fakeAdmin()
+    await seedSitting({ people: [{ name: 'Ann', entries: [] }] })
+    expect(isCalls).toContain('is:users:deleted_at=null')
   })
 
   it('seeds one candidate per person and one entry per listed exam', async () => {

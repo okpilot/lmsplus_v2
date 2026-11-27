@@ -2,6 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockGetAdminClient } = vi.hoisted(() => ({ mockGetAdminClient: vi.fn() }))
 vi.mock('./supabase', () => ({ getAdminClient: mockGetAdminClient }))
+vi.mock('./admin-supabase', () => ({
+  getAdminClient: mockGetAdminClient,
+  ADMIN_TEST_EMAIL: 'admin@lmsplus.local',
+}))
 // The real lookup reads `users` and would consume the first entry of every `users` queue.
 vi.mock('./exam-sitting-flow-seed', () => ({
   adminIds: vi.fn(async () => ({ adminId: 'admin-7', orgId: 'org-7' })),

@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { ADMIN_TEST_EMAIL } from './admin-supabase'
 import { randomCode } from './code-gen'
 import {
   EXAM_SITTING_SEED_EMAIL_PREFIX,
@@ -7,8 +8,6 @@ import {
 } from './exam-sitting-markers'
 import { getAdminClient } from './supabase'
 
-/** The E2E admin (invigilator and creator of every seeded sitting). */
-const ADMIN_EMAIL = 'admin@lmsplus.local'
 const BATCH = 10
 
 export type SeedEntryState = 'live' | 'no_code' | 'expired' | 'voided' | 'finished_passed'
@@ -314,7 +313,8 @@ export async function seedSitting(input: SeedInput): Promise<SeedResult> {
   const adminRow = await admin
     .from('users')
     .select('id, organization_id')
-    .eq('email', ADMIN_EMAIL)
+    .eq('email', ADMIN_TEST_EMAIL)
+    .is('deleted_at', null)
     .single()
   if (adminRow.error || !adminRow.data) fail('admin lookup', adminRow.error)
   const { id: adminId, organization_id: orgId } = adminRow.data

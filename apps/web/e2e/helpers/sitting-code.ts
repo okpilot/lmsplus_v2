@@ -1,8 +1,8 @@
+import { ADMIN_TEST_EMAIL } from './admin-supabase'
 import { randomCode } from './code-gen'
 import { makeSittingSeedMaterials } from './exam-sitting-markers'
 import { getAdminClient } from './supabase'
 
-const ADMIN_EMAIL = 'admin@lmsplus.local'
 const LEGACY_VALIDITY_MS = 24 * 3_600_000
 
 /**
@@ -37,7 +37,8 @@ async function lookupIds(admin: Admin, studentEmail: string, subjectFragment: st
   const adminRow = await admin
     .from('users')
     .select('id, organization_id')
-    .eq('email', ADMIN_EMAIL)
+    .eq('email', ADMIN_TEST_EMAIL)
+    .is('deleted_at', null)
     .single()
   if (adminRow.error || !adminRow.data) fail('admin lookup', adminRow.error)
   const student = await admin
@@ -45,6 +46,7 @@ async function lookupIds(admin: Admin, studentEmail: string, subjectFragment: st
     .select('id, full_name')
     .eq('organization_id', adminRow.data.organization_id)
     .eq('email', studentEmail)
+    .is('deleted_at', null)
     .single()
   if (student.error || !student.data) fail('student lookup', student.error)
   const subject = await admin

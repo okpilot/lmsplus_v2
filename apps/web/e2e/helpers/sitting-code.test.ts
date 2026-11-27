@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockGetAdminClient } = vi.hoisted(() => ({ mockGetAdminClient: vi.fn() }))
 vi.mock('./supabase', () => ({ getAdminClient: mockGetAdminClient }))
-vi.mock('./admin-supabase', () => ({ getAdminClient: mockGetAdminClient }))
+vi.mock('./admin-supabase', () => ({
+  getAdminClient: mockGetAdminClient,
+  ADMIN_TEST_EMAIL: 'admin@lmsplus.local',
+}))
 
 import { EXAM_SITTING_SEED_PREFIX } from './exam-sitting-markers'
 import {
@@ -14,8 +17,11 @@ import {
 
 type Insert = { table: string; rows: Record<string, unknown>[] }
 
+const isCalls: string[] = []
+
 function fakeAdmin(failInsertOn?: string) {
   const inserts: Insert[] = []
+  isCalls.length = 0
   let n = 0
   const builder = (table: string) => {
     const api: Record<string, unknown> = {}
@@ -27,8 +33,12 @@ function fakeAdmin(failInsertOn?: string) {
       course_id: 'course-1',
       organization_id: 'org-1',
     })
-    for (const m of ['select', 'eq', 'is', 'in', 'order', 'limit', 'like', 'ilike', 'neq']) {
+    for (const m of ['select', 'eq', 'in', 'order', 'limit', 'like', 'ilike', 'neq']) {
       api[m] = () => api
+    }
+    api.is = (col: string, val: unknown) => {
+      isCalls.push(`is:${table}:${col}=${val}`)
+      return api
     }
     api.insert = (rows: Record<string, unknown> | Record<string, unknown>[]) => {
       inserts.push({ table, rows: Array.isArray(rows) ? rows : [rows] })
@@ -57,6 +67,12 @@ describe('issueSittingCodeFor', () => {
       permitted_materials: expect.stringContaining(EXAM_SITTING_SEED_PREFIX),
     })
     expect(sitting?.rows[0]?.started_at).toBeTruthy()
+  })
+
+  it('filters the admin and student lookups to non-deleted users', async () => {
+    fakeAdmin()
+    await issueSittingCodeFor({ studentEmail: 'student@lmsplus.local', subjectFragment: 'Flight' })
+    expect(isCalls.filter((c) => c === 'is:users:deleted_at=null')).toHaveLength(2)
   })
 
   it('inserts an entry and a live code linked to it', async () => {
