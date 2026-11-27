@@ -8,9 +8,7 @@ import { useCallback } from 'react'
  * at call time rather than from a React `useSearchParams()` snapshot.
  *
  * This prevents stale-snapshot races when multiple sibling components update
- * URL params in quick succession before React re-renders. App Router updates the URL only
- * when a navigation commits, so the new URL is written to history first (current state kept,
- * which carries Next's tree state) and every later update builds on it.
+ * URL params in quick succession before React re-renders.
  *
  * Pass `null` as a value to delete a param.
  */
