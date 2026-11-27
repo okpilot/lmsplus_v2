@@ -18,6 +18,7 @@ const admin = getAdminClient()
 const suffix = fixtureSuffix()
 const password = 'test-pass-123'
 const adminEmail = `int-aq-admin-${suffix}@test.local`
+const otherAdminEmail = `int-aq-oadmin-${suffix}@test.local`
 const RANDOM_UUID = '99999999-9999-4999-8999-999999999999'
 
 let orgId: string
@@ -171,7 +172,7 @@ describe('listInternalExamAttempts filters (app-layer integration)', () => {
     otherAdminId = await createTestUser({
       admin,
       orgId: otherOrgId,
-      email: `int-aq-oadmin-${suffix}@test.local`,
+      email: otherAdminEmail,
       password,
       role: 'admin',
     })
@@ -258,13 +259,18 @@ describe('listInternalExamAttempts filters (app-layer integration)', () => {
 
   it('sitting filter of another organization or a random id returns no rows', async () => {
     await signInAs(adminEmail, password)
-    const all = await listInternalExamAttempts({})
-    expect(ids(all)).not.toContain(session.foreign)
+    await signInAs(otherAdminEmail, password)
+    const fr = await listInternalExamAttempts({ sittingId: otherOrgSittingId })
+    expect(ids(fr)).toContain(session.foreign)
+    expect(fr.totalCount).toBeGreaterThan(0)
+    await signInAs(adminEmail, password)
     for (const s of [otherOrgSittingId, RANDOM_UUID]) {
       const r = await listInternalExamAttempts({ sittingId: s })
       expect(r.rows).toEqual([])
       expect(r.totalCount).toBe(0)
     }
+    const all = await listInternalExamAttempts({})
+    expect(ids(all)).not.toContain(session.foreign)
   })
 
   it('group filter includes active and deactivated members and excludes removed memberships', async () => {
@@ -276,11 +282,16 @@ describe('listInternalExamAttempts filters (app-layer integration)', () => {
 
   it('group filter of another organization returns no rows', async () => {
     await signInAs(adminEmail, password)
-    const all = await listInternalExamAttempts({})
-    expect(ids(all)).not.toContain(session.foreign)
+    await signInAs(otherAdminEmail, password)
+    const fr = await listInternalExamAttempts({ groupId: otherOrgGroupId })
+    expect(ids(fr)).toContain(session.foreign)
+    expect(fr.totalCount).toBeGreaterThan(0)
+    await signInAs(adminEmail, password)
     const r = await listInternalExamAttempts({ groupId: otherOrgGroupId })
     expect(r.rows).toEqual([])
     expect(r.totalCount).toBe(0)
+    const all = await listInternalExamAttempts({})
+    expect(ids(all)).not.toContain(session.foreign)
   })
 
   it('search matches % and _ literally on the name', async () => {
