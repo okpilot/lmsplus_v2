@@ -200,6 +200,15 @@ type CandidacyQueryRow = Omit<
   exam_sittings: { scheduled_at: string; mode: string; status: string | null } | null
 }
 
+function toCandidacyRow({ exam_sittings, ...rest }: CandidacyQueryRow): ExamSittingCandidacyRow {
+  return {
+    ...rest,
+    sitting_scheduled_at: exam_sittings?.scheduled_at ?? null,
+    sitting_mode: exam_sittings?.mode ?? null,
+    sitting_status: exam_sittings?.status ?? null,
+  }
+}
+
 /** Count selects `id`: `authenticated` has column-level SELECT only, so `*` is denied. Self-export (user client) returns live rows with a null sitting embed (no student SELECT policy on exam_sittings); the admin export returns removed rows and resolves the sitting. */
 export async function fetchExamSittingCandidacies(
   supabase: SupabaseClient<Database>,
@@ -222,15 +231,7 @@ export async function fetchExamSittingCandidacies(
         .order('id')
         .range(from, to),
   )
-  return {
-    data: data.map(({ exam_sittings, ...rest }) => ({
-      ...rest,
-      sitting_scheduled_at: exam_sittings?.scheduled_at ?? null,
-      sitting_mode: exam_sittings?.mode ?? null,
-      sitting_status: exam_sittings?.status ?? null,
-    })),
-    error,
-  }
+  return { data: data.map(toCandidacyRow), error }
 }
 
 export function fetchExamSittingEntries(supabase: SupabaseClient<Database>, userId: string) {
