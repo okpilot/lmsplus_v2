@@ -174,7 +174,7 @@ describe('fetchExamSittingCandidacies', () => {
     ])
     const pageSelect = String(select.mock.calls[1]?.[0]).replace(/\s+/g, '')
     expect(pageSelect).toBe(
-      'sitting_id,added_at,deleted_at,exam_sittings!exam_sitting_candidates_sitting_id_organization_id_fkey(scheduled_at,mode,status)',
+      'id,sitting_id,added_at,deleted_at,exam_sittings!exam_sitting_candidates_sitting_id_organization_id_fkey(scheduled_at,mode,status)',
     )
     expect(order.mock.calls).toEqual([['added_at', { ascending: false }], ['id']])
   })
@@ -194,7 +194,7 @@ describe('fetchExamSittingEntries', () => {
       ['user_id', USER_ID],
     ])
     expect(String(select.mock.calls[1]?.[0]).replace(/\s+/g, '')).toBe(
-      'sitting_id,subject_id,added_at,deleted_at',
+      'id,sitting_id,subject_id,added_at,deleted_at',
     )
     expect(order.mock.calls).toEqual([['added_at', { ascending: false }], ['id']])
   })

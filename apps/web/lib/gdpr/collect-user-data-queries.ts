@@ -215,7 +215,7 @@ export async function fetchExamSittingCandidacies(
       supabase
         .from('exam_sitting_candidates')
         .select(
-          'sitting_id, added_at, deleted_at, exam_sittings!exam_sitting_candidates_sitting_id_organization_id_fkey(scheduled_at, mode, status)',
+          'id, sitting_id, added_at, deleted_at, exam_sittings!exam_sitting_candidates_sitting_id_organization_id_fkey(scheduled_at, mode, status)',
         )
         .eq('user_id', userId)
         .order('added_at', { ascending: false })
@@ -243,7 +243,7 @@ export function fetchExamSittingEntries(supabase: SupabaseClient<Database>, user
     (from, to) =>
       supabase
         .from('exam_sitting_entries')
-        .select('sitting_id, subject_id, added_at, deleted_at')
+        .select('id, sitting_id, subject_id, added_at, deleted_at')
         .eq('user_id', userId)
         .order('added_at', { ascending: false })
         .order('id')

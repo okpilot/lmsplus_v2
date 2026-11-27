@@ -815,6 +815,7 @@ describe('collectUserData', () => {
   describe('exam_sitting_candidacies', () => {
     const CANDIDACIES = [
       {
+        id: 'c0000000-0000-4000-8000-000000000001',
         sitting_id: 's0000000-0000-4000-8000-000000000001',
         added_at: '2026-11-01T00:00:00Z',
         deleted_at: null,
@@ -834,11 +835,12 @@ describe('collectUserData', () => {
       } as unknown as SupabaseClient<Database>
     }
 
-    it('includes exam_sitting_candidacies with the sitting date and mode in the payload', async () => {
+    it('includes exam_sitting_candidacies with the sitting date, mode and status in the payload', async () => {
       const result = await collectUserData(clientWithCandidacies(CANDIDACIES, null), USER_ID)
 
       expect(result.exam_sitting_candidacies).toEqual([
         {
+          id: 'c0000000-0000-4000-8000-000000000001',
           sitting_id: 's0000000-0000-4000-8000-000000000001',
           sitting_scheduled_at: '2026-12-01T09:00:00Z',
           sitting_mode: 'remote',
@@ -849,7 +851,7 @@ describe('collectUserData', () => {
       ])
     })
 
-    it('returns sitting_scheduled_at and sitting_mode null when the embedded sitting is not readable', async () => {
+    it('returns sitting_scheduled_at, sitting_mode and sitting_status null when the embedded sitting is not readable', async () => {
       const rows = [{ ...CANDIDACIES[0], exam_sittings: null }]
       const result = await collectUserData(clientWithCandidacies(rows, null), USER_ID)
 
@@ -876,6 +878,7 @@ describe('collectUserData', () => {
   describe('exam_sitting_entries', () => {
     const ENTRIES = [
       {
+        id: 'e0000000-0000-4000-8000-000000000001',
         sitting_id: 's0000000-0000-4000-8000-000000000001',
         subject_id: 'sub00000-0000-4000-8000-000000000001',
         added_at: '2026-11-01T00:00:00Z',

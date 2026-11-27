@@ -1,7 +1,7 @@
 // App-layer integration tier (#925) — GDPR export of sitting candidacies and entries against
 // real Postgres. Self-export runs under RLS (live rows only; no student SELECT policy on exam_sittings,
 // so the sitting embed is null); admin export under the service role (live + removed, sitting
-// date and mode resolved).
+// date, mode and status resolved).
 import { createServerSupabaseClient } from '@repo/db/server'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
@@ -126,13 +126,14 @@ describe('collectUserData sitting candidacy (app-layer integration)', () => {
     await cleanupReferenceData({ admin, refs: [refs] })
   }, 60_000)
 
-  it('self export returns live candidacies and entries only, sitting date and mode null, no warnings', async () => {
+  it('self export returns live candidacies and entries only, sitting date, mode and status null, no warnings', async () => {
     await signInAs(studentEmail, password)
     const payload = await collectUserData(await createServerSupabaseClient(), studentId)
 
     expect(payload.warnings).toEqual([])
     expect(payload.exam_sitting_candidacies).toEqual([
       {
+        id: expect.any(String),
         sitting_id: liveSitting,
         sitting_scheduled_at: null,
         sitting_mode: null,
@@ -143,6 +144,7 @@ describe('collectUserData sitting candidacy (app-layer integration)', () => {
     ])
     expect(payload.exam_sitting_entries).toEqual([
       {
+        id: expect.any(String),
         sitting_id: liveSitting,
         subject_id: refs.subjectId,
         added_at: expect.any(String),
@@ -151,10 +153,11 @@ describe('collectUserData sitting candidacy (app-layer integration)', () => {
     ])
   })
 
-  it('admin export returns live and removed candidacies and entries with the sitting date and mode', async () => {
+  it('admin export returns live and removed candidacies and entries with the sitting date, mode and status', async () => {
     const payload = await collectUserData(admin, studentId)
 
     expect(payload.warnings).toEqual([])
+    expect(payload.exam_sitting_candidacies).toHaveLength(2)
     const bySitting = new Map(payload.exam_sitting_candidacies.map((c) => [c.sitting_id, c]))
     expect([...bySitting.keys()].sort()).toEqual([liveSitting, removedSitting].sort())
     expect(bySitting.has(peerSitting)).toBe(false)
@@ -175,6 +178,7 @@ describe('collectUserData sitting candidacy (app-layer integration)', () => {
       new Date(SCHEDULED_REMOVED).getTime(),
     )
 
+    expect(payload.exam_sitting_entries).toHaveLength(2)
     const entries = new Map(payload.exam_sitting_entries.map((e) => [e.sitting_id, e]))
     expect([...entries.keys()].sort()).toEqual([liveSitting, removedSitting].sort())
     expect(entries.has(peerSitting)).toBe(false)

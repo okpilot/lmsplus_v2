@@ -494,7 +494,7 @@ CREATE INDEX idx_exam_sitting_candidates_user ON exam_sitting_candidates(user_id
 
 **GRANTs to `authenticated`:** `SELECT (id, organization_id, sitting_id, user_id, added_at, deleted_at)` only.
 
-**GDPR export:** key `exam_sitting_candidacies` (`fetchExamSittingCandidacies`): `sitting_id, sitting_scheduled_at, sitting_mode, sitting_status, added_at, deleted_at`; `sitting_status` is `scheduled|open|closed|cancelled` (`cancelled` marks a cancelled sitting); date/mode/status are `null` in the student self-export (no student SELECT policy on `exam_sittings`); admin export also returns removed rows and resolves date/mode/status regardless of the sitting's `deleted_at`.
+**GDPR export:** key `exam_sitting_candidacies` (`fetchExamSittingCandidacies`): `id, sitting_id, sitting_scheduled_at, sitting_mode, sitting_status, added_at, deleted_at`; `sitting_status` is `scheduled|open|closed|cancelled` (`cancelled` marks a cancelled sitting); date/mode/status are `null` in the student self-export (no student SELECT policy on `exam_sittings`) (#1845); self-export returns live rows only (own-row policies filter `deleted_at IS NULL`); admin export also returns removed rows and resolves date/mode/status regardless of the sitting's `deleted_at`.
 
 ### exam_sitting_entries
 
@@ -523,7 +523,7 @@ CREATE INDEX idx_exam_sitting_entries_org_subject ON exam_sitting_entries(organi
 
 **GRANTs to `authenticated`:** `SELECT (id, organization_id, sitting_id, user_id, subject_id, added_at, deleted_at)` only.
 
-**GDPR export:** key `exam_sitting_entries` (`fetchExamSittingEntries`): `sitting_id, subject_id, added_at, deleted_at`; carries no sitting date/mode, join on `sitting_id` to `exam_sitting_candidacies`; admin export also returns removed rows.
+**GDPR export:** key `exam_sitting_entries` (`fetchExamSittingEntries`): `id, sitting_id, subject_id, added_at, deleted_at`; carries no sitting date/mode, join on `sitting_id` to `exam_sitting_candidacies`; self-export returns live rows only (own-row policies filter `deleted_at IS NULL`); admin export also returns removed rows.
 
 ### quiz_sessions
 
