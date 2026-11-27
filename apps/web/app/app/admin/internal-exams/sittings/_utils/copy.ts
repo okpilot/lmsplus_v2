@@ -65,10 +65,12 @@ export function issueSkipText(
 
 const FAILED_LISTED = 5
 
-function failedNames(failed: EmailCodesResult['failed']): string {
+function failedNames(
+  failed: readonly { studentName: string | null; subjectName?: string }[],
+): string {
   const listed = failed
     .slice(0, FAILED_LISTED)
-    .map((f) => `${f.studentName ?? 'Unknown'} (${f.subjectName})`)
+    .map((f) => `${f.studentName ?? 'Unknown'}${f.subjectName ? ` (${f.subjectName})` : ''}`)
     .join(', ')
   const more = failed.length - FAILED_LISTED
   return more > 0 ? `${listed}, and ${more} more` : listed
@@ -95,15 +97,12 @@ type NoticeCounts = {
   error?: boolean
 }
 
-const names = (failed: NoticeCounts['failed']) =>
-  failed.map((f) => f.studentName ?? 'Unknown').join(', ')
-
 /** Result of Send notices: `Sent N · Failed M`, then the failed names. */
 export function sendNoticesBanner(
   d: NoticeCounts & { skipped: number; unrecorded: number },
 ): ResultBannerData {
   const lines = [
-    d.failed.length > 0 ? `Failed: ${names(d.failed)}. Send notices tries them again.` : '',
+    d.failed.length > 0 ? `Failed: ${failedNames(d.failed)}. Send notices tries them again.` : '',
     d.skipped > 0 ? `Skipped ${d.skipped} (no email or deactivated)` : '',
     d.unrecorded > 0
       ? `${d.unrecorded} sent but not recorded. Send notices will send them again.`
@@ -134,7 +133,7 @@ export function cancelledBanner(codesVoided: number, notices?: NoticeCounts): Re
   }
   return {
     tone: 'caution',
-    title: `Sitting cancelled. Notice failed for ${names(notices.failed)}.`,
+    title: `Sitting cancelled. Notice failed for ${failedNames(notices.failed)}.`,
     detail: [detail, 'Failed notices stay pending: use Send notices.', ...extra].join(' '),
   }
 }
@@ -155,7 +154,7 @@ export function detailsSavedBanner(notices?: NoticeCounts): ResultBannerData {
   if (notices && notices.failed.length > 0) {
     return {
       tone: 'caution',
-      title: `Details saved. Change notice failed for ${names(notices.failed)}. Use Resend code on their exams (the code email carries the new time).`,
+      title: `Details saved. Change notice failed for ${failedNames(notices.failed)}. Use Resend code on their exams (the code email carries the new time).`,
       ...(sent ? { detail: sent } : {}),
     }
   }

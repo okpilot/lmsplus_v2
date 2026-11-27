@@ -1,4 +1,4 @@
-// Integration-only infra (no unit test, as fixtures.ts): shared by app-layer integration tests and e2e seeding.
+// Integration-only infra: shared by app-layer integration tests and e2e seeding.
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 /** `pass_mark` of the org's oldest enabled exam config for the subject. */

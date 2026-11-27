@@ -79,7 +79,7 @@ test('cancelling a sitting with an emailed code reports the cancellation notice'
   ).toBeVisible()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Cancel sitting' }).click()
   if (SENDS) await expect(page.getByText(/1 notice sent/)).toBeVisible()
-  else await expect(page.getByText(/E2E Bea Notice/)).toBeVisible()
+  else await expect(page.getByText(/Notice failed for E2E Bea Notice/)).toBeVisible()
   await page.reload()
   await expect(page).toHaveURL(`${BASE}/${sittingId}`)
   await expect(page.getByText('Cancelled', { exact: false }).first()).toBeVisible()

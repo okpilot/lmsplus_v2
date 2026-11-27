@@ -100,6 +100,8 @@ describe('CANCEL_CONFIRM_TEXT notices line', () => {
 })
 
 describe('notice banners with errors', () => {
+  const names = (n: number) => Array.from({ length: n }, (_, i) => ({ studentName: `S${i}` }))
+
   it('cancelledBanner adds the unrecorded line', () => {
     const b = cancelledBanner(2, { sent: 1, failed: [], unrecorded: 1 })
     expect(b.tone).toBe('caution')
@@ -110,6 +112,25 @@ describe('notice banners with errors', () => {
     const b = cancelledBanner(2, { sent: 0, failed: [], error: true })
     expect(b.tone).toBe('caution')
     expect(b.detail).toContain('Notices could not be sent. Use Send notices.')
+  })
+
+  it('sendNoticesBanner lists at most 5 failed names, then the remainder count', () => {
+    const b = sendNoticesBanner({ sent: 0, failed: names(7), skipped: 0, unrecorded: 0 })
+    expect(b.lines?.[0]).toBe(
+      'Failed: S0, S1, S2, S3, S4, and 2 more. Send notices tries them again.',
+    )
+  })
+
+  it('cancelledBanner lists at most 5 failed names, then the remainder count', () => {
+    expect(cancelledBanner(2, { sent: 0, failed: names(7) }).title).toBe(
+      'Sitting cancelled. Notice failed for S0, S1, S2, S3, S4, and 2 more.',
+    )
+  })
+
+  it('renders a null student name as Unknown', () => {
+    expect(cancelledBanner(1, { sent: 0, failed: [{ studentName: null }] }).title).toContain(
+      'Notice failed for Unknown.',
+    )
   })
 
   it('cancelledBanner stays a success without problems', () => {
