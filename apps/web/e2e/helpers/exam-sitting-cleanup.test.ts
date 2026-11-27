@@ -368,6 +368,37 @@ describe('cleanupE2eExamSittings (seeded sittings)', () => {
     expect(sessionCalls.some((c) => c.method === 'delete' || c.method === 'update')).toBe(false)
   })
 
+  it('throws, deleting no code, when a looked-up session row is not returned', async () => {
+    const { calls } = seededClient({
+      exam_sittings: [
+        { data: [], error: null },
+        { data: [{ id: 's1' }], error: null },
+      ],
+      exam_sitting_entries: [{ data: [{ id: 'e1' }], error: null }],
+      internal_exam_codes: [
+        {
+          data: [
+            { id: 'c1', consumed_session_id: 'q1' },
+            { id: 'c2', consumed_session_id: 'q2' },
+          ],
+          error: null,
+        },
+      ],
+      quiz_sessions: [
+        { data: [{ id: 'q1', users: { email: 'fixture@example.com' } }], error: null },
+      ],
+    })
+    const err = await cleanupE2eExamSittings().then(
+      () => null,
+      (e: Error) => e,
+    )
+    expect(err?.message).toMatch(/no session row for q2/)
+    expect(err?.message).not.toMatch(/q1/)
+    expect(calls.some((c) => c.table === 'internal_exam_codes' && c.method === 'delete')).toBe(
+      false,
+    )
+  })
+
   it('deletes the seeded students from users and auth', async () => {
     const { deleteUser } = seededClient({
       exam_sittings: [{ data: [], error: null }],

@@ -36,6 +36,10 @@ async function classifySessions(admin: Admin, orgId: string, sessionIds: string[
     // Keyed by id: a session reported by two chunks is classified once.
     for (const r of rows.data ?? []) found.set(r.id, r)
   }
+  if (found.size !== sessionIds.length) {
+    const missing = sessionIds.filter((id) => !found.has(id))
+    throw new Error(`seed sessions lookup: no session row for ${missing.join(', ')}`)
+  }
   const classified = [...found.values()].map((r) => {
     const email = r.users?.email
     // An unresolved embed is unclassifiable. Routed to the fixture branch, a seeded row is only
@@ -58,8 +62,8 @@ async function retireFixtureSessions(admin: Admin, orgId: string, fixture: strin
   // Soft-delete FIRST: the two updates are not atomic, and every history and attempts list filters
   // `deleted_at IS NULL`. A failure after this point leaves the row invisible rather than looking
   // like an unscored finished attempt.
-  // Row count, not just `error`: a 0-row UPDATE returns 200 OK. The ids were looked up in this
-  // same teardown and this UPDATE carries no filter, so every one must match.
+  // Row count, not just `error`: a 0-row UPDATE returns 200 OK. Every id came from the org-scoped
+  // lookup, so each must match.
   for (const part of parts) {
     const softDeleted = await admin
       .from('quiz_sessions')
