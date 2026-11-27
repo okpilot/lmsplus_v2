@@ -1,3 +1,4 @@
+import type { EmailCodesResult } from '../actions/email-sitting-codes'
 import type { IssueCounts } from '../actions/issue-sitting-codes'
 import { plural } from './plural'
 
@@ -60,4 +61,29 @@ export function issueSkipText(
     d.skippedNoConfig > 0 ? 'exam disabled' : '',
   ].filter(Boolean)
   return reasons.length > 0 ? `Skipped: ${reasons.join(', ')}.` : ''
+}
+
+const FAILED_LISTED = 5
+
+function failedNames(failed: EmailCodesResult['failed']): string {
+  const listed = failed
+    .slice(0, FAILED_LISTED)
+    .map((f) => `${f.studentName ?? 'Unknown'} (${f.subjectName})`)
+    .join(', ')
+  const more = failed.length - FAILED_LISTED
+  return more > 0 ? `${listed}, and ${more} more` : listed
+}
+
+/** Result of the bulk Email codes: `Emailed N`, then a line per failure, skip and unrecorded send. */
+export function emailCodesBanner(d: EmailCodesResult): ResultBannerData {
+  const lines = [
+    d.failed.length > 0 ? `Failed ${d.failed.length}: ${failedNames(d.failed)}` : '',
+    d.skipped > 0 ? `Skipped ${d.skipped} (no email or deactivated)` : '',
+    d.unrecorded > 0 ? `${d.unrecorded} sent but not recorded` : '',
+  ].filter(Boolean)
+  return {
+    tone: d.failed.length > 0 || d.unrecorded > 0 ? 'caution' : 'success',
+    title: `Emailed ${d.sent}`,
+    ...(lines.length > 0 ? { lines } : {}),
+  }
 }

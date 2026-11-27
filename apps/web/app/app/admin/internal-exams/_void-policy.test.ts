@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { codeDisplayStatus, codeRowVoidable, sittingCodeVoidable } from './_void-policy'
+import {
+  codeDisplayStatus,
+  codeRowEmailable,
+  codeRowVoidable,
+  sittingCodeVoidable,
+} from './_void-policy'
 
 const base = { consumed: false, sessionEndedAt: null, sessionVisible: true }
 
@@ -20,6 +25,18 @@ describe('codeRowVoidable', () => {
 
   it('refuses an unconsumed sitting code', () => {
     expect(codeRowVoidable({ ...row, consumedAt: null })).toBe(false)
+  })
+})
+
+describe('codeRowEmailable', () => {
+  it.each([
+    ['active', true],
+    ['waiting', true],
+    ['consumed', false],
+    ['expired', false],
+    ['voided', false],
+  ] as const)('for a %s code is %s', (status, expected) => {
+    expect(codeRowEmailable({ status })).toBe(expected)
   })
 })
 

@@ -4,8 +4,13 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { sendEmail } from '@/lib/email/resend'
-import { internalExamCodeEmail } from '@/lib/email/templates/internal-exam-code'
+import { buildCodeEmail, sittingOf } from '../_code-email'
 import { getInternalExamCodeForEmail } from '../email-queries'
+import {
+  type SittingEmailRefusal,
+  sittingEmailRefusal,
+} from '../sittings/_utils/sitting-email-gate'
+import { revalidateSitting } from '../sittings/actions/sitting-action-result'
 
 const SendCodeEmailSchema = z.object({ codeId: z.uuid() })
 
@@ -20,7 +25,7 @@ export type SendCodeEmailResult =
         | 'Invalid input'
         | 'Code not found'
         | 'Code is no longer active'
-        | 'Sitting codes cannot be emailed from here yet'
+        | SittingEmailRefusal
         | 'Failed to send email'
     }
 
@@ -33,9 +38,11 @@ export async function sendInternalExamCodeEmail(input: unknown): Promise<SendCod
   const payload = await getInternalExamCodeForEmail(parsed.data.codeId)
   if (!payload) return { success: false, error: 'Code not found' }
 
-  if (payload.sittingEntryId !== null) {
-    return { success: false, error: 'Sitting codes cannot be emailed from here yet' }
-  }
+  const sitting = sittingOf(payload)
+  if (payload.sittingEntryId !== null && !sitting)
+    return { success: false, error: 'Code not found' }
+  const refusal = sitting && sittingEmailRefusal(sitting.status, sitting.scheduledAt)
+  if (refusal) return { success: false, error: refusal }
 
   const isExpired = new Date(payload.expiresAt).getTime() <= Date.now()
   if (payload.consumedAt || payload.voidedAt || isExpired) {
@@ -49,13 +56,7 @@ export async function sendInternalExamCodeEmail(input: unknown): Promise<SendCod
     return { success: false, error: 'Failed to send email' }
   }
   const examUrl = `${process.env.NEXT_PUBLIC_APP_URL}/app/internal-exam`
-  const { subject, html, text } = internalExamCodeEmail({
-    studentName: payload.studentName,
-    subjectName: payload.subjectName,
-    code: payload.code,
-    expiresAt: payload.expiresAt,
-    examUrl,
-  })
+  const { subject, html, text } = buildCodeEmail(payload, sitting, examUrl)
 
   const sent = await sendEmail({ to: payload.studentEmail, subject, html, text })
   if (!sent.ok) {
@@ -80,6 +81,7 @@ export async function sendInternalExamCodeEmail(input: unknown): Promise<SendCod
     return { success: true }
   }
 
-  revalidatePath('/app/admin/internal-exams')
+  if (payload.sittingId) revalidateSitting(payload.sittingId)
+  else revalidatePath('/app/admin/internal-exams')
   return { success: true }
 }

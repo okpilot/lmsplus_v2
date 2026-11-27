@@ -1,28 +1,25 @@
 /**
- * Red Team Spec: sendInternalExamCodeEmail must never email a SITTING code (Vector NG, #1777)
+ * Red Team Spec: sendInternalExamCodeEmail must not email a sitting code once its sitting is
+ * cancelled (Vector NG, #1777, #1812)
  *
- * The codes tab renders "Send email" only for a legacy code (`sittingEntryId === null`), so the
- * server-side branch in apps/web/app/app/admin/internal-exams/actions/send-code-email.ts
- * (`Sitting codes cannot be emailed from here yet`, #1812) is the only enforcement against a stale
- * render. Two things it protects:
- *   - the plaintext code, which for a sitting is handed out through the invigilator-scoped roster
- *     and Print codes page only (docs/security.md § Sitting codes);
- *   - `internal_exam_codes.emailed_at`, which is what makes a cancelled sitting's code a pending
- *     removal notice (mig 20261117001000) — stamping it from the codes tab forges notice state.
+ * Sitting codes are emailable from the codes tab. The server re-checks the sitting at submit
+ * (apps/web/app/app/admin/internal-exams/actions/send-code-email.ts, sitting guard first); a stale
+ * render must not bypass it. Protected:
+ *   - the plaintext code of a cancelled sitting;
+ *   - `internal_exam_codes.emailed_at`, which makes a cancelled sitting's code a pending removal
+ *     notice (mig 20261117001000).
  *
- * Attack: open the codes tab while the code reads as legacy (button rendered, enabled), attach it
- * to a sitting entry, then submit — a TOCTOU submit the client cannot prevent.
- * Expected: the refusal toast, `emailed_at` still NULL, and no `internal_exam.code_emailed` audit
- * row for the code (record_internal_exam_code_emailed is the only writer of either).
+ * Attack: render the codes tab with the sitting code live and "Send email" enabled, soft-delete its
+ * sitting directly (no void, no audit), then submit.
+ * Expected: the closed-sitting refusal, no terminal success toast, `emailed_at` NULL, no
+ * `internal_exam.code_emailed` audit row for the code.
  *
  * CONTROL ARM (in-spec): a legacy code of the same student, same page, same click reaches a
- * post-guard TERMINAL toast — so the refusal above is caused by the sitting attachment, not by a
- * broken button. The control does not assert delivery or the audit row: a successful send needs
- * RESEND_API_KEY (apps/web/lib/email/resend.ts), absent in CI.
+ * post-guard TERMINAL toast. The control does not assert delivery or the audit row: a send without
+ * RESEND_API_KEY succeeds outside production and fails in production (apps/web/lib/email/resend.ts).
  *
  * Hermetic: a throwaway student, codes carrying NG_CODE_PREFIX, one marked sitting tracked in
- * `SittingTrack`; afterAll soft-deletes the codes, then cleanupSittingFixtures (per-step
- * accumulator).
+ * `SittingTrack`; afterAll soft-deletes the codes, then cleanupSittingFixtures.
  */
 
 import { type Browser, type BrowserContext, expect, test } from '@playwright/test'
@@ -53,7 +50,7 @@ const CODES_URL = '/app/admin/internal-exams?tab=codes&status=active'
 const NG_CODE_PREFIX = 'RTNG'
 const NG_STUDENT_EMAIL = 'redteam-ng-student@lmsplus.local'
 const NG_STUDENT_PASSWORD = 'redteam-ng-student-2026!'
-const SITTING_REFUSAL = 'Sitting codes cannot be emailed from here yet'
+const SITTING_REFUSAL = 'This sitting is closed and cannot be changed.'
 const TERMINAL_TOAST = /Code emailed to student|Failed to send email/
 const LEGACY_VALIDITY_MS = 24 * 60 * 60 * 1000
 
@@ -84,9 +81,15 @@ async function emailedAuditCount(admin: Admin, codeId: string): Promise<number> 
   return count ?? 0
 }
 
-async function insertLegacyCode(
+async function insertCode(
   admin: Admin,
-  opts: { orgId: string; adminId: string; studentId: string; subjectId: string },
+  opts: {
+    orgId: string
+    adminId: string
+    studentId: string
+    subjectId: string
+    sittingEntryId?: string
+  },
 ): Promise<{ id: string; code: string }> {
   const code = markedCode()
   const { data, error } = await admin
@@ -97,13 +100,14 @@ async function insertLegacyCode(
       issued_by: opts.adminId,
       student_id: opts.studentId,
       subject_id: opts.subjectId,
+      ...(opts.sittingEntryId ? { sitting_entry_id: opts.sittingEntryId } : {}),
       // What issue_internal_exam_code gives a legacy code: issued_at + 24h.
       expires_at: new Date(Date.now() + LEGACY_VALIDITY_MS).toISOString(),
     })
     .select('id')
     .single()
   if (error || typeof data?.id !== 'string') {
-    throw new Error(`legacy code: ${error?.message ?? 'no row'}`)
+    throw new Error(`code: ${error?.message ?? 'no row'}`)
   }
   return { id: data.id, code }
 }
@@ -125,13 +129,14 @@ async function signInAdmin(browser: Browser, userId: string): Promise<BrowserCon
   return context
 }
 
-test.describe('Red Team: codes-tab Send email never reaches a sitting code (NG)', () => {
+test.describe('Red Team: codes-tab Send email refuses a sitting code once its sitting is cancelled (NG)', () => {
   let admin: Admin
   let adminContext: BrowserContext
   let orgId: string
   let adminUserId: string
   let studentId: string
   let subjectId: string
+  let sittingId: string
   let entryId: string
   let target: { id: string; code: string }
   let control: { id: string; code: string }
@@ -150,14 +155,18 @@ test.describe('Red Team: codes-tab Send email never reaches a sitting code (NG)'
     await ensureExamConfig(orgId, subjectId, picked.topicId)
 
     const egmontAdmin: SupabaseClient = await createAuthenticatedClient(ADMIN_EMAIL, ADMIN_PASSWORD)
-    const sittingId = await createSittingRpc(egmontAdmin, adminUserId)
+    sittingId = await createSittingRpc(egmontAdmin, adminUserId)
     track.sittingIds.push(sittingId)
-    // No code is issued for this entry, so uq_internal_exam_codes_live_entry stays free for the
-    // attach below. The composite FK needs (entry id, org, subject, user) to match the code's row.
     entryId = await insertEntry(admin, { orgId, sittingId, userId: studentId, subjectId })
 
-    target = await insertLegacyCode(admin, { orgId, adminId: adminUserId, studentId, subjectId })
-    control = await insertLegacyCode(admin, { orgId, adminId: adminUserId, studentId, subjectId })
+    target = await insertCode(admin, {
+      orgId,
+      adminId: adminUserId,
+      studentId,
+      subjectId,
+      sittingEntryId: entryId,
+    })
+    control = await insertCode(admin, { orgId, adminId: adminUserId, studentId, subjectId })
 
     adminContext = await signInAdmin(browser, adminUserId)
   })
@@ -191,7 +200,7 @@ test.describe('Red Team: codes-tab Send email never reaches a sitting code (NG)'
     if (errors.length > 0) throw new Error(`NG afterAll: ${errors.join('; ')}`)
   })
 
-  test('a code attached to a sitting entry after the row rendered is not emailed', async () => {
+  test('a sitting code rendered emailable is not emailed once its sitting is cancelled', async () => {
     // Non-vacuous: the target exists, has never been emailed and carries no audit row.
     expect(await emailedAt(admin, target.id)).toBeNull()
     expect(await emailedAuditCount(admin, target.id)).toBe(0)
@@ -203,14 +212,13 @@ test.describe('Red Team: codes-tab Send email never reaches a sitting code (NG)'
     const send = row.getByRole('button', { name: 'Send email' })
     await expect(send).toBeEnabled()
 
-    // Stale render: the code becomes a sitting code before the submit reaches the server.
-    const { data: moved, error: moveErr } = await admin
-      .from('internal_exam_codes')
-      .update({ sitting_entry_id: entryId })
-      .eq('id', target.id)
+    const { data: cancelled, error: cancelErr } = await admin
+      .from('exam_sittings')
+      .update({ deleted_at: new Date().toISOString(), deleted_by: adminUserId })
+      .eq('id', sittingId)
       .select('id')
-    if (moveErr || moved?.length !== 1) {
-      throw new Error(`attach entry: ${moveErr?.message ?? moved?.length}`)
+    if (cancelErr || cancelled?.length !== 1) {
+      throw new Error(`cancel sitting: ${cancelErr?.message ?? cancelled?.length}`)
     }
 
     await send.click()

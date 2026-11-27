@@ -3,6 +3,8 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const m = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), search: '' }))
+vi.mock('../../actions/send-code-email', () => ({ sendInternalExamCodeEmail: vi.fn() }))
+vi.mock('../actions/email-sitting-codes', () => ({ emailSittingCodes: vi.fn() }))
 vi.mock('../actions/remove-candidates', () => ({ removeCandidates: vi.fn() }))
 vi.mock('../actions/remove-entries', () => ({ removeSittingEntries: vi.fn() }))
 vi.mock('../actions/issue-sitting-codes', () => ({ issueSittingCodes: vi.fn() }))

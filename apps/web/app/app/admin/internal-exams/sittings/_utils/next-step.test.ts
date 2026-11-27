@@ -67,15 +67,28 @@ describe('examActions', () => {
   ])(
     'for a %s exam offers void %s and remove %s when editable',
     (status, voidCodeId, canRemove) => {
-      expect(examActions(withCode(status), { editable: true })).toEqual({ voidCodeId, canRemove })
+      expect(examActions(withCode(status), { editable: true, deactivated: false })).toEqual({
+        voidCodeId,
+        canRemove,
+        canEmail: voidCodeId !== null,
+      })
     },
   )
 
+  it('offers no email for a deactivated student', () => {
+    expect(examActions(withCode('ready'), { editable: true, deactivated: true })).toEqual({
+      voidCodeId: 'k1',
+      canRemove: true,
+      canEmail: false,
+    })
+  })
+
   it('offers nothing when the sitting is not editable', () => {
     for (const status of ['waiting', 'ready', 'no_code'])
-      expect(examActions(withCode(status), { editable: false })).toEqual({
+      expect(examActions(withCode(status), { editable: false, deactivated: false })).toEqual({
         voidCodeId: null,
         canRemove: false,
+        canEmail: false,
       })
   })
 })

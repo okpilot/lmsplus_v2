@@ -43,15 +43,17 @@ export function nextStep(e: RosterEntry, { editable, deactivated }: Ctx): NextSt
 /** Only an exam with no attempt yet can be removed. */
 const REMOVABLE: ReadonlySet<string> = new Set(['no_code', 'waiting', 'ready', 'expired', 'voided'])
 
-export type ExamActions = { voidCodeId: string | null; canRemove: boolean }
+export type ExamActions = { voidCodeId: string | null; canRemove: boolean; canEmail: boolean }
 
-/** The destructive actions an exam row offers: the live code to void, and whether it can be removed. */
+/** The actions an exam row offers: the live code to void, whether it can be removed, and whether its code can be emailed. */
 export function examActions(
   e: RosterEntry,
-  { editable }: Readonly<{ editable: boolean }>,
+  { editable, deactivated }: Readonly<{ editable: boolean; deactivated: boolean }>,
 ): ExamActions {
+  const voidCodeId = editable && LIVE_ENTRY_STATUSES.has(e.status) ? e.codeId : null
   return {
-    voidCodeId: editable && LIVE_ENTRY_STATUSES.has(e.status) ? e.codeId : null,
+    voidCodeId,
     canRemove: editable && REMOVABLE.has(e.status),
+    canEmail: voidCodeId !== null && !deactivated,
   }
 }

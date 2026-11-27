@@ -1,6 +1,6 @@
 # Red Team — Attack Surface Map
 
-> Last updated: 2026-11-27 (#1777: MH–NM exam sitting rows)
+> Last updated: 2026-11-27 (#1777: MH–NO exam sitting rows)
 
 > `answer_matches`: EXECUTE revoked from PUBLIC, anon, authenticated; granted to service_role.
 
@@ -374,13 +374,15 @@
 | ND | add_exam_sitting_candidates-group_add_counts-list_exam_sitting_people-eligibility-same_day-issue_preview-foreign-group-or-student-in-own-sitting | MEDIUM | exam-sitting-foreign-param-injection.spec.ts | BLOCKED |  | cross-tenant |
 | NE | add_exam_sitting_candidates-add_exam_sitting_entries-foreign-user-id-writes-in-own-sitting | MEDIUM | exam-sitting-foreign-user-id-writes.spec.ts | BLOCKED |  | cross-tenant |
 | NF | voidInternalExamCode-codes-tab-reserved-void-reason-and-sitting-attached-code-stale-render | MEDIUM | legacy-void-server-action-guard.spec.ts | BLOCKED |  | sibling-guard-gap |
-| NG | sendInternalExamCodeEmail-codes-tab-sitting-code-stale-render-plaintext-and-emailed_at | MEDIUM | send-code-email-sitting-code.spec.ts | BLOCKED |  | race |
+| NG | sendInternalExamCodeEmail-codes-tab-sitting-code-stale-render-cancelled-sitting-plaintext-and-emailed_at | MEDIUM | send-code-email-sitting-code.spec.ts | BLOCKED |  | race |
 | NH | voidInternalExamCode-foreign-org-code-guard-state-oracle-and-reserved-reason | MEDIUM | void-and-email-cross-org-code.spec.ts | BLOCKED |  | cross-tenant |
 | NI | sendInternalExamCodeEmail-foreign-org-code-service-role-org-filter-plaintext-and-emailed_at | HIGH | void-and-email-cross-org-code.spec.ts | BLOCKED |  | cross-tenant |
 | NJ | void_internal_exam_code-direct-rpc-on-sitting-code-bypasses-void_sitting_code | LOW | exam-sitting-legacy-void-refuses-sitting-code.spec.ts | GAP | #1832 | sibling-guard-gap |
 | NK | add_exam_sitting_candidates-issue_sitting_exam_codes-duplicate-inflated-array-past-the-distinct-cap | LOW | exam-sitting-array-cap-duplicates.spec.ts | BLOCKED |  | input-injection |
 | NL | start_internal_exam_session-code-existence-oracle-unified-at-the-server-action | LOW | internal-exam-code-existence-unified.spec.ts | BLOCKED |  | enumeration |
 | NM | fetchExamSittingCandidacies-fetchExamSittingEntries-student-export-peer-removed-and-sitting-embed | MEDIUM | gdpr-export-exam-sitting-scope.spec.ts | BLOCKED |  | rls-bypass |
+| NN | emailSittingCodes-sendInternalExamCodeEmail-adminClient-cross-org-admin-and-student-replay | HIGH | exam-sitting-email-codes-scope.spec.ts | BLOCKED |  | cross-tenant |
+| NO | emailSittingCodes-sendInternalExamCodeEmail-adminClient-deactivated-student-live-sitting-code | MEDIUM | exam-sitting-email-codes-deactivated-student.spec.ts | BLOCKED |  | soft-delete-bypass |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 

@@ -83,6 +83,7 @@ jobs:
           echo "NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321" >> $GITHUB_ENV
           echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${ANON_KEY}" >> $GITHUB_ENV
           echo "SUPABASE_SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY}" >> $GITHUB_ENV
+          echo "NEXT_PUBLIC_APP_URL=http://localhost:3000" >> $GITHUB_ENV
 
       - name: Write .env.local for Next.js
         run: |
@@ -90,6 +91,7 @@ jobs:
             "NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}" \
             "NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}" \
             "SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}" \
+            "NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}" \
             > apps/web/.env.local
 
       - name: Seed test data

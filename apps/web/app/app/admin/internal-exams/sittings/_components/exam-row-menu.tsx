@@ -35,7 +35,7 @@ function StepItem({
   )
 }
 
-/** Exam ⋯: next step, then Void code and Remove exam. Items that do not apply are hidden. */
+/** Exam ⋯: next step, Send/Resend code, Void code, Remove exam. Items that do not apply are hidden. */
 export function ExamRowMenu({
   sittingId,
   personName,
@@ -46,7 +46,11 @@ export function ExamRowMenu({
   const [confirm, setConfirm] = useState<Confirm>(null)
   const who = `${entry.subjectShort}, ${personName}`
   const a = useExamActions({ sittingId, entry, personName, who, onDone: () => setConfirm(null) })
-  const { voidCodeId: codeId, canRemove } = examActions(entry, { editable })
+  const {
+    voidCodeId: codeId,
+    canRemove,
+    canEmail: emailable,
+  } = examActions(entry, { editable, deactivated })
   const step = nextStep(entry, { editable, deactivated })
   if (!step && !codeId && !canRemove) return null
   const dismiss = () => {
@@ -57,7 +61,12 @@ export function ExamRowMenu({
     <>
       <RowMenu label={`Actions for ${who}`}>
         {step && <StepItem step={step} busy={a.pending} onIssue={a.issue} />}
-        {step && (codeId || canRemove) && <MenuSeparator />}
+        {emailable && codeId && (
+          <MenuItem disabled={a.pending} onClick={() => a.sendCode(codeId)}>
+            {entry.codeEmailedAt === null ? 'Send code' : 'Resend code'}
+          </MenuItem>
+        )}
+        {(step || emailable) && (codeId || canRemove) && <MenuSeparator />}
         {codeId && (
           <MenuItem tone="danger" onClick={() => setConfirm('void')}>
             Void code

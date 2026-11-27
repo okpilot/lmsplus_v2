@@ -44,6 +44,11 @@ export function codeRowVoidable(
   })
 }
 
+/** An active code, or a sitting code not yet opened ('waiting'), can be (re)emailed; the send action rejects every other state. */
+export function codeRowEmailable(row: Readonly<{ status: InternalExamCodeStatus }>): boolean {
+  return row.status === 'active' || row.status === 'waiting'
+}
+
 export type CodeDisplayStatus = InternalExamCodeStatus | 'finished' | 'discarded'
 
 /**

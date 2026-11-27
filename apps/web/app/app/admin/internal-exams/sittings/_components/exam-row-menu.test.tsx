@@ -8,7 +8,9 @@ const m = vi.hoisted(() => ({
   voidCode: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
+  sendEmail: vi.fn(),
 }))
+vi.mock('../../actions/send-code-email', () => ({ sendInternalExamCodeEmail: m.sendEmail }))
 vi.mock('../actions/issue-sitting-codes', () => ({ issueSittingCodes: m.issue }))
 vi.mock('../actions/remove-entries', () => ({ removeSittingEntries: m.remove }))
 vi.mock('../actions/void-sitting-code', () => ({ voidSittingCode: m.voidCode }))
@@ -21,6 +23,7 @@ vi.mock('sonner', () => ({ toast: { success: m.toastSuccess, error: m.toastError
 
 import { SittingUiProvider } from '../_hooks/sitting-ui-context'
 import { ExamRowMenu } from './exam-row-menu'
+import { ResultBanner } from './result-banner'
 
 const entry = (over: Record<string, unknown> = {}) => ({
   entryId: 'e1',
@@ -46,6 +49,7 @@ const entry = (over: Record<string, unknown> = {}) => ({
 function ui(over: Record<string, unknown> = {}, entryOver: Record<string, unknown> = {}) {
   return render(
     <SittingUiProvider>
+      <ResultBanner />
       <ExamRowMenu
         sittingId="sit-1"
         personName="Ann Student"
@@ -68,9 +72,11 @@ async function items(user: ReturnType<typeof userEvent.setup>) {
 beforeEach(() => vi.resetAllMocks())
 
 describe('ExamRowMenu items', () => {
-  it('offers Void code and Remove exam for a live code, and no Email items', async () => {
+  it('offers Void code and Remove exam for a live code', async () => {
     ui()
-    expect(await items(userEvent.setup())).toEqual(['Void code', 'Remove exam'])
+    expect(await items(userEvent.setup())).toEqual(
+      expect.arrayContaining(['Void code', 'Remove exam']),
+    )
   })
 
   it('offers Issue code and Remove exam for an exam without a code', async () => {
@@ -249,5 +255,58 @@ describe('ExamRowMenu Void code', () => {
     ui()
     const { dialog } = await openVoid()
     expect(within(dialog).queryByText('The student was emailed this code.')).toBeNull()
+  })
+})
+
+describe('ExamRowMenu code email (2c-i)', () => {
+  const seen = () =>
+    [m.toastSuccess, m.toastError]
+      .flatMap((f) => f.mock.calls.flat())
+      .concat(document.body.textContent)
+      .join(' ')
+
+  it.each(['ready', 'waiting'])(
+    'offers "Send code" for a %s code never emailed',
+    async (status) => {
+      ui({}, { status, codeEmailedAt: null })
+      const labels = await items(userEvent.setup())
+      expect(labels).toContain('Send code')
+      expect(labels).not.toContain('Resend code')
+    },
+  )
+
+  it('offers "Resend code" once the code was emailed', async () => {
+    ui({}, { codeEmailedAt: '2026-11-18T08:00:00Z' })
+    const labels = await items(userEvent.setup())
+    expect(labels).toContain('Resend code')
+    expect(labels).not.toContain('Send code')
+  })
+
+  it.each([
+    ['no_code', { code: null, codeId: null }],
+    ['expired', { code: 'ABCD1234', codeId: 'k1' }],
+    ['voided', { code: 'ABCD1234', codeId: 'k1' }],
+  ])('offers no email item for a %s exam', async (status, code) => {
+    ui({}, { status, ...code })
+    const labels = await items(userEvent.setup())
+    expect(labels.some((l) => /send code|resend code/i.test(l ?? ''))).toBe(false)
+  })
+
+  it('sends the code email for this code id on click', async () => {
+    m.sendEmail.mockResolvedValue({ success: true })
+    ui()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: TRIGGER }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Send code' }))
+    await waitFor(() => expect(m.sendEmail).toHaveBeenCalledWith({ codeId: 'k1' }))
+  })
+
+  it('shows the action error when sending fails', async () => {
+    m.sendEmail.mockResolvedValue({ success: false, error: 'Failed to send email' })
+    ui()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: TRIGGER }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Send code' }))
+    await waitFor(() => expect(seen()).toContain('Failed to send email'))
   })
 })

@@ -187,10 +187,26 @@ describe('CodeRow sitting codes', () => {
     expect(screen.getByRole('link', { name: 'Sitting code ABCD-1234-X' })).toBeInTheDocument()
   })
 
-  it('does not render the email button', () => {
-    renderRow(sitting)
-    expect(mockSendButton).not.toHaveBeenCalled()
-  })
+  it.each(['active', 'waiting'] as const)(
+    'enables the email button for a %s sitting code',
+    (status) => {
+      renderRow({ ...sitting, id: 'code-77', status, emailedAt: '2026-04-28T09:00:00.000Z' })
+      expect(mockSendButton).toHaveBeenCalledTimes(1)
+      expect(mockSendButton.mock.calls[0]?.[0]).toMatchObject({
+        codeId: 'code-77',
+        emailedAt: '2026-04-28T09:00:00.000Z',
+        disabled: false,
+      })
+    },
+  )
+
+  it.each(['consumed', 'voided', 'expired'] as const)(
+    'disables the email button for a %s sitting code',
+    (status) => {
+      renderRow({ ...sitting, status })
+      expect(mockSendButton.mock.calls[0]?.[0]).toMatchObject({ disabled: true })
+    },
+  )
 
   it('offers Void for a sitting code whose attempt is still running', () => {
     renderRow({ ...sitting, status: 'consumed', consumedAt: '2026-04-28T11:00:00.000Z' })
@@ -253,10 +269,9 @@ describe('CodeRow sitting codes', () => {
     },
   )
 
-  it('hides Void, email and link for a sitting code whose embed is null', () => {
+  it('hides Void and link for a sitting code whose embed is null', () => {
     renderRow({ ...sitting, sittingId: null })
     expect(screen.queryByRole('button', { name: 'Void' })).not.toBeInTheDocument()
-    expect(mockSendButton).not.toHaveBeenCalled()
     expect(screen.queryByRole('link', { name: /^Sitting code/ })).not.toBeInTheDocument()
   })
 
