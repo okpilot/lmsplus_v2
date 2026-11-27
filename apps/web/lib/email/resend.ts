@@ -102,7 +102,7 @@ type Chunk = {
   offset: number
 }
 
-/** One chunk; retries only a 429 (the SDK does not retry, rate limit 10 req/s per team). */
+/** One chunk; retries only a 429 (the SDK does not retry). */
 async function sendChunk(
   resend: Resend,
   { from, messages, offset }: Readonly<Chunk>,

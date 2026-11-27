@@ -129,7 +129,7 @@ async function signInAdmin(browser: Browser, userId: string): Promise<BrowserCon
   return context
 }
 
-test.describe('Red Team: codes-tab Send email never reaches a sitting code (NG)', () => {
+test.describe('Red Team: codes-tab Send email refuses a sitting code once its sitting is cancelled (NG)', () => {
   let admin: Admin
   let adminContext: BrowserContext
   let orgId: string

@@ -35,7 +35,7 @@ function StepItem({
   )
 }
 
-/** Exam ⋯: next step, then Void code and Remove exam. Items that do not apply are hidden. */
+/** Exam ⋯: next step, Send/Resend code, Void code, Remove exam. Items that do not apply are hidden. */
 export function ExamRowMenu({
   sittingId,
   personName,
