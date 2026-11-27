@@ -43,22 +43,8 @@ function collectSectionWarnings(
 
 type QueryError = { message: string } | null
 
-async function fetchPrimarySections(supabase: SupabaseClient<Database>, userId: string) {
-  const [
-    user,
-    sessions,
-    responses,
-    fsrs,
-    flags,
-    comments,
-    consents,
-    enrolments,
-    groupMemberships,
-    sittingCandidacies,
-    sittingEntries,
-    audit,
-    progress,
-  ] = await Promise.all([
+async function fetchAccountSections(supabase: SupabaseClient<Database>, userId: string) {
+  const [user, sessions, responses, fsrs, flags, comments, consents] = await Promise.all([
     supabase
       .from('users')
       .select('id, email, full_name, role, created_at, last_active_at')
@@ -70,28 +56,29 @@ async function fetchPrimarySections(supabase: SupabaseClient<Database>, userId: 
     fetchUserFlaggedQuestions(supabase, userId),
     fetchUserComments(supabase, userId),
     fetchUserConsents(supabase, userId),
-    fetchCourseEnrolments(supabase, userId),
-    fetchStudentGroupMemberships(supabase, userId),
-    fetchExamSittingCandidacies(supabase, userId),
-    fetchExamSittingEntries(supabase, userId),
-    fetchUserAuditEvents(supabase, userId),
-    fetchUserProgress(supabase, userId),
   ])
-  return {
-    user,
-    sessions,
-    responses,
-    fsrs,
-    flags,
-    comments,
-    consents,
-    enrolments,
-    groupMemberships,
-    sittingCandidacies,
-    sittingEntries,
-    audit,
-    progress,
-  }
+  return { user, sessions, responses, fsrs, flags, comments, consents }
+}
+
+async function fetchMembershipSections(supabase: SupabaseClient<Database>, userId: string) {
+  const [enrolments, groupMemberships, sittingCandidacies, sittingEntries, audit, progress] =
+    await Promise.all([
+      fetchCourseEnrolments(supabase, userId),
+      fetchStudentGroupMemberships(supabase, userId),
+      fetchExamSittingCandidacies(supabase, userId),
+      fetchExamSittingEntries(supabase, userId),
+      fetchUserAuditEvents(supabase, userId),
+      fetchUserProgress(supabase, userId),
+    ])
+  return { enrolments, groupMemberships, sittingCandidacies, sittingEntries, audit, progress }
+}
+
+async function fetchPrimarySections(supabase: SupabaseClient<Database>, userId: string) {
+  const [account, membership] = await Promise.all([
+    fetchAccountSections(supabase, userId),
+    fetchMembershipSections(supabase, userId),
+  ])
+  return { ...account, ...membership }
 }
 
 /**

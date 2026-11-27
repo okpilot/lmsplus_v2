@@ -172,6 +172,7 @@ describe('fetchExamSittingCandidacies', () => {
       ['user_id', USER_ID],
       ['user_id', USER_ID],
     ])
+    expect(select.mock.calls[0]).toEqual(['id', { count: 'exact', head: true }])
     const pageSelect = String(select.mock.calls[1]?.[0]).replace(/\s+/g, '')
     expect(pageSelect).toBe(
       'id,sitting_id,added_at,deleted_at,exam_sittings!exam_sitting_candidates_sitting_id_organization_id_fkey(scheduled_at,mode,status)',
@@ -193,6 +194,7 @@ describe('fetchExamSittingEntries', () => {
       ['user_id', USER_ID],
       ['user_id', USER_ID],
     ])
+    expect(select.mock.calls[0]).toEqual(['id', { count: 'exact', head: true }])
     expect(String(select.mock.calls[1]?.[0]).replace(/\s+/g, '')).toBe(
       'id,sitting_id,subject_id,added_at,deleted_at',
     )
