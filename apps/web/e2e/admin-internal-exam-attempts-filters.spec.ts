@@ -7,6 +7,7 @@ import { expect, test } from '@playwright/test'
 import { formatUtc } from '../lib/utils/format-utc'
 import { sittingModeLabel } from '../lib/utils/sitting-mode-label'
 import { cleanupE2eExamSittings } from './helpers/exam-sitting-cleanup'
+import { EXAM_SITTING_SEED_GROUP_PREFIX } from './helpers/exam-sitting-markers'
 import { insertPassedSession } from './helpers/exam-sitting-seed'
 import { seedSittingFor } from './helpers/sitting-code'
 import { getAdminClient, INTERNAL_EXAM_STUDENT_EMAIL } from './helpers/supabase'
@@ -18,7 +19,9 @@ const FIRST_AT = '2031-03-01T07:13:00Z'
 const OTHER_AT = '2031-03-02T07:13:00Z'
 let sittingId: string
 let otherSittingId: string
+let groupId: string
 let studentName: string
+const GROUP_NAME = `${EXAM_SITTING_SEED_GROUP_PREFIX}attempts-filters`
 
 /** Seeds a marked remote sitting at `sittingAt` holding one consumed code and the passed attempt it produced. */
 async function seedPassedAttempt(sittingAt: string) {
@@ -46,7 +49,12 @@ async function seedPassedAttempt(sittingAt: string) {
     .update({ consumed_at: new Date().toISOString(), consumed_session_id: sessionId })
     .eq('id', code.data.id)
   if (upd.error) throw new Error(upd.error.message)
-  return { sittingId: seeded.sittingId, studentName: seeded.studentName }
+  return {
+    sittingId: seeded.sittingId,
+    studentName: seeded.studentName,
+    orgId: code.data.organization_id,
+    studentId: code.data.student_id,
+  }
 }
 
 function sittingLabel(sittingAt: string): string {
@@ -59,6 +67,18 @@ test.beforeAll(async () => {
   sittingId = first.sittingId
   studentName = first.studentName
   otherSittingId = (await seedPassedAttempt(OTHER_AT)).sittingId
+  const admin = getAdminClient()
+  const group = await admin
+    .from('student_groups')
+    .insert({ organization_id: first.orgId, name: GROUP_NAME })
+    .select('id')
+    .single()
+  if (group.error) throw new Error(group.error.message)
+  groupId = group.data.id
+  const member = await admin
+    .from('student_group_members')
+    .insert({ organization_id: first.orgId, group_id: groupId, user_id: first.studentId })
+  if (member.error) throw new Error(member.error.message)
 })
 
 test.afterAll(async () => {
@@ -242,9 +262,22 @@ test.describe('Attempts tab filters', () => {
       await page.getByRole('searchbox').fill('abc')
       await page.getByRole('combobox', { name: 'Subject' }).click()
       await page.getByRole('option', { name: /Meteorology/ }).click()
+      await page.getByRole('combobox', { name: 'Sitting' }).click()
+      await page.getByRole('option', { name: sittingLabel(FIRST_AT), exact: true }).click()
+      await page.getByRole('combobox', { name: 'Group' }).click()
+      await page.getByRole('option', { name: GROUP_NAME, exact: true }).click()
       await expect(page.getByRole('combobox', { name: 'Subject' })).toContainText(/Meteorology/, {
         timeout: 500,
       })
+      await expect(page.getByRole('combobox', { name: 'Sitting' })).toContainText(
+        sittingLabel(FIRST_AT),
+        { timeout: 500 },
+      )
+      await expect(page.getByRole('combobox', { name: 'Group' })).toContainText(GROUP_NAME, {
+        timeout: 500,
+      })
+      await expect(page).toHaveURL(new RegExp(`sitting=${sittingId}`))
+      await expect(page).toHaveURL(new RegExp(`group=${groupId}`))
       await page.getByRole('button', { name: 'Clear' }).click()
       await expect(page.getByRole('combobox', { name: 'Subject' })).toContainText(/All subjects/, {
         timeout: 500,
@@ -256,6 +289,8 @@ test.describe('Attempts tab filters', () => {
         timeout: 500,
       })
       await expect(page.getByRole('searchbox')).toHaveValue('', { timeout: 500 })
+      await page.unrouteAll({ behavior: 'wait' })
+      await expect(page).not.toHaveURL(/sitting=|group=|subject=|q=/)
     })
   })
 })

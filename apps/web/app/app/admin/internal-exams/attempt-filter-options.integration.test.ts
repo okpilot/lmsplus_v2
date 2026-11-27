@@ -127,9 +127,12 @@ describe('getAttemptFilterOptions (app-layer integration)', () => {
   it('labels a cancelled sitting with " · Cancelled" and leaves live ones unlabelled', async () => {
     await signInAs(adminEmail, password)
     const r = await getAttemptFilterOptions()
-    const label = (id: string) => r.sittings.find((s) => s.id === id)?.label ?? ''
-    expect(label(cancelledSittingId)).toMatch(/ · Cancelled$/)
-    expect(label(olderSittingId)).not.toContain('Cancelled')
+    const cancelled = r.sittings.find((s) => s.id === cancelledSittingId)
+    const live = r.sittings.find((s) => s.id === olderSittingId)
+    expect(cancelled).toBeDefined()
+    expect(cancelled?.label).toMatch(/ · Cancelled$/)
+    expect(live).toBeDefined()
+    expect(live?.label).not.toContain('Cancelled')
   })
 
   it('lists only this organization groups', async () => {

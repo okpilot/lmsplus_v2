@@ -30,6 +30,7 @@ let sittingId: string
 let otherOrgSittingId: string
 let groupId: string
 let otherOrgGroupId: string
+let foreignStudentId: string
 const userIds: string[] = []
 const user: Record<string, string> = {}
 const session: Record<string, string> = {}
@@ -38,16 +39,17 @@ async function mkStudent(
   tag: string,
   fullName: string,
   email = `int-aq-${tag}-${suffix}@test.local`,
+  org = orgId,
 ) {
-  const id = await createTestUser({ admin, orgId, email, password, role: 'student', fullName })
+  const id = await createTestUser({ admin, orgId: org, email, password, role: 'student', fullName })
   userIds.push(id)
   user[tag] = id
   return id
 }
 
-async function mkSession(tag: string) {
+async function mkSession(tag: string, org = orgId) {
   session[tag] = await insertPassedSession(admin, {
-    orgId,
+    orgId: org,
     userId: user[tag] as string,
     subjectId: refs.subjectId,
     score: 80,
@@ -73,18 +75,18 @@ async function mustRow<T>(
   return row
 }
 
-async function sittingCodeFor(tag: string, sitting: string) {
+async function sittingCodeFor(tag: string, sitting: string, org = orgId, issuer = adminId) {
   await must(
     admin
       .from('exam_sitting_candidates')
-      .insert({ organization_id: orgId, sitting_id: sitting, user_id: user[tag] }),
+      .insert({ organization_id: org, sitting_id: sitting, user_id: user[tag] }),
     'candidate',
   )
   const entry = await mustRow(
     admin
       .from('exam_sitting_entries')
       .insert({
-        organization_id: orgId,
+        organization_id: org,
         sitting_id: sitting,
         user_id: user[tag],
         subject_id: refs.subjectId,
@@ -98,8 +100,8 @@ async function sittingCodeFor(tag: string, sitting: string) {
       code: `AQ${tag}${suffix}`.slice(0, 12).toUpperCase(),
       subject_id: refs.subjectId,
       student_id: user[tag],
-      issued_by: adminId,
-      organization_id: orgId,
+      issued_by: issuer,
+      organization_id: org,
       sitting_entry_id: entry.id,
       expires_at: new Date(Date.now() + 5 * 3_600_000).toISOString(),
       consumed_at: new Date().toISOString(),
@@ -135,10 +137,10 @@ async function mkGroup(org: string, name: string) {
   return g.id as string
 }
 
-async function addMember(group: string, tag: string, removed = false) {
+async function addMember(group: string, tag: string, removed = false, org = orgId) {
   await must(
     admin.from('student_group_members').insert({
-      organization_id: orgId,
+      organization_id: org,
       group_id: group,
       user_id: user[tag],
       ...(removed ? { deleted_at: new Date().toISOString() } : {}),
@@ -180,6 +182,17 @@ describe('listInternalExamAttempts filters (app-layer integration)', () => {
       topicCode: `AQ_${suffix}_T1`,
       topicName: `Attempts Topic ${suffix}`,
     })
+    const cfg = await admin.from('exam_configs').insert(
+      [orgId, otherOrgId].map((org) => ({
+        organization_id: org,
+        subject_id: refs.subjectId,
+        enabled: true,
+        total_questions: 1,
+        time_limit_seconds: 600,
+        pass_mark: 75,
+      })),
+    )
+    if (cfg.error) throw new Error(`exam config: ${cfg.error.message}`)
     await mkStudent('sit', `Sitting Sam ${suffix}`)
     await mkStudent('legacy', `Legacy Lee ${suffix}`)
     await mkStudent('active', `Active Ann ${suffix}`)
@@ -192,11 +205,21 @@ describe('listInternalExamAttempts filters (app-layer integration)', () => {
 
     sittingId = await mkSittingIn(orgId, adminId)
     otherOrgSittingId = await mkSittingIn(otherOrgId, otherAdminId)
+    foreignStudentId = await mkStudent(
+      'foreign',
+      `Foreign Fay ${suffix}`,
+      `int-aq-foreign-${suffix}@test.local`,
+      otherOrgId,
+    )
+    userIds.splice(userIds.indexOf(foreignStudentId), 1)
+    await mkSession('foreign', otherOrgId)
     await sittingCodeFor('sit', sittingId)
     await sittingCodeFor('active', sittingId)
 
     groupId = await mkGroup(orgId, `AQ group ${suffix}`)
     otherOrgGroupId = await mkGroup(otherOrgId, `AQ other ${suffix}`)
+    await sittingCodeFor('foreign', otherOrgSittingId, otherOrgId, otherAdminId)
+    await addMember(otherOrgGroupId, 'foreign', false, otherOrgId)
     await addMember(groupId, 'active')
     await addMember(groupId, 'deact')
     await addMember(groupId, 'removed', true)
@@ -210,7 +233,7 @@ describe('listInternalExamAttempts filters (app-layer integration)', () => {
   afterAll(async () => {
     try {
       await cleanupTestData({ admin, orgId, userIds: [adminId, instructorId, ...userIds] })
-      await cleanupTestData({ admin, orgId: otherOrgId, userIds: [otherAdminId] })
+      await cleanupTestData({ admin, orgId: otherOrgId, userIds: [otherAdminId, foreignStudentId] })
       await cleanupReferenceData({ admin, refs: [refs] })
     } catch (e) {
       throw new Error(`afterAll: ${e instanceof Error ? e.message : String(e)}`)
@@ -235,6 +258,8 @@ describe('listInternalExamAttempts filters (app-layer integration)', () => {
 
   it('sitting filter of another organization or a random id returns no rows', async () => {
     await signInAs(adminEmail, password)
+    const all = await listInternalExamAttempts({})
+    expect(ids(all)).not.toContain(session.foreign)
     for (const s of [otherOrgSittingId, RANDOM_UUID]) {
       const r = await listInternalExamAttempts({ sittingId: s })
       expect(r.rows).toEqual([])
@@ -251,6 +276,8 @@ describe('listInternalExamAttempts filters (app-layer integration)', () => {
 
   it('group filter of another organization returns no rows', async () => {
     await signInAs(adminEmail, password)
+    const all = await listInternalExamAttempts({})
+    expect(ids(all)).not.toContain(session.foreign)
     const r = await listInternalExamAttempts({ groupId: otherOrgGroupId })
     expect(r.rows).toEqual([])
     expect(r.totalCount).toBe(0)
