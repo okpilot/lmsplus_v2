@@ -812,6 +812,104 @@ describe('collectUserData', () => {
     })
   })
 
+  describe('exam_sitting_candidacies', () => {
+    const CANDIDACIES = [
+      {
+        id: 'c0000000-0000-4000-8000-000000000001',
+        sitting_id: 's0000000-0000-4000-8000-000000000001',
+        added_at: '2026-11-01T00:00:00Z',
+        deleted_at: null,
+        exam_sittings: {
+          scheduled_at: '2026-12-01T09:00:00Z',
+          mode: 'remote',
+          status: 'scheduled',
+        },
+      },
+    ]
+
+    function clientWithCandidacies(rows: unknown[] | null, error: { message: string } | null) {
+      const base = buildSupabaseClient()
+      return {
+        from: (table: string) =>
+          table === 'exam_sitting_candidates' ? makeChain(rows, error) : base.from(table as never),
+      } as unknown as SupabaseClient<Database>
+    }
+
+    it('includes exam_sitting_candidacies with the sitting date, mode and status in the payload', async () => {
+      const result = await collectUserData(clientWithCandidacies(CANDIDACIES, null), USER_ID)
+
+      expect(result.exam_sitting_candidacies).toEqual([
+        {
+          id: 'c0000000-0000-4000-8000-000000000001',
+          sitting_id: 's0000000-0000-4000-8000-000000000001',
+          sitting_scheduled_at: '2026-12-01T09:00:00Z',
+          sitting_mode: 'remote',
+          sitting_status: 'scheduled',
+          added_at: '2026-11-01T00:00:00Z',
+          deleted_at: null,
+        },
+      ])
+    })
+
+    it('returns sitting_scheduled_at, sitting_mode and sitting_status null when the embedded sitting is not readable', async () => {
+      const rows = [{ ...CANDIDACIES[0], exam_sittings: null }]
+      const result = await collectUserData(clientWithCandidacies(rows, null), USER_ID)
+
+      expect(result.exam_sitting_candidacies[0]).toMatchObject({
+        sitting_scheduled_at: null,
+        sitting_mode: null,
+        sitting_status: null,
+      })
+    })
+
+    it('adds an exam_sitting_candidacies warning and an empty section when the read fails', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const result = await collectUserData(
+        clientWithCandidacies(null, { message: 'db down' }),
+        USER_ID,
+      )
+
+      expect(result.warnings.map((w) => w.section)).toContain('exam_sitting_candidacies')
+      expect(result.exam_sitting_candidacies).toEqual([])
+      consoleSpy.mockRestore()
+    })
+  })
+
+  describe('exam_sitting_entries', () => {
+    const ENTRIES = [
+      {
+        id: 'e0000000-0000-4000-8000-000000000001',
+        sitting_id: 's0000000-0000-4000-8000-000000000001',
+        subject_id: 'sub00000-0000-4000-8000-000000000001',
+        added_at: '2026-11-01T00:00:00Z',
+        deleted_at: '2026-11-02T00:00:00Z',
+      },
+    ]
+
+    function clientWithEntries(rows: unknown[] | null, error: { message: string } | null) {
+      const base = buildSupabaseClient()
+      return {
+        from: (table: string) =>
+          table === 'exam_sitting_entries' ? makeChain(rows, error) : base.from(table as never),
+      } as unknown as SupabaseClient<Database>
+    }
+
+    it('includes exam_sitting_entries in the payload', async () => {
+      const result = await collectUserData(clientWithEntries(ENTRIES, null), USER_ID)
+
+      expect(result.exam_sitting_entries).toEqual(ENTRIES)
+    })
+
+    it('adds an exam_sitting_entries warning and an empty section when the read fails', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const result = await collectUserData(clientWithEntries(null, { message: 'db down' }), USER_ID)
+
+      expect(result.warnings.map((w) => w.section)).toContain('exam_sitting_entries')
+      expect(result.exam_sitting_entries).toEqual([])
+      consoleSpy.mockRestore()
+    })
+  })
+
   describe('pagination', () => {
     it('fetches all rows when a table exceeds one page', async () => {
       const responsesData = Array.from({ length: 2500 }, (_, i) => ({

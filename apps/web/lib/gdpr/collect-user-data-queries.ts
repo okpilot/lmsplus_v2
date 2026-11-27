@@ -12,6 +12,8 @@ export type CommentRow = GdprExportPayload['question_comments'][number]
 export type ConsentRow = GdprExportPayload['user_consents'][number]
 export type CourseEnrolmentRow = GdprExportPayload['course_enrolments'][number]
 export type StudentGroupMembershipRow = GdprExportPayload['student_group_memberships'][number]
+export type ExamSittingCandidacyRow = GdprExportPayload['exam_sitting_candidacies'][number]
+export type ExamSittingEntryRow = GdprExportPayload['exam_sitting_entries'][number]
 export type AuditRow = {
   event_type: string
   resource_type: string
@@ -189,6 +191,65 @@ export async function fetchStudentGroupMemberships(
     })),
     error,
   }
+}
+
+type CandidacyQueryRow = Omit<
+  ExamSittingCandidacyRow,
+  'sitting_scheduled_at' | 'sitting_mode' | 'sitting_status'
+> & {
+  exam_sittings: { scheduled_at: string; mode: string; status: string | null } | null
+}
+
+function toCandidacyRow({ exam_sittings, ...rest }: CandidacyQueryRow): ExamSittingCandidacyRow {
+  return {
+    ...rest,
+    sitting_scheduled_at: exam_sittings?.scheduled_at ?? null,
+    sitting_mode: exam_sittings?.mode ?? null,
+    sitting_status: exam_sittings?.status ?? null,
+  }
+}
+
+/** Count selects `id`: `authenticated` has column-level SELECT only, so `*` is denied. Self-export (user client) returns live rows with a null sitting embed (no student SELECT policy on exam_sittings); the admin export returns removed rows and resolves the sitting. */
+export async function fetchExamSittingCandidacies(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+): Promise<{ data: ExamSittingCandidacyRow[]; error: { message: string } | null }> {
+  const { data, error } = await fetchAllRows<CandidacyQueryRow>(
+    () =>
+      supabase
+        .from('exam_sitting_candidates')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId),
+    (from, to) =>
+      supabase
+        .from('exam_sitting_candidates')
+        .select(
+          'id, sitting_id, added_at, deleted_at, exam_sittings!exam_sitting_candidates_sitting_id_organization_id_fkey(scheduled_at, mode, status)',
+        )
+        .eq('user_id', userId)
+        .order('added_at', { ascending: false })
+        .order('id')
+        .range(from, to),
+  )
+  return { data: data.map(toCandidacyRow), error }
+}
+
+export function fetchExamSittingEntries(supabase: SupabaseClient<Database>, userId: string) {
+  return fetchAllRows<ExamSittingEntryRow>(
+    () =>
+      supabase
+        .from('exam_sitting_entries')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId),
+    (from, to) =>
+      supabase
+        .from('exam_sitting_entries')
+        .select('id, sitting_id, subject_id, added_at, deleted_at')
+        .eq('user_id', userId)
+        .order('added_at', { ascending: false })
+        .order('id')
+        .range(from, to),
+  )
 }
 
 export function fetchUserAuditEvents(supabase: SupabaseClient<Database>, userId: string) {

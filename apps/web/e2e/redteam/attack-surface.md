@@ -1,6 +1,6 @@
 # Red Team — Attack Surface Map
 
-> Last updated: 2026-11-26 (#1777: MH–NL exam sitting rows)
+> Last updated: 2026-11-27 (#1777: MH–NM exam sitting rows)
 
 > `answer_matches`: EXECUTE revoked from PUBLIC, anon, authenticated; granted to service_role.
 
@@ -380,6 +380,7 @@
 | NJ | void_internal_exam_code-direct-rpc-on-sitting-code-bypasses-void_sitting_code | LOW | exam-sitting-legacy-void-refuses-sitting-code.spec.ts | GAP | #1832 | sibling-guard-gap |
 | NK | add_exam_sitting_candidates-issue_sitting_exam_codes-duplicate-inflated-array-past-the-distinct-cap | LOW | exam-sitting-array-cap-duplicates.spec.ts | BLOCKED |  | input-injection |
 | NL | start_internal_exam_session-code-existence-oracle-unified-at-the-server-action | LOW | internal-exam-code-existence-unified.spec.ts | BLOCKED |  | enumeration |
+| NM | fetchExamSittingCandidacies-fetchExamSittingEntries-student-export-peer-removed-and-sitting-embed | MEDIUM | gdpr-export-exam-sitting-scope.spec.ts | BLOCKED |  | rls-bypass |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 

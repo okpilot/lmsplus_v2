@@ -955,6 +955,7 @@ We store student PII: email address, full name, learning history, exam scores.
 ### Required Capabilities
 - **Data export:** admin Server Action `exportStudentData` (`apps/web/app/app/admin/students/actions/export-student-data.ts`); student self-export Server Action `exportMyData` (`apps/web/app/app/settings/gdpr-actions.ts`)
 - **Export key `student_group_memberships`** (`group_name` null when the group is unreadable): self-export (user client) returns active rows only via the own-row policies; admin export also returns removed rows and deleted groups' names.
+- **Export keys `exam_sitting_candidacies`, `exam_sitting_entries`**: `sitting_scheduled_at`/`sitting_mode`/`sitting_status` are null in the student self-export (no student SELECT policy on `exam_sittings`) (#1845); self-export returns live rows only (own-row policies filter `deleted_at IS NULL`); admin export also returns removed rows and resolves date/mode/status regardless of the sitting's `deleted_at`; `sitting_status` is the stored `exam_sittings.status` (`scheduled|open|closed|cancelled`); a day-ended sitting the lazy close has not reached still reads `scheduled`/`open`; entries carry no date/mode, join on `sitting_id`.
 - **Non-training data erasure on deactivation:** NOT BUILT (#1030); deactivation soft-deletes only. Privacy policy §6 keeps non-training data only while the account is active.
 
 ### Erasure and Retention
