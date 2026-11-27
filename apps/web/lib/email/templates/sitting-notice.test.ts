@@ -93,9 +93,10 @@ describe('sittingCancelledEmail', () => {
     }
   })
 
-  it('never contains a code value or a Go to exam link', () => {
-    const { text } = sittingCancelledEmail(BASE)
-    expect(text).not.toContain('Go to exam')
+  it('contains no link and no exam-page call to action', () => {
+    const { html, text } = sittingCancelledEmail(BASE)
+    expect(html).not.toContain('<a ')
+    expect(text).not.toContain('Go to the exam page:')
   })
 
   it('HTML-escapes the subjects', () => {

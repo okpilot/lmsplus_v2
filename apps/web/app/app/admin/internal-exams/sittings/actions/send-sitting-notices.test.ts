@@ -59,7 +59,7 @@ describe('sendSittingNotices', () => {
     })
   })
 
-  it('sends 0 for a sitting of another organization', async () => {
+  it('returns success with sent 0 for an empty delivery result', async () => {
     mockDeliver.mockResolvedValue({ sent: 0, failed: [], skipped: 0, unrecorded: 0 })
     expect(await sendSittingNotices({ sittingId: SID })).toMatchObject({ success: true, sent: 0 })
   })

@@ -1,5 +1,5 @@
 // App-layer integration tier (#925) — sitting notice reads against real local Postgres.
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import {
   cleanupReferenceData,
   cleanupTestData,
@@ -19,6 +19,9 @@ import {
   getSittingForNotice,
   getSubjectNames,
 } from './notice-queries'
+
+const { mockRequireAdmin } = vi.hoisted(() => ({ mockRequireAdmin: vi.fn() }))
+vi.mock('@/lib/auth/require-admin', () => ({ requireAdmin: mockRequireAdmin }))
 
 const admin = getAdminClient()
 const suffix = fixtureSuffix()
@@ -108,6 +111,7 @@ async function entryWithCode(
 
 describe('notice-queries (app-layer integration)', () => {
   beforeAll(async () => {
+    mockRequireAdmin.mockResolvedValue({ supabase: admin, organizationId: '', userId: '' })
     orgId = await createTestOrg({ admin, name: `int-nq ${suffix}`, slug: `int-nq-${suffix}` })
     otherOrgId = await createTestOrg({
       admin,
@@ -143,6 +147,15 @@ describe('notice-queries (app-layer integration)', () => {
     // A consumed code needs a real session; its own sitting keeps cancel_exam_sitting free of attempts.
     usedSittingId = await mkSitting()
     await entryWithCode('used', usedSittingId)
+    const cfg = await admin.from('exam_configs').insert({
+      organization_id: orgId,
+      subject_id: refs.subjectId,
+      enabled: true,
+      total_questions: 1,
+      time_limit_seconds: 600,
+      pass_mark: 75,
+    })
+    if (cfg.error) throw new Error(`exam config: ${cfg.error.message}`)
     const usedSession = await insertPassedSession(admin, {
       orgId,
       userId: userByLabel.used as string,
@@ -165,13 +178,25 @@ describe('notice-queries (app-layer integration)', () => {
   }, 120_000)
 
   afterAll(async () => {
+    const errors: string[] = []
     try {
       await cleanupTestData({ admin, orgId, userIds: [adminId, instructorId, ...userIds] })
-      await cleanupTestData({ admin, orgId: otherOrgId, userIds: [otherAdminId, foreignUserId] })
-      await cleanupReferenceData({ admin, refs: [refs] })
     } catch (e) {
-      throw new Error(`afterAll: ${e instanceof Error ? e.message : String(e)}`)
+      errors.push(`cleanupTestData: ${e instanceof Error ? e.message : String(e)}`)
     }
+    try {
+      await cleanupTestData({ admin, orgId: otherOrgId, userIds: [otherAdminId, foreignUserId] })
+    } catch (e) {
+      errors.push(`cleanupTestData other: ${e instanceof Error ? e.message : String(e)}`)
+    }
+    if (errors.length === 0) {
+      try {
+        await cleanupReferenceData({ admin, refs: [refs] })
+      } catch (e) {
+        errors.push(`cleanupReferenceData: ${e instanceof Error ? e.message : String(e)}`)
+      }
+    }
+    if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
   }, 120_000)
 
   it('getNoticeRecipients returns name and email of an active user of the organization', async () => {

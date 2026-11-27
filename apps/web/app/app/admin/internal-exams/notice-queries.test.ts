@@ -1,11 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { fromMock } = vi.hoisted(() => ({ fromMock: vi.fn() }))
+const { fromMock, mockRequireAdmin } = vi.hoisted(() => ({
+  fromMock: vi.fn(),
+  mockRequireAdmin: vi.fn(),
+}))
 vi.mock('@repo/db/admin', () => ({ adminClient: { from: fromMock } }))
+vi.mock('@/lib/auth/require-admin', () => ({ requireAdmin: mockRequireAdmin }))
 
 import {
+  getChangedNoticeCodes,
   getDeliverablePendingNotices,
   getNoticeRecipients,
+  getSittingForNotice,
   getSubjectNames,
   type UserClient,
 } from './notice-queries'
@@ -35,6 +41,7 @@ function rpcClient(result: Result): UserClient {
 describe('notice-queries', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    mockRequireAdmin.mockResolvedValue({})
   })
 
   it('getNoticeRecipients queries ids in chunks of 200 without duplicates', async () => {
@@ -127,5 +134,22 @@ describe('notice-queries', () => {
     expect(out).toEqual([
       { kind: 'sitting_cancelled', codeId: 'c1', entryId: 'e1', userId: 'u1', subjectId: 's' },
     ])
+  })
+
+  describe('rejects and reads nothing when requireAdmin rejects', () => {
+    const calls: [string, (rpc: UserClient) => Promise<unknown>][] = [
+      ['getNoticeRecipients', () => getNoticeRecipients('org', ['u'])],
+      ['getSubjectNames', () => getSubjectNames(['s'])],
+      ['getChangedNoticeCodes', () => getChangedNoticeCodes('org', 'sit', ['c'])],
+      ['getSittingForNotice', () => getSittingForNotice('org', 'sit')],
+      ['getDeliverablePendingNotices', (rpc) => getDeliverablePendingNotices(rpc, 'org', 'sit')],
+    ]
+    it.each(calls)('%s', async (_name, call) => {
+      mockRequireAdmin.mockRejectedValue(new Error('forbidden'))
+      const rpc = rpcClient({ data: [], error: null })
+      await expect(call(rpc)).rejects.toThrow('forbidden')
+      expect(fromMock).not.toHaveBeenCalled()
+      expect(rpc.rpc).not.toHaveBeenCalled()
+    })
   })
 })

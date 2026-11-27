@@ -1,5 +1,6 @@
 import { adminClient } from '@repo/db/admin'
 import type { createServerSupabaseClient } from '@repo/db/server'
+import { requireAdmin } from '@/lib/auth/require-admin'
 
 export type UserClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 
@@ -39,6 +40,7 @@ export async function getNoticeRecipients(
   orgId: string,
   userIds: readonly string[],
 ): Promise<Map<string, Recipient>> {
+  await requireAdmin()
   const out = new Map<string, Recipient>()
   for (const ids of chunks([...new Set(userIds)])) {
     const { data, error } = await adminClient
@@ -57,6 +59,7 @@ export async function getNoticeRecipients(
 
 /** Subject names by id (reference data, not tenant-scoped). */
 export async function getSubjectNames(subjectIds: readonly string[]): Promise<Map<string, string>> {
+  await requireAdmin()
   const out = new Map<string, string>()
   for (const ids of chunks([...new Set(subjectIds)])) {
     const { data, error } = await adminClient.from('easa_subjects').select('id, name').in('id', ids)
@@ -72,6 +75,7 @@ export async function getChangedNoticeCodes(
   sittingId: string,
   codeIds: readonly string[],
 ): Promise<ChangedNoticeCode[]> {
+  await requireAdmin()
   const out: ChangedNoticeCode[] = []
   for (const ids of chunks(codeIds)) {
     const { data, error } = await adminClient
@@ -101,6 +105,7 @@ export async function getSittingForNotice(
   orgId: string,
   sittingId: string,
 ): Promise<{ scheduledAt: string; mode: 'remote' | 'in_person' } | null> {
+  await requireAdmin()
   const { data, error } = await adminClient
     .from('exam_sittings')
     .select('scheduled_at, mode')
@@ -124,6 +129,7 @@ export async function getDeliverablePendingNotices(
   orgId: string,
   sittingId: string,
 ): Promise<PendingNotice[]> {
+  await requireAdmin()
   const { data, error } = await supabase.rpc('get_pending_removal_notices', {
     p_sitting_id: sittingId,
   })
