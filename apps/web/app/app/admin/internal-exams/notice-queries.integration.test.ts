@@ -170,6 +170,8 @@ describe('notice-queries (app-layer integration)', () => {
     if (consume.error) throw new Error(`consume: ${consume.error.message}`)
     await entryWithCode('dead', sittingId)
     await entryWithCode('elsewhere', otherSittingId)
+    await entryWithCode('delcode', sittingId, { deleted_at: new Date().toISOString() })
+    await entryWithCode('delentry', sittingId, {}, { deleted_at: new Date().toISOString() })
     const { error } = await admin
       .from('users')
       .update({ deleted_at: new Date().toISOString() })
@@ -229,6 +231,21 @@ describe('notice-queries (app-layer integration)', () => {
   it('getChangedNoticeCodes returns only unvoided, unconsumed codes of this sitting', async () => {
     const all = Object.values(codeByLabel)
     const r = await getChangedNoticeCodes(orgId, sittingId, all)
+    const delCode = await admin
+      .from('internal_exam_codes')
+      .select('id, deleted_at')
+      .eq('id', codeByLabel.delcode as string)
+      .single()
+    expect(delCode.data?.deleted_at).not.toBeNull()
+    const delEntry = await admin
+      .from('internal_exam_codes')
+      .select('id, exam_sitting_entries!inner(deleted_at)')
+      .eq('id', codeByLabel.delentry as string)
+      .single()
+    expect(delEntry.data?.exam_sitting_entries).toMatchObject({ deleted_at: expect.any(String) })
+    const ids = r.map((x) => x.codeId)
+    expect(ids).not.toContain(codeByLabel.delcode)
+    expect(ids).not.toContain(codeByLabel.delentry)
     expect(r.map((x) => x.codeId).sort()).toEqual([codeByLabel.a, codeByLabel.dead].sort())
     expect(r.find((x) => x.codeId === codeByLabel.a)).toMatchObject({
       userId: userByLabel.a,

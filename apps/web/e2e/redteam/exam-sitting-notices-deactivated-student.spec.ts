@@ -248,5 +248,20 @@ test.describe('Red Team: sendSittingNotices skips a deactivated student (NQ)', (
     expect(attempted(body), body).toBe(1)
     expect(await noticeRows(admin, sittingId, codeA)).toBe(0)
     if (SENDS) expect(await noticeRows(admin, sittingId, codeB)).toBe(1)
+    else {
+      const names = await admin
+        .from('users')
+        .select('id, full_name')
+        .in('id', [studentIds[0] as string, studentIds[1] as string])
+      if (names.error) throw new Error(`names: ${names.error.message}`)
+      const nameA = names.data?.find((u) => u.id === studentIds[0])?.full_name as string
+      const nameB = names.data?.find((u) => u.id === studentIds[1])?.full_name as string
+      expect(nameA).toBeTruthy()
+      expect(nameB).toBeTruthy()
+      expect(body).toContain('"sent":0')
+      expect(body.match(/"studentName"/g)?.length).toBe(1)
+      expect(body).toContain(`"studentName":${JSON.stringify(nameB)}`)
+      expect(body).not.toContain(nameA)
+    }
   })
 })
