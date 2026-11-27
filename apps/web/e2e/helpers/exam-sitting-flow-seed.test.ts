@@ -2,9 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockGetAdminClient } = vi.hoisted(() => ({ mockGetAdminClient: vi.fn() }))
 vi.mock('./supabase', () => ({ getAdminClient: mockGetAdminClient }))
-vi.mock('./admin-supabase', () => ({ getAdminClient: mockGetAdminClient }))
+vi.mock('./admin-supabase', () => ({
+  getAdminClient: mockGetAdminClient,
+  ADMIN_TEST_EMAIL: 'admin@lmsplus.local',
+}))
 
 import {
+  adminIds,
   findSubject,
   readSittingCodes,
   restoreExamTimer,
@@ -137,14 +141,43 @@ describe('seedEnrolledStudents', () => {
   })
 })
 
+describe('adminIds', () => {
+  it('looks the admin up by the shared admin email among live users', async () => {
+    const calls = fakeAdmin({ users: [ADMIN_ROW] })
+    await expect(adminIds(mockGetAdminClient())).resolves.toEqual({
+      adminId: 'admin-1',
+      orgId: 'org-1',
+    })
+    expect(calls).toContainEqual({
+      table: 'users',
+      method: 'eq',
+      args: ['email', 'admin@lmsplus.local'],
+    })
+    expect(calls).toContainEqual({ table: 'users', method: 'is', args: ['deleted_at', null] })
+  })
+})
+
 describe('readSittingCodes', () => {
+  it('scopes the entries read and the codes read to the admin organisation', async () => {
+    const calls = fakeAdmin({
+      users: [ADMIN_ROW],
+      exam_sitting_entries: [{ data: [{ id: 'e1' }], error: null }],
+      internal_exam_codes: [{ data: [], error: null }],
+    })
+    await readSittingCodes('s1')
+    const org = ['organization_id', 'org-1']
+    expect(calls).toContainEqual({ table: 'exam_sitting_entries', method: 'eq', args: org })
+    expect(calls).toContainEqual({ table: 'internal_exam_codes', method: 'eq', args: org })
+  })
+
   it('returns no codes for a sitting without entries', async () => {
-    fakeAdmin({ exam_sitting_entries: [{ data: [], error: null }] })
+    fakeAdmin({ users: [ADMIN_ROW], exam_sitting_entries: [{ data: [], error: null }] })
     await expect(readSittingCodes('s1')).resolves.toEqual([])
   })
 
   it('maps each code with its voided state and reason', async () => {
     fakeAdmin({
+      users: [ADMIN_ROW],
       exam_sitting_entries: [{ data: [{ id: 'e1' }], error: null }],
       internal_exam_codes: [
         {
@@ -196,7 +229,7 @@ describe('widenExamTimer / restoreExamTimer', () => {
     // `start_internal_exam_session` resolves it with `ec.organization_id = v_org_id`, so an
     // unscoped lookup can widen another tenant's row and leave the exam on its own limit.
     const calls = fakeAdmin({
-      users: [ADMIN_ROW],
+      users: [ADMIN_ROW, ADMIN_ROW],
       exam_configs: [cfg('cfg-1', 60), updated('cfg-1'), updated('cfg-1')],
     })
     await widenExamTimer('subj-1')
@@ -206,9 +239,31 @@ describe('widenExamTimer / restoreExamTimer', () => {
     await restoreExamTimer()
   })
 
-  it('restores every config it widened, not only the last', async () => {
+  it('scopes the widen update and the restore update to the admin organisation', async () => {
     const calls = fakeAdmin({
       users: [ADMIN_ROW, ADMIN_ROW],
+      exam_configs: [cfg('cfg-1', 60), updated('cfg-1'), updated('cfg-1')],
+    })
+    await widenExamTimer('subj-1')
+    await restoreExamTimer()
+    const updateAt = calls
+      .map((c, i) => (c.table === 'exam_configs' && c.method === 'update' ? i : -1))
+      .filter((i) => i >= 0)
+    expect(updateAt).toHaveLength(2)
+    for (const i of updateAt) {
+      const eqs = calls
+        .slice(i + 1)
+        .filter((c) => c.table === 'exam_configs')
+        .slice(0, 2)
+        .filter((c) => c.method === 'eq')
+        .map((c) => c.args)
+      expect(eqs).toContainEqual(['organization_id', 'org-1'])
+    }
+  })
+
+  it('restores every config it widened, not only the last', async () => {
+    const calls = fakeAdmin({
+      users: [ADMIN_ROW, ADMIN_ROW, ADMIN_ROW],
       exam_configs: [
         cfg('cfg-1', 60),
         updated('cfg-1'),
@@ -245,7 +300,7 @@ describe('widenExamTimer / restoreExamTimer', () => {
     // Without the `widenedTimers.has` guard the second widen records 120 — the value the first
     // call raised — and the restore puts back a widened timer instead of the seed's own 60.
     const calls = fakeAdmin({
-      users: [ADMIN_ROW, ADMIN_ROW],
+      users: [ADMIN_ROW, ADMIN_ROW, ADMIN_ROW],
       exam_configs: [
         cfg('cfg-1', 60),
         updated('cfg-1'),
@@ -265,7 +320,7 @@ describe('widenExamTimer / restoreExamTimer', () => {
 
   it('drops a config whose row is gone, so a later restore stops re-throwing', async () => {
     const calls = fakeAdmin({
-      users: [ADMIN_ROW],
+      users: [ADMIN_ROW, ADMIN_ROW],
       exam_configs: [cfg('cfg-1', 60), updated('cfg-1'), { data: [], error: null }],
     })
     await widenExamTimer('subj-1')
@@ -285,7 +340,7 @@ describe('widenExamTimer / restoreExamTimer', () => {
 
   it('attempts every restore after one fails, then throws', async () => {
     const calls = fakeAdmin({
-      users: [ADMIN_ROW, ADMIN_ROW],
+      users: [ADMIN_ROW, ADMIN_ROW, ADMIN_ROW, ADMIN_ROW],
       exam_configs: [
         cfg('cfg-1', 60),
         updated('cfg-1'),

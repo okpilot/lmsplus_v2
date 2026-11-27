@@ -1215,3 +1215,69 @@ describe('markE2eSitting', () => {
     await expect(markE2eSitting('s1')).rejects.toThrow('no sitting s1')
   })
 })
+
+describe('cleanupE2eExamSittings (lookup failure after an earlier page error)', () => {
+  const fullPage = (prefix: string) =>
+    Array.from({ length: ID_CHUNK }, (_, i) => ({ id: `${prefix}${i}` }))
+
+  function withAuth(queues: Record<string, Result[]>) {
+    const calls = mockTables(queues)
+    const deleteUser = vi.fn().mockResolvedValue({ error: null })
+    const client = mockGetAdminClient() as Record<string, unknown>
+    mockGetAdminClient.mockReturnValue({ ...client, auth: { admin: { deleteUser } } })
+    return { calls, deleteUser }
+  }
+
+  it('reports the empty-sitting page error and the later lookup error together', async () => {
+    const { calls } = withAuth({
+      exam_sittings: [
+        { data: fullPage('s'), error: null },
+        { data: null, error: { message: 'page two lookup boom' } },
+      ],
+      exam_sitting_entries: [{ data: null, error: { message: 'page one people boom' } }],
+    })
+    const thrown = await cleanupE2eExamSittings().then(
+      () => '',
+      (e: unknown) => (e as Error).message,
+    )
+    expect(thrown).toContain('page one people boom')
+    expect(thrown).toContain('page two lookup boom')
+    expect(calls.filter((c) => c.table === 'exam_sittings' && c.method === 'gt')).toHaveLength(1)
+  })
+
+  it('reports the seeded-group page error and the later lookup error together', async () => {
+    const { calls } = withAuth({
+      exam_sittings: [{ data: [], error: null }],
+      student_groups: [
+        { data: fullPage('g'), error: null },
+        { data: null, error: { message: 'groups page two lookup boom' } },
+      ],
+      student_group_members: [{ data: null, error: { message: 'members page one boom' } }],
+    })
+    const thrown = await cleanupE2eExamSittings().then(
+      () => '',
+      (e: unknown) => (e as Error).message,
+    )
+    expect(thrown).toContain('members page one boom')
+    expect(thrown).toContain('groups page two lookup boom')
+    expect(calls.filter((c) => c.table === 'student_groups' && c.method === 'gt')).toHaveLength(1)
+  })
+
+  it('reports the seeded-user page error and the later lookup error together', async () => {
+    const { calls } = withAuth({
+      exam_sittings: [{ data: [], error: null }],
+      users: [
+        { data: fullPage('u'), error: null },
+        { data: null, error: { message: 'users page two lookup boom' } },
+      ],
+      quiz_sessions: [{ data: null, error: { message: 'users page one sessions boom' } }],
+    })
+    const thrown = await cleanupE2eExamSittings().then(
+      () => '',
+      (e: unknown) => (e as Error).message,
+    )
+    expect(thrown).toContain('users page one sessions boom')
+    expect(thrown).toContain('users page two lookup boom')
+    expect(calls.filter((c) => c.table === 'users' && c.method === 'gt')).toHaveLength(1)
+  })
+})

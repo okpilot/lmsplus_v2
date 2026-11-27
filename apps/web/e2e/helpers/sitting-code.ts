@@ -85,7 +85,7 @@ async function lookupIds(admin: Admin, studentEmail: string, subjectFragment: st
  *
  * Only enrolments that OUTLIVE the run belong here. A caller whose user is hard-deleted at teardown
  * passes `track: false`: `course_enrolments.user_id` is ON DELETE CASCADE (mig 20261027000100), so
- * the row is already gone and a tracked id would make the warning below fire on every green run.
+ * the row is already gone.
  *
  * KNOWN LIMIT — in-process only, unlike the rest of this helper family: a worker killed between
  * the insert and teardown loses the ids and a fixture enrolment stays live. It is not DB-derivable:

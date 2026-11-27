@@ -171,12 +171,8 @@ async function deleteSeededRows(admin: Admin, orgId: string, sittingId: string) 
 }
 
 /**
- * Largest id list any `.in()` in this file carries. A list that can outgrow it is split with
- * `chunk(…, ID_CHUNK)`; `deleteSeededRows` takes one sitting id, and every prefix lookup that feeds
- * an `.in()` is a keyset page of `ID_CHUNK` rows. The `>= POSTGREST_MAX_ROWS` guards check read-page
- * truncation, a separate failure. Kong refuses a request line between ~7.4 KB (200 uuids: 401, reached PostgREST) and
- * ~9.2 KB (250 uuids: 414); 100 uuids is ~3.7 KB. The uuid count that fits moves with the base
- * URL, the `select=` list and the other filters, so budget bytes, not a count.
+ * Largest id list any `.in()` carries; longer lists use `chunk`.
+ * Kong refuses a request line between ~7.4 KB (200 uuids: 401, reached PostgREST) and ~9.2 KB (250 uuids: 414); 100 uuids is ~3.7 KB.
  */
 const ID_CHUNK = 100
 
@@ -200,7 +196,10 @@ async function deleteSeededGroups(admin: Admin, orgId: string) {
       .limit(ID_CHUNK)
     if (after) q = q.gt('id', after)
     const page = await q
-    check('seed groups lookup', page.error)
+    if (page.error) {
+      errors.push(`seed groups lookup: ${page.error.message}`)
+      break
+    }
     const rows = page.data ?? []
     if (rows.length === 0) break
     const ids = rows.map((g) => g.id)
@@ -281,7 +280,10 @@ async function deleteSeededUsers(admin: Admin, orgId: string) {
       .limit(ID_CHUNK)
     if (after) q = q.gt('id', after)
     const page = await q
-    check('seed users lookup', page.error)
+    if (page.error) {
+      errors.push(`seed users lookup: ${page.error.message}`)
+      break
+    }
     const userRows = page.data ?? []
     if (userRows.length === 0) break
     // FK prerequisite: `quiz_sessions.student_id` pins the sessions before their users, so a
@@ -414,7 +416,10 @@ async function cleanupEmptySittings(orgId: string, adminId: string): Promise<voi
       .limit(ID_CHUNK)
     if (after) q = q.gt('id', after)
     const page = await q
-    if (page.error) throw new Error(`cleanupE2eExamSittings lookup: ${page.error.message}`)
+    if (page.error) {
+      errors.push(`cleanupE2eExamSittings lookup: ${page.error.message}`)
+      break
+    }
     const rows = page.data ?? []
     if (rows.length === 0) break
     try {

@@ -96,6 +96,7 @@ test.describe('Red Team: internal-exam code existence is not disclosed to a prob
           expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
           consumed_at: null,
           consumed_session_id: null,
+          sitting_entry_id: null,
           voided_at: null,
           voided_by: null,
           void_reason: null,

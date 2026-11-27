@@ -1,8 +1,8 @@
+import { ADMIN_TEST_EMAIL } from './admin-supabase'
 import { createStudents } from './exam-sitting-seed'
 import { ensureEnrolment } from './sitting-code'
 import { getAdminClient } from './supabase'
 
-const ADMIN_EMAIL = 'admin@lmsplus.local'
 const PREFIX = 'exam-sitting-flow-seed'
 
 type Admin = ReturnType<typeof getAdminClient>
@@ -17,7 +17,8 @@ export async function adminIds(admin: Admin): Promise<{ adminId: string; orgId: 
   const row = await admin
     .from('users')
     .select('id, organization_id')
-    .eq('email', ADMIN_EMAIL)
+    .eq('email', ADMIN_TEST_EMAIL)
+    .is('deleted_at', null)
     .single()
   if (row.error || !row.data) fail('admin lookup', row.error)
   return { adminId: row.data.id, orgId: row.data.organization_id }
@@ -50,7 +51,7 @@ export async function seedEnrolledStudents(
   const admin = getAdminClient()
   const { adminId, orgId } = await adminIds(admin)
   const ids = await createStudents(admin, orgId, names, PREFIX)
-  // track: false — deleteSeededUsers deletes these users (enrolments cascade), so a release would warn on zero rows.
+  // track: false: deleted with the users (enrolments cascade)
   for (const userId of ids)
     await ensureEnrolment(admin, { orgId, adminId, userId, courseId }, { track: false })
   return names.map((name, i) => ({ name, userId: ids[i] as string }))
@@ -66,9 +67,11 @@ export type SittingCode = {
 /** Every code of the sitting's entries (service role read). */
 export async function readSittingCodes(sittingId: string): Promise<SittingCode[]> {
   const admin = getAdminClient()
+  const { orgId } = await adminIds(admin)
   const entries = await admin
     .from('exam_sitting_entries')
     .select('id')
+    .eq('organization_id', orgId)
     .eq('sitting_id', sittingId)
     .is('deleted_at', null)
   if (entries.error) fail('entries', entries.error)
@@ -77,6 +80,7 @@ export async function readSittingCodes(sittingId: string): Promise<SittingCode[]
   const codes = await admin
     .from('internal_exam_codes')
     .select('code, student_id, voided_at, void_reason')
+    .eq('organization_id', orgId)
     .in('sitting_entry_id', ids)
     .is('deleted_at', null)
   if (codes.error) fail('codes', codes.error)
@@ -120,6 +124,7 @@ export async function widenExamTimer(subjectId: string, seconds = 3600): Promise
   const upd = await admin
     .from('exam_configs')
     .update({ time_limit_seconds: seconds })
+    .eq('organization_id', orgId)
     .eq('id', res.data.id)
     .select('id')
   if (upd.error) fail('exam timer widen', upd.error)
@@ -129,12 +134,15 @@ export async function widenExamTimer(subjectId: string, seconds = 3600): Promise
 
 /** Restores every timer `widenExamTimer` changed. Safe to call with none. */
 export async function restoreExamTimer(): Promise<void> {
+  if (widenedTimers.size === 0) return
   const admin = getAdminClient()
   const errors: string[] = []
+  const { orgId } = await adminIds(admin)
   for (const [id, seconds] of [...widenedTimers]) {
     const res = await admin
       .from('exam_configs')
       .update({ time_limit_seconds: seconds })
+      .eq('organization_id', orgId)
       .eq('id', id)
       .select('id')
     if (res.error) {
@@ -142,8 +150,6 @@ export async function restoreExamTimer(): Promise<void> {
       continue
     }
     if ((res.data ?? []).length === 0) {
-      // Zero rows under a service-role `.eq('id', id)` means the config is gone, so no retry can
-      // succeed; retaining the id would make every later restore in this worker re-throw.
       errors.push(`restore: no row ${id}`)
       widenedTimers.delete(id)
       continue
