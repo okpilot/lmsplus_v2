@@ -182,11 +182,9 @@ test('removed list and pending-notices banner appear for an auto-removed entry',
     autoRemoved: [{ name: 'E2E Fay Passed' }],
   })
   await page.goto(`${BASE}/${sittingId}`)
-  await expect(
-    page.getByText('1 notice waiting to be sent once email sending is available.'),
-  ).toBeVisible()
+  await expect(page.getByText('1 notice waiting to be sent.')).toBeVisible()
   await expect(page.getByText(/E2E Fay Passed · .+ · passed /)).toBeVisible()
-  await expect(page.getByRole('button', { name: /^Send/ })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Send notices' })).toBeVisible()
 })
 
 test.describe('student session', () => {

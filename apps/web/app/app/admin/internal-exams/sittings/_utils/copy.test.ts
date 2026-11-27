@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { closeConfirmText, emailCodesBanner, issueSkipText } from './copy'
+import {
+  cancelledBanner,
+  closeConfirmText,
+  detailsSavedBanner,
+  emailCodesBanner,
+  issueSkipText,
+  sendNoticesBanner,
+} from './copy'
 
 const base = { attemptsRunning: 0, entriesNotStarted: 0, studentsNotStarted: 0 }
 
@@ -80,5 +87,67 @@ describe('emailCodesBanner', () => {
     expect(emailCodesBanner({ ...base, failed: [], unrecorded: 2 }).lines).toEqual([
       '2 sent but not recorded',
     ])
+  })
+})
+
+describe('CANCEL_CONFIRM_TEXT notices line', () => {
+  it('tells the admin that emailed students get a cancellation notice', async () => {
+    const { CANCEL_CONFIRM_TEXT } = await import('./copy')
+    expect(CANCEL_CONFIRM_TEXT).toContain(
+      'Students who were emailed a code get a cancellation notice.',
+    )
+  })
+})
+
+describe('notice banners with errors', () => {
+  const names = (n: number) => Array.from({ length: n }, (_, i) => ({ studentName: `S${i}` }))
+
+  it('cancelledBanner adds the unrecorded line', () => {
+    const b = cancelledBanner(2, { sent: 1, failed: [], unrecorded: 1 })
+    expect(b.tone).toBe('caution')
+    expect(b.detail).toContain('1 sent but not recorded. Send notices will send them again.')
+  })
+
+  it('cancelledBanner tells the admin to use Send notices on error', () => {
+    const b = cancelledBanner(2, { sent: 0, failed: [], error: true })
+    expect(b.tone).toBe('caution')
+    expect(b.detail).toContain('Notices could not be sent. Use Send notices.')
+  })
+
+  it('sendNoticesBanner lists at most 5 failed names, then the remainder count', () => {
+    const b = sendNoticesBanner({ sent: 0, failed: names(7), skipped: 0, unrecorded: 0 })
+    expect(b.lines?.[0]).toBe(
+      'Failed: S0, S1, S2, S3, S4, and 2 more. Send notices tries them again.',
+    )
+  })
+
+  it('cancelledBanner lists at most 5 failed names, then the remainder count', () => {
+    expect(cancelledBanner(2, { sent: 0, failed: names(7) }).title).toBe(
+      'Sitting cancelled. Notice failed for S0, S1, S2, S3, S4, and 2 more.',
+    )
+  })
+
+  it('renders a null student name as Unknown', () => {
+    expect(cancelledBanner(1, { sent: 0, failed: [{ studentName: null }] }).title).toContain(
+      'Notice failed for Unknown.',
+    )
+  })
+
+  it('cancelledBanner stays a success without problems', () => {
+    expect(cancelledBanner(2, { sent: 1, failed: [] }).tone).toBe('success')
+  })
+
+  it('detailsSavedBanner notes a change notice error', () => {
+    const b = detailsSavedBanner({ sent: 0, failed: [], error: true })
+    expect(b.tone).toBe('caution')
+    expect(JSON.stringify(b)).toContain(
+      'Change notice could not be sent. Use Resend code on their exams.',
+    )
+  })
+
+  it('sendNoticesBanner notes that some notices could not be sent', () => {
+    const b = sendNoticesBanner({ sent: 1, failed: [], skipped: 0, unrecorded: 0, error: true })
+    expect(b.tone).toBe('caution')
+    expect(b.lines).toContain('Some notices could not be sent. Try Send notices again.')
   })
 })

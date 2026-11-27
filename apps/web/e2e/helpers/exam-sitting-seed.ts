@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { insertPassedSession } from '../../lib/integration-support/passed-session'
 import { ADMIN_TEST_EMAIL } from './admin-supabase'
 import { randomCode } from './code-gen'
 import {
@@ -7,6 +8,8 @@ import {
   makeSittingSeedMaterials,
 } from './exam-sitting-markers'
 import { getAdminClient } from './supabase'
+
+export { insertPassedSession }
 
 const BATCH = 10
 
@@ -80,55 +83,6 @@ export async function createStudents(
     ids.push(...(await Promise.all(batch.map((n) => createStudent(admin, orgId, n, prefix)))))
   }
   return ids
-}
-
-/** `pass_mark` of the org's oldest enabled exam config for the subject. */
-async function examPassMark(admin: Admin, orgId: string, subjectId: string): Promise<number> {
-  const res = await admin
-    .from('exam_configs')
-    .select('pass_mark')
-    .eq('organization_id', orgId)
-    .eq('subject_id', subjectId)
-    .eq('enabled', true)
-    .is('deleted_at', null)
-    .order('created_at')
-    .limit(1)
-    .maybeSingle()
-  if (res.error) fail('exam config lookup', res.error, 'insertPassedSession')
-  if (!res.data) {
-    fail(
-      `enabled exam config for subject ${subjectId} (ensureExamConfigs configures only MIN_CONFIGS subjects)`,
-      null,
-      'insertPassedSession',
-    )
-  }
-  return res.data.pass_mark
-}
-
-/** A finished, passed internal-exam session with a score for a student and subject (service role, no code). */
-export async function insertPassedSession(
-  admin: Admin,
-  c: { orgId: string; userId: string; subjectId: string; score: number; endedAt: Date },
-): Promise<string> {
-  const passMark = await examPassMark(admin, c.orgId, c.subjectId)
-  const res = await admin
-    .from('quiz_sessions')
-    .insert({
-      organization_id: c.orgId,
-      student_id: c.userId,
-      mode: 'internal_exam',
-      subject_id: c.subjectId,
-      config: { pass_mark: passMark, question_ids: [] },
-      total_questions: 0,
-      started_at: new Date(c.endedAt.getTime() - 1_800_000).toISOString(),
-      ended_at: c.endedAt.toISOString(),
-      passed: true,
-      score_percentage: c.score,
-    })
-    .select('id')
-    .single()
-  if (res.error || !res.data) fail('quiz session', res.error, 'insertPassedSession')
-  return res.data.id
 }
 
 const endOfTodayUtc = () => `${new Date().toISOString().slice(0, 10)}T23:59:59.000Z`

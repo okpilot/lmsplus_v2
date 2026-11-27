@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockRevalidatePath = vi.hoisted(() => vi.fn())
@@ -52,6 +53,13 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs())
 
 describe('emailSittingCodes', () => {
+  it('rethrows a redirect raised by the code lookup', async () => {
+    mockGetCodes.mockImplementation(() => redirect('/x'))
+    await expect(emailSittingCodes({ sittingId: SID })).rejects.toMatchObject({
+      digest: expect.stringContaining('NEXT_REDIRECT'),
+    })
+  })
+
   it.each([{ sittingId: 'x' }, {}])(
     'rejects invalid input %j without reading or sending',
     async (input) => {

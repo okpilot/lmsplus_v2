@@ -1,6 +1,6 @@
 # Red Team — Attack Surface Map
 
-> Last updated: 2026-11-27 (#1777: MH–NO exam sitting rows)
+> Last updated: 2026-11-27 (#1777: MH–NR exam sitting rows)
 
 > `answer_matches`: EXECUTE revoked from PUBLIC, anon, authenticated; granted to service_role.
 
@@ -383,6 +383,9 @@
 | NM | fetchExamSittingCandidacies-fetchExamSittingEntries-student-export-peer-removed-and-sitting-embed | MEDIUM | gdpr-export-exam-sitting-scope.spec.ts | BLOCKED |  | rls-bypass |
 | NN | emailSittingCodes-sendInternalExamCodeEmail-adminClient-cross-org-admin-and-student-replay | HIGH | exam-sitting-email-codes-scope.spec.ts | BLOCKED |  | cross-tenant |
 | NO | emailSittingCodes-sendInternalExamCodeEmail-adminClient-deactivated-student-live-sitting-code | MEDIUM | exam-sitting-email-codes-deactivated-student.spec.ts | BLOCKED |  | soft-delete-bypass |
+| NP | sendSittingNotices-adminClient-cross-org-admin-and-student-replay | HIGH | exam-sitting-notices-scope.spec.ts | BLOCKED |  | cross-tenant |
+| NQ | sendSittingNotices-getNoticeRecipients-adminClient-deactivated-student-cancellation-notice | MEDIUM | exam-sitting-notices-deactivated-student.spec.ts | BLOCKED |  | soft-delete-bypass |
+| NR | sendSittingNotices-deliverPendingNotices-concurrent-replay-duplicate-notice-email | LOW | exam-sitting-notices-concurrent-replay.spec.ts | GAP | #1847 | race |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 

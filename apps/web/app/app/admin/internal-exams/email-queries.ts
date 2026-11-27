@@ -201,6 +201,7 @@ export async function getSittingCodesForEmail(
   orgId: string,
   sittingId: string,
 ): Promise<SittingCodesForEmail> {
+  await requireAdmin()
   const db = adminClient as unknown as Db
   const empty = { sitting: null, rows: [], skipped: 0 }
   const s = await db

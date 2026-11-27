@@ -1,5 +1,5 @@
 // App-layer integration tier (#925) — getSittingCodesForEmail against real local Postgres.
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import {
   cleanupReferenceData,
   cleanupTestData,
@@ -12,6 +12,9 @@ import {
   seedReferenceData,
 } from '@/lib/integration-support/harness'
 import { getSittingCodesForEmail } from './email-queries'
+
+const { mockRequireAdmin } = vi.hoisted(() => ({ mockRequireAdmin: vi.fn() }))
+vi.mock('@/lib/auth/require-admin', () => ({ requireAdmin: mockRequireAdmin }))
 
 const admin = getAdminClient()
 const suffix = fixtureSuffix()
@@ -84,6 +87,7 @@ async function entryWithCode(
 
 describe('getSittingCodesForEmail (app-layer integration)', () => {
   beforeAll(async () => {
+    mockRequireAdmin.mockResolvedValue({ supabase: admin, organizationId: '', userId: '' })
     orgId = await createTestOrg({ admin, name: `int-sce ${suffix}`, slug: `int-sce-${suffix}` })
     otherOrgId = await createTestOrg({
       admin,
@@ -195,13 +199,25 @@ describe('getSittingCodesForEmail (app-layer integration)', () => {
   }, 120_000)
 
   afterAll(async () => {
+    const errors: string[] = []
     try {
       await cleanupTestData({ admin, orgId, userIds: [adminId, instructorId, ...userIds] })
-      await cleanupTestData({ admin, orgId: otherOrgId, userIds: [otherAdminId] })
-      await cleanupReferenceData({ admin, refs: [refs] })
     } catch (e) {
-      throw new Error(`afterAll: ${e instanceof Error ? e.message : String(e)}`)
+      errors.push(`cleanupTestData: ${e instanceof Error ? e.message : String(e)}`)
     }
+    try {
+      await cleanupTestData({ admin, orgId: otherOrgId, userIds: [otherAdminId] })
+    } catch (e) {
+      errors.push(`cleanupTestData other: ${e instanceof Error ? e.message : String(e)}`)
+    }
+    if (errors.length === 0) {
+      try {
+        await cleanupReferenceData({ admin, refs: [refs] })
+      } catch (e) {
+        errors.push(`cleanupReferenceData: ${e instanceof Error ? e.message : String(e)}`)
+      }
+    }
+    if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
   }, 120_000)
 
   it('returns only the unused, unemailed code of an active candidate with its email payload', async () => {

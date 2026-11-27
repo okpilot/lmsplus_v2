@@ -268,6 +268,12 @@ const usedIsNull = (calls: Call[], col: string, table?: string) =>
   )
 
 describe('getSittingCodesForEmail', () => {
+  it('rejects and reads nothing when requireAdmin rejects', async () => {
+    mockRequireAdmin.mockRejectedValue(new Error('forbidden'))
+    await expect(getSittingCodesForEmail(ORG_ID, SITTING_ID)).rejects.toThrow('forbidden')
+    expect(mockAdminFrom).not.toHaveBeenCalled()
+  })
+
   it('scopes every read by organization and the sitting id', async () => {
     const calls = recordingAdmin()
     await getSittingCodesForEmail(ORG_ID, SITTING_ID)

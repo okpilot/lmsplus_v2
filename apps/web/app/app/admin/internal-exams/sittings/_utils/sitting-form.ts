@@ -25,7 +25,7 @@ export async function persist(sitting: SittingRow | undefined, iso: string, v: S
     const changes = editChanges(sitting, iso, v)
     if (!changes) return { id: null }
     const r = await updateSitting({ sittingId: sitting.id, ...changes })
-    return r.success ? { id: sitting.id } : { error: r.error }
+    return r.success ? { id: sitting.id, notices: r.notices } : { error: r.error }
   }
   const r = await createSitting({
     scheduledAt: iso,
