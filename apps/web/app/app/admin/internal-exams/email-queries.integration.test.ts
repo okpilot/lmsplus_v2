@@ -152,6 +152,25 @@ describe('getSittingCodesForEmail (app-layer integration)', () => {
         deleted_by: adminId,
       },
     )
+    const consumedStudent = await student('consumed')
+    const sess = await admin
+      .from('quiz_sessions')
+      .insert({
+        organization_id: orgId,
+        student_id: consumedStudent,
+        mode: 'internal_exam',
+        subject_id: refs.subjectId,
+        config: { question_ids: [], pass_mark: 75 },
+        total_questions: 1,
+        time_limit_seconds: 600,
+      })
+      .select('id')
+      .single()
+    if (sess.error) throw new Error(`session: ${sess.error.message}`)
+    await entryWithCode('CONSUMED', consumedStudent, {
+      consumed_at: new Date().toISOString(),
+      consumed_session_id: sess.data.id,
+    })
     goneUserId = await student('gone')
     await entryWithCode('GONE', goneUserId)
     const c = await getAuthenticatedClient({
@@ -185,6 +204,7 @@ describe('getSittingCodesForEmail (app-layer integration)', () => {
   it('returns only the unused, unemailed code of an active candidate with its email payload', async () => {
     const r = await getSittingCodesForEmail(orgId, sittingId)
     expect(r.rows.map((x) => x.codeId)).toEqual([codeByLabel.A])
+    expect(r.rows.map((x) => x.codeId)).not.toContain(codeByLabel.CONSUMED)
     expect(r.rows[0]).toMatchObject({
       studentName: `Sce a ${suffix}`,
       email: `int-sce-a-${suffix}@test.local`,

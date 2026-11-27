@@ -17,8 +17,8 @@
  *
  * CONTROL ARM (in-spec): a legacy code of the same student, same page, same click reaches a
  * post-guard TERMINAL toast — so the refusal above is caused by the sitting attachment, not by a
- * broken button. The control does not assert delivery or the audit row: a successful send needs
- * RESEND_API_KEY (apps/web/lib/email/resend.ts), absent in CI.
+ * broken button. The control does not assert delivery or the audit row: a send without RESEND_API_KEY
+ * succeeds outside production and fails in production (apps/web/lib/email/resend.ts); CI is production.
  *
  * Hermetic: a throwaway student, codes carrying NG_CODE_PREFIX, one marked sitting tracked in
  * `SittingTrack`; afterAll soft-deletes the codes, then cleanupSittingFixtures (per-step

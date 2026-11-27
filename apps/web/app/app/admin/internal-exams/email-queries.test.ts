@@ -300,3 +300,75 @@ describe('getSittingCodesForEmail', () => {
     })
   })
 })
+
+// ---- getSittingCodesForEmail paging -----------------------------------------
+
+const pageRows = (n: number, from = 0) =>
+  Array.from({ length: n }, (_, i) => ({
+    id: `id-${String(from + i).padStart(5, '0')}`,
+    code: `C${from + i}`,
+    easa_subjects: { name: 'Subject' },
+    users: { full_name: 'A', email: `a${from + i}@example.com`, deleted_at: null },
+  }))
+
+/** Serves the sitting lookup, then each queued page in order; records every `gt` call. */
+function pagedAdmin(pages: { data: unknown; error?: { message: string } | null }[]) {
+  const gtCalls: unknown[][] = []
+  let next = 0
+  mockAdminFrom.mockImplementation((table: string) => {
+    const paged = table === 'internal_exam_codes'
+    const builder: Record<string, unknown> = new Proxy(
+      {},
+      {
+        get(_t, method: string) {
+          if (method === 'then' && paged) {
+            return (resolve: (v: unknown) => unknown) => {
+              const p = pages[next++] ?? { data: [] }
+              return resolve({ data: p.data, error: p.error ?? null })
+            }
+          }
+          if (method === 'then') return undefined
+          if (method === 'maybeSingle') {
+            return () =>
+              Promise.resolve({
+                data: { status: 'scheduled', scheduled_at: '2999-01-01T00:00:00Z', mode: 'remote' },
+                error: null,
+              })
+          }
+          return (...args: unknown[]) => {
+            if (method === 'gt' && args[0] === 'id') gtCalls.push(args)
+            return builder
+          }
+        },
+      },
+    )
+    return builder
+  })
+  return gtCalls
+}
+
+describe('getSittingCodesForEmail paging', () => {
+  it('carries the last id of the previous page into the next call', async () => {
+    const first = pageRows(1000)
+    const gtCalls = pagedAdmin([{ data: first }, { data: pageRows(1, 1000) }])
+    const r = await getSittingCodesForEmail(ORG_ID, SITTING_ID)
+    expect(gtCalls).toEqual([['id', first[999]?.id]])
+    expect(r.rows).toHaveLength(1001)
+  })
+
+  it('ends cleanly when a full page is followed by an empty page', async () => {
+    pagedAdmin([{ data: pageRows(1000) }, { data: [] }])
+    const r = await getSittingCodesForEmail(ORG_ID, SITTING_ID)
+    expect(r.rows).toHaveLength(1000)
+  })
+
+  it('throws on a page error', async () => {
+    pagedAdmin([{ data: null, error: { message: 'boom' } }])
+    await expect(getSittingCodesForEmail(ORG_ID, SITTING_ID)).rejects.toThrow('boom')
+  })
+
+  it('throws on a null page after a full page', async () => {
+    pagedAdmin([{ data: pageRows(1000) }, { data: null }])
+    await expect(getSittingCodesForEmail(ORG_ID, SITTING_ID)).rejects.toThrow('null page')
+  })
+})

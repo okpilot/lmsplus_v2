@@ -282,14 +282,15 @@ describe('ExamRowMenu code email (2c-i)', () => {
     expect(labels).not.toContain('Send code')
   })
 
-  it.each(['no_code', 'expired', 'voided'])(
-    'offers no email item for a %s exam',
-    async (status) => {
-      ui({}, { status, code: null, codeId: null })
-      const labels = await items(userEvent.setup())
-      expect(labels.some((l) => /send code|resend code/i.test(l ?? ''))).toBe(false)
-    },
-  )
+  it.each([
+    ['no_code', { code: null, codeId: null }],
+    ['expired', { code: 'ABCD1234', codeId: 'k1' }],
+    ['voided', { code: 'ABCD1234', codeId: 'k1' }],
+  ])('offers no email item for a %s exam', async (status, code) => {
+    ui({}, { status, ...code })
+    const labels = await items(userEvent.setup())
+    expect(labels.some((l) => /send code|resend code/i.test(l ?? ''))).toBe(false)
+  })
 
   it('sends the code email for this code id on click', async () => {
     m.sendEmail.mockResolvedValue({ success: true })

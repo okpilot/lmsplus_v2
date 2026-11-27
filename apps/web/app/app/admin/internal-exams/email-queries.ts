@@ -119,7 +119,7 @@ type Q = Rows & {
   is: (col: string, val: null) => Q
   gt: (col: string, val: string) => Q
   order: (col: string) => Q
-  range: (from: number, to: number) => Q
+  limit: (n: number) => Q
   maybeSingle: () => Rows
 }
 
@@ -148,23 +148,29 @@ type SittingCodeRaw = {
 
 const PAGE = 1000
 
-/** Reads every page (PostgREST caps a response at max_rows). Throws on a DB error. */
-async function readAll<T>(page: (from: number, to: number) => Rows): Promise<T[]> {
+/** Reads every page by id keyset (PostgREST caps a response at max_rows). Throws on a DB error. */
+async function readAll<T extends { id: string }>(
+  page: (lastId: string | null) => Rows,
+): Promise<T[]> {
   const out: T[] = []
-  for (let from = 0; ; from += PAGE) {
-    const { data, error } = await page(from, from + PAGE - 1)
+  let lastId: string | null = null
+  for (;;) {
+    const { data, error } = await page(lastId)
     if (error) throw new Error(error.message)
-    const rows = Array.isArray(data) ? (data as T[]) : []
+    if (!Array.isArray(data)) throw new Error('null page')
+    const rows = data as T[]
     out.push(...rows)
-    if (rows.length < PAGE) return out
+    const last = rows.at(-1)
+    if (!last || rows.length < PAGE) return out
+    lastId = last.id
   }
 }
 
 type Db = { from: (t: string) => Q }
 
 function unemailedCodes(db: Db, orgId: string, sittingId: string) {
-  return readAll<SittingCodeRaw>((a, b) =>
-    db
+  return readAll<SittingCodeRaw>((lastId) => {
+    const q = db
       .from('internal_exam_codes')
       .select(
         `id, code,
@@ -181,8 +187,8 @@ function unemailedCodes(db: Db, orgId: string, sittingId: string) {
       .is('voided_at', null)
       .gt('expires_at', new Date().toISOString())
       .order('id')
-      .range(a, b),
-  )
+    return (lastId === null ? q : q.gt('id', lastId)).limit(PAGE)
+  })
 }
 
 /**

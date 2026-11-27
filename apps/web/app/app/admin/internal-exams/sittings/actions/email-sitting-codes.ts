@@ -6,10 +6,10 @@ import { sendEmailBatch } from '@/lib/email/resend'
 import { sittingCodeEmail } from '@/lib/email/templates/sitting-code'
 import { getSittingCodesForEmail } from '../../email-queries'
 import { sittingEmailRefusal } from '../_utils/sitting-email-gate'
+import { recordEmailedCodes } from './record-emailed-codes'
 import { revalidateSitting, type SittingActionResult } from './sitting-action-result'
 
 const Schema = z.object({ sittingId: z.uuid() })
-const RECORD_CHUNK = 50
 
 export type EmailCodesResult = {
   sent: number
@@ -17,28 +17,6 @@ export type EmailCodesResult = {
   skipped: number
   /** Sent, but `emailed_at` not stamped: the next run emails them again. */
   unrecorded: number
-}
-
-/** Stamps `emailed_at` for each sent code (user client, audit row each); returns how many failed. */
-async function record(
-  rpc: (
-    fn: 'record_internal_exam_code_emailed',
-    args: { p_code_id: string },
-  ) => PromiseLike<{
-    error: { message: string } | null
-  }>,
-  codeIds: readonly string[],
-): Promise<number> {
-  let failed = 0
-  for (let i = 0; i < codeIds.length; i += RECORD_CHUNK) {
-    const results = await Promise.allSettled(
-      codeIds
-        .slice(i, i + RECORD_CHUNK)
-        .map((id) => rpc('record_internal_exam_code_emailed', { p_code_id: id })),
-    )
-    failed += results.filter((r) => r.status === 'rejected' || r.value.error).length
-  }
-  return failed
 }
 
 /** Emails every unused, not-yet-emailed code of a sitting to its student. */
@@ -49,7 +27,14 @@ export async function emailSittingCodes(
   if (!parsed.success) return { success: false, error: 'Invalid input' }
   const { sittingId } = parsed.data
   const { supabase, organizationId } = await requireAdmin()
-  const { sitting, rows, skipped } = await getSittingCodesForEmail(organizationId, sittingId)
+  let found: Awaited<ReturnType<typeof getSittingCodesForEmail>>
+  try {
+    found = await getSittingCodesForEmail(organizationId, sittingId)
+  } catch (err) {
+    console.error('[emailSittingCodes] lookup failed', err)
+    return { success: false, error: 'Failed to send email' }
+  }
+  const { sitting, rows, skipped } = found
   if (!sitting) return { success: false, error: 'Sitting not found' }
   const refusal = sittingEmailRefusal(sitting.status, sitting.scheduledAt)
   if (refusal) return { success: false, error: refusal }
@@ -72,7 +57,7 @@ export async function emailSittingCodes(
   }))
   const { sent, failed } = rows.length ? await sendEmailBatch(messages) : { sent: [], failed: [] }
   const sentIds = sent.flatMap((i) => rows[i]?.codeId ?? [])
-  const unrecorded = await record((fn, args) => supabase.rpc(fn, args), sentIds)
+  const unrecorded = await recordEmailedCodes((fn, args) => supabase.rpc(fn, args), sentIds)
   if (rows.length) revalidateSitting(sittingId)
   return {
     success: true,

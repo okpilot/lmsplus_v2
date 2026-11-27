@@ -171,6 +171,46 @@ describe('emailSittingCodes', () => {
     expect(r).toMatchObject({ success: true, sent: 1, unrecorded: 1 })
   })
 
+  it('logs the code id of a returned record error', async () => {
+    found([row(1), row(2)])
+    mockSendBatch.mockResolvedValue(allSent(2))
+    mockRpc
+      .mockResolvedValueOnce({ data: null, error: { message: 'boom' } })
+      .mockResolvedValueOnce({ data: null, error: null })
+    await emailSittingCodes({ sittingId: SID })
+    expect(console.error).toHaveBeenCalledTimes(1)
+    expect(console.error).toHaveBeenCalledWith(
+      '[emailSittingCodes] record failed',
+      'code-1',
+      'boom',
+    )
+  })
+
+  it('logs the code id of a rejected record call', async () => {
+    found([row(1)])
+    mockSendBatch.mockResolvedValue(allSent(1))
+    mockRpc.mockRejectedValue(new Error('network'))
+    await emailSittingCodes({ sittingId: SID })
+    expect(console.error).toHaveBeenCalledWith(
+      '[emailSittingCodes] record failed',
+      'code-1',
+      'network',
+    )
+  })
+
+  it('returns a generic failure and sends nothing when the lookup throws', async () => {
+    mockGetCodes.mockRejectedValue(new Error('db down'))
+    expect(await emailSittingCodes({ sittingId: SID })).toEqual({
+      success: false,
+      error: 'Failed to send email',
+    })
+    expect(console.error).toHaveBeenCalledWith(
+      '[emailSittingCodes] lookup failed',
+      expect.any(Error),
+    )
+    expect(mockSendBatch).not.toHaveBeenCalled()
+  })
+
   it('sends nothing when every code was already emailed (re-run)', async () => {
     found([])
     const r = await emailSittingCodes({ sittingId: SID })

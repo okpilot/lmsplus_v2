@@ -27,7 +27,7 @@
  * OWN-ORG legacy code — the void succeeds and writes `voided_at` + the reason and one
  * `internal_exam.code_voided` row; the send reaches a post-guard terminal result. So each refusal
  * above is caused by the org scope, not by a broken replay. The send control does not assert
- * delivery: a successful send needs RESEND_API_KEY (apps/web/lib/email/resend.ts).
+ * delivery: a send without RESEND_API_KEY succeeds outside production and fails in production (apps/web/lib/email/resend.ts).
  *
  * Hermetic: every code this spec creates carries NH_CODE_PREFIX in `code`; afterAll soft-deletes
  * them (never a hard DELETE — `internal_exam_codes` is soft-delete, docs/database.md §3) through a
@@ -332,7 +332,7 @@ test.describe('Red Team: codes-tab void and send guards vs a foreign-org code (N
     expect(await auditCount('internal_exam.code_emailed', victimActive.id)).toBe(0)
 
     // CONTROL: the identical replay on an own-org legacy code gets PAST both guards to a terminal
-    // result. Delivery is not asserted — a real send needs RESEND_API_KEY.
+    // result. Delivery is not asserted — a send without RESEND_API_KEY fails in production (CI).
     const control = await invoke(cap.sendId, { codeId: sendControl.id })
     expect(control).not.toContain(NOT_FOUND)
     expect(control).not.toContain('Sitting codes cannot be emailed')
