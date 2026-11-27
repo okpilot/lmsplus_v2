@@ -8,6 +8,7 @@ import { formatUtc } from '@/lib/utils/format-utc'
 import {
   type CodeDisplayStatus,
   codeDisplayStatus,
+  codeRowEmailable,
   codeRowVoidable,
   codeVoidDisabled,
 } from '../_void-policy'
@@ -65,12 +66,10 @@ export function CodeRow({
         {formatAbsolute(r.expiresAt)}
       </TableCell>
       <TableCell>
-        {/* An active code, or a sitting code not yet opened ('waiting'), can be (re)emailed;
-            the send action rejects every other state. */}
         <SendCodeEmailButton
           codeId={r.id}
           emailedAt={r.emailedAt}
-          disabled={r.status !== 'active' && r.status !== 'waiting'}
+          disabled={!codeRowEmailable(r)}
         />
       </TableCell>
       <TableCell>

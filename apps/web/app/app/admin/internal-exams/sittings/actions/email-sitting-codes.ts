@@ -15,7 +15,7 @@ export type EmailCodesResult = {
   sent: number
   failed: { studentName: string | null; subjectName: string }[]
   skipped: number
-  /** Sent, but `emailed_at` not stamped: the next run emails them again. */
+  /** Sent, but `emailed_at` not stamped: the next run emails them again unless consumed, voided or expired meanwhile. */
   unrecorded: number
 }
 
