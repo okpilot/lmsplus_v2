@@ -105,4 +105,20 @@ describe('AttemptsFilters', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Clear' }))
     expect(mockReplace).toHaveBeenCalledWith(`${URL_BASE}?tab=attempts`)
   })
+
+  it('removes the param and resets attemptsPage when a select returns to All', () => {
+    window.history.replaceState(null, '', `${URL_BASE}?tab=attempts&subject=sub-1&attemptsPage=3`)
+    renderBar({ subject: 'sub-1' })
+    fireEvent.change(screen.getAllByTestId('select')[0] as HTMLElement, {
+      target: { value: '__all__' },
+    })
+    expect(mockReplace).toHaveBeenCalledWith(`${URL_BASE}?tab=attempts`)
+  })
+
+  it('keeps a URL-selected id missing from the option list selectable', () => {
+    renderBar({ group: 'grp-missing' })
+    const select = screen.getAllByTestId('select')[2] as HTMLSelectElement
+    expect(select.value).toBe('grp-missing')
+    expect(screen.getByRole('option', { name: 'Selected group' })).toBeTruthy()
+  })
 })
