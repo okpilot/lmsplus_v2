@@ -6,7 +6,8 @@
  * sendInternalExamCodeEmail with one of its code ids; an egmont student replays emailSittingCodes.
  * Expected: no success; neither code gets `emailed_at`; no `internal_exam.code_emailed` audit row.
  * CONTROL: the egmont admin's identical replays stamp code A (per-code), then code B (bulk; A is
- * already emailed so the bulk sends exactly 1).
+ * already emailed so the bulk sends exactly 1). CI is a production build without a Resend key, so
+ * on CI the control asserts the post-guard failed send instead of delivery.
  *
  * Hermetic: throwaway students; sittings carry EXAM_SITTING_E2E_PREFIX; afterAll soft-deletes the
  * created codes, then cleanupSittingFixtures (per-step accumulator).
@@ -216,13 +217,28 @@ test.describe('Red Team: sitting code email actions scope (NN)', () => {
 
     // CONTROL: the egmont admin's per-code replay stamps A only.
     const okSingle = await invoke(adminCtx, cap.single, { codeId: codeA })
-    expect(okSingle).toContain('"success":true')
-    expect(await emailState(admin, [codeA, codeB])).toEqual([once, none])
+    if (process.env.CI) {
+      expect(okSingle).toContain('Failed to send email')
+      expect(okSingle).not.toContain('"success":true')
+      expect(okSingle).not.toContain('Code not found')
+      expect(await emailState(admin, [codeA, codeB])).toEqual([none, none])
+    } else {
+      expect(okSingle).toContain('"success":true')
+      expect(await emailState(admin, [codeA, codeB])).toEqual([once, none])
+    }
 
     // CONTROL: the egmont admin's bulk replay sends B only.
     const okBulk = await invoke(adminCtx, cap.bulk, { sittingId })
     expect(okBulk).toContain('"success":true')
-    expect(okBulk).toContain('"sent":1')
-    expect(await emailState(admin, [codeA, codeB])).toEqual([once, once])
+    if (process.env.CI) {
+      expect(okBulk).toContain('"sent":0')
+      expect(okBulk.match(/"studentName"/g)).toHaveLength(2)
+      expect(okBulk).toContain(`Red Team ${NN_A_EMAIL.split('@')[0]}`)
+      expect(okBulk).toContain(`Red Team ${NN_B_EMAIL.split('@')[0]}`)
+      expect(await emailState(admin, [codeA, codeB])).toEqual([none, none])
+    } else {
+      expect(okBulk).toContain('"sent":1')
+      expect(await emailState(admin, [codeA, codeB])).toEqual([once, once])
+    }
   })
 })

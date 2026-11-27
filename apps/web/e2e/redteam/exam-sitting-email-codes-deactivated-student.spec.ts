@@ -8,7 +8,9 @@
  * sitting and sendInternalExamCodeEmail for A's code.
  * Expected: A's code keeps `emailed_at` NULL and has no `internal_exam.code_emailed` audit row;
  * the bulk reports A as skipped; the per-code replay answers 'Code not found'.
- * CONTROL: the same bulk replay sends and stamps active student B's code (`"sent":1`).
+ * CONTROL: the same bulk replay sends and stamps active student B's code (`"sent":1`). CI is a
+ * production build without a Resend key, so on CI the control asserts the post-guard failed send
+ * (B listed as failed, nothing stamped) instead of delivery.
  *
  * Hermetic: throwaway students (A re-activated in beforeAll), sittings carry
  * EXAM_SITTING_E2E_PREFIX; afterAll soft-deletes the created codes, then cleanupSittingFixtures
@@ -207,8 +209,15 @@ test.describe('Red Team: sitting code email skips a deactivated student (NO)', (
     // CONTROL: the same bulk replay sends B (active) only; A is counted as skipped.
     const bulk = await invoke(bulkId, { sittingId })
     expect(bulk).toContain('"success":true')
-    expect(bulk).toContain('"sent":1')
     expect(bulk).toContain('"skipped":1')
-    expect(await emailState(admin, [codeA, codeB])).toEqual([none, once])
+    if (process.env.CI) {
+      expect(bulk).toContain('"sent":0')
+      expect(bulk.match(/"studentName"/g)).toHaveLength(1)
+      expect(bulk).toContain(`Red Team ${NO_B_EMAIL.split('@')[0]}`)
+      expect(await emailState(admin, [codeA, codeB])).toEqual([none, none])
+    } else {
+      expect(bulk).toContain('"sent":1')
+      expect(await emailState(admin, [codeA, codeB])).toEqual([none, once])
+    }
   })
 })
