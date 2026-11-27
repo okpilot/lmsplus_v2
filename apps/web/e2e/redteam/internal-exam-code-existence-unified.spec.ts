@@ -13,11 +13,12 @@
  * PostgREST client, bypassing the Server Action) return DISTINCT tokens, so the unified message is
  * doing the hiding rather than the signal being absent.
  *
- * Hermetic: dedicated throwaway students; probe codes carry E2E_REDTEAM_NL_CODE_PREFIX; afterAll
- * soft-deletes them and the prober's sessions (per-step accumulator).
+ * Hermetic: dedicated throwaway students; the three fixture codes and the absent code are fixed and
+ * carry E2E_REDTEAM_NL_CODE_PREFIX; beforeAll upserts the fixtures by `code` (a leftover soft-deleted
+ * row is revived, no value is burned); afterAll soft-deletes them and the prober's sessions
+ * (per-step accumulator).
  */
 
-import { randomBytes } from 'node:crypto'
 import { expect, type Page, test } from '@playwright/test'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { buildConsentCookieValue } from '../../lib/consent/check-consent'
@@ -43,15 +44,14 @@ const RPC = 'start_internal_exam_session'
 const UNIFIED = 'Invalid or expired code. Please contact your administrator.'
 /** `start-internal-exam.ts` fallback for an unmapped RPC token. */
 const FALLBACK = 'Failed to start internal exam.'
-/** Crockford alphabet of the code-entry input's sanitizer (no I/O/0/1). */
-const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 const BASE_URL = 'http://localhost:3000'
 
-/** An 8-character marked code the code-entry input keeps verbatim. */
-function nlCode(): string {
-  const tail = Array.from(randomBytes(4), (b) => ALPHABET[b % ALPHABET.length]).join('')
-  return `${E2E_REDTEAM_NL_CODE_PREFIX}${tail}`
-}
+/** Fixed 8-character marked codes the code-entry input keeps verbatim (alphabet has no I/O/0/1). */
+const OWN_CODE = `${E2E_REDTEAM_NL_CODE_PREFIX}PRB2`
+const SAME_ORG_FOREIGN_CODE = `${E2E_REDTEAM_NL_CODE_PREFIX}FRN3`
+const CROSS_ORG_CODE = `${E2E_REDTEAM_NL_CODE_PREFIX}XRG4`
+/** Never inserted. */
+const ABSENT_CODE = `${E2E_REDTEAM_NL_CODE_PREFIX}ABS5`
 
 test.describe.configure({ mode: 'serial' })
 
@@ -76,18 +76,33 @@ test.describe('Red Team: internal-exam code existence is not disclosed to a prob
   let missingCode = ''
   const codeIds = new Set<string>()
 
-  async function seedCode(opts: { owner: string; org: string; subject: string }): Promise<string> {
-    const code = nlCode()
+  /** Upserts by `code`: a leftover row is reset to a clean live state. */
+  async function seedCode(opts: {
+    code: string
+    owner: string
+    org: string
+    subject: string
+  }): Promise<string> {
+    const { code } = opts
     const { data, error } = await admin
       .from('internal_exam_codes')
-      .insert({
-        code,
-        subject_id: opts.subject,
-        student_id: opts.owner,
-        issued_by: opts.owner,
-        organization_id: opts.org,
-        expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-      })
+      .upsert(
+        {
+          code,
+          subject_id: opts.subject,
+          student_id: opts.owner,
+          issued_by: opts.owner,
+          organization_id: opts.org,
+          expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+          consumed_at: null,
+          consumed_session_id: null,
+          voided_at: null,
+          voided_by: null,
+          void_reason: null,
+          deleted_at: null,
+        },
+        { onConflict: 'code' },
+      )
       .select('id')
       .single()
     if (error || typeof data?.id !== 'string') throw new Error(`seedCode: ${error?.message}`)
@@ -101,7 +116,11 @@ test.describe('Red Team: internal-exam code existence is not disclosed to a prob
     await expect(page.getByTestId('available-list')).toBeVisible({ timeout: 20_000 })
     const form = page.getByTestId('code-entry-form')
     // The row's Start handler only fires once AvailableTab has hydrated, so retry the click.
+    // Escape first: a dialog that opened but lost the visibility race would otherwise leave its
+    // scrim over the button, and every later click would time out on pointer interception.
     await expect(async () => {
+      await page.keyboard.press('Escape')
+      await expect(form).toBeHidden({ timeout: 2_000 })
       await page.getByTestId('start-button').first().click({ timeout: 2_000 })
       await expect(form).toBeVisible({ timeout: 2_000 })
     }).toPass({ timeout: 30_000 })
@@ -134,14 +153,20 @@ test.describe('Red Team: internal-exam code existence is not disclosed to a prob
     // easa_subjects is shared reference data (no organization_id), so the cross-org code reuses it.
     subjectId = (await pickSubjectWithQuestions(admin, { orgId })).subjectId
 
-    ownCode = await seedCode({ owner: proberId, org: orgId, subject: subjectId })
-    sameOrgForeignCode = await seedCode({ owner: victimId, org: orgId, subject: subjectId })
+    ownCode = await seedCode({ code: OWN_CODE, owner: proberId, org: orgId, subject: subjectId })
+    sameOrgForeignCode = await seedCode({
+      code: SAME_ORG_FOREIGN_CODE,
+      owner: victimId,
+      org: orgId,
+      subject: subjectId,
+    })
     crossOrgCode = await seedCode({
+      code: CROSS_ORG_CODE,
       owner: crossOrgOwnerId,
       org: otherOrgId,
       subject: subjectId,
     })
-    missingCode = nlCode()
+    missingCode = ABSENT_CODE
 
     proberRpc = await createAuthenticatedClient(
       E2E_REDTEAM_NL_PROBER_EMAIL,
@@ -213,11 +238,22 @@ test.describe('Red Team: internal-exam code existence is not disclosed to a prob
       { name: CONSENT_COOKIE, value: buildConsentCookieValue(proberId), url: BASE_URL },
     ])
     const page = await ctx.newPage()
+    let auditBefore: number | null = null
     try {
       await signInViaForm(page, {
         email: E2E_REDTEAM_NL_PROBER_EMAIL,
         password: E2E_REDTEAM_NL_PROBER_PASSWORD,
       })
+
+      // Window opens after sign-in: /auth/login-complete calls record_login (route.ts:18), rate-limited at 60s.
+      // Capturing before sign-in passes on a fast re-run and fails on a cold one.
+      const { count, error: abErr } = await admin
+        .from('audit_events')
+        .select('id', { count: 'exact', head: true })
+        .eq('actor_id', proberId)
+      auditBefore = count
+      expect(abErr).toBeNull()
+      expect(auditBefore).not.toBeNull()
 
       const seen: Record<string, string> = {}
       for (const [label, code] of [
@@ -239,7 +275,7 @@ test.describe('Red Team: internal-exam code existence is not disclosed to a prob
       await ctx.close()
     }
 
-    // Nothing consumed, no session, no audit row for the prober.
+    // Nothing consumed, no live session, no new audit row for the prober.
     const { data: after, error: afterErr } = await admin
       .from('internal_exam_codes')
       .select('id, consumed_at, consumed_session_id')
@@ -257,13 +293,16 @@ test.describe('Red Team: internal-exam code existence is not disclosed to a prob
       .is('deleted_at', null)
     if (sErr) throw new Error(`sessions: ${sErr.message}`)
     expect(sessions ?? -1).toBe(0)
-    const { count: audits, error: aErr } = await admin
+    // `audit_events` is append-only and the prober account is reused, so the assertion is a delta over the probes only (sign-in excluded):
+    // no audit row of any type was written for the prober while the probes ran.
+    // complete_overdue_exam_session (20261004000400:109-115) writes an actor-scoped row and is reachable from the
+    // active-session read, but only when the prober already owns an overdue live session; the quiz_sessions count above catches that.
+    const { count: auditAfter, error: aErr } = await admin
       .from('audit_events')
       .select('id', { count: 'exact', head: true })
       .eq('actor_id', proberId)
-      .eq('event_type', 'internal_exam.started')
-    if (aErr) throw new Error(`audits: ${aErr.message}`)
-    expect(audits ?? -1).toBe(0)
+    expect(aErr).toBeNull()
+    expect(auditAfter).toBe(auditBefore)
   })
 
   test('NL2: control — the RPC itself still distinguishes the three codes', async () => {

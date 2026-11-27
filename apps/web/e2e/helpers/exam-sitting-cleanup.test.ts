@@ -8,6 +8,9 @@ import { POSTGREST_MAX_ROWS } from '../../lib/supabase-paginate'
 import { cleanupE2eExamSittings, markE2eSitting } from './exam-sitting-cleanup'
 import { EXAM_SITTING_E2E_PREFIX, EXAM_SITTING_SEED_PREFIX } from './exam-sitting-markers'
 
+// Mirrors `ID_CHUNK` in exam-sitting-cleanup.ts: the byte budget of one PostgREST request line.
+const ID_CHUNK = 100
+
 type Call = { table: string; method: string; args: unknown[] }
 type Result = { data: unknown; error: { message: string } | null }
 
@@ -39,6 +42,7 @@ function mockTables(queues: Record<string, Result[]>) {
 beforeEach(() => {
   vi.resetAllMocks()
   vi.spyOn(console, 'log').mockImplementation(() => {})
+  vi.spyOn(console, 'warn').mockImplementation(() => {})
 })
 
 describe('cleanupE2eExamSittings', () => {
@@ -241,12 +245,13 @@ describe('cleanupE2eExamSittings (seeded sittings)', () => {
     expect(deleted).toEqual(
       expect.arrayContaining([
         'internal_exam_codes',
-        'quiz_sessions',
         'exam_sitting_entries',
         'exam_sitting_candidates',
         'exam_sittings',
       ]),
     )
+    // The per-sitting pass deletes no session: `deleteSeededStudentSessions` does, after every sitting.
+    expect(deleted).not.toContain('quiz_sessions')
   })
 
   it("ends and soft-deletes a fixture student's session instead of deleting it", async () => {
@@ -583,23 +588,21 @@ describe('cleanupE2eExamSittings (page-cap refusals)', () => {
     return { calls, deleteUser }
   }
 
-  // A page of exactly `max_rows` is what PostgREST returns when it truncates — the only signal
-  // available, since a client `.limit()` cannot ask for more.
+  // A page of exactly `max_rows` is what PostgREST returns when it truncates: the read guards on
+  // the unlimited lookups (seeded sittings, entries, codes, people) key on it.
   function fullPage(row: (i: number) => Record<string, unknown>) {
     return Array.from({ length: POSTGREST_MAX_ROWS }, (_, i) => row(i))
   }
 
-  it('refuses a full marked-sitting page instead of soft-deleting a partial list', async () => {
-    const { calls } = withAuth({
-      exam_sittings: [
-        { data: fullPage((i) => ({ id: `s${i}` })), error: null },
-        { data: [], error: null },
-      ],
-    })
-    await expect(cleanupE2eExamSittings()).rejects.toThrow(
-      `cleanupEmptySittings: ${POSTGREST_MAX_ROWS} marked sitting(s) hits PostgREST's max_rows`,
+  it('limits the marked-sitting lookup to ID_CHUNK rows', async () => {
+    const { calls } = withAuth({ exam_sittings: [{ data: [], error: null }] })
+    await cleanupE2eExamSittings()
+    const lookup = calls.filter((c) => c.table === 'exam_sittings')
+    const markedLike = lookup.findIndex(
+      (c) => c.method === 'like' && c.args[1] === `${EXAM_SITTING_E2E_PREFIX}%`,
     )
-    expect(calls.some((c) => c.method === 'update')).toBe(false)
+    expect(markedLike).toBeGreaterThan(-1)
+    expect(lookup.slice(markedLike).find((c) => c.method === 'limit')?.args).toEqual([ID_CHUNK])
   })
 
   it.each(['exam_sitting_entries', 'exam_sitting_candidates'])(
@@ -642,64 +645,286 @@ describe('cleanupE2eExamSittings (page-cap refusals)', () => {
       exam_sitting_entries: [{ data: fullPage((i) => ({ id: `e${i}` })), error: null }],
     })
     await expect(cleanupE2eExamSittings()).rejects.toThrow(
-      `deleteSeededRows: ${POSTGREST_MAX_ROWS} seeded entry(s) for 1 seeded sitting(s) hits PostgREST's max_rows`,
+      `deleteSeededRows: ${POSTGREST_MAX_ROWS} seeded entry(s) for sitting s1 hits PostgREST's max_rows`,
     )
     // The entries lookup ran: the refusal is the guard's, not an earlier step's.
     expect(
-      calls.find((c) => c.table === 'exam_sitting_entries' && c.method === 'in')?.args,
-    ).toEqual(['sitting_id', ['s1']])
+      calls.find((c) => c.table === 'exam_sitting_entries' && c.method === 'eq')?.args,
+    ).toEqual(['sitting_id', 's1'])
     expect(calls.some((c) => c.table === 'internal_exam_codes')).toBe(false)
     expect(calls.some((c) => c.method === 'delete')).toBe(false)
   })
 
-  it('refuses a full seeded-code page instead of orphaning a session beyond the page', async () => {
+  it('refuses a full seeded-code page of a later entry chunk instead of orphaning a session beyond it', async () => {
     const { calls } = withAuth({
       exam_sittings: [
         { data: [], error: null },
         { data: [{ id: 's1' }], error: null },
       ],
-      exam_sitting_entries: [{ data: [{ id: 'e1' }], error: null }],
+      exam_sitting_entries: [
+        { data: Array.from({ length: 250 }, (_, i) => ({ id: `e${i}` })), error: null },
+      ],
       internal_exam_codes: [
+        { data: [{ id: 'c0', consumed_session_id: null }], error: null },
         { data: fullPage((i) => ({ id: `c${i}`, consumed_session_id: `q${i}` })), error: null },
       ],
     })
     await expect(cleanupE2eExamSittings()).rejects.toThrow(
-      `deleteSeededRows: ${POSTGREST_MAX_ROWS} seeded code(s) for 1 seeded entry(s) hits PostgREST's max_rows`,
+      `deleteSeededRows: ${POSTGREST_MAX_ROWS} seeded code(s) for ${ID_CHUNK} seeded entry(s) hits PostgREST's max_rows`,
     )
-    // The codes lookup ran: the refusal is the guard's, not the entries guard's.
-    expect(calls.find((c) => c.table === 'internal_exam_codes' && c.method === 'in')?.args).toEqual(
-      ['sitting_entry_id', ['e1']],
-    )
+    // Chunk 2 was refused: chunk 3 was never read.
+    expect(
+      calls.filter((c) => c.table === 'internal_exam_codes' && c.method === 'in'),
+    ).toHaveLength(2)
     // No session was classified, retired or deleted, and no code was deleted.
     expect(calls.some((c) => c.table === 'quiz_sessions')).toBe(false)
     expect(calls.some((c) => c.method === 'delete')).toBe(false)
   })
 
-  it('refuses a full seeded-group page instead of deleting a partial list', async () => {
+  it('accepts more code rows in total than max_rows when no single response is full', async () => {
+    const entries = Array.from({ length: POSTGREST_MAX_ROWS - 1 }, (_, i) => ({ id: `e${i}` }))
+    const chunks = Math.ceil(entries.length / ID_CHUNK)
     const { calls } = withAuth({
-      exam_sittings: [{ data: [], error: null }],
-      student_groups: [{ data: fullPage((i) => ({ id: `g${i}` })), error: null }],
+      exam_sittings: [
+        { data: [], error: null },
+        { data: [{ id: 's1' }], error: null },
+      ],
+      exam_sitting_entries: [{ data: entries, error: null }],
+      internal_exam_codes: Array.from({ length: chunks }, (_, k) => ({
+        data: Array.from({ length: 120 }, (_, i) => ({
+          id: `c${k}-${i}`,
+          consumed_session_id: null,
+        })),
+        error: null,
+      })),
     })
-    await expect(cleanupE2eExamSittings()).rejects.toThrow(
-      `deleteSeededGroups: ${POSTGREST_MAX_ROWS} seeded group(s) hits PostgREST's max_rows`,
-    )
-    expect(calls.some((c) => c.table === 'student_group_members' && c.method === 'delete')).toBe(
-      false,
-    )
-    expect(calls.some((c) => c.table === 'student_groups' && c.method === 'delete')).toBe(false)
+    await cleanupE2eExamSittings()
+    expect(
+      calls.filter((c) => c.table === 'internal_exam_codes' && c.method === 'delete'),
+    ).toHaveLength(chunks)
   })
 
-  it('refuses a full seeded-user page instead of deleting a partial list', async () => {
-    const { calls, deleteUser } = withAuth({
+  it('limits the seeded-group lookup to ID_CHUNK rows', async () => {
+    const { calls } = withAuth({ exam_sittings: [{ data: [], error: null }] })
+    await cleanupE2eExamSittings()
+    expect(calls.find((c) => c.table === 'student_groups' && c.method === 'limit')?.args).toEqual([
+      ID_CHUNK,
+    ])
+  })
+
+  it('limits the seeded-user lookup to ID_CHUNK rows', async () => {
+    const { calls } = withAuth({ exam_sittings: [{ data: [], error: null }] })
+    await cleanupE2eExamSittings()
+    expect(calls.find((c) => c.table === 'users' && c.method === 'like')?.args).toEqual([
+      'email',
+      expect.stringContaining('%'),
+    ])
+    expect(calls.find((c) => c.table === 'users' && c.method === 'limit')?.args).toEqual([ID_CHUNK])
+  })
+})
+
+describe('cleanupE2eExamSittings (seeded users and sessions)', () => {
+  function withAuth(queues: Record<string, Result[]>) {
+    const calls = mockTables(queues)
+    const deleteUser = vi.fn().mockResolvedValue({ error: null })
+    const client = mockGetAdminClient() as Record<string, unknown>
+    mockGetAdminClient.mockReturnValue({ ...client, auth: { admin: { deleteUser } } })
+    return { calls, deleteUser }
+  }
+
+  const seededUsers = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `u${i}` }))
+  const lens = (calls: Call[], table: string, col: string) =>
+    calls
+      .filter((c) => c.table === table && c.method === 'in' && c.args[0] === col)
+      .map((c) => (c.args[1] as string[]).length)
+
+  it('looks the sessions of every looked-up student up in one list of at most ID_CHUNK ids', async () => {
+    const { calls } = withAuth({
       exam_sittings: [{ data: [], error: null }],
-      users: [{ data: fullPage((i) => ({ id: `u${i}` })), error: null }],
+      users: [{ data: seededUsers(ID_CHUNK), error: null }],
+    })
+    await cleanupE2eExamSittings()
+    expect(lens(calls, 'quiz_sessions', 'student_id')).toEqual([ID_CHUNK])
+  })
+
+  it('deletes the sessions and consuming codes of many sessions in lists of at most ID_CHUNK', async () => {
+    const sessions = Array.from({ length: 250 }, (_, i) => ({ id: `q${i}` }))
+    const { calls } = withAuth({
+      exam_sittings: [{ data: [], error: null }],
+      users: [{ data: seededUsers(3), error: null }],
+      quiz_sessions: [{ data: sessions, error: null }],
+    })
+    await cleanupE2eExamSittings()
+    expect(lens(calls, 'internal_exam_codes', 'consumed_session_id')).toEqual([100, 100, 50])
+    expect(lens(calls, 'quiz_sessions', 'id')).toEqual([100, 100, 50])
+  })
+
+  it('deletes no user when the sessions step fails, and reports it', async () => {
+    const { deleteUser, calls } = withAuth({
+      exam_sittings: [{ data: [], error: null }],
+      users: [{ data: seededUsers(3), error: null }],
+      quiz_sessions: [{ data: null, error: { message: 'batch sessions boom' } }],
     })
     await expect(cleanupE2eExamSittings()).rejects.toThrow(
-      `deleteSeededUsers: ${POSTGREST_MAX_ROWS} seeded user(s) hits PostgREST's max_rows`,
+      /cleanupE2eExamSittings: .*batch sessions boom/,
     )
     expect(deleteUser).not.toHaveBeenCalled()
     expect(calls.some((c) => c.table === 'users' && c.method === 'delete')).toBe(false)
-    expect(calls.some((c) => c.table === 'quiz_sessions')).toBe(false)
+    expect(calls.some((c) => c.table === 'course_enrolments' && c.method === 'delete')).toBe(false)
+  })
+})
+
+describe('cleanupE2eExamSittings (seeded rows in chunks)', () => {
+  const SEEDED = 'e2e-sit-a@lmsplus.local'
+  const FIXTURE = 'e2e-internal-exam@lmsplus.local'
+
+  /** One entry per id, 250 of them: three code chunks of 100, 100, 50. */
+  const entries = Array.from({ length: 250 }, (_, i) => ({ id: `e${i}` }))
+  const split = <T>(rows: T[]) => {
+    const out: T[][] = []
+    for (let i = 0; i < rows.length; i += ID_CHUNK) out.push(rows.slice(i, i + ID_CHUNK))
+    return out
+  }
+  /** Code rows, one result per entry chunk; `session(i)` is the session code i consumed. */
+  const codeResults = (session: (i: number) => string | null) =>
+    split(entries).map((part, k) => ({
+      data: part.map((_, j) => ({
+        id: `c${k * ID_CHUNK + j}`,
+        consumed_session_id: session(k * ID_CHUNK + j),
+      })),
+      error: null as null,
+    }))
+  const sessionRows = (ids: string[], email: string) =>
+    split(ids).map((part) => ({
+      data: part.map((id) => ({ id, users: { email } })),
+      error: null as null,
+    }))
+  const idsOf = (n: number) => Array.from({ length: n }, (_, i) => `q${i}`)
+  const updated = (ids: string[]) =>
+    split(ids).map((part) => ({ data: part.map((id) => ({ id })), error: null as null }))
+
+  function run(queues: Record<string, Result[]>) {
+    const calls = mockTables({
+      exam_sittings: [
+        { data: [], error: null },
+        { data: [{ id: 's1' }], error: null },
+      ],
+      exam_sitting_entries: [{ data: entries, error: null }],
+      ...queues,
+    })
+    const deleteUser = vi.fn().mockResolvedValue({ error: null })
+    const client = mockGetAdminClient() as Record<string, unknown>
+    mockGetAdminClient.mockReturnValue({ ...client, auth: { admin: { deleteUser } } })
+    return calls
+  }
+
+  /** Lengths of the id lists of `.in(col, …)` calls whose statement opened with `op`. */
+  const lens = (calls: Call[], table: string, col: string, op: string, payload?: string) =>
+    calls
+      .map((c, i) => ({ c, prev: calls[i - 1] }))
+      .filter(
+        ({ c, prev }) =>
+          c.table === table &&
+          c.method === 'in' &&
+          c.args[0] === col &&
+          prev?.method === op &&
+          (payload === undefined || JSON.stringify(prev.args[0]).includes(payload)),
+      )
+      .map(({ c }) => (c.args[1] as string[]).length)
+
+  const seededRun = () => {
+    const ids = idsOf(250)
+    return run({
+      internal_exam_codes: codeResults((i) => ids[i] ?? null),
+      quiz_sessions: sessionRows(ids, SEEDED),
+    })
+  }
+  const fixtureRun = () => {
+    const ids = idsOf(250)
+    return run({
+      internal_exam_codes: codeResults((i) => ids[i] ?? null),
+      quiz_sessions: [...sessionRows(ids, FIXTURE), ...updated(ids)],
+    })
+  }
+
+  it('selects and deletes the codes of 250 entries in lists of 100, 100, 50', async () => {
+    const calls = seededRun()
+    await cleanupE2eExamSittings()
+    expect(lens(calls, 'internal_exam_codes', 'sitting_entry_id', 'select')).toEqual([100, 100, 50])
+    expect(lens(calls, 'internal_exam_codes', 'sitting_entry_id', 'delete')).toEqual([100, 100, 50])
+  })
+
+  it('classifies the sessions of 250 codes in lists of 100, 100, 50 and deletes none per sitting', async () => {
+    const calls = seededRun()
+    await cleanupE2eExamSittings()
+    expect(lens(calls, 'quiz_sessions', 'id', 'select')).toEqual([100, 100, 50])
+    expect(calls.some((c) => c.table === 'quiz_sessions' && c.method === 'delete')).toBe(false)
+  })
+
+  it('retires the fixture sessions of 250 codes in lists of 100, 100, 50, soft-delete first', async () => {
+    const calls = fixtureRun()
+    await cleanupE2eExamSittings()
+    expect(lens(calls, 'quiz_sessions', 'id', 'update', 'deleted_at')).toEqual([100, 100, 50])
+    expect(lens(calls, 'quiz_sessions', 'id', 'update', 'ended_at')).toEqual([100, 100, 50])
+    const firstEnd = calls.findIndex(
+      (c) => c.method === 'update' && JSON.stringify(c.args[0]).includes('ended_at'),
+    )
+    const lastSoft = calls.findLastIndex(
+      (c) => c.method === 'update' && JSON.stringify(c.args[0]).includes('deleted_at'),
+    )
+    expect(lastSoft).toBeLessThan(firstEnd)
+  })
+
+  it('retires the fixture sessions before the first code delete', async () => {
+    const calls = fixtureRun()
+    await cleanupE2eExamSittings()
+    const lastRetire = calls.findLastIndex(
+      (c) => c.table === 'quiz_sessions' && c.method === 'update',
+    )
+    const firstCodeDelete = calls.findIndex(
+      (c) => c.table === 'internal_exam_codes' && c.method === 'delete',
+    )
+    expect(lastRetire).toBeLessThan(firstCodeDelete)
+  })
+
+  it('tears down when two codes share one session across a chunk boundary', async () => {
+    // `consumed_session_id` is not unique: code 150 (chunk 2) re-uses code 0's session.
+    const ids = idsOf(250)
+    const unique = ids.filter((id) => id !== 'q150')
+    const calls = run({
+      internal_exam_codes: codeResults((i) => (i === 150 ? 'q0' : (ids[i] ?? null))),
+      quiz_sessions: [...sessionRows(unique, FIXTURE), ...updated(unique)],
+    })
+    await cleanupE2eExamSittings()
+    expect(lens(calls, 'quiz_sessions', 'id', 'select')).toEqual([100, 100, 49])
+    expect(lens(calls, 'quiz_sessions', 'id', 'update', 'deleted_at')).toEqual([100, 100, 49])
+  })
+
+  it('classifies a session reported by two chunks once', async () => {
+    const ids = idsOf(250)
+    const lookups = sessionRows(ids, FIXTURE)
+    lookups[1]?.data.push({ id: 'q0', users: { email: FIXTURE } })
+    const calls = run({
+      internal_exam_codes: codeResults((i) => ids[i] ?? null),
+      quiz_sessions: [...lookups, ...updated(ids)],
+    })
+    await cleanupE2eExamSittings()
+    expect(lens(calls, 'quiz_sessions', 'id', 'update', 'deleted_at')).toEqual([100, 100, 50])
+  })
+
+  it('still throws when a retire chunk updates fewer rows than it was given', async () => {
+    const ids = idsOf(250)
+    const soft = updated(ids)
+    soft[1] = { data: soft[1]?.data.slice(1) ?? [], error: null }
+    run({
+      internal_exam_codes: codeResults((i) => ids[i] ?? null),
+      quiz_sessions: [...sessionRows(ids, FIXTURE), ...soft],
+    })
+    const err = await cleanupE2eExamSittings().then(
+      () => null,
+      (e: Error) => e,
+    )
+    expect(err?.message).toMatch(/fixture sessions soft-delete: expected 100 row\(s\), updated 99/)
   })
 })
 
