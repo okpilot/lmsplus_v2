@@ -258,6 +258,33 @@ describe('cleanupE2eExamSittings (seeded sittings)', () => {
     expect(deleted).not.toContain('quiz_sessions')
   })
 
+  it('scopes the seeded-sittings lookup and the seeded-row deletes to the organization', async () => {
+    const { calls } = seededClient({
+      exam_sittings: [
+        { data: [], error: null },
+        { data: [{ id: 's1' }], error: null },
+      ],
+    })
+    await cleanupE2eExamSittings()
+    const orgScoped = (table: string, method: string) =>
+      calls.some(
+        (c) =>
+          c.table === table &&
+          c.method === 'eq' &&
+          c.args[0] === 'organization_id' &&
+          c.args[1] === 'org-1',
+      ) && calls.some((c) => c.table === table && c.method === method)
+    const sittingsLookup = calls.findIndex(
+      (c) => c.table === 'exam_sittings' && c.method === 'like' && c.args[1] === 'E2E-SIT-SEED-%',
+    )
+    const lookupOrg = calls
+      .slice(0, sittingsLookup)
+      .reverse()
+      .find((c) => c.table === 'exam_sittings' && c.method === 'eq')
+    expect(lookupOrg?.args).toEqual(['organization_id', 'org-1'])
+    expect(orgScoped('exam_sitting_entries', 'delete')).toBe(true)
+  })
+
   it("ends and soft-deletes a fixture student's session instead of deleting it", async () => {
     const { calls } = seededClient({
       exam_sittings: [
@@ -909,7 +936,14 @@ describe('cleanupE2eExamSittings (seeded rows in chunks)', () => {
   /** Lengths of the id lists of `.in(col, …)` calls whose statement opened with `op`. */
   const lens = (calls: Call[], table: string, col: string, op: string, payload?: string) =>
     calls
-      .map((c, i) => ({ c, prev: calls[i - 1] }))
+      .map((c, i) => ({
+        c,
+        // The op (`delete`/`select`) before the `.in()`, past the org predicate in between.
+        prev: calls
+          .slice(0, i)
+          .reverse()
+          .find((p) => !(p.method === 'eq' && p.args[0] === 'organization_id')),
+      }))
       .filter(
         ({ c, prev }) =>
           c.table === table &&
@@ -923,7 +957,14 @@ describe('cleanupE2eExamSittings (seeded rows in chunks)', () => {
   /** The id lists themselves, in call order (same selection as `lens`). */
   const slices = (calls: Call[], table: string, col: string, op: string, payload?: string) =>
     calls
-      .map((c, i) => ({ c, prev: calls[i - 1] }))
+      .map((c, i) => ({
+        c,
+        // The op (`delete`/`select`) before the `.in()`, past the org predicate in between.
+        prev: calls
+          .slice(0, i)
+          .reverse()
+          .find((p) => !(p.method === 'eq' && p.args[0] === 'organization_id')),
+      }))
       .filter(
         ({ c, prev }) =>
           c.table === table &&

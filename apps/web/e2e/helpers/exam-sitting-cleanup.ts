@@ -88,7 +88,7 @@ async function retireFixtureSessions(admin: Admin, fixture: string[]) {
 }
 
 /** Ids of the entries, then the codes of those entries deleted and their fixture sessions retired, for one seeded sitting. */
-async function deleteSeededRows(admin: Admin, sittingId: string) {
+async function deleteSeededRows(admin: Admin, orgId: string, sittingId: string) {
   const entries = await admin.from('exam_sitting_entries').select('id').eq('sitting_id', sittingId)
   check('seed entries lookup', entries.error)
   const entryIds = (entries.data ?? []).map((e) => e.id)
@@ -126,21 +126,40 @@ async function deleteSeededRows(admin: Admin, sittingId: string) {
     for (const part of entryParts) {
       check(
         'seed codes delete',
-        (await admin.from('internal_exam_codes').delete().in('sitting_entry_id', part)).error,
+        (
+          await admin
+            .from('internal_exam_codes')
+            .delete()
+            .eq('organization_id', orgId)
+            .in('sitting_entry_id', part)
+        ).error,
       )
     }
   }
   check(
     'seed entries delete',
-    (await admin.from('exam_sitting_entries').delete().eq('sitting_id', sittingId)).error,
+    (
+      await admin
+        .from('exam_sitting_entries')
+        .delete()
+        .eq('organization_id', orgId)
+        .eq('sitting_id', sittingId)
+    ).error,
   )
   check(
     'seed candidates delete',
-    (await admin.from('exam_sitting_candidates').delete().eq('sitting_id', sittingId)).error,
+    (
+      await admin
+        .from('exam_sitting_candidates')
+        .delete()
+        .eq('organization_id', orgId)
+        .eq('sitting_id', sittingId)
+    ).error,
   )
   check(
     'seed sittings delete',
-    (await admin.from('exam_sittings').delete().eq('id', sittingId)).error,
+    (await admin.from('exam_sittings').delete().eq('organization_id', orgId).eq('id', sittingId))
+      .error,
   )
 }
 
@@ -225,7 +244,8 @@ async function deleteSeededStudentSessions(admin: Admin, orgId: string, userIds:
     )
     check(
       'seed student sessions delete',
-      (await admin.from('quiz_sessions').delete().in('id', part)).error,
+      (await admin.from('quiz_sessions').delete().eq('organization_id', orgId).in('id', part))
+        .error,
     )
   }
 }
@@ -287,12 +307,13 @@ async function cleanupSeededExamSittings(orgId: string): Promise<void> {
   const { data, error } = await admin
     .from('exam_sittings')
     .select('id')
+    .eq('organization_id', orgId)
     .like('permitted_materials', `${EXAM_SITTING_SEED_PREFIX}%`)
   check('seed lookup', error)
   const ids = (data ?? []).map((r) => r.id)
   // `exam_sitting_entries.user_id` and `exam_sitting_candidates.user_id` both REFERENCE users(id)
   // with no cascade: a truncated list leaves rows that FK-fail the `deleteSeededUsers` deletes of
-  // their users (it deletes up to `ID_CHUNK` `e2e-sit-` users per run).
+  // their users.
   if (ids.length >= POSTGREST_MAX_ROWS) {
     throw new Error(
       `cleanupSeededExamSittings: ${ids.length} seeded sitting(s) hits PostgREST's max_rows; delete in pages`,
@@ -303,7 +324,7 @@ async function cleanupSeededExamSittings(orgId: string): Promise<void> {
   // of reach.
   for (const id of ids) {
     try {
-      await deleteSeededRows(admin, id)
+      await deleteSeededRows(admin, orgId, id)
     } catch (e) {
       errors.push(e instanceof Error ? e.message : String(e))
     }
