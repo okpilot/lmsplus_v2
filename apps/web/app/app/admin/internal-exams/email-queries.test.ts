@@ -350,9 +350,12 @@ function pagedAdmin(pages: { data: unknown; error?: { message: string } | null }
 describe('getSittingCodesForEmail paging', () => {
   it('carries the last id of the previous page into the next call', async () => {
     const first = pageRows(1000)
-    const gtCalls = pagedAdmin([{ data: first }, { data: pageRows(1, 1000) }])
+    const gtCalls = pagedAdmin([{ data: first }, { data: pageRows(1, 1000) }, { data: [] }])
     const r = await getSittingCodesForEmail(ORG_ID, SITTING_ID)
-    expect(gtCalls).toEqual([['id', first[999]?.id]])
+    expect(gtCalls).toEqual([
+      ['id', first[999]?.id],
+      ['id', 'id-01000'],
+    ])
     expect(r.rows).toHaveLength(1001)
   })
 
@@ -360,6 +363,12 @@ describe('getSittingCodesForEmail paging', () => {
     pagedAdmin([{ data: pageRows(1000) }, { data: [] }])
     const r = await getSittingCodesForEmail(ORG_ID, SITTING_ID)
     expect(r.rows).toHaveLength(1000)
+  })
+
+  it('ends with the rows of a short page followed by an empty page', async () => {
+    pagedAdmin([{ data: pageRows(3) }, { data: [] }])
+    const r = await getSittingCodesForEmail(ORG_ID, SITTING_ID)
+    expect(r.rows).toHaveLength(3)
   })
 
   it('throws on a page error', async () => {

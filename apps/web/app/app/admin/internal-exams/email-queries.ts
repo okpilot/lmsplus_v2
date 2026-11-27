@@ -161,7 +161,7 @@ async function readAll<T extends { id: string }>(
     const rows = data as T[]
     out.push(...rows)
     const last = rows.at(-1)
-    if (!last || rows.length < PAGE) return out
+    if (!last) return out
     lastId = last.id
   }
 }

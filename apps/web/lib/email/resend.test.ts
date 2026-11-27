@@ -213,6 +213,20 @@ describe('sendEmailBatch', () => {
     expect(result.sent).toHaveLength(199)
   })
 
+  it('logs each per-message error by global index without the address', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockBatchSend
+      .mockResolvedValueOnce(ok(100))
+      .mockResolvedValueOnce(ok(99, [{ index: 3, message: 'Invalid `to` field' }]))
+    await sendEmailBatch(msgs(200))
+    expect(errorSpy).toHaveBeenCalledWith(
+      '[sendEmailBatch] message failed',
+      103,
+      'Invalid `to` field',
+    )
+    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain('@example.com')
+  })
+
   it('waits retry-after seconds on a 429, then retries the chunk', async () => {
     vi.useFakeTimers()
     mockBatchSend

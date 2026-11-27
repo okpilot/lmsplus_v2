@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { closeConfirmText, issueSkipText } from './copy'
+import { closeConfirmText, emailCodesBanner, issueSkipText } from './copy'
 
 const base = { attemptsRunning: 0, entriesNotStarted: 0, studentsNotStarted: 0 }
 
@@ -58,5 +58,27 @@ describe('issueSkipText', () => {
     expect(issueSkipText({ ...none, skippedPassed: 1, skippedDeactivated: 2 })).toBe(
       'Skipped: already passed, deactivated.',
     )
+  })
+})
+
+describe('emailCodesBanner', () => {
+  const failed = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({ studentName: `S${i}`, subjectName: 'Met' }))
+  const base = { sent: 0, skipped: 0, unrecorded: 0 }
+
+  it('lists at most 5 failures, then the remainder count', () => {
+    const line = emailCodesBanner({ ...base, failed: failed(7) }).lines?.[0]
+    expect(line).toBe('Failed 7: S0 (Met), S1 (Met), S2 (Met), S3 (Met), S4 (Met), and 2 more')
+  })
+
+  it('lists all failures up to 5 without a remainder', () => {
+    const line = emailCodesBanner({ ...base, failed: failed(5) }).lines?.[0]
+    expect(line).toBe('Failed 5: S0 (Met), S1 (Met), S2 (Met), S3 (Met), S4 (Met)')
+  })
+
+  it('states unrecorded sends without a resend hint', () => {
+    expect(emailCodesBanner({ ...base, failed: [], unrecorded: 2 }).lines).toEqual([
+      '2 sent but not recorded',
+    ])
   })
 })

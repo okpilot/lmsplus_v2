@@ -2,13 +2,33 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const m = vi.hoisted(() => ({ email: vi.fn(), toastSuccess: vi.fn(), toastError: vi.fn() }))
+const m = vi.hoisted(() => ({
+  run: vi.fn(),
+  email: vi.fn(),
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}))
 vi.mock('../actions/email-sitting-codes', () => ({ emailSittingCodes: m.email }))
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), back: vi.fn() }),
   usePathname: () => '/app/admin/internal-exams/sittings/sit-1',
   useSearchParams: () => new URLSearchParams(),
 }))
+vi.mock('./use-sitting-action', async (orig) => {
+  const actual = await orig<typeof import('./use-sitting-action')>()
+  return {
+    useSittingAction: () => {
+      const r = actual.useSittingAction()
+      return {
+        ...r,
+        run: (...args: Parameters<typeof r.run>) => {
+          m.run(args[2])
+          return r.run(...args)
+        },
+      }
+    },
+  }
+})
 vi.mock('sonner', () => ({ toast: { success: m.toastSuccess, error: m.toastError } }))
 
 import { SittingUiProvider } from '../_hooks/sitting-ui-context'
@@ -57,6 +77,14 @@ describe('EmailCodesButton', () => {
     await waitFor(() => expect(m.email).toHaveBeenCalledWith({ sittingId: 'sit-1' }))
   })
 
+  it('runs the send with the popup locked', async () => {
+    m.email.mockResolvedValue({ success: true, sent: 0, failed: [], skipped: 0, unrecorded: 0 })
+    ui()
+    const { user, dialog } = await confirm()
+    await user.click(within(dialog).getByRole('button', { name: 'Email codes' }))
+    await waitFor(() => expect(m.run).toHaveBeenCalledWith({ lock: true }))
+  })
+
   it('does not send when the confirm is cancelled', async () => {
     ui()
     const { user, dialog } = await confirm()
@@ -90,14 +118,13 @@ describe('EmailCodesButton', () => {
     await waitFor(() => expect(seen()).toContain('Emailed 0'))
   })
 
-  it('warns that sent-but-unrecorded codes will be sent again', async () => {
+  it('reports sent-but-unrecorded codes', async () => {
     m.email.mockResolvedValue({ success: true, sent: 2, failed: [], skipped: 0, unrecorded: 1 })
     ui()
     const { user, dialog } = await confirm()
     await user.click(within(dialog).getByRole('button', { name: 'Email codes' }))
-    await waitFor(() =>
-      expect(seen()).toContain('1 sent but not recorded — Email codes will send them again'),
-    )
+    await waitFor(() => expect(seen()).toContain('1 sent but not recorded'))
+    expect(seen()).not.toContain('will send them again')
   })
 
   it('shows the action error', async () => {

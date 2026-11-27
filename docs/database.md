@@ -1556,7 +1556,7 @@ Admin-only. Three branches:
 
 ##### `record_internal_exam_code_emailed(p_code_id)` (base migration `20260618000001` / mig 110; `emailed_at` column + stamp added in migration `20260629000900` / #905)
 
-Admin-only RPC (not a direct API endpoint — invoked from Server Action `sendInternalExamCodeEmail` via best-effort audit pathway). After its guards pass, it performs two writes: (1) stamps `emailed_at = now()` on the `internal_exam_codes` row (PK-scoped, `organization_id` + `deleted_at IS NULL` re-asserted); and (2) inserts one `internal_exam.code_emailed` audit event. Exists because `audit_events` blocks direct INSERTs via its `audit_no_direct_insert` RLS policy (`WITH CHECK false`), so all audit writes must flow through a SECURITY DEFINER function.
+Admin-only RPC (not a direct API endpoint — invoked from Server Actions `sendInternalExamCodeEmail` and `emailSittingCodes` (via `recordEmailedCodes`, chunks of 50) via best-effort audit pathway). After its guards pass, it performs two writes: (1) stamps `emailed_at = now()` on the `internal_exam_codes` row (PK-scoped, `organization_id` + `deleted_at IS NULL` re-asserted); and (2) inserts one `internal_exam.code_emailed` audit event. Exists because `audit_events` blocks direct INSERTs via its `audit_no_direct_insert` RLS policy (`WITH CHECK false`), so all audit writes must flow through a SECURITY DEFINER function.
 
 **Guard set:** Mirrors the sibling internal-exam RPCs (`issue_internal_exam_code`, `start_internal_exam_session`, `void_internal_exam_code`) per security.md rule 11b:
 - Rule 7 — `auth.uid()` null-check raises `not_authenticated`
@@ -1571,7 +1571,7 @@ Admin-only RPC (not a direct API endpoint — invoked from Server Action `sendIn
 
 **Returns:** `void`.
 
-**Security:** SECURITY DEFINER. Invoked from `sendInternalExamCodeEmail` Server Action (email subsystem half) after a Resend POST succeeds; failure to audit does not bubble to caller (best-effort, logs server-side only).
+**Security:** SECURITY DEFINER. Invoked from the `sendInternalExamCodeEmail` and `emailSittingCodes` Server Actions (via `recordEmailedCodes`, chunks of 50) (email subsystem half) after a Resend POST succeeds; failure to audit does not bubble to caller (best-effort, logs server-side only).
 
 ##### `record_login_instructions_sent(p_user_id)` (migration `20260925000100`, login-instructions-email feature, PR A)
 

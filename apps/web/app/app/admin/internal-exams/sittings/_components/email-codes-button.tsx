@@ -18,6 +18,7 @@ export function EmailCodesButton({ sittingId }: Readonly<{ sittingId: string }>)
         setOpen(false)
         return emailCodesBanner(d)
       },
+      { lock: true },
     )
   return (
     <>

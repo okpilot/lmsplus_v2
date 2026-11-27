@@ -113,6 +113,8 @@ async function sendChunk(
       const res = await resend.batch.send(payload, { batchValidation: 'permissive' })
       if (!res.error) {
         const bad = new Map((res.data.errors ?? []).map((e) => [e.index, e.message]))
+        for (const [i, message] of bad)
+          console.error('[sendEmailBatch] message failed', offset + i, message)
         const rows = all(0, messages.length)
         return {
           sent: rows.filter((i) => !bad.has(i)).map((i) => offset + i),

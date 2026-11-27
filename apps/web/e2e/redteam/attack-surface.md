@@ -374,7 +374,7 @@
 | ND | add_exam_sitting_candidates-group_add_counts-list_exam_sitting_people-eligibility-same_day-issue_preview-foreign-group-or-student-in-own-sitting | MEDIUM | exam-sitting-foreign-param-injection.spec.ts | BLOCKED |  | cross-tenant |
 | NE | add_exam_sitting_candidates-add_exam_sitting_entries-foreign-user-id-writes-in-own-sitting | MEDIUM | exam-sitting-foreign-user-id-writes.spec.ts | BLOCKED |  | cross-tenant |
 | NF | voidInternalExamCode-codes-tab-reserved-void-reason-and-sitting-attached-code-stale-render | MEDIUM | legacy-void-server-action-guard.spec.ts | BLOCKED |  | sibling-guard-gap |
-| NG | sendInternalExamCodeEmail-codes-tab-sitting-code-stale-render-plaintext-and-emailed_at | MEDIUM | send-code-email-sitting-code.spec.ts | BLOCKED |  | race |
+| NG | sendInternalExamCodeEmail-codes-tab-sitting-code-stale-render-cancelled-sitting-plaintext-and-emailed_at | MEDIUM | send-code-email-sitting-code.spec.ts | BLOCKED |  | race |
 | NH | voidInternalExamCode-foreign-org-code-guard-state-oracle-and-reserved-reason | MEDIUM | void-and-email-cross-org-code.spec.ts | BLOCKED |  | cross-tenant |
 | NI | sendInternalExamCodeEmail-foreign-org-code-service-role-org-filter-plaintext-and-emailed_at | HIGH | void-and-email-cross-org-code.spec.ts | BLOCKED |  | cross-tenant |
 | NJ | void_internal_exam_code-direct-rpc-on-sitting-code-bypasses-void_sitting_code | LOW | exam-sitting-legacy-void-refuses-sitting-code.spec.ts | GAP | #1832 | sibling-guard-gap |
