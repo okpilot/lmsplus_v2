@@ -1,5 +1,6 @@
 import { adminClient } from '@repo/db/admin'
 import type { createServerSupabaseClient } from '@repo/db/server'
+import type { Database } from '@repo/db/types'
 import { requireAdmin } from '@/lib/auth/require-admin'
 
 export type UserClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
@@ -120,6 +121,35 @@ export async function getSittingForNotice(
   }
 }
 
+type PendingNoticeRow =
+  Database['public']['Functions']['get_pending_removal_notices']['Returns'][number]
+
+function toPendingNotice(r: PendingNoticeRow): PendingNotice[] {
+  if (r.kind === 'sitting_cancelled' && r.code_id) {
+    return [
+      {
+        kind: r.kind,
+        codeId: r.code_id,
+        entryId: r.entry_id,
+        userId: r.user_id,
+        subjectId: r.subject_id,
+      },
+    ]
+  }
+  if (r.kind === 'entry_auto_removed') {
+    return [
+      {
+        kind: r.kind,
+        entryId: r.entry_id,
+        userId: r.user_id,
+        subjectId: r.subject_id,
+        passedAt: r.passed_at,
+      },
+    ]
+  }
+  return []
+}
+
 /**
  * Pending removal and cancellation notices of a sitting (user client: admin guard in the RPC),
  * without the ones whose student is deactivated or has no email. An unknown sitting gives [].
@@ -137,31 +167,7 @@ export async function getDeliverablePendingNotices(
     if (error.message.includes('sitting_not_found')) return []
     throw new Error(`pending notices: ${error.message}`)
   }
-  const items: PendingNotice[] = (data ?? []).flatMap((r): PendingNotice[] => {
-    if (r.kind === 'sitting_cancelled' && r.code_id) {
-      return [
-        {
-          kind: r.kind,
-          codeId: r.code_id,
-          entryId: r.entry_id,
-          userId: r.user_id,
-          subjectId: r.subject_id,
-        },
-      ]
-    }
-    if (r.kind === 'entry_auto_removed') {
-      return [
-        {
-          kind: r.kind,
-          entryId: r.entry_id,
-          userId: r.user_id,
-          subjectId: r.subject_id,
-          passedAt: r.passed_at,
-        },
-      ]
-    }
-    return []
-  })
+  const items = (data ?? []).flatMap(toPendingNotice)
   const people = await getNoticeRecipients(
     orgId,
     items.map((i) => i.userId),

@@ -136,6 +136,37 @@ describe('notice-queries', () => {
     ])
   })
 
+  it('getDeliverablePendingNotices maps an entry_auto_removed row', async () => {
+    fromMock.mockImplementation(() =>
+      buildChain({ data: [{ id: 'u1', full_name: 'A', email: 'a@x.test' }], error: null }),
+    )
+    const out = await getDeliverablePendingNotices(
+      rpcClient({
+        data: [
+          {
+            kind: 'entry_auto_removed',
+            entry_id: 'e2',
+            user_id: 'u1',
+            subject_id: 's',
+            passed_at: '2026-01-02T03:04:05Z',
+          },
+        ],
+        error: null,
+      }),
+      'org',
+      'sit',
+    )
+    expect(out).toEqual([
+      {
+        kind: 'entry_auto_removed',
+        entryId: 'e2',
+        userId: 'u1',
+        subjectId: 's',
+        passedAt: '2026-01-02T03:04:05Z',
+      },
+    ])
+  })
+
   describe('rejects and reads nothing when requireAdmin rejects', () => {
     const calls: [string, (rpc: UserClient) => Promise<unknown>][] = [
       ['getNoticeRecipients', () => getNoticeRecipients('org', ['u'])],
