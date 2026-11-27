@@ -107,6 +107,29 @@ function buildEmail(
   return { to: ctx.to.email, ...mail }
 }
 
+function logRecordFailures(
+  results: readonly PromiseSettledResult<{ error: { message: string } | null }>[],
+  { sittingId, kind }: { sittingId: string; kind: string },
+  groups: readonly NoticeGroup[],
+): number {
+  let failed = 0
+  results.forEach((r, i) => {
+    let message: string
+    if (r.status === 'rejected') {
+      message = r.reason instanceof Error ? r.reason.message : String(r.reason)
+    } else if (r.value.error) {
+      message = r.value.error.message
+    } else {
+      return
+    }
+    failed++
+    const g = groups[i]
+    const ids = kind === 'entry_auto_removed' ? g?.entryIds : g?.codeIds
+    console.error('[deliverNotices] record failed', { sittingId, kind, ids }, message)
+  })
+  return failed
+}
+
 /** Records one `notice_emailed` row per covered id (user client); returns how many calls failed. */
 async function record(
   { supabase, sittingId, kind }: Common & { kind: string },
@@ -114,8 +137,9 @@ async function record(
 ): Promise<number> {
   let failed = 0
   for (let i = 0; i < groups.length; i += RECORD_CHUNK) {
+    const chunk = groups.slice(i, i + RECORD_CHUNK)
     const results = await Promise.allSettled(
-      groups.slice(i, i + RECORD_CHUNK).map((g) =>
+      chunk.map((g) =>
         supabase.rpc('record_exam_sitting_notice', {
           p_sitting_id: sittingId,
           p_kind: kind,
@@ -125,7 +149,7 @@ async function record(
         }),
       ),
     )
-    failed += results.filter((r) => r.status === 'rejected' || r.value.error).length
+    failed += logRecordFailures(results, { sittingId, kind }, chunk)
   }
   return failed
 }

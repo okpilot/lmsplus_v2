@@ -7,21 +7,20 @@ import { expect, test } from '@playwright/test'
 import { cleanupE2eExamSittings } from './helpers/exam-sitting-cleanup'
 import { seedSitting } from './helpers/exam-sitting-seed'
 import { getAdminClient } from './helpers/supabase'
+import { skipNearUtcRollover } from './helpers/utc-rollover'
 
 test.use({ storageState: 'e2e/.auth/admin.json', viewport: { width: 1280, height: 800 } })
 
 const BASE = '/app/admin/internal-exams/sittings'
 const SENDS = !process.env.CI
 
+test.beforeEach(() => {
+  skipNearUtcRollover()
+})
+
 test.afterEach(async () => {
   await cleanupE2eExamSittings()
 })
-
-const loadedAt = new Date()
-test.skip(
-  loadedAt.getUTCHours() === 23 && loadedAt.getUTCMinutes() >= 55,
-  'UTC day rollover window',
-)
 
 /** Marks every code of the sitting as already emailed. */
 async function markCodesEmailed(sittingId: string) {

@@ -157,6 +157,26 @@ describe('deliverNotices', () => {
       items: [cancelled('c1', 'u1', 's1')],
     })
     expect(r).toMatchObject({ sent: 1, unrecorded: 1 })
+    expect(console.error).toHaveBeenCalledWith(
+      '[deliverNotices] record failed',
+      expect.objectContaining({ kind: 'sitting_cancelled' }),
+      'boom',
+    )
+  })
+
+  it('logs a record failure when the rpc rejects', async () => {
+    mockRpc.mockRejectedValue(new Error('net'))
+    const r = await deliverNotices({
+      ...BASE,
+      kind: 'sitting_cancelled',
+      items: [cancelled('c1', 'u1', 's1')],
+    })
+    expect(r).toMatchObject({ unrecorded: 1 })
+    expect(console.error).toHaveBeenCalledWith(
+      '[deliverNotices] record failed',
+      expect.objectContaining({ ids: ['c1'] }),
+      'net',
+    )
   })
 
   it('skips a student with no deliverable recipient: not sent, not recorded', async () => {
