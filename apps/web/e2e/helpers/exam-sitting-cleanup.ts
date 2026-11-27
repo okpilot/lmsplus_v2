@@ -444,6 +444,38 @@ async function cleanupEmptySittings(orgId: string, adminId: string): Promise<voi
   if (errors.length > 0) throw new Error(errors.join('; '))
 }
 
+/** Ids of the sittings in `marked` that still have a live entry or candidate. Pages each table by id keyset. */
+async function sittingIdsWithPeople(
+  admin: Admin,
+  orgId: string,
+  marked: string[],
+): Promise<Set<string>> {
+  const withPeople = new Set<string>()
+  for (const table of ['exam_sitting_entries', 'exam_sitting_candidates'] as const) {
+    let after: string | null = null
+    for (;;) {
+      let q = admin
+        .from(table)
+        .select('id, sitting_id')
+        .eq('organization_id', orgId)
+        .in('sitting_id', marked)
+        .is('deleted_at', null)
+        .order('id')
+        .limit(ID_CHUNK)
+      if (after) q = q.gt('id', after)
+      const res = await q
+      if (res.error) throw new Error(`cleanupE2eExamSittings ${table}: ${res.error.message}`)
+      const rows = res.data ?? []
+      for (const r of rows) withPeople.add(r.sitting_id)
+      if (rows.length < ID_CHUNK) break
+      const last = rows[rows.length - 1]?.id
+      if (!last) throw new Error(`cleanupE2eExamSittings ${table}: page row has no id`)
+      after = last
+    }
+  }
+  return withPeople
+}
+
 /** Soft-deletes the marked sittings of one page that have no live entries or candidates. */
 async function softDeleteEmptyPage(opts: {
   admin: Admin
@@ -452,24 +484,7 @@ async function softDeleteEmptyPage(opts: {
   adminId: string
 }): Promise<void> {
   const { admin, marked, orgId, adminId } = opts
-  const withPeople = new Set<string>()
-  for (const table of ['exam_sitting_entries', 'exam_sitting_candidates'] as const) {
-    const res = await admin
-      .from(table)
-      .select('sitting_id')
-      .eq('organization_id', orgId)
-      .in('sitting_id', marked)
-      .is('deleted_at', null)
-    if (res.error) throw new Error(`cleanupE2eExamSittings ${table}: ${res.error.message}`)
-    const rows = res.data ?? []
-    // A truncated page drops a sitting that HAS people, which then gets soft-deleted.
-    if (rows.length >= POSTGREST_MAX_ROWS) {
-      throw new Error(
-        `cleanupEmptySittings: ${rows.length} ${table} row(s) for ${marked.length} marked sitting(s) hits PostgREST's max_rows; read in pages`,
-      )
-    }
-    for (const r of rows) withPeople.add(r.sitting_id)
-  }
+  const withPeople = await sittingIdsWithPeople(admin, orgId, marked)
   const ids = marked.filter((id) => !withPeople.has(id))
   if (ids.length === 0) return
 

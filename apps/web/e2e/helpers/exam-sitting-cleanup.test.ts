@@ -694,19 +694,33 @@ describe('cleanupE2eExamSittings (page-cap refusals)', () => {
   })
 
   it.each(['exam_sitting_entries', 'exam_sitting_candidates'])(
-    'refuses a full %s page instead of soft-deleting a sitting whose people it could not see',
+    'pages %s by id keyset so a sitting seen only on a later page is kept',
     async (table) => {
+      const page1 = Array.from({ length: ID_CHUNK }, (_, i) => ({ id: `r${i}`, sitting_id: 's1' }))
       const { calls } = withAuth({
         exam_sittings: [
-          { data: [{ id: 's1' }, { id: 's2' }], error: null },
-          { data: [], error: null },
+          { data: [{ id: 's1' }, { id: 's2' }, { id: 's3' }], error: null },
+          { data: [{ id: 's3' }], error: null },
         ],
-        [table]: [{ data: fullPage(() => ({ sitting_id: 's1' })), error: null }],
+        [table]: [
+          { data: page1, error: null },
+          { data: [{ id: `r${ID_CHUNK}`, sitting_id: 's2' }], error: null },
+        ],
       })
-      await expect(cleanupE2eExamSittings()).rejects.toThrow(
-        `cleanupEmptySittings: ${POSTGREST_MAX_ROWS} ${table} row(s) for 2 marked sitting(s)`,
-      )
-      expect(calls.some((c) => c.method === 'update')).toBe(false)
+      await cleanupE2eExamSittings()
+      const mine = calls.filter((c) => c.table === table)
+      expect(mine.filter((c) => c.method === 'gt').map((c) => c.args)).toEqual([
+        ['id', `r${ID_CHUNK - 1}`],
+      ])
+      expect(mine.filter((c) => c.method === 'order').map((c) => c.args)).toEqual([['id'], ['id']])
+      expect(mine.filter((c) => c.method === 'limit').map((c) => c.args)).toEqual([
+        [ID_CHUNK],
+        [ID_CHUNK],
+      ])
+      expectScoped(calls, table, (c) => c.method === 'in' && c.args[0] === 'sitting_id')
+      expect(
+        calls.filter((c) => c.table === 'exam_sittings' && c.method === 'in').at(-1)?.args,
+      ).toEqual(['id', ['s3']])
     },
   )
 
