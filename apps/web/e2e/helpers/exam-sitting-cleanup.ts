@@ -404,6 +404,8 @@ export async function cleanupE2eExamSittings(): Promise<void> {
   if (errors.length > 0) throw new Error(`cleanupE2eExamSittings: ${errors.join('; ')}`)
 }
 
+// KNOWN LIMIT: sweeps only the admin@lmsplus.local org; a killed worker leaks the marked sittings
+// that cross-org specs create in redteam-other-org.
 async function cleanupEmptySittings(orgId: string, adminId: string): Promise<void> {
   const admin = getAdminClient()
   const errors: string[] = []

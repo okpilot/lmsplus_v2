@@ -213,6 +213,22 @@ describe('lookupIds error paths', () => {
     })
     await expect(issueFor()).rejects.toThrow('student full_name')
   })
+
+  it('scopes the student lookup to the admin org and keeps the email filter', async () => {
+    const calls = fakeAdminSeq({
+      users: [ok(ADMIN_ROW), ok(STUDENT_ROW)],
+      easa_subjects: [ok(SUBJECT_ROW)],
+      exam_configs: [ok(CONFIG_ROW)],
+      course_enrolments: [ok(null), ok({ id: 'enr-1' })],
+      exam_sittings: [ok({ id: 'sit-1' })],
+      exam_sitting_candidates: [ok({ id: 'cand-1' })],
+      exam_sitting_entries: [ok({ id: 'entry-1' })],
+      internal_exam_codes: [ok({ id: 'code-1', code: 'ABC12345' })],
+    })
+    await issueFor()
+    expect(calls).toContain('eq:users:organization_id=org-1')
+    expect(calls).toContain('eq:users:email=stu@test.local')
+  })
 })
 
 describe('exam_config precondition', () => {

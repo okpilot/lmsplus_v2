@@ -43,6 +43,7 @@ async function lookupIds(admin: Admin, studentEmail: string, subjectFragment: st
   const student = await admin
     .from('users')
     .select('id, full_name')
+    .eq('organization_id', adminRow.data.organization_id)
     .eq('email', studentEmail)
     .single()
   if (student.error || !student.data) fail('student lookup', student.error)
