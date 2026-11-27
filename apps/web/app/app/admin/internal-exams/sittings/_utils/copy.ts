@@ -92,7 +92,7 @@ export function emailCodesBanner(d: EmailCodesResult): ResultBannerData {
 
 type NoticeCounts = {
   sent: number
-  failed: readonly { studentName: string | null }[]
+  failed: readonly { studentName: string | null; subjectName?: string }[]
   unrecorded?: number
   error?: boolean
 }

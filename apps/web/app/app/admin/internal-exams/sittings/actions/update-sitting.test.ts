@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockRevalidatePath = vi.hoisted(() => vi.fn())
@@ -34,6 +35,24 @@ beforeEach(() => {
 })
 
 describe('updateSitting', () => {
+  it('rethrows a redirect raised reading the sitting before the update', async () => {
+    mockGetSitting.mockImplementation(() => redirect('/x'))
+    await expect(updateSitting({ sittingId: SID, mode: 'remote' })).rejects.toMatchObject({
+      digest: expect.stringContaining('NEXT_REDIRECT'),
+    })
+  })
+
+  it('rethrows a redirect raised by the change-notice reads', async () => {
+    mockRpc.mockResolvedValue({
+      data: [{ changed: true, codes_restamped: 0, notify_code_ids: ['c1'] }],
+      error: null,
+    })
+    mockChangedCodes.mockImplementation(() => redirect('/x'))
+    await expect(updateSitting({ sittingId: SID, mode: 'remote' })).rejects.toMatchObject({
+      digest: expect.stringContaining('NEXT_REDIRECT'),
+    })
+  })
+
   it('rejects a non-uuid sittingId without calling the RPC', async () => {
     const r = await updateSitting({ sittingId: 'nope', mode: 'remote' })
     expect(r).toEqual({ success: false, error: 'Invalid input' })

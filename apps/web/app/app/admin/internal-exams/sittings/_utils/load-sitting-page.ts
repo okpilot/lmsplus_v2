@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation'
+import { notFound, unstable_rethrow } from 'next/navigation'
 import { z } from 'zod'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import {
@@ -25,6 +25,7 @@ async function loadPendingNotices(
   try {
     return await getDeliverablePendingNotices(ctx.supabase, ctx.organizationId, ctx.sittingId)
   } catch (e: unknown) {
+    unstable_rethrow(e)
     console.error('[loadSittingPage] pending notices failed:', e instanceof Error ? e.message : e)
     return null
   }

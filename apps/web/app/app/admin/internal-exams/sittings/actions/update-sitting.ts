@@ -1,6 +1,7 @@
 'use server'
 
 import { UpdateExamSittingSchema } from '@repo/db/schema'
+import { unstable_rethrow } from 'next/navigation'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { getChangedNoticeCodes, getSittingForNotice, type UserClient } from '../../notice-queries'
 import { deliverNotices, type NoticeResult } from '../_utils/deliver-notices'
@@ -20,6 +21,7 @@ async function readBefore(orgId: string, sittingId: string): Promise<Before> {
   try {
     return await getSittingForNotice(orgId, sittingId)
   } catch (e) {
+    unstable_rethrow(e)
     console.error('[updateSitting] read before failed:', e instanceof Error ? e.message : String(e))
     return null
   }
@@ -43,6 +45,7 @@ async function noticeChange(ctx: Ctx, old: Before, codeIds: readonly string[]): 
     })
     return error ? { sent, failed, error } : { sent, failed }
   } catch (e) {
+    unstable_rethrow(e)
     console.error(
       '[updateSitting] change notice failed:',
       e instanceof Error ? e.message : String(e),

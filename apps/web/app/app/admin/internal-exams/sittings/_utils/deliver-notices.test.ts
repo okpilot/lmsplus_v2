@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockRpc = vi.hoisted(() => vi.fn())
@@ -263,6 +264,36 @@ describe('deliverNotices', () => {
     expect(r).toMatchObject({ sent: 0, error: true })
   })
 
+  it('rethrows a redirect raised by a read', async () => {
+    mockRecipients.mockImplementation(() => redirect('/x'))
+    await expect(
+      deliverNotices({
+        ...BASE,
+        kind: 'sitting_cancelled',
+        items: [cancelled('c1', 'u1', 's1')],
+      }),
+    ).rejects.toMatchObject({ digest: expect.stringContaining('NEXT_REDIRECT') })
+  })
+
+  it('names the subject on a failed removal email', async () => {
+    mockSendBatch.mockResolvedValue({
+      sent: [],
+      failed: [
+        { index: 0, error: 'bad' },
+        { index: 1, error: 'bad' },
+      ],
+    })
+    const r = await deliverNotices({
+      ...BASE,
+      kind: 'entry_auto_removed',
+      items: [removed('e1', 'u1', 's1'), removed('e2', 'u1', 's2')],
+    })
+    expect(r.failed).toEqual([
+      { studentName: 'Student 1', subjectName: 'Meteorology' },
+      { studentName: 'Student 1', subjectName: 'Navigation' },
+    ])
+  })
+
   it('never throws when the send throws', async () => {
     mockSendBatch.mockRejectedValue(new Error('network'))
     await expect(
@@ -327,6 +358,13 @@ describe('deliverPendingNotices', () => {
     })
     expect(r.sent).toBe(2)
     expect(r.error).toBeUndefined()
+  })
+
+  it('rethrows a redirect raised by the pending read', async () => {
+    mockDeliverable.mockImplementation(() => redirect('/x'))
+    await expect(
+      deliverPendingNotices({ supabase: SUPABASE as never, orgId: 'org-1', sittingId: SID }),
+    ).rejects.toMatchObject({ digest: expect.stringContaining('NEXT_REDIRECT') })
   })
 
   it('returns error when the pending read throws', async () => {

@@ -1,3 +1,4 @@
+import { unstable_rethrow } from 'next/navigation'
 import { sendEmailBatch } from '@/lib/email/resend'
 import {
   entryRemovedEmail,
@@ -21,7 +22,7 @@ type ChangedSitting = Sitting & { oldScheduledAt: string; oldMode: Mode }
 
 export type NoticeResult = {
   sent: number
-  failed: { studentName: string | null }[]
+  failed: { studentName: string | null; subjectName?: string }[]
   skipped: number
   /** Sent, but the `notice_emailed` row failed: the next Send emails them again. */
   unrecorded: number
@@ -179,15 +180,20 @@ async function deliver(args: DeliverArgs, examUrl: string): Promise<NoticeResult
   const unrecorded = await record(args, sentGroups)
   return {
     sent: sent.length,
-    failed: failed.map((f) => ({
-      studentName: people.get(deliverable[f.index]?.userId ?? '')?.name ?? null,
-    })),
+    failed: failed.map((f) => {
+      const g = deliverable[f.index]
+      const subjectId = args.kind === 'entry_auto_removed' ? g?.subjectIds[0] : undefined
+      return {
+        studentName: people.get(g?.userId ?? '')?.name ?? null,
+        ...(subjectId ? { subjectName: subjects.get(subjectId) ?? 'Unknown subject' } : {}),
+      }
+    }),
     skipped: groups.length - deliverable.length,
     unrecorded,
   }
 }
 
-/** Emails the notices, then records each sent email. Never throws (logs); records only after a send. */
+/** Emails the notices, then records each sent email. Logs failures; rethrows Next control-flow errors only. */
 export async function deliverNotices(args: DeliverArgs): Promise<NoticeResult> {
   if (args.items.length === 0) return EMPTY
   const base = process.env.NEXT_PUBLIC_APP_URL
@@ -199,6 +205,7 @@ export async function deliverNotices(args: DeliverArgs): Promise<NoticeResult> {
   try {
     return await deliver(args, base ? `${base}/app/internal-exam` : '')
   } catch (e) {
+    unstable_rethrow(e)
     console.error('[deliverNotices] failed:', e instanceof Error ? e.message : String(e))
     return FAILED
   }
@@ -214,7 +221,7 @@ function merge(a: NoticeResult, b: NoticeResult): NoticeResult {
   }
 }
 
-/** Sends every deliverable pending removal and cancellation notice of the sitting. Never throws. */
+/** Sends every deliverable pending removal and cancellation notice of the sitting. Rethrows Next control-flow errors only. */
 export async function deliverPendingNotices(args: Common): Promise<NoticeResult> {
   try {
     const [sitting, items] = await Promise.all([
@@ -231,6 +238,7 @@ export async function deliverPendingNotices(args: Common): Promise<NoticeResult>
     }
     return total
   } catch (e) {
+    unstable_rethrow(e)
     console.error('[deliverPendingNotices] failed:', e instanceof Error ? e.message : String(e))
     return FAILED
   }

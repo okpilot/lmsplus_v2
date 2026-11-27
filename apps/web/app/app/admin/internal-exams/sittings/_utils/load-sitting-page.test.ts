@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const m = vi.hoisted(() => ({
@@ -13,7 +14,10 @@ const m = vi.hoisted(() => ({
     throw new Error('NEXT_NOT_FOUND')
   }),
 }))
-vi.mock('next/navigation', () => ({ notFound: m.notFound }))
+vi.mock('next/navigation', async (orig) => ({
+  ...(await orig<typeof import('next/navigation')>()),
+  notFound: m.notFound,
+}))
 vi.mock('../queries', () => ({
   getSummary: m.getSummary,
   getSitting: m.getSitting,
@@ -58,6 +62,18 @@ beforeEach(() => {
 })
 
 describe('loadSittingPage', () => {
+  it('rethrows a redirect raised while reading pending notices', async () => {
+    m.getSummary.mockResolvedValue({
+      status: 'scheduled',
+      scheduledAt: '2026-11-20T09:30:00Z',
+      pendingRemovalNotices: 1,
+    })
+    m.deliverable.mockImplementation(() => redirect('/x'))
+    await expect(loadSittingPage(SID, params())).rejects.toMatchObject({
+      digest: expect.stringContaining('NEXT_REDIRECT'),
+    })
+  })
+
   it('counts the deliverable pending notices, not the summary count', async () => {
     m.getSummary.mockResolvedValue({
       status: 'scheduled',

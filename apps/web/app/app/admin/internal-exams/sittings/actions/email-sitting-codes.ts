@@ -1,5 +1,6 @@
 'use server'
 
+import { unstable_rethrow } from 'next/navigation'
 import { z } from 'zod'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { sendEmailBatch } from '@/lib/email/resend'
@@ -31,6 +32,7 @@ export async function emailSittingCodes(
   try {
     found = await getSittingCodesForEmail(organizationId, sittingId)
   } catch (err) {
+    unstable_rethrow(err)
     console.error('[emailSittingCodes] lookup failed', err)
     return { success: false, error: 'Failed to send email' }
   }
