@@ -1,20 +1,23 @@
 import { randomUUID } from 'node:crypto'
+import { ADMIN_TEST_EMAIL } from './admin-supabase'
+import { randomCode } from './code-gen'
 import {
   EXAM_SITTING_SEED_EMAIL_PREFIX,
   EXAM_SITTING_SEED_GROUP_PREFIX,
-  EXAM_SITTING_SEED_PREFIX,
+  makeSittingSeedMaterials,
 } from './exam-sitting-markers'
 import { getAdminClient } from './supabase'
 
-/** The E2E admin (invigilator and creator of every seeded sitting). */
-const ADMIN_EMAIL = 'admin@lmsplus.local'
 const BATCH = 10
 
 export type SeedEntryState = 'live' | 'no_code' | 'expired' | 'voided' | 'finished_passed'
 
 export type SeedInput = {
   status?: 'scheduled' | 'open' | 'closed'
-  /** `enrolled`: enrol a person without exams in the course of the first configured subject (so they can sit it). */
+  /**
+   * `enrolled`: enrol a person without exams in the course of the first configured subject (so they can sit it).
+   * A `finished_passed` entry needs an enabled exam config for its subject: a person's i-th entry takes the i-th subject, configured subjects first.
+   */
   people: { name: string; entries: { state: SeedEntryState }[]; enrolled?: boolean }[]
   /** Extra people without exams, named `E2E Extra NN`. */
   extraPeople?: number
@@ -31,18 +34,26 @@ export type SeedResult = {
   people: { name: string; userId: string }[]
   addable: { name: string; userId: string }[]
   groups: { name: string; id: string }[]
+  /** The subjects the sitting's exams are drawn from, configured subjects first. */
+  subjects: Subject[]
 }
 
 type Admin = ReturnType<typeof getAdminClient>
 
-function fail(what: string, error: { message: string } | null): never {
-  throw new Error(`seedSitting ${what}: ${error?.message ?? 'no data'}`)
+function fail(what: string, error: { message: string } | null, prefix = 'seedSitting'): never {
+  throw new Error(`${prefix} ${what}: ${error?.message ?? 'no data'}`)
 }
 
-async function createStudent(admin: Admin, orgId: string, name: string): Promise<string> {
+/** A student with an `e2e-sit-` email (the sitting cleanup deletes it); `prefix` heads error messages. */
+export async function createStudent(
+  admin: Admin,
+  orgId: string,
+  name: string,
+  prefix = 'seedSitting',
+): Promise<string> {
   const email = `${EXAM_SITTING_SEED_EMAIL_PREFIX}${randomUUID()}@lmsplus.local`
   const { data, error } = await admin.auth.admin.createUser({ email, email_confirm: true })
-  if (error || !data.user) fail('auth user', error)
+  if (error || !data.user) fail('auth user', error, prefix)
   const id = data.user.id
   const row = { id, organization_id: orgId, email, full_name: name, role: 'student' }
   const res = await admin.from('users').insert(row)
@@ -51,23 +62,73 @@ async function createStudent(admin: Admin, orgId: string, name: string): Promise
     // orphaned auth user is unreachable by teardown. deleteUser resolves `{ error }`.
     const { error: rollbackError } = await admin.auth.admin.deleteUser(id)
     throw new Error(
-      `seedSitting users row: ${res.error.message}${rollbackError ? ` (rollback also failed: ${rollbackError.message})` : ''}`,
+      `${prefix} users row: ${res.error.message}${rollbackError ? ` (rollback also failed: ${rollbackError.message})` : ''}`,
     )
   }
   return id
 }
 
-async function createStudents(admin: Admin, orgId: string, names: string[]): Promise<string[]> {
+export async function createStudents(
+  admin: Admin,
+  orgId: string,
+  names: string[],
+  prefix = 'seedSitting',
+): Promise<string[]> {
   const ids: string[] = []
   for (let i = 0; i < names.length; i += BATCH) {
     const batch = names.slice(i, i + BATCH)
-    ids.push(...(await Promise.all(batch.map((n) => createStudent(admin, orgId, n)))))
+    ids.push(...(await Promise.all(batch.map((n) => createStudent(admin, orgId, n, prefix)))))
   }
   return ids
 }
 
-function code(): string {
-  return randomUUID().replaceAll('-', '').slice(0, 8).toUpperCase()
+/** `pass_mark` of the org's oldest enabled exam config for the subject. */
+async function examPassMark(admin: Admin, orgId: string, subjectId: string): Promise<number> {
+  const res = await admin
+    .from('exam_configs')
+    .select('pass_mark')
+    .eq('organization_id', orgId)
+    .eq('subject_id', subjectId)
+    .eq('enabled', true)
+    .is('deleted_at', null)
+    .order('created_at')
+    .limit(1)
+    .maybeSingle()
+  if (res.error) fail('exam config lookup', res.error, 'insertPassedSession')
+  if (!res.data) {
+    fail(
+      `enabled exam config for subject ${subjectId} (ensureExamConfigs configures only MIN_CONFIGS subjects)`,
+      null,
+      'insertPassedSession',
+    )
+  }
+  return res.data.pass_mark
+}
+
+/** A finished, passed internal-exam session with a score for a student and subject (service role, no code). */
+export async function insertPassedSession(
+  admin: Admin,
+  c: { orgId: string; userId: string; subjectId: string; score: number; endedAt: Date },
+): Promise<string> {
+  const passMark = await examPassMark(admin, c.orgId, c.subjectId)
+  const res = await admin
+    .from('quiz_sessions')
+    .insert({
+      organization_id: c.orgId,
+      student_id: c.userId,
+      mode: 'internal_exam',
+      subject_id: c.subjectId,
+      config: { pass_mark: passMark, question_ids: [] },
+      total_questions: 0,
+      started_at: new Date(c.endedAt.getTime() - 1_800_000).toISOString(),
+      ended_at: c.endedAt.toISOString(),
+      passed: true,
+      score_percentage: c.score,
+    })
+    .select('id')
+    .single()
+  if (res.error || !res.data) fail('quiz session', res.error, 'insertPassedSession')
+  return res.data.id
 }
 
 const endOfTodayUtc = () => `${new Date().toISOString().slice(0, 10)}T23:59:59.000Z`
@@ -80,7 +141,7 @@ async function seedCode(
   if (state === 'no_code') return
   const now = Date.now()
   const base: Record<string, unknown> = {
-    code: code(),
+    code: randomCode(),
     organization_id: c.orgId,
     issued_by: c.adminId,
     sitting_entry_id: c.entryId,
@@ -96,33 +157,23 @@ async function seedCode(
     })
   }
   if (state === 'finished_passed') {
-    const session = await admin
-      .from('quiz_sessions')
-      .insert({
-        organization_id: c.orgId,
-        student_id: c.userId,
-        mode: 'internal_exam',
-        subject_id: c.subjectId,
-        config: { pass_mark: 75, question_ids: [] },
-        total_questions: 0,
-        started_at: new Date(now - 3_600_000).toISOString(),
-        ended_at: new Date(now - 1_800_000).toISOString(),
-        passed: true,
-        score_percentage: 90,
-      })
-      .select('id')
-      .single()
-    if (session.error || !session.data) fail('quiz session', session.error)
+    const sessionId = await insertPassedSession(admin, {
+      orgId: c.orgId,
+      userId: c.userId,
+      subjectId: c.subjectId,
+      score: 90,
+      endedAt: new Date(now - 1_800_000),
+    })
     Object.assign(base, {
       consumed_at: new Date().toISOString(),
-      consumed_session_id: session.data.id,
+      consumed_session_id: sessionId,
     })
   }
   const res = await admin.from('internal_exam_codes').insert(base)
   if (res.error) fail('code', res.error)
 }
 
-type Subject = { id: string; short: string; course_id: string }
+export type Subject = { id: string; short: string; course_id: string }
 
 async function seedEntries(
   admin: Admin,
@@ -262,7 +313,8 @@ export async function seedSitting(input: SeedInput): Promise<SeedResult> {
   const adminRow = await admin
     .from('users')
     .select('id, organization_id')
-    .eq('email', ADMIN_EMAIL)
+    .eq('email', ADMIN_TEST_EMAIL)
+    .is('deleted_at', null)
     .single()
   if (adminRow.error || !adminRow.data) fail('admin lookup', adminRow.error)
   const { id: adminId, organization_id: orgId } = adminRow.data
@@ -280,7 +332,7 @@ export async function seedSitting(input: SeedInput): Promise<SeedResult> {
     .is('deleted_at', null)
   if (configs.error) fail('exam configs', configs.error)
   const configured = new Set((configs.data ?? []).map((c) => c.subject_id))
-  // Subjects with an exam config first: only those can be issued a code.
+  // Subjects with an exam config first.
   const subjects = [...(subjectRes.data as Subject[])]
     .sort((a, b) => Number(configured.has(b.id)) - Number(configured.has(a.id)))
     .slice(0, 12)
@@ -295,7 +347,7 @@ export async function seedSitting(input: SeedInput): Promise<SeedResult> {
       invigilator_id: adminId,
       created_by: adminId,
       scheduled_at: now,
-      permitted_materials: `${EXAM_SITTING_SEED_PREFIX}${randomUUID()}`,
+      permitted_materials: makeSittingSeedMaterials(),
       ...(status !== 'scheduled' ? { started_at: now, started_by: adminId } : {}),
       ...(status === 'closed' ? { closed_at: now, closed_by: adminId } : {}),
     })
@@ -338,5 +390,5 @@ export async function seedSitting(input: SeedInput): Promise<SeedResult> {
   const addable = await seedAddable(admin, orgId, input.addable ?? [])
   const byName = new Map([...people, ...addable].map((p) => [p.name, p.userId]))
   const groups = await seedGroups(admin, { orgId, adminId, byName }, input.groups ?? [])
-  return { sittingId, people, addable, groups }
+  return { sittingId, people, addable, groups, subjects }
 }

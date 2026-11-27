@@ -2,17 +2,24 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockGetAdminClient } = vi.hoisted(() => ({ mockGetAdminClient: vi.fn() }))
 vi.mock('./supabase', () => ({ getAdminClient: mockGetAdminClient }))
-vi.mock('./admin-supabase', () => ({ getAdminClient: mockGetAdminClient }))
+vi.mock('./admin-supabase', () => ({
+  getAdminClient: mockGetAdminClient,
+  ADMIN_TEST_EMAIL: 'admin@lmsplus.local',
+}))
 
 import { EXAM_SITTING_E2E_PREFIX } from './exam-sitting-markers'
-import { seedSitting } from './exam-sitting-seed'
+import { createStudent, insertPassedSession, seedSitting } from './exam-sitting-seed'
 
 type Insert = { table: string; rows: Record<string, unknown>[] }
+
+const isCalls: string[] = []
 
 function fakeAdmin(
   opts: { failUsersInsert?: boolean; failRollback?: boolean; dropFirstEntryId?: boolean } = {},
 ) {
   const inserts: Insert[] = []
+  isCalls.length = 0
+  const createUserArgs: Record<string, unknown>[] = []
   const created: string[] = []
   const deleted: string[] = []
   const updates: Insert[] = []
@@ -38,8 +45,12 @@ function fakeAdmin(
       }
       return { data: [{ id: `id-${++n}`, short: 'FPM', course_id: 'course-1' }], error: null }
     }
-    for (const m of ['select', 'eq', 'is', 'in', 'order', 'limit', 'like', 'neq']) {
+    for (const m of ['select', 'eq', 'in', 'order', 'limit', 'like', 'neq']) {
       api[m] = () => api
+    }
+    api.is = (col: string, val: unknown) => {
+      isCalls.push(`is:${table}:${col}=${val}`)
+      return api
     }
     api.insert = (rows: Record<string, unknown> | Record<string, unknown>[]) => {
       lastInsert = Array.isArray(rows) ? rows : [rows]
@@ -54,6 +65,11 @@ function fakeAdmin(
       return api
     }
     api.single = () => Promise.resolve({ data: { id: `id-${++n}` }, error: null })
+    api.maybeSingle = () =>
+      Promise.resolve({
+        data: table === 'exam_configs' ? { pass_mark: 70 } : { id: `id-${++n}` },
+        error: null,
+      })
     // biome-ignore lint/suspicious/noThenProperty: awaitable mock
     api.then = (r: (v: unknown) => void) => Promise.resolve(result()).then(r)
     return api
@@ -62,7 +78,8 @@ function fakeAdmin(
     from: builder,
     auth: {
       admin: {
-        createUser: async () => {
+        createUser: async (attrs: Record<string, unknown>) => {
+          createUserArgs.push(attrs)
           const id = `u-${++n}`
           created.push(id)
           return { data: { user: { id } }, error: null }
@@ -74,7 +91,7 @@ function fakeAdmin(
       },
     },
   })
-  return { inserts, created, deleted, updates }
+  return { inserts, createUserArgs, created, deleted, updates }
 }
 
 beforeEach(() => vi.resetAllMocks())
@@ -87,6 +104,12 @@ describe('seedSitting', () => {
     expect(String(sitting?.rows[0]?.permitted_materials)).toMatch(
       new RegExp(`^${EXAM_SITTING_E2E_PREFIX}`),
     )
+  })
+
+  it('filters the admin lookup to non-deleted users', async () => {
+    fakeAdmin()
+    await seedSitting({ people: [{ name: 'Ann', entries: [] }] })
+    expect(isCalls).toContain('is:users:deleted_at=null')
   })
 
   it('seeds one candidate per person and one entry per listed exam', async () => {
@@ -200,5 +223,128 @@ describe('seedSitting addable people, enrolment and groups', () => {
     await expect(
       seedSitting({ people: [], groups: [{ name: 'Alpha', members: ['Nobody'] }] }),
     ).rejects.toThrow(/unknown member Nobody/)
+  })
+})
+
+describe('seedSitting subjects', () => {
+  it('returns the subjects its exams are drawn from', async () => {
+    fakeAdmin()
+    const r = await seedSitting({ people: [{ name: 'Ann', entries: [] }] })
+    expect(r.subjects[0]).toMatchObject({ short: 'MET', course_id: 'c-1' })
+  })
+})
+
+describe('insertPassedSession', () => {
+  function configAdmin(res: { data: unknown; error: { message: string } | null }) {
+    const filters: string[] = []
+    const insert = vi.fn()
+    const chain: Record<string, unknown> = {}
+    for (const m of ['select', 'order', 'limit']) chain[m] = () => chain
+    chain.eq = (col: string, v: unknown) => {
+      filters.push(`eq:${col}=${String(v)}`)
+      return chain
+    }
+    chain.is = (col: string, v: unknown) => {
+      filters.push(`is:${col}=${String(v)}`)
+      return chain
+    }
+    chain.maybeSingle = () => Promise.resolve(res)
+    const admin = {
+      from: (t: string) => (t === 'exam_configs' ? chain : { insert }),
+    }
+    return { admin, filters, insert }
+  }
+  const session = {
+    orgId: 'o',
+    userId: 'u',
+    subjectId: 's',
+    score: 83,
+    endedAt: new Date('2026-11-19T10:00:00.000Z'),
+  }
+
+  it('looks the pass mark up by org, subject, enabled and not deleted', async () => {
+    const { admin, filters } = configAdmin({ data: null, error: null })
+    await insertPassedSession(admin as never, session).catch(() => undefined)
+    expect(filters).toEqual(
+      expect.arrayContaining([
+        'eq:organization_id=o',
+        'eq:subject_id=s',
+        'eq:enabled=true',
+        'is:deleted_at=null',
+      ]),
+    )
+  })
+
+  it('throws without inserting when the subject has no enabled exam config', async () => {
+    const { admin, insert } = configAdmin({ data: null, error: null })
+    await expect(insertPassedSession(admin as never, session)).rejects.toThrow(
+      /^insertPassedSession enabled exam config for subject s \(ensureExamConfigs configures only MIN_CONFIGS subjects\): no data$/,
+    )
+    expect(insert).not.toHaveBeenCalled()
+  })
+
+  it('throws without inserting when the exam config lookup errors', async () => {
+    const { admin, insert } = configAdmin({ data: null, error: { message: 'boom' } })
+    await expect(insertPassedSession(admin as never, session)).rejects.toThrow(
+      'insertPassedSession exam config lookup: boom',
+    )
+    expect(insert).not.toHaveBeenCalled()
+  })
+
+  it("takes the pass mark from the subject's enabled exam config", async () => {
+    const { inserts } = fakeAdmin()
+    await insertPassedSession(mockGetAdminClient(), {
+      orgId: 'o',
+      userId: 'u',
+      subjectId: 's',
+      score: 83,
+      endedAt: new Date('2026-11-19T10:00:00.000Z'),
+    })
+    expect(inserts.find((i) => i.table === 'quiz_sessions')?.rows[0]).toMatchObject({
+      config: { pass_mark: 70, question_ids: [] },
+    })
+  })
+
+  it('inserts a passed internal-exam session ending at the given time with the score', async () => {
+    const { inserts } = fakeAdmin()
+    const endedAt = new Date('2026-11-19T10:00:00.000Z')
+    const id = await insertPassedSession(mockGetAdminClient(), {
+      orgId: 'o',
+      userId: 'u',
+      subjectId: 's',
+      score: 83,
+      endedAt,
+    })
+    expect(typeof id).toBe('string')
+    expect(inserts.find((i) => i.table === 'quiz_sessions')?.rows[0]).toMatchObject({
+      student_id: 'u',
+      mode: 'internal_exam',
+      passed: true,
+      score_percentage: 83,
+      ended_at: endedAt.toISOString(),
+      started_at: '2026-11-19T09:30:00.000Z',
+    })
+  })
+})
+
+describe('createStudent', () => {
+  it('creates an auth user with no credential, so a seeded student can never sign in', async () => {
+    // The teardown hard-deletes these students' sessions; answers are immutable, so a student
+    // that could sign in and answer would make that delete a 23503 with no legal fix.
+    const { createUserArgs } = fakeAdmin()
+    await createStudent(mockGetAdminClient(), 'o', 'Ann')
+    expect(createUserArgs).toHaveLength(1)
+    expect(createUserArgs[0]).toHaveProperty('email')
+    expect(createUserArgs[0]).not.toHaveProperty('password')
+    expect(createUserArgs[0]).not.toHaveProperty('phone')
+  })
+
+  it('heads a failure with the caller prefix', async () => {
+    mockGetAdminClient.mockReturnValue({
+      auth: { admin: { createUser: async () => ({ data: {}, error: { message: 'nope' } }) } },
+    })
+    await expect(createStudent(mockGetAdminClient(), 'o', 'Ann', 'flowSeed')).rejects.toThrow(
+      'flowSeed auth user: nope',
+    )
   })
 })

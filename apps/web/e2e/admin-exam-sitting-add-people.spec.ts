@@ -4,6 +4,7 @@ import { getAdminOrganizationId } from './helpers/admin-supabase'
 import { cleanupCreatedExamConfigs, ensureExamConfigs } from './helpers/exam-config-cleanup'
 import { cleanupE2eExamSittings } from './helpers/exam-sitting-cleanup'
 import { seedSitting } from './helpers/exam-sitting-seed'
+import { skipNearUtcRollover } from './helpers/utc-rollover'
 
 // A dev server compiles a popup route on first open: generous timeouts, never sleeps.
 const expect = baseExpect.configure({ timeout: 25_000 })
@@ -15,6 +16,7 @@ const BASE = '/app/admin/internal-exams/sittings'
 const LIST = '/app/admin/internal-exams'
 
 test.beforeEach(async () => {
+  skipNearUtcRollover()
   await ensureExamConfigs(await getAdminOrganizationId())
 })
 
@@ -30,12 +32,6 @@ test.afterEach(async () => {
   }
   if (errors.length > 0) throw new Error(`afterEach: ${errors.join('; ')}`)
 })
-
-const loadedAt = new Date()
-test.skip(
-  loadedAt.getUTCHours() === 23 && loadedAt.getUTCMinutes() >= 55,
-  'UTC day rollover window',
-)
 
 const personRow = (page: Page, name: string) => page.getByRole('row').filter({ hasText: name })
 const popup = (page: Page) => page.getByRole('dialog')
@@ -57,10 +53,10 @@ async function pickOption(page: Page, label: string, option: string) {
   await page.getByRole('option', { name: option, exact: true }).click()
 }
 
-async function expectPopupFits(page: Page) {
+async function expectPopupFits(page: Page, action: RegExp) {
   const vp = page.viewportSize()
   if (!vp) throw new Error('no viewport')
-  const button = popup(page).getByRole('button', { name: /^Add selected/ })
+  const button = popup(page).getByRole('button', { name: action })
   const box = await button.boundingBox()
   expect(box).not.toBeNull()
   expect((box?.y ?? -1) >= 0).toBe(true)
@@ -71,6 +67,11 @@ async function expectPopupFits(page: Page) {
   expect(fits).toBe(true)
   const dialogFits = await popup(page).evaluate((el) => el.scrollWidth <= el.clientWidth)
   expect(dialogFits).toBe(true)
+  const dialogBox = await popup(page).boundingBox()
+  expect(dialogBox?.x).toBeGreaterThanOrEqual(0)
+  expect((dialogBox?.x ?? 0) + (dialogBox?.width ?? Number.POSITIVE_INFINITY)).toBeLessThanOrEqual(
+    vp.width,
+  )
 }
 
 test('Add people: filter, tick across filters, reload, add, close paths, group and deactivated', async ({
@@ -111,7 +112,7 @@ test('Add people: filter, tick across filters, reload, add, close paths, group a
     ]) {
       await page.setViewportSize(size)
       await expect(popup(page).getByRole('button', { name: /^Add selected/ })).toBeVisible()
-      await expectPopupFits(page)
+      await expectPopupFits(page, /^Add selected/)
     }
     await popup(page).getByRole('checkbox', { name: 'Select E2E Add Zoe' }).click()
   })
@@ -395,6 +396,37 @@ test('Issue codes: bulk popup, Issue all codes, and Issue now from the Start con
     await expect(confirm.getByText(/has no code yet|have no code yet/)).toHaveCount(0)
     await expect(confirm.getByRole('button', { name: 'Issue now' })).toHaveCount(0)
   })
+})
+
+test('Add exams and Issue codes popups at 375 px: no sideways scroll, Esc closes, focus returns to the opener', async ({
+  page,
+}) => {
+  const { sittingId } = await seedSitting({
+    status: 'scheduled',
+    people: [{ name: 'E2E Phone Ann', entries: [{ state: 'no_code' }] }],
+  })
+  await page.setViewportSize({ width: 375, height: 667 })
+  await page.goto(`${BASE}/${sittingId}`)
+  await page.getByRole('checkbox', { name: 'Select E2E Phone Ann' }).click()
+
+  for (const [opener, dlg, action] of [
+    ['Add exams', /dlg=exams/, /^Add exams$/],
+    ['Issue codes', /dlg=issue/, /^Issue 1 code$/],
+  ] as const) {
+    await test.step(`${opener} popup`, async () => {
+      const button = page.getByRole('button', { name: opener, exact: true })
+      await button.click()
+      await expect(page).toHaveURL(dlg)
+      await expect(popup(page).getByRole('heading', { name: opener })).toBeVisible()
+      // The shared helper carries the vertical check too: on a phone the regression is a footer
+      // pushed below the fold, which neither scrollWidth assertion can see.
+      await expectPopupFits(page, action)
+      await page.keyboard.press('Escape')
+      await noPopup(page)
+      await expect(page).not.toHaveURL(/dlg=/)
+      await expect(button).toBeFocused()
+    })
+  }
 })
 
 test('Internal Exams opens on the Sittings tab; Codes and Attempts stay deep-linkable', async ({

@@ -1,10 +1,15 @@
 import { expect, test } from '@playwright/test'
 import { cleanupE2eExamSittings, markE2eSitting } from './helpers/exam-sitting-cleanup'
+import { skipNearUtcRollover } from './helpers/utc-rollover'
 
 test.use({ storageState: 'e2e/.auth/admin.json', viewport: { width: 1280, height: 800 } })
 
 const LIST = '/app/admin/internal-exams'
 const SITTING_URL = /\/app\/admin\/internal-exams\/sittings\/[0-9a-f-]{36}$/
+
+test.beforeEach(() => {
+  skipNearUtcRollover()
+})
 
 test.afterEach(async () => {
   await cleanupE2eExamSittings()
@@ -16,12 +21,6 @@ function utcInput(daysAhead: number, hhmm: string): string {
   d.setUTCDate(d.getUTCDate() + daysAhead)
   return `${d.toISOString().slice(0, 10)}T${hhmm}`
 }
-
-const loadedAt = new Date()
-test.skip(
-  loadedAt.getUTCHours() === 23 && loadedAt.getUTCMinutes() >= 55,
-  'UTC day rollover window',
-)
 
 async function createSitting(
   page: import('@playwright/test').Page,

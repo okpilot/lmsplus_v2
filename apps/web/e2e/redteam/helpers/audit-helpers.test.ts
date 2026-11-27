@@ -50,7 +50,12 @@ vi.mock('@playwright/test', () => ({
 }))
 
 // Must import AFTER vi.mock calls (vitest hoists them automatically).
-import { expectAuditRow, expectCompletionMetadata, readAuditReason } from './audit-helpers'
+import {
+  expectAuditRow,
+  expectCompletionMetadata,
+  insertFixtureCode,
+  readAuditReason,
+} from './audit-helpers'
 
 // ---------------------------------------------------------------------------
 // buildChain — mirrors the project-wide pattern (see seed.test.ts / proxy.test.ts)
@@ -207,6 +212,54 @@ describe('readAuditReason', () => {
 
     await expect(readAuditReason(adminMock, 'exam.expired', 'sess-1')).rejects.toThrow(
       /readAuditReason exam\.expired: down/,
+    )
+  })
+})
+
+describe('insertFixtureCode', () => {
+  const OPTS = { orgId: 'org-1', subjectId: 'sub-1', studentId: 'stu-1', issuedBy: 'adm-1' }
+
+  function mockInsert(result: unknown) {
+    const insert = vi.fn().mockReturnValue(buildChain(result))
+    mockFrom.mockReturnValueOnce({ insert })
+    return insert
+  }
+
+  it('inserts a sitting-less code row and tracks its id', async () => {
+    const insert = mockInsert({ data: { id: 'code-1' }, error: null })
+    const ids = new Set<string>()
+
+    const out = await insertFixtureCode(adminMock, OPTS, ids)
+
+    expect(mockFrom).toHaveBeenCalledWith('internal_exam_codes')
+    const row = insert.mock.calls[0]?.[0] as Record<string, unknown>
+    expect(row).toMatchObject({
+      subject_id: 'sub-1',
+      student_id: 'stu-1',
+      issued_by: 'adm-1',
+      organization_id: 'org-1',
+    })
+    expect(row.code).toMatch(/^[A-HJ-NP-Z2-9]{8}$/)
+    expect(row).not.toHaveProperty('sitting_entry_id')
+    expect(out).toEqual({ codeId: 'code-1', code: row.code })
+    expect([...ids]).toEqual(['code-1'])
+  })
+
+  it('throws and tracks nothing when the insert fails', async () => {
+    mockInsert({ data: null, error: { message: 'denied' } })
+    const ids = new Set<string>()
+
+    await expect(insertFixtureCode(adminMock, OPTS, ids)).rejects.toThrow(
+      'insertFixtureCode: denied',
+    )
+    expect(ids.size).toBe(0)
+  })
+
+  it('throws when no row is returned', async () => {
+    mockInsert({ data: null, error: null })
+
+    await expect(insertFixtureCode(adminMock, OPTS, new Set())).rejects.toThrow(
+      'insertFixtureCode: no row',
     )
   })
 })

@@ -2,15 +2,26 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockGetAdminClient } = vi.hoisted(() => ({ mockGetAdminClient: vi.fn() }))
 vi.mock('./supabase', () => ({ getAdminClient: mockGetAdminClient }))
-vi.mock('./admin-supabase', () => ({ getAdminClient: mockGetAdminClient }))
+vi.mock('./admin-supabase', () => ({
+  getAdminClient: mockGetAdminClient,
+  ADMIN_TEST_EMAIL: 'admin@lmsplus.local',
+}))
 
 import { EXAM_SITTING_SEED_PREFIX } from './exam-sitting-markers'
-import { insertLegacyCodeFor, issueSittingCodeFor, seedSittingFor } from './sitting-code'
+import {
+  ensureEnrolment,
+  insertLegacyCodeFor,
+  issueSittingCodeFor,
+  seedSittingFor,
+} from './sitting-code'
 
 type Insert = { table: string; rows: Record<string, unknown>[] }
 
+const isCalls: string[] = []
+
 function fakeAdmin(failInsertOn?: string) {
   const inserts: Insert[] = []
+  isCalls.length = 0
   let n = 0
   const builder = (table: string) => {
     const api: Record<string, unknown> = {}
@@ -22,8 +33,12 @@ function fakeAdmin(failInsertOn?: string) {
       course_id: 'course-1',
       organization_id: 'org-1',
     })
-    for (const m of ['select', 'eq', 'is', 'in', 'order', 'limit', 'like', 'ilike', 'neq']) {
+    for (const m of ['select', 'eq', 'in', 'order', 'limit', 'like', 'ilike', 'neq']) {
       api[m] = () => api
+    }
+    api.is = (col: string, val: unknown) => {
+      isCalls.push(`is:${table}:${col}=${val}`)
+      return api
     }
     api.insert = (rows: Record<string, unknown> | Record<string, unknown>[]) => {
       inserts.push({ table, rows: Array.isArray(rows) ? rows : [rows] })
@@ -52,6 +67,12 @@ describe('issueSittingCodeFor', () => {
       permitted_materials: expect.stringContaining(EXAM_SITTING_SEED_PREFIX),
     })
     expect(sitting?.rows[0]?.started_at).toBeTruthy()
+  })
+
+  it('filters the admin and student lookups to non-deleted users', async () => {
+    fakeAdmin()
+    await issueSittingCodeFor({ studentEmail: 'student@lmsplus.local', subjectFragment: 'Flight' })
+    expect(isCalls.filter((c) => c === 'is:users:deleted_at=null')).toHaveLength(2)
   })
 
   it('inserts an entry and a live code linked to it', async () => {
@@ -137,8 +158,16 @@ function fakeAdminSeq(queues: Record<string, Resp[]>) {
   }
   const builder = (table: string) => {
     const api: Record<string, unknown> = {}
-    for (const m of ['eq', 'is', 'in', 'order', 'limit', 'like', 'ilike', 'neq']) {
+    for (const m of ['is', 'order', 'limit', 'like', 'ilike', 'neq']) {
       api[m] = () => api
+    }
+    api.eq = (col: string, val: unknown) => {
+      calls.push(`eq:${table}:${col}=${String(val)}`)
+      return api
+    }
+    api.in = (col: string, vals: unknown[]) => {
+      calls.push(`in:${table}:${col}=${vals.join(',')}`)
+      return api
     }
     // Recorded, unlike the filters: on a mutation `.select()` is what makes the affected rows
     // observable, so dropping it is a behaviour change a test must be able to see.
@@ -199,6 +228,22 @@ describe('lookupIds error paths', () => {
       exam_configs: [ok(CONFIG_ROW)],
     })
     await expect(issueFor()).rejects.toThrow('student full_name')
+  })
+
+  it('scopes the student lookup to the admin org and keeps the email filter', async () => {
+    const calls = fakeAdminSeq({
+      users: [ok(ADMIN_ROW), ok(STUDENT_ROW)],
+      easa_subjects: [ok(SUBJECT_ROW)],
+      exam_configs: [ok(CONFIG_ROW)],
+      course_enrolments: [ok(null), ok({ id: 'enr-1' })],
+      exam_sittings: [ok({ id: 'sit-1' })],
+      exam_sitting_candidates: [ok({ id: 'cand-1' })],
+      exam_sitting_entries: [ok({ id: 'entry-1' })],
+      internal_exam_codes: [ok({ id: 'code-1', code: 'ABC12345' })],
+    })
+    await issueFor()
+    expect(calls).toContain('eq:users:organization_id=org-1')
+    expect(calls).toContain('eq:users:email=stu@test.local')
   })
 })
 
@@ -277,6 +322,8 @@ describe('releaseSeededEnrolments', () => {
     expect(release).toContain('update:course_enrolments')
     // Without the `.select('id')` the update cannot report how many rows it touched.
     expect(release).toContain('select:course_enrolments')
+    expect(release).toContain('eq:course_enrolments:organization_id=org-1')
+    expect(release).toContain('in:course_enrolments:id=enr-1')
 
     // Second call: the set was cleared, so it is a no-op rather than a repeat update.
     const again = fakeAdminSeq({})
@@ -309,6 +356,61 @@ describe('releaseSeededEnrolments', () => {
     )
   })
 
+  it('keeps a failed org group tracked and forgets the successful one', async () => {
+    vi.resetModules()
+    const fresh = await import('./sitting-code')
+    const seed = (orgId: string, id: string) => {
+      fakeAdminSeq({ course_enrolments: [ok(null), ok({ id })] })
+      return fresh.ensureEnrolment(mockGetAdminClient() as never, {
+        orgId,
+        adminId: 'a',
+        userId: `u-${orgId}`,
+        courseId: 'c',
+      })
+    }
+    await seed('org-a', 'enr-a')
+    await seed('org-b', 'enr-b')
+
+    // Groups run in insertion order: org-a fails, org-b succeeds.
+    const first = fakeAdminSeq({
+      course_enrolments: [boom('org-a down'), ok([{ id: 'enr-b' }])],
+    })
+    await expect(fresh.releaseSeededEnrolments()).rejects.toThrow(
+      'sitting-code seeded enrolment release: org-a down',
+    )
+    expect(first).toContain('eq:course_enrolments:organization_id=org-a')
+    expect(first).toContain('eq:course_enrolments:organization_id=org-b')
+
+    // Retry repeats only the failed group.
+    const retry = fakeAdminSeq({ course_enrolments: [ok([{ id: 'enr-a' }])] })
+    await fresh.releaseSeededEnrolments()
+    expect(retry.filter((c) => c.startsWith('update:'))).toHaveLength(1)
+    expect(retry).toContain('eq:course_enrolments:organization_id=org-a')
+    expect(retry).toContain('in:course_enrolments:id=enr-a')
+    expect(retry).not.toContain('in:course_enrolments:id=enr-b')
+
+    const again = fakeAdminSeq({})
+    await fresh.releaseSeededEnrolments()
+    expect(again).toEqual([])
+  })
+
+  it('keeps the ids tracked after a failed release, so a retry repeats the update', async () => {
+    vi.resetModules()
+    const fresh = await import('./sitting-code')
+    fakeAdminSeq({ course_enrolments: [ok(null), ok({ id: 'enr-1' })] })
+    await fresh.ensureEnrolment(mockGetAdminClient() as never, {
+      orgId: 'org-1',
+      adminId: 'a',
+      userId: 'u',
+      courseId: 'c',
+    })
+    fakeAdminSeq({ course_enrolments: [boom('release down')] })
+    await expect(fresh.releaseSeededEnrolments()).rejects.toThrow('release down')
+    const retry = fakeAdminSeq({ course_enrolments: [ok([{ id: 'enr-1' }])] })
+    await fresh.releaseSeededEnrolments()
+    expect(retry).toContain('update:course_enrolments')
+  })
+
   // Supabase returns 200 with zero rows on a filter miss, so without the `.select('id')` the
   // helper cannot tell a restore from a no-op. Zero rows is not a fault here (the row may have
   // been soft-deleted elsewhere already), so the no-op warns and the set still clears.
@@ -334,11 +436,98 @@ describe('releaseSeededEnrolments', () => {
     const release = fakeAdminSeq({ course_enrolments: [ok([])] })
     await expect(fresh.releaseSeededEnrolments()).resolves.toBeUndefined()
     expect(release).toContain('select:course_enrolments')
-    expect(warn).toHaveBeenCalledWith('[releaseSeededEnrolments] no live row for 1 seeded id(s)')
+    expect(warn).toHaveBeenCalledWith(
+      '[releaseSeededEnrolments] no live row for 1 seeded id(s) in org org-1',
+    )
 
     // The set cleared despite the no-op, so a second teardown does not retry it.
     const again = fakeAdminSeq({})
     await fresh.releaseSeededEnrolments()
     expect(again).toEqual([])
+  })
+})
+
+describe('ensureEnrolment', () => {
+  const ARGS = { orgId: 'o', adminId: 'a', userId: 'u', courseId: 'c' }
+
+  /** Fake whose lookup and insert return the given results. */
+  function enrolAdmin(
+    lookup: { data: { id: string } | null; error: { message: string } | null },
+    insert: { data: { id: string } | null; error: { message: string } | null } = {
+      data: { id: 'new-1' },
+      error: null,
+    },
+  ) {
+    const inserted: unknown[] = []
+    const eqs: string[] = []
+    const api: Record<string, unknown> = {}
+    for (const m of ['select', 'is', 'limit']) api[m] = () => api
+    api.eq = (col: string, val: unknown) => {
+      eqs.push(`${col}=${String(val)}`)
+      return api
+    }
+    api.maybeSingle = () => Promise.resolve(lookup)
+    api.insert = (row: unknown) => {
+      inserted.push(row)
+      return api
+    }
+    api.single = () => Promise.resolve(insert)
+    return { admin: { from: () => api } as never, inserted, eqs }
+  }
+
+  it('scopes the existence lookup to the organization', async () => {
+    const { admin, eqs } = enrolAdmin({ data: null, error: null })
+    await ensureEnrolment(admin, ARGS)
+    expect(eqs).toEqual(expect.arrayContaining(['organization_id=o', 'user_id=u', 'course_id=c']))
+  })
+
+  it('returns the existing enrolment without inserting', async () => {
+    const { admin, inserted } = enrolAdmin({ data: { id: 'old-1' }, error: null })
+    await expect(ensureEnrolment(admin, ARGS)).resolves.toEqual({ created: false, id: 'old-1' })
+    expect(inserted).toHaveLength(0)
+  })
+
+  it('inserts and reports the new enrolment id when none exists', async () => {
+    const { admin, inserted } = enrolAdmin({ data: null, error: null })
+    await expect(ensureEnrolment(admin, ARGS)).resolves.toEqual({ created: true, id: 'new-1' })
+    expect(inserted[0]).toMatchObject({ user_id: 'u', course_id: 'c', enrolled_by: 'a' })
+  })
+
+  it('fails loudly when the lookup errors', async () => {
+    const { admin } = enrolAdmin({ data: null, error: { message: 'look' } })
+    await expect(ensureEnrolment(admin, ARGS)).rejects.toThrow('enrolment lookup: look')
+  })
+
+  it('fails loudly when the insert errors', async () => {
+    const { admin } = enrolAdmin(
+      { data: null, error: null },
+      { data: null, error: { message: 'ins' } },
+    )
+    await expect(ensureEnrolment(admin, ARGS)).rejects.toThrow('sitting-code enrolment: ins')
+  })
+
+  it('leaves an enrolment untracked when the caller opts out of the restore', async () => {
+    vi.resetModules()
+    const fresh = await import('./sitting-code')
+    const { admin } = enrolAdmin({ data: null, error: null })
+    await expect(fresh.ensureEnrolment(admin, ARGS, { track: false })).resolves.toEqual({
+      created: true,
+      id: 'new-1',
+    })
+    // Nothing tracked, so the teardown touches no client at all — the `e2e-sit-` row is gone with
+    // its cascade-deleted user, and a tracked id would warn on every green run.
+    const release = fakeAdminSeq({})
+    await fresh.releaseSeededEnrolments()
+    expect(release).toEqual([])
+  })
+
+  it('tracks an inserted enrolment when the caller does not opt out', async () => {
+    vi.resetModules()
+    const fresh = await import('./sitting-code')
+    const { admin } = enrolAdmin({ data: null, error: null })
+    await fresh.ensureEnrolment(admin, ARGS)
+    const release = fakeAdminSeq({ course_enrolments: [ok([{ id: 'new-1' }])] })
+    await fresh.releaseSeededEnrolments()
+    expect(release).toContain('update:course_enrolments')
   })
 })

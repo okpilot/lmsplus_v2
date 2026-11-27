@@ -1,10 +1,8 @@
-import { randomUUID } from 'node:crypto'
-import { EXAM_SITTING_SEED_PREFIX } from './exam-sitting-markers'
+import { ADMIN_TEST_EMAIL } from './admin-supabase'
+import { randomCode } from './code-gen'
+import { makeSittingSeedMaterials } from './exam-sitting-markers'
 import { getAdminClient } from './supabase'
 
-const ADMIN_EMAIL = 'admin@lmsplus.local'
-const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-const CODE_LENGTH = 8
 const LEGACY_VALIDITY_MS = 24 * 3_600_000
 
 /**
@@ -35,25 +33,20 @@ function fail(what: string, error: { message: string } | null): never {
   throw new Error(`sitting-code ${what}: ${error?.message ?? 'no data'}`)
 }
 
-function randomCode(): string {
-  const bytes = randomUUID().replaceAll('-', '')
-  return Array.from({ length: CODE_LENGTH }, (_, i) => {
-    const n = Number.parseInt(bytes.slice(i * 2, i * 2 + 2), 16)
-    return CODE_ALPHABET[n % CODE_ALPHABET.length]
-  }).join('')
-}
-
 async function lookupIds(admin: Admin, studentEmail: string, subjectFragment: string) {
   const adminRow = await admin
     .from('users')
     .select('id, organization_id')
-    .eq('email', ADMIN_EMAIL)
+    .eq('email', ADMIN_TEST_EMAIL)
+    .is('deleted_at', null)
     .single()
   if (adminRow.error || !adminRow.data) fail('admin lookup', adminRow.error)
   const student = await admin
     .from('users')
     .select('id, full_name')
+    .eq('organization_id', adminRow.data.organization_id)
     .eq('email', studentEmail)
+    .is('deleted_at', null)
     .single()
   if (student.error || !student.data) fail('student lookup', student.error)
   const subject = await admin
@@ -90,53 +83,79 @@ async function lookupIds(admin: Admin, studentEmail: string, subjectFragment: st
 }
 
 /**
- * Enrolments this run created for the SHARED fixture student, soft-deleted again by
- * `releaseSeededEnrolments`. Decision 38: a spec restores the shared seed data it mutates, and
- * `deleteSeededUsers` only covers users carrying the seed email prefix.
+ * Every enrolment `ensureEnrolment` inserted this run with tracking on, soft-deleted again by
+ * `releaseSeededEnrolments`. Decision 38: a spec restores the shared seed data it mutates.
+ *
+ * Only enrolments that OUTLIVE the run belong here. A caller whose user is hard-deleted at teardown
+ * passes `track: false`: `course_enrolments.user_id` is ON DELETE CASCADE (mig 20261027000100), so
+ * the row is already gone.
  *
  * KNOWN LIMIT — in-process only, unlike the rest of this helper family: a worker killed between
- * the insert and teardown loses the ids and the enrolment stays live. It is not DB-derivable:
+ * the insert and teardown loses the ids and a fixture enrolment stays live. It is not DB-derivable:
  * `set_user_enrolments` also writes `enrolled_by` = the calling admin (mig 20261028000500), so no
  * predicate separates this row from an admin-UI enrolment of the same student. Bounded to one
  * fixture student on a local DB and cleared by `pnpm supabase db reset`; CI reseeds per run.
  */
-const seededEnrolmentIds = new Set<string>()
+const seededEnrolments = new Map<string, string>()
 
-/** Soft-deletes the fixture-student enrolments this run added. Safe to call with none. */
+/** Soft-deletes the enrolments this run added that are still live. Safe to call with none. */
 export async function releaseSeededEnrolments(): Promise<void> {
-  if (seededEnrolmentIds.size === 0) return
-  const ids = [...seededEnrolmentIds]
+  if (seededEnrolments.size === 0) return
+  const byOrg = new Map<string, string[]>()
+  for (const [id, orgId] of seededEnrolments) byOrg.set(orgId, [...(byOrg.get(orgId) ?? []), id])
   const admin = getAdminClient()
-  const res = await admin
-    .from('course_enrolments')
-    .update({ deleted_at: new Date().toISOString() })
-    .in('id', ids)
-    .is('deleted_at', null)
-    .select('id')
-  if (res.error) fail('seeded enrolment release', res.error)
-  // Zero rows is reachable without a fault: an admin unenrol or another spec can soft-delete the
-  // same row first, and the restore is then already done. So this warns rather than throwing —
-  // code-style.md §5 service-role-cleanup form. Warning on the EMPTY case, not the mutating one:
-  // here a restore is the normal outcome, so logging it would print on every teardown.
-  if ((res.data?.length ?? 0) === 0) {
-    console.warn(`[releaseSeededEnrolments] no live row for ${ids.length} seeded id(s)`)
+  const errors: unknown[] = []
+  for (const [orgId, ids] of byOrg) {
+    try {
+      const res = await admin
+        .from('course_enrolments')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('organization_id', orgId)
+        .in('id', ids)
+        .is('deleted_at', null)
+        .select('id')
+      if (res.error) fail('seeded enrolment release', res.error)
+      // Zero rows is reachable without a fault: an admin unenrol or another spec can soft-delete the
+      // same row first, and the restore is then already done. So this warns rather than throwing —
+      // code-style.md §5 service-role-cleanup form. Warning on the EMPTY case, not the mutating one:
+      // here a restore is the normal outcome, so logging it would print on every teardown.
+      if ((res.data?.length ?? 0) === 0) {
+        console.warn(
+          `[releaseSeededEnrolments] no live row for ${ids.length} seeded id(s) in org ${orgId}`,
+        )
+      }
+      // Forgotten only on success: `ensureEnrolment` skips an enrolment that is already live, so an
+      // id dropped before a failed update leaves it live for good.
+      for (const id of ids) seededEnrolments.delete(id)
+    } catch (e) {
+      errors.push(e)
+    }
   }
-  // Cleared only on success: `ensureEnrolment` skips an enrolment that is already live, so a set
-  // cleared before a failed update leaves it live for good.
-  seededEnrolmentIds.clear()
+  if (errors.length > 0) {
+    throw new Error(errors.map((e) => (e instanceof Error ? e.message : String(e))).join('; '))
+  }
 }
 
-async function ensureEnrolment(admin: Admin, c: Ids): Promise<void> {
+/**
+ * Enrols the user in the course unless already enrolled; `created` says whether this call inserted
+ * the row. An inserted row is tracked for `releaseSeededEnrolments` unless `track` is false.
+ */
+export async function ensureEnrolment(
+  admin: Admin,
+  c: Pick<Ids, 'orgId' | 'adminId' | 'userId' | 'courseId'>,
+  opts: { track?: boolean } = {},
+): Promise<{ created: boolean; id: string }> {
   const existing = await admin
     .from('course_enrolments')
     .select('id')
+    .eq('organization_id', c.orgId)
     .eq('user_id', c.userId)
     .eq('course_id', c.courseId)
     .is('deleted_at', null)
     .limit(1)
     .maybeSingle()
   if (existing.error) fail('enrolment lookup', existing.error)
-  if (existing.data) return
+  if (existing.data) return { created: false, id: existing.data.id }
   const res = await admin
     .from('course_enrolments')
     .insert({
@@ -148,7 +167,8 @@ async function ensureEnrolment(admin: Admin, c: Ids): Promise<void> {
     .select('id')
     .single()
   if (res.error || !res.data) fail('enrolment', res.error)
-  seededEnrolmentIds.add(res.data.id)
+  if (opts.track !== false) seededEnrolments.set(res.data.id, c.orgId)
+  return { created: true, id: res.data.id }
 }
 
 async function insertSitting(
@@ -165,7 +185,7 @@ async function insertSitting(
       invigilator_id: c.adminId,
       created_by: c.adminId,
       scheduled_at: now,
-      permitted_materials: `${EXAM_SITTING_SEED_PREFIX}${randomUUID()}`,
+      permitted_materials: makeSittingSeedMaterials(),
       ...(status === 'open' ? { started_at: now, started_by: c.adminId } : {}),
     })
     .select('id')
