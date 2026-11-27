@@ -82,53 +82,84 @@ export function AttemptsTable({ rows, totalCount, pageSize }: Readonly<Props>) {
   )
 }
 
-function AttemptRow({ row: r }: Readonly<{ row: InternalExamAttemptRow }>) {
+function SittingCell({
+  sittingId,
+  sittingAt,
+}: Readonly<{ sittingId?: string | null; sittingAt: string | null }>) {
+  return (
+    <TableCell className="text-caption">
+      {sittingId ? (
+        <Link
+          href={`${SITTING_BASE}/${sittingId}`}
+          prefetch={false}
+          onClick={(e) => e.stopPropagation()}
+          className="text-foreground focus-visible:underline"
+        >
+          {formatAbsolute(sittingAt)}
+        </Link>
+      ) : (
+        <span className="text-muted-foreground">—</span>
+      )}
+    </TableCell>
+  )
+}
+
+function StudentCell({ href, label }: Readonly<{ href: string; label: string }>) {
+  return (
+    <TableCell>
+      <Link
+        href={href}
+        prefetch={false}
+        onClick={(e) => e.stopPropagation()}
+        className="font-medium text-foreground no-underline focus-visible:underline"
+      >
+        {label}
+      </Link>
+    </TableCell>
+  )
+}
+
+function ResultCell({ passed }: Readonly<{ passed: boolean | null }>) {
+  return (
+    <TableCell>
+      {passed === null ? (
+        <span className="text-muted-foreground">—</span>
+      ) : (
+        <PassFailStatus passed={passed} />
+      )}
+    </TableCell>
+  )
+}
+
+function useRowNavigation(href: string) {
   const router = useRouter()
-  const correct = r.correctCount ?? 0
-  const passed = r.passed
+  const navigate = () => router.push(href)
+  const onClick = navigate
+  const onKeyDown = (e: React.KeyboardEvent<HTMLTableRowElement>) => {
+    // Keys on a focused link inside the row follow that link.
+    if (e.target !== e.currentTarget) return
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      navigate()
+    }
+  }
+  return { onClick, onKeyDown }
+}
+
+function AttemptRow({ row: r }: Readonly<{ row: InternalExamAttemptRow }>) {
   const href = `/app/admin/internal-exams/report?session=${r.sessionId}`
   const studentLabel = r.studentName || r.studentEmail || '—'
-  const navigate = () => router.push(href)
+  const nav = useRowNavigation(href)
 
   return (
     <TableRow
       tabIndex={0}
-      onClick={navigate}
-      onKeyDown={(e) => {
-        // Keys on a focused link inside the row follow that link.
-        if (e.target !== e.currentTarget) return
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          navigate()
-        }
-      }}
+      {...nav}
       className="cursor-pointer hover:bg-accent focus-visible:outline focus-visible:outline-focus focus-visible:-outline-offset-focus focus-visible:outline-ring"
     >
-      <TableCell>
-        <Link
-          href={href}
-          prefetch={false}
-          onClick={(e) => e.stopPropagation()}
-          className="font-medium text-foreground no-underline focus-visible:underline"
-        >
-          {studentLabel}
-        </Link>
-      </TableCell>
+      <StudentCell href={href} label={studentLabel} />
       <TableCell>{r.subjectName || '—'}</TableCell>
-      <TableCell className="text-caption">
-        {r.sittingId ? (
-          <Link
-            href={`${SITTING_BASE}/${r.sittingId}`}
-            prefetch={false}
-            onClick={(e) => e.stopPropagation()}
-            className="text-foreground focus-visible:underline"
-          >
-            {formatAbsolute(r.sittingAt ?? null)}
-          </Link>
-        ) : (
-          <span className="text-muted-foreground">—</span>
-        )}
-      </TableCell>
+      <SittingCell sittingId={r.sittingId} sittingAt={r.sittingAt ?? null} />
       <TableCell className="text-caption text-muted-foreground">
         {formatAbsolute(r.startedAt)}
       </TableCell>
@@ -138,15 +169,9 @@ function AttemptRow({ row: r }: Readonly<{ row: InternalExamAttemptRow }>) {
       <TableCell className="text-label-strong tabular-nums">
         {formatScore(r.scorePercentage)}
       </TableCell>
-      <TableCell>
-        {passed === null ? (
-          <span className="text-muted-foreground">—</span>
-        ) : (
-          <PassFailStatus passed={passed} />
-        )}
-      </TableCell>
+      <ResultCell passed={r.passed} />
       <TableCell className="text-caption tabular-nums">
-        {formatCorrectFraction(correct, r.answeredItems)}
+        {formatCorrectFraction(r.correctCount ?? 0, r.answeredItems)}
       </TableCell>
     </TableRow>
   )
