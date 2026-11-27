@@ -210,6 +210,7 @@ test.describe('Red Team: sitting code email skips a deactivated student (NO)', (
     const bulk = await invoke(bulkId, { sittingId })
     expect(bulk).toContain('"success":true')
     expect(bulk).toContain('"skipped":1')
+    expect(bulk).toContain('"unrecorded":0')
     if (process.env.CI) {
       expect(bulk).toContain('"sent":0')
       expect(bulk.match(/"studentName"/g)).toHaveLength(1)
@@ -217,6 +218,7 @@ test.describe('Red Team: sitting code email skips a deactivated student (NO)', (
       expect(await emailState(admin, [codeA, codeB])).toEqual([none, none])
     } else {
       expect(bulk).toContain('"sent":1')
+      expect(bulk).toContain('"failed":[]')
       expect(await emailState(admin, [codeA, codeB])).toEqual([none, once])
     }
   })

@@ -182,6 +182,9 @@ describe('getSittingCodesForEmail (app-layer integration)', () => {
       p_user_ids: [goneUserId],
     })
     if (rm.error) throw new Error(`remove candidate: ${rm.error.message}`)
+    await entryWithCode('DEL', await student('del'), {
+      deleted_at: new Date().toISOString(),
+    })
     const dead = await student('dead')
     await entryWithCode('DEAD', dead)
     const { error: deadErr } = await admin
@@ -204,6 +207,7 @@ describe('getSittingCodesForEmail (app-layer integration)', () => {
   it('returns only the unused, unemailed code of an active candidate with its email payload', async () => {
     const r = await getSittingCodesForEmail(orgId, sittingId)
     expect(r.rows.map((x) => x.codeId)).toEqual([codeByLabel.A])
+    expect(r.rows.map((x) => x.codeId)).not.toContain(codeByLabel.DEL)
     expect(r.rows.map((x) => x.codeId)).not.toContain(codeByLabel.CONSUMED)
     expect(r.rows[0]).toMatchObject({
       studentName: `Sce a ${suffix}`,
@@ -227,6 +231,8 @@ describe('getSittingCodesForEmail (app-layer integration)', () => {
   })
 
   it('returns 0 rows for a sitting id of another organization', async () => {
+    const own = await getSittingCodesForEmail(orgId, sittingId)
+    expect(own.rows.length).toBeGreaterThan(0)
     const r = await getSittingCodesForEmail(otherOrgId, sittingId)
     expect(r.rows).toEqual([])
     expect(r.skipped).toBe(0)
@@ -235,16 +241,22 @@ describe('getSittingCodesForEmail (app-layer integration)', () => {
 
   it('excludes the code of a candidate removed through remove_exam_sitting_candidates', async () => {
     const r = await getSittingCodesForEmail(orgId, sittingId)
-    expect(r.rows.map((x) => x.codeId)).not.toContain(codeByLabel.GONE)
+    const ids = r.rows.map((x) => x.codeId)
+    expect(ids[0]).toBe(codeByLabel.A)
+    expect(ids).not.toContain(codeByLabel.GONE)
   })
 
   it('excludes a code once its emailed_at is set', async () => {
+    await entryWithCode('STM', await student('stm'))
+    const before = await getSittingCodesForEmail(orgId, sittingId)
+    expect(before.rows.map((x) => x.codeId)).toContain(codeByLabel.STM)
     const { error } = await admin
       .from('internal_exam_codes')
       .update({ emailed_at: new Date().toISOString() })
-      .eq('id', codeByLabel.A)
+      .eq('id', codeByLabel.STM)
     if (error) throw new Error(`stamp: ${error.message}`)
     const r = await getSittingCodesForEmail(orgId, sittingId)
-    expect(r.rows).toEqual([])
+    expect(r.rows.map((x) => x.codeId)).not.toContain(codeByLabel.STM)
+    expect(r.rows.map((x) => x.codeId)).toContain(codeByLabel.A)
   })
 })

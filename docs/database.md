@@ -1571,7 +1571,7 @@ Admin-only RPC (not a direct API endpoint — invoked from Server Actions `sendI
 
 **Returns:** `void`.
 
-**Security:** SECURITY DEFINER. Invoked from the `sendInternalExamCodeEmail` and `emailSittingCodes` Server Actions (via `recordEmailedCodes`, chunks of 50) (email subsystem half) after a Resend POST succeeds; failure to audit does not bubble to caller (best-effort, logs server-side only).
+**Security:** SECURITY DEFINER. Invoked from the `sendInternalExamCodeEmail` and `emailSittingCodes` Server Actions (via `recordEmailedCodes`, chunks of 50) (email subsystem half) after a Resend POST succeeds; failure to audit is logged server-side; `sendInternalExamCodeEmail` does not return it, `emailSittingCodes` returns the count as `unrecorded`.
 
 ##### `record_login_instructions_sent(p_user_id)` (migration `20260925000100`, login-instructions-email feature, PR A)
 

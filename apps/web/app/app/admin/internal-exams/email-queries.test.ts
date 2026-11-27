@@ -258,8 +258,14 @@ const SITTING_ID = 'sitting-1'
 
 const usedEq = (calls: Call[], col: string, val: unknown) =>
   calls.some((c) => c.method === 'eq' && c.args[0] === col && c.args[1] === val)
-const usedIsNull = (calls: Call[], col: string) =>
-  calls.some((c) => c.method === 'is' && c.args[0] === col && c.args[1] === null)
+const usedIsNull = (calls: Call[], col: string, table?: string) =>
+  calls.some(
+    (c) =>
+      c.method === 'is' &&
+      c.args[0] === col &&
+      c.args[1] === null &&
+      (table === undefined || c.table === table),
+  )
 
 describe('getSittingCodesForEmail', () => {
   it('scopes every read by organization and the sitting id', async () => {
@@ -283,10 +289,10 @@ describe('getSittingCodesForEmail', () => {
   it('reads only live rows and codes not yet emailed', async () => {
     const calls = recordingAdmin()
     await getSittingCodesForEmail(ORG_ID, SITTING_ID)
-    expect(usedIsNull(calls, 'deleted_at')).toBe(true)
-    expect(usedIsNull(calls, 'emailed_at')).toBe(true)
-    expect(usedIsNull(calls, 'consumed_at')).toBe(true)
-    expect(usedIsNull(calls, 'voided_at')).toBe(true)
+    for (const col of ['deleted_at', 'emailed_at', 'consumed_at', 'voided_at']) {
+      expect(usedIsNull(calls, col, 'internal_exam_codes')).toBe(true)
+    }
+    expect(usedIsNull(calls, 'exam_sitting_entries.deleted_at', 'internal_exam_codes')).toBe(true)
     expect(
       calls.some((c) => (c.method === 'gt' || c.method === 'gte') && c.args[0] === 'expires_at'),
     ).toBe(true)

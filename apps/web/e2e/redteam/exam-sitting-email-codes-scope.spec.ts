@@ -230,6 +230,8 @@ test.describe('Red Team: sitting code email actions scope (NN)', () => {
     // CONTROL: the egmont admin's bulk replay sends B only.
     const okBulk = await invoke(adminCtx, cap.bulk, { sittingId })
     expect(okBulk).toContain('"success":true')
+    expect(okBulk).toContain('"skipped":0')
+    expect(okBulk).toContain('"unrecorded":0')
     if (process.env.CI) {
       expect(okBulk).toContain('"sent":0')
       expect(okBulk.match(/"studentName"/g)).toHaveLength(2)
@@ -238,6 +240,7 @@ test.describe('Red Team: sitting code email actions scope (NN)', () => {
       expect(await emailState(admin, [codeA, codeB])).toEqual([none, none])
     } else {
       expect(okBulk).toContain('"sent":1')
+      expect(okBulk).toContain('"failed":[]')
       expect(await emailState(admin, [codeA, codeB])).toEqual([once, once])
     }
   })
