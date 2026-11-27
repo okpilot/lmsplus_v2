@@ -93,30 +93,44 @@ async function lookupIds(admin: Admin, studentEmail: string, subjectFragment: st
  * predicate separates this row from an admin-UI enrolment of the same student. Bounded to one
  * fixture student on a local DB and cleared by `pnpm supabase db reset`; CI reseeds per run.
  */
-const seededEnrolmentIds = new Set<string>()
+const seededEnrolments = new Map<string, string>()
 
 /** Soft-deletes the enrolments this run added that are still live. Safe to call with none. */
 export async function releaseSeededEnrolments(): Promise<void> {
-  if (seededEnrolmentIds.size === 0) return
-  const ids = [...seededEnrolmentIds]
+  if (seededEnrolments.size === 0) return
+  const byOrg = new Map<string, string[]>()
+  for (const [id, orgId] of seededEnrolments) byOrg.set(orgId, [...(byOrg.get(orgId) ?? []), id])
   const admin = getAdminClient()
-  const res = await admin
-    .from('course_enrolments')
-    .update({ deleted_at: new Date().toISOString() })
-    .in('id', ids)
-    .is('deleted_at', null)
-    .select('id')
-  if (res.error) fail('seeded enrolment release', res.error)
-  // Zero rows is reachable without a fault: an admin unenrol or another spec can soft-delete the
-  // same row first, and the restore is then already done. So this warns rather than throwing —
-  // code-style.md §5 service-role-cleanup form. Warning on the EMPTY case, not the mutating one:
-  // here a restore is the normal outcome, so logging it would print on every teardown.
-  if ((res.data?.length ?? 0) === 0) {
-    console.warn(`[releaseSeededEnrolments] no live row for ${ids.length} seeded id(s)`)
+  const errors: unknown[] = []
+  for (const [orgId, ids] of byOrg) {
+    try {
+      const res = await admin
+        .from('course_enrolments')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('organization_id', orgId)
+        .in('id', ids)
+        .is('deleted_at', null)
+        .select('id')
+      if (res.error) fail('seeded enrolment release', res.error)
+      // Zero rows is reachable without a fault: an admin unenrol or another spec can soft-delete the
+      // same row first, and the restore is then already done. So this warns rather than throwing —
+      // code-style.md §5 service-role-cleanup form. Warning on the EMPTY case, not the mutating one:
+      // here a restore is the normal outcome, so logging it would print on every teardown.
+      if ((res.data?.length ?? 0) === 0) {
+        console.warn(
+          `[releaseSeededEnrolments] no live row for ${ids.length} seeded id(s) in org ${orgId}`,
+        )
+      }
+      // Forgotten only on success: `ensureEnrolment` skips an enrolment that is already live, so an
+      // id dropped before a failed update leaves it live for good.
+      for (const id of ids) seededEnrolments.delete(id)
+    } catch (e) {
+      errors.push(e)
+    }
   }
-  // Cleared only on success: `ensureEnrolment` skips an enrolment that is already live, so a set
-  // cleared before a failed update leaves it live for good.
-  seededEnrolmentIds.clear()
+  if (errors.length > 0) {
+    throw new Error(errors.map((e) => (e instanceof Error ? e.message : String(e))).join('; '))
+  }
 }
 
 /**
@@ -131,6 +145,7 @@ export async function ensureEnrolment(
   const existing = await admin
     .from('course_enrolments')
     .select('id')
+    .eq('organization_id', c.orgId)
     .eq('user_id', c.userId)
     .eq('course_id', c.courseId)
     .is('deleted_at', null)
@@ -149,7 +164,7 @@ export async function ensureEnrolment(
     .select('id')
     .single()
   if (res.error || !res.data) fail('enrolment', res.error)
-  if (opts.track !== false) seededEnrolmentIds.add(res.data.id)
+  if (opts.track !== false) seededEnrolments.set(res.data.id, c.orgId)
   return { created: true, id: res.data.id }
 }
 

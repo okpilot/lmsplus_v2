@@ -142,8 +142,16 @@ function fakeAdminSeq(queues: Record<string, Resp[]>) {
   }
   const builder = (table: string) => {
     const api: Record<string, unknown> = {}
-    for (const m of ['eq', 'is', 'in', 'order', 'limit', 'like', 'ilike', 'neq']) {
+    for (const m of ['is', 'order', 'limit', 'like', 'ilike', 'neq']) {
       api[m] = () => api
+    }
+    api.eq = (col: string, val: unknown) => {
+      calls.push(`eq:${table}:${col}=${String(val)}`)
+      return api
+    }
+    api.in = (col: string, vals: unknown[]) => {
+      calls.push(`in:${table}:${col}=${vals.join(',')}`)
+      return api
     }
     // Recorded, unlike the filters: on a mutation `.select()` is what makes the affected rows
     // observable, so dropping it is a behaviour change a test must be able to see.
@@ -282,6 +290,8 @@ describe('releaseSeededEnrolments', () => {
     expect(release).toContain('update:course_enrolments')
     // Without the `.select('id')` the update cannot report how many rows it touched.
     expect(release).toContain('select:course_enrolments')
+    expect(release).toContain('eq:course_enrolments:organization_id=org-1')
+    expect(release).toContain('in:course_enrolments:id=enr-1')
 
     // Second call: the set was cleared, so it is a no-op rather than a repeat update.
     const again = fakeAdminSeq({})
@@ -314,6 +324,61 @@ describe('releaseSeededEnrolments', () => {
     )
   })
 
+  it('keeps a failed org group tracked and forgets the successful one', async () => {
+    vi.resetModules()
+    const fresh = await import('./sitting-code')
+    const seed = (orgId: string, id: string) => {
+      fakeAdminSeq({ course_enrolments: [ok(null), ok({ id })] })
+      return fresh.ensureEnrolment(mockGetAdminClient() as never, {
+        orgId,
+        adminId: 'a',
+        userId: `u-${orgId}`,
+        courseId: 'c',
+      })
+    }
+    await seed('org-a', 'enr-a')
+    await seed('org-b', 'enr-b')
+
+    // Groups run in insertion order: org-a fails, org-b succeeds.
+    const first = fakeAdminSeq({
+      course_enrolments: [boom('org-a down'), ok([{ id: 'enr-b' }])],
+    })
+    await expect(fresh.releaseSeededEnrolments()).rejects.toThrow(
+      'sitting-code seeded enrolment release: org-a down',
+    )
+    expect(first).toContain('eq:course_enrolments:organization_id=org-a')
+    expect(first).toContain('eq:course_enrolments:organization_id=org-b')
+
+    // Retry repeats only the failed group.
+    const retry = fakeAdminSeq({ course_enrolments: [ok([{ id: 'enr-a' }])] })
+    await fresh.releaseSeededEnrolments()
+    expect(retry.filter((c) => c.startsWith('update:'))).toHaveLength(1)
+    expect(retry).toContain('eq:course_enrolments:organization_id=org-a')
+    expect(retry).toContain('in:course_enrolments:id=enr-a')
+    expect(retry).not.toContain('in:course_enrolments:id=enr-b')
+
+    const again = fakeAdminSeq({})
+    await fresh.releaseSeededEnrolments()
+    expect(again).toEqual([])
+  })
+
+  it('keeps the ids tracked after a failed release, so a retry repeats the update', async () => {
+    vi.resetModules()
+    const fresh = await import('./sitting-code')
+    fakeAdminSeq({ course_enrolments: [ok(null), ok({ id: 'enr-1' })] })
+    await fresh.ensureEnrolment(mockGetAdminClient() as never, {
+      orgId: 'org-1',
+      adminId: 'a',
+      userId: 'u',
+      courseId: 'c',
+    })
+    fakeAdminSeq({ course_enrolments: [boom('release down')] })
+    await expect(fresh.releaseSeededEnrolments()).rejects.toThrow('release down')
+    const retry = fakeAdminSeq({ course_enrolments: [ok([{ id: 'enr-1' }])] })
+    await fresh.releaseSeededEnrolments()
+    expect(retry).toContain('update:course_enrolments')
+  })
+
   // Supabase returns 200 with zero rows on a filter miss, so without the `.select('id')` the
   // helper cannot tell a restore from a no-op. Zero rows is not a fault here (the row may have
   // been soft-deleted elsewhere already), so the no-op warns and the set still clears.
@@ -339,7 +404,9 @@ describe('releaseSeededEnrolments', () => {
     const release = fakeAdminSeq({ course_enrolments: [ok([])] })
     await expect(fresh.releaseSeededEnrolments()).resolves.toBeUndefined()
     expect(release).toContain('select:course_enrolments')
-    expect(warn).toHaveBeenCalledWith('[releaseSeededEnrolments] no live row for 1 seeded id(s)')
+    expect(warn).toHaveBeenCalledWith(
+      '[releaseSeededEnrolments] no live row for 1 seeded id(s) in org org-1',
+    )
 
     // The set cleared despite the no-op, so a second teardown does not retry it.
     const again = fakeAdminSeq({})
@@ -360,16 +427,27 @@ describe('ensureEnrolment', () => {
     },
   ) {
     const inserted: unknown[] = []
+    const eqs: string[] = []
     const api: Record<string, unknown> = {}
-    for (const m of ['select', 'eq', 'is', 'limit']) api[m] = () => api
+    for (const m of ['select', 'is', 'limit']) api[m] = () => api
+    api.eq = (col: string, val: unknown) => {
+      eqs.push(`${col}=${String(val)}`)
+      return api
+    }
     api.maybeSingle = () => Promise.resolve(lookup)
     api.insert = (row: unknown) => {
       inserted.push(row)
       return api
     }
     api.single = () => Promise.resolve(insert)
-    return { admin: { from: () => api } as never, inserted }
+    return { admin: { from: () => api } as never, inserted, eqs }
   }
+
+  it('scopes the existence lookup to the organization', async () => {
+    const { admin, eqs } = enrolAdmin({ data: null, error: null })
+    await ensureEnrolment(admin, ARGS)
+    expect(eqs).toEqual(expect.arrayContaining(['organization_id=o', 'user_id=u', 'course_id=c']))
+  })
 
   it('returns the existing enrolment without inserting', async () => {
     const { admin, inserted } = enrolAdmin({ data: { id: 'old-1' }, error: null })
