@@ -20,10 +20,17 @@ export function isNearUtcRollover(now: Date): boolean {
  *
  * Call it per test — from `beforeEach` or inside the test body — not at module load (a module-load
  * skip is evaluated when the file is imported, long before the body runs). A `beforeAll` call skips
- * the whole suite; `beforeEach` and in-test calls skip the current test. Keep both in a suite that
- * seeds in `beforeAll`: the `beforeAll` call catches a suite that starts inside the margin, the
- * `beforeEach` call catches a rollover that arrives part-way through.
+ * the whole suite; `beforeEach` and in-test calls skip the current test. Each call skips only when
+ * the current time is inside the margin before midnight UTC; it does not detect a sitting seeded on
+ * an earlier UTC day — suites that reuse a sitting seeded in `beforeAll` also call
+ * `skipIfSeededDayEnded`.
  */
 export function skipNearUtcRollover(): void {
   test.skip(isNearUtcRollover(new Date()), 'UTC day rollover window')
+}
+
+/** Skips the current test when `seededAt` fell on an earlier UTC day than now. */
+export function skipIfSeededDayEnded(seededAt: Date): void {
+  const utcDay = (d: Date) => d.toISOString().slice(0, 10)
+  test.skip(utcDay(seededAt) !== utcDay(new Date()), 'sitting seeded on an earlier UTC day')
 }

@@ -48,6 +48,21 @@ function mockTables(queues: Record<string, Result[]>) {
   return calls
 }
 
+const isOrgEq = (c: Call) =>
+  c.method === 'eq' && c.args[0] === 'organization_id' && c.args[1] === 'org-7'
+const chainsOf = (calls: Call[], table: string, has: (c: Call) => boolean) => {
+  const bySeq = new Map<number, Call[]>()
+  for (const c of calls) {
+    if (c.table === table) bySeq.set(c.seq, [...(bySeq.get(c.seq) ?? []), c])
+  }
+  return [...bySeq.values()].filter((cs) => cs.some(has))
+}
+const expectScoped = (calls: Call[], table: string, has: (c: Call) => boolean) => {
+  const found = chainsOf(calls, table, has)
+  expect(found.length).toBeGreaterThan(0)
+  expect(found.every((cs) => cs.some(isOrgEq))).toBe(true)
+}
+
 beforeEach(() => {
   vi.resetAllMocks()
   vi.spyOn(console, 'log').mockImplementation(() => {})
@@ -263,14 +278,6 @@ describe('cleanupE2eExamSittings (seeded sittings)', () => {
       ],
     })
     await cleanupE2eExamSittings()
-    const orgScoped = (table: string, method: string) =>
-      calls.some(
-        (c) =>
-          c.table === table &&
-          c.method === 'eq' &&
-          c.args[0] === 'organization_id' &&
-          c.args[1] === 'org-7',
-      ) && calls.some((c) => c.table === table && c.method === method)
     const sittingsLookup = calls.findIndex(
       (c) => c.table === 'exam_sittings' && c.method === 'like' && c.args[1] === 'E2E-SIT-SEED-%',
     )
@@ -279,7 +286,7 @@ describe('cleanupE2eExamSittings (seeded sittings)', () => {
       .reverse()
       .find((c) => c.table === 'exam_sittings' && c.method === 'eq')
     expect(lookupOrg?.args).toEqual(['organization_id', 'org-7'])
-    expect(orgScoped('exam_sitting_entries', 'delete')).toBe(true)
+    expectScoped(calls, 'exam_sitting_entries', (c) => c.method === 'delete')
   })
 
   it("ends and soft-deletes a fixture student's session instead of deleting it", async () => {
@@ -858,17 +865,9 @@ describe('cleanupE2eExamSittings (seeded users and sessions)', () => {
       quiz_sessions: [{ data: [{ id: 'q0' }], error: null }],
     })
     await cleanupE2eExamSittings()
-    const scoped = (table: string, method: string) =>
-      calls.some(
-        (c) =>
-          c.table === table &&
-          c.method === 'eq' &&
-          c.args[0] === 'organization_id' &&
-          c.args[1] === 'org-7',
-      ) && calls.some((c) => c.table === table && c.method === method)
-    expect(scoped('users', 'like')).toBe(true)
-    expect(scoped('quiz_sessions', 'in')).toBe(true)
-    expect(scoped('internal_exam_codes', 'delete')).toBe(true)
+    expectScoped(calls, 'users', (c) => c.method === 'like')
+    expectScoped(calls, 'quiz_sessions', (c) => c.method === 'in' && c.args[0] === 'student_id')
+    expectScoped(calls, 'internal_exam_codes', (c) => c.method === 'delete')
   })
 
   it('pages the seeded users by id keyset and deletes every page', async () => {
@@ -1114,22 +1113,8 @@ describe('cleanupE2eExamSittings (seeded rows in chunks)', () => {
 
 describe('cleanupE2eExamSittings (organization scope)', () => {
   const FIXTURE = 'e2e-internal-exam@lmsplus.local'
-  const isOrgEq = (c: Call) =>
-    c.method === 'eq' && c.args[0] === 'organization_id' && c.args[1] === 'org-7'
-  const chainsOf = (calls: Call[], table: string, has: (c: Call) => boolean) => {
-    const bySeq = new Map<number, Call[]>()
-    for (const c of calls) {
-      if (c.table === table) bySeq.set(c.seq, [...(bySeq.get(c.seq) ?? []), c])
-    }
-    return [...bySeq.values()].filter((cs) => cs.some(has))
-  }
   const patchHas = (key: string) => (c: Call) =>
     c.method === 'update' && key in ((c.args[0] ?? {}) as object)
-  const expectScoped = (calls: Call[], table: string, has: (c: Call) => boolean) => {
-    const found = chainsOf(calls, table, has)
-    expect(found.length).toBeGreaterThan(0)
-    expect(found.every((cs) => cs.some(isOrgEq))).toBe(true)
-  }
 
   async function runSeeded() {
     const deleteUser = vi.fn().mockResolvedValue({ error: null })

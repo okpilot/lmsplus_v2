@@ -18,7 +18,7 @@ import { randomUUID } from 'node:crypto'
 import { expect, test } from '@playwright/test'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getAdminClient } from '../helpers/supabase'
-import { skipNearUtcRollover } from '../helpers/utc-rollover'
+import { skipIfSeededDayEnded, skipNearUtcRollover } from '../helpers/utc-rollover'
 import {
   cleanupSittingFixtures,
   createSittingRpc,
@@ -66,11 +66,13 @@ test.describe('Red Team: duplicate-inflated sitting id arrays (NK)', () => {
   let studentId: string
   let subjectId: string
   let sittingId: string
+  let seededAt: Date
   let entryId: string
   const track: SittingTrack = { sittingIds: [], subjectIds: [], adminId: '' }
 
   test.beforeEach(() => {
     skipNearUtcRollover()
+    skipIfSeededDayEnded(seededAt)
   })
 
   test.beforeAll(async () => {
@@ -84,6 +86,7 @@ test.describe('Red Team: duplicate-inflated sitting id arrays (NK)', () => {
     await ensureExamConfig(a.orgId, subjectId, picked.topicId)
     egmontAdmin = await createAuthenticatedClient(ADMIN_EMAIL, ADMIN_PASSWORD)
     sittingId = await createSittingRpc(egmontAdmin, a.adminUserId)
+    seededAt = new Date()
     track.sittingIds.push(sittingId)
   })
 

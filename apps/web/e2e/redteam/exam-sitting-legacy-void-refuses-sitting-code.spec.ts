@@ -17,7 +17,7 @@
 import { expect, test } from '@playwright/test'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getAdminClient } from '../helpers/supabase'
-import { skipNearUtcRollover } from '../helpers/utc-rollover'
+import { skipIfSeededDayEnded, skipNearUtcRollover } from '../helpers/utc-rollover'
 import {
   cleanupSittingFixtures,
   createSittingRpc,
@@ -62,10 +62,12 @@ test.describe('Red Team: legacy void refuses a sitting code (NJ)', () => {
   let sittingCodeId: string
   let legacyCodeId: string
   let orgId: string
+  let seededAt: Date
   const track: SittingTrack = { sittingIds: [], subjectIds: [], adminId: '' }
 
   test.beforeEach(() => {
     skipNearUtcRollover()
+    skipIfSeededDayEnded(seededAt)
   })
 
   test.beforeAll(async () => {
@@ -81,6 +83,7 @@ test.describe('Red Team: legacy void refuses a sitting code (NJ)', () => {
     egmontAdmin = await createAuthenticatedClient(ADMIN_EMAIL, ADMIN_PASSWORD)
 
     const sittingId = await createSittingRpc(egmontAdmin, a.adminUserId)
+    seededAt = new Date()
     track.sittingIds.push(sittingId)
     const add = await egmontAdmin.rpc('add_exam_sitting_candidates', {
       p_sitting_id: sittingId,

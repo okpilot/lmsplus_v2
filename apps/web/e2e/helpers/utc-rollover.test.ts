@@ -1,5 +1,12 @@
-import { describe, expect, it } from 'vitest'
-import { isNearUtcRollover, UTC_ROLLOVER_MARGIN_MINUTES } from './utc-rollover'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import {
+  isNearUtcRollover,
+  skipIfSeededDayEnded,
+  UTC_ROLLOVER_MARGIN_MINUTES,
+} from './utc-rollover'
+
+const { mockSkip } = vi.hoisted(() => ({ mockSkip: vi.fn() }))
+vi.mock('@playwright/test', () => ({ test: { skip: mockSkip } }))
 
 const at = (h: number, m: number) => new Date(Date.UTC(2026, 10, 26, h, m, 0))
 
@@ -21,5 +28,41 @@ describe('isNearUtcRollover', () => {
 
   it('does not hold at midday', () => {
     expect(isNearUtcRollover(at(12, 30))).toBe(false)
+  })
+})
+
+describe('skipIfSeededDayEnded', () => {
+  const now = (iso: string) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(iso))
+  }
+
+  afterEach(() => {
+    vi.useRealTimers()
+    mockSkip.mockReset()
+  })
+
+  it('does not skip when seeded on the same UTC day', () => {
+    now('2026-11-27T18:00:00Z')
+    skipIfSeededDayEnded(new Date('2026-11-27T00:01:00Z'))
+    expect(mockSkip).toHaveBeenCalledWith(false, expect.any(String))
+  })
+
+  it('skips when seeded on an earlier UTC day', () => {
+    now('2026-11-27T12:00:00Z')
+    skipIfSeededDayEnded(new Date('2026-11-25T12:00:00Z'))
+    expect(mockSkip).toHaveBeenCalledWith(true, expect.any(String))
+  })
+
+  it('skips when seeded minutes earlier but before midnight UTC', () => {
+    now('2026-11-27T00:01:00Z')
+    skipIfSeededDayEnded(new Date('2026-11-26T23:59:00Z'))
+    expect(mockSkip).toHaveBeenCalledWith(true, expect.any(String))
+  })
+
+  it('skips when seeded on the same day-of-month one month earlier', () => {
+    now('2026-11-27T12:00:00Z')
+    skipIfSeededDayEnded(new Date('2026-10-27T12:00:00Z'))
+    expect(mockSkip).toHaveBeenCalledWith(true, expect.any(String))
   })
 })
