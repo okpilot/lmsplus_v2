@@ -310,7 +310,16 @@ describe('widenExamTimer / restoreExamTimer', () => {
     expect((thrown as Error).message).toBe(
       'exam-sitting-flow-seed exam timer restore: restore cfg-1: boom',
     )
-    // cfg-1 stays in the map; drain it so the next test starts empty.
+    // cfg-1 stays in the map; the retry drains it (and only it) so the next test starts empty.
+    const isTimerUpdate = (c: { table: string; method: string }) =>
+      c.table === 'exam_configs' && c.method === 'update'
+    const before = calls.filter(isTimerUpdate).length
     await restoreExamTimer()
+    const drained = calls
+      .filter(isTimerUpdate)
+      .slice(before)
+      .map((c) => c.args[0])
+    expect(drained).toEqual([{ time_limit_seconds: 60 }])
+    expect(drained).not.toContainEqual({ time_limit_seconds: 90 })
   })
 })

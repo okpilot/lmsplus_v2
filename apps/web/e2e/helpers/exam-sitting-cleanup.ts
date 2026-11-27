@@ -1,5 +1,6 @@
 import { POSTGREST_MAX_ROWS } from '../../lib/supabase-paginate'
 import { ADMIN_TEST_EMAIL } from './admin-supabase'
+import { adminIds } from './exam-sitting-flow-seed'
 import {
   EXAM_SITTING_E2E_PREFIX,
   EXAM_SITTING_SEED_EMAIL_PREFIX,
@@ -146,7 +147,7 @@ async function deleteSeededRows(admin: Admin, sittingId: string) {
 /**
  * Largest id list any `.in()` in this file carries. A list that can outgrow it is split with
  * `chunk(…, ID_CHUNK)`; `deleteSeededRows` takes one sitting id, and every prefix lookup that feeds
- * an `.in()` is capped by `.limit(ID_CHUNK)`. The `>= POSTGREST_MAX_ROWS` guards check read-page
+ * an `.in()` is a keyset page of `ID_CHUNK` rows. The `>= POSTGREST_MAX_ROWS` guards check read-page
  * truncation, a separate failure. Kong refuses a request line between ~7.4 KB (200 uuids: 401, reached PostgREST) and
  * ~9.2 KB (250 uuids: 414); 100 uuids is ~3.7 KB. The uuid count that fits moves with the base
  * URL, the `select=` list and the other filters, so budget bytes, not a count.
@@ -159,27 +160,47 @@ function chunk<T>(rows: readonly T[], size: number): T[][] {
   return out
 }
 
-/** Hard-deletes the groups `seedSitting` built, members first; they must go before the seeded users (FK). */
-async function deleteSeededGroups(admin: Admin) {
-  const groups = await admin
-    .from('student_groups')
-    .select('id')
-    .like('name', `${EXAM_SITTING_SEED_GROUP_PREFIX}%`)
-    .limit(ID_CHUNK)
-  check('seed groups lookup', groups.error)
-  const ids = (groups.data ?? []).map((g) => g.id)
-  if (ids.length === 0) return
-  check(
-    'seed group members delete',
-    (await admin.from('student_group_members').delete().in('group_id', ids)).error,
-  )
-  check('seed groups delete', (await admin.from('student_groups').delete().in('id', ids)).error)
+/** Hard-deletes the groups `seedSitting` built, members first; they must go before the seeded users (FK). Pages by id keyset; a failed page is reported after the last one. */
+async function deleteSeededGroups(admin: Admin, orgId: string) {
+  const errors: string[] = []
+  let after: string | null = null
+  for (;;) {
+    let q = admin
+      .from('student_groups')
+      .select('id')
+      .eq('organization_id', orgId)
+      .like('name', `${EXAM_SITTING_SEED_GROUP_PREFIX}%`)
+      .order('id')
+      .limit(ID_CHUNK)
+    if (after) q = q.gt('id', after)
+    const page = await q
+    check('seed groups lookup', page.error)
+    const rows = page.data ?? []
+    if (rows.length === 0) break
+    const ids = rows.map((g) => g.id)
+    try {
+      check(
+        'seed group members delete',
+        (await admin.from('student_group_members').delete().in('group_id', ids)).error,
+      )
+      check('seed groups delete', (await admin.from('student_groups').delete().in('id', ids)).error)
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e))
+    }
+    if (rows.length < ID_CHUNK) break
+    after = rows[rows.length - 1]?.id ?? null
+  }
+  if (errors.length > 0) throw new Error(errors.join('; '))
 }
 
 /** Sessions of the seeded students found by student (a spec may seed one with no code), removed before their users; the hard delete is safe because `createStudent` sets no password, so a seeded student cannot sign in and cannot produce `quiz_session_answers` or `student_responses` rows. */
-async function deleteSeededStudentSessions(admin: Admin, userIds: string[]) {
+async function deleteSeededStudentSessions(admin: Admin, orgId: string, userIds: string[]) {
   if (userIds.length === 0) return
-  const sessions = await admin.from('quiz_sessions').select('id').in('student_id', userIds)
+  const sessions = await admin
+    .from('quiz_sessions')
+    .select('id')
+    .eq('organization_id', orgId)
+    .in('student_id', userIds)
   check('seed student sessions lookup', sessions.error)
   const ids = (sessions.data ?? []).map((r) => r.id)
   // A full page may be truncated at `max_rows`: refuse rather than delete a partial list.
@@ -194,7 +215,13 @@ async function deleteSeededStudentSessions(admin: Admin, userIds: string[]) {
     // Codes first: `internal_exam_codes_consumed_session_id_fkey` pins these sessions.
     check(
       'seed student session codes delete',
-      (await admin.from('internal_exam_codes').delete().in('consumed_session_id', part)).error,
+      (
+        await admin
+          .from('internal_exam_codes')
+          .delete()
+          .eq('organization_id', orgId)
+          .in('consumed_session_id', part)
+      ).error,
     )
     check(
       'seed student sessions delete',
@@ -203,45 +230,59 @@ async function deleteSeededStudentSessions(admin: Admin, userIds: string[]) {
   }
 }
 
-/** Deletes the students `seedSitting` created (users row, then auth user) once nothing references them. */
-async function deleteSeededUsers(admin: Admin) {
-  const users = await admin
-    .from('users')
-    .select('id')
-    .like('email', `${EXAM_SITTING_SEED_EMAIL_PREFIX}%`)
-    .limit(ID_CHUNK)
-  check('seed users lookup', users.error)
-  const userRows = users.data ?? []
+/** Deletes the students `seedSitting` created (users row, then auth user) once nothing references them. Pages by id keyset; a failed page is reported after the last one. */
+async function deleteSeededUsers(admin: Admin, orgId: string) {
   const errors: string[] = []
-  // FK prerequisite: `quiz_sessions.student_id` pins the sessions before their users, so a failure
-  // here skips every user delete.
-  try {
-    await deleteSeededStudentSessions(
-      admin,
-      userRows.map((u) => u.id),
-    )
-  } catch (e) {
-    errors.push(e instanceof Error ? e.message : String(e))
-  }
-  if (errors.length > 0) throw new Error(errors.join('; '))
-  for (const u of userRows) {
+  let after: string | null = null
+  for (;;) {
+    let q = admin
+      .from('users')
+      .select('id')
+      .eq('organization_id', orgId)
+      .like('email', `${EXAM_SITTING_SEED_EMAIL_PREFIX}%`)
+      .order('id')
+      .limit(ID_CHUNK)
+    if (after) q = q.gt('id', after)
+    const page = await q
+    check('seed users lookup', page.error)
+    const userRows = page.data ?? []
+    if (userRows.length === 0) break
+    // FK prerequisite: `quiz_sessions.student_id` pins the sessions before their users, so a
+    // failure here skips every user delete of this page.
+    let sessionsGone = true
     try {
-      check(
-        'seed enrolments delete',
-        (await admin.from('course_enrolments').delete().eq('user_id', u.id)).error,
+      await deleteSeededStudentSessions(
+        admin,
+        orgId,
+        userRows.map((u) => u.id),
       )
-      check('seed user delete', (await admin.from('users').delete().eq('id', u.id)).error)
-      const authDelete = await admin.auth.admin.deleteUser(u.id)
-      check('seed auth user delete', authDelete.error)
     } catch (e) {
+      sessionsGone = false
       errors.push(e instanceof Error ? e.message : String(e))
     }
+    if (sessionsGone) {
+      for (const u of userRows) {
+        try {
+          check(
+            'seed enrolments delete',
+            (await admin.from('course_enrolments').delete().eq('user_id', u.id)).error,
+          )
+          check('seed user delete', (await admin.from('users').delete().eq('id', u.id)).error)
+          const authDelete = await admin.auth.admin.deleteUser(u.id)
+          check('seed auth user delete', authDelete.error)
+        } catch (e) {
+          errors.push(e instanceof Error ? e.message : String(e))
+        }
+      }
+    }
+    if (userRows.length < ID_CHUNK) break
+    after = userRows[userRows.length - 1]?.id ?? null
   }
   if (errors.length > 0) throw new Error(errors.join('; '))
 }
 
 /** Hard-deletes the seeded sittings (built by `seedSitting` or marked `seeded`), with their people, codes and users (service role, test data only). */
-async function cleanupSeededExamSittings(): Promise<void> {
+async function cleanupSeededExamSittings(orgId: string): Promise<void> {
   const admin = getAdminClient()
   const { data, error } = await admin
     .from('exam_sittings')
@@ -275,7 +316,7 @@ async function cleanupSeededExamSittings(): Promise<void> {
     // Groups before users; a failed group step does not skip the users (their delete cascades the memberships).
     for (const step of [deleteSeededGroups, deleteSeededUsers]) {
       try {
-        await step(admin)
+        await step(admin, orgId)
       } catch (e) {
         errors.push(e instanceof Error ? e.message : String(e))
       }
@@ -287,11 +328,21 @@ async function cleanupSeededExamSittings(): Promise<void> {
 /** Soft-deletes the open marked exam_sittings that have no live entries or candidates, then hard-deletes the seeded sittings (built by `seedSitting` or marked `seeded`), open or closed, with their people, codes and users (service role, test data only). */
 export async function cleanupE2eExamSittings(): Promise<void> {
   const errors: string[] = []
-  for (const step of [cleanupEmptySittings, cleanupSeededExamSittings, releaseSeededEnrolments]) {
+  const note = (e: unknown) => errors.push(e instanceof Error ? e.message : String(e))
+  // Service-role deletes carry an organization predicate (docs/security.md §13).
+  let orgId: string | null = null
+  try {
+    orgId = (await adminIds(getAdminClient())).orgId
+  } catch (e) {
+    note(e)
+  }
+  const seeded = orgId === null ? null : () => cleanupSeededExamSittings(orgId)
+  for (const step of [cleanupEmptySittings, seeded, releaseSeededEnrolments]) {
+    if (step === null) continue
     try {
       await step()
     } catch (e) {
-      errors.push(e instanceof Error ? e.message : String(e))
+      note(e)
     }
   }
   if (errors.length > 0) throw new Error(`cleanupE2eExamSittings: ${errors.join('; ')}`)
@@ -299,16 +350,38 @@ export async function cleanupE2eExamSittings(): Promise<void> {
 
 async function cleanupEmptySittings(): Promise<void> {
   const admin = getAdminClient()
-  const { data, error } = await admin
-    .from('exam_sittings')
-    .select('id')
-    .like('permitted_materials', `${EXAM_SITTING_E2E_PREFIX}%`)
-    .is('deleted_at', null)
-    .is('closed_at', null)
-    .limit(ID_CHUNK)
-  if (error) throw new Error(`cleanupE2eExamSittings lookup: ${error.message}`)
-  const marked = (data ?? []).map((r) => r.id)
-  if (marked.length === 0) return
+  const errors: string[] = []
+  let after: string | null = null
+  for (;;) {
+    let q = admin
+      .from('exam_sittings')
+      .select('id')
+      .like('permitted_materials', `${EXAM_SITTING_E2E_PREFIX}%`)
+      .is('deleted_at', null)
+      .is('closed_at', null)
+      .order('id')
+      .limit(ID_CHUNK)
+    if (after) q = q.gt('id', after)
+    const page = await q
+    if (page.error) throw new Error(`cleanupE2eExamSittings lookup: ${page.error.message}`)
+    const rows = page.data ?? []
+    if (rows.length === 0) break
+    try {
+      await softDeleteEmptyPage(
+        admin,
+        rows.map((r) => r.id),
+      )
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e))
+    }
+    if (rows.length < ID_CHUNK) break
+    after = rows[rows.length - 1]?.id ?? null
+  }
+  if (errors.length > 0) throw new Error(errors.join('; '))
+}
+
+/** Soft-deletes the marked sittings of one page that have no live entries or candidates. */
+async function softDeleteEmptyPage(admin: Admin, marked: string[]): Promise<void> {
   const withPeople = new Set<string>()
   for (const table of ['exam_sitting_entries', 'exam_sitting_candidates'] as const) {
     const res = await admin

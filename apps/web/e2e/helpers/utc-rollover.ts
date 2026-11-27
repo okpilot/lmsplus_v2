@@ -20,8 +20,9 @@ export function isNearUtcRollover(now: Date): boolean {
  *
  * Call it per test — from `beforeEach` or inside the test body — not at module load (a module-load
  * skip is evaluated when the file is imported, long before the body runs). A `beforeAll` call skips
- * only the first test; `beforeEach` and in-test calls skip the current test. Pair a `beforeAll`
- * call with a `beforeEach` call.
+ * the whole suite; `beforeEach` and in-test calls skip the current test. Keep both in a suite that
+ * seeds in `beforeAll`: the `beforeAll` call catches a suite that starts inside the margin, the
+ * `beforeEach` call catches a rollover that arrives part-way through.
  */
 export function skipNearUtcRollover(): void {
   test.skip(isNearUtcRollover(new Date()), 'UTC day rollover window')

@@ -3,6 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const { mockGetAdminClient } = vi.hoisted(() => ({ mockGetAdminClient: vi.fn() }))
 vi.mock('./admin-supabase', () => ({ ADMIN_TEST_EMAIL: 'admin@test.local' }))
 vi.mock('./supabase', () => ({ getAdminClient: mockGetAdminClient }))
+// The real lookup reads `users` and would consume the first entry of every `users` queue.
+vi.mock('./exam-sitting-flow-seed', () => ({
+  adminIds: vi.fn(async () => ({ adminId: 'a', orgId: 'org-1' })),
+}))
 
 import { POSTGREST_MAX_ROWS } from '../../lib/supabase-paginate'
 import { cleanupE2eExamSittings, markE2eSitting } from './exam-sitting-cleanup'
@@ -556,6 +560,29 @@ describe('cleanupE2eExamSittings (seeded groups)', () => {
     expect(deleteUser).toHaveBeenCalledWith('u1')
   })
 
+  it('pages the seeded groups by id keyset and deletes every page', async () => {
+    const page1 = Array.from({ length: ID_CHUNK }, (_, i) => ({ id: `g${i}` }))
+    const page2 = Array.from({ length: 30 }, (_, i) => ({ id: `g${ID_CHUNK + i}` }))
+    const ok = { data: [], error: null }
+    const { calls } = withAuth({
+      exam_sittings: [{ data: [], error: null }],
+      // Page 1's member and group deletes each take one entry before page 2's lookup.
+      student_groups: [{ data: page1, error: null }, ok, { data: page2, error: null }],
+    })
+    await cleanupE2eExamSittings()
+    const gts = calls
+      .filter((c) => c.table === 'student_groups' && c.method === 'gt')
+      .map((c) => c.args)
+    expect(gts).toEqual([['id', `g${ID_CHUNK - 1}`]])
+    const deleted = calls
+      .filter((c) => c.table === 'student_groups' && c.method === 'in' && c.args[0] === 'id')
+      .map((c) => c.args[1])
+    expect(deleted).toEqual([page1.map((g) => g.id), page2.map((g) => g.id)])
+    expect(calls.filter((c) => c.table === 'student_groups' && c.method === 'eq')[0]?.args).toEqual(
+      ['organization_id', 'org-1'],
+    )
+  })
+
   it('deletes nothing from the group tables when no seeded group exists', async () => {
     const { calls } = withAuth({ exam_sittings: [{ data: [], error: null }] })
     await cleanupE2eExamSittings()
@@ -757,6 +784,67 @@ describe('cleanupE2eExamSittings (seeded users and sessions)', () => {
     await cleanupE2eExamSittings()
     expect(lens(calls, 'internal_exam_codes', 'consumed_session_id')).toEqual([100, 100, 50])
     expect(lens(calls, 'quiz_sessions', 'id')).toEqual([100, 100, 50])
+    const ids = sessions.map((s) => s.id)
+    const expected = [ids.slice(0, 100), ids.slice(100, 200), ids.slice(200)]
+    const slices = (table: string, col: string) =>
+      calls
+        .filter((c) => c.table === table && c.method === 'in' && c.args[0] === col)
+        .map((c) => c.args[1])
+    expect(slices('internal_exam_codes', 'consumed_session_id')).toEqual(expected)
+    expect(slices('quiz_sessions', 'id')).toEqual(expected)
+  })
+
+  it('scopes the users lookup, the sessions read and the consuming-code delete to the organization', async () => {
+    const { calls } = withAuth({
+      exam_sittings: [{ data: [], error: null }],
+      users: [{ data: seededUsers(2), error: null }],
+      quiz_sessions: [{ data: [{ id: 'q0' }], error: null }],
+    })
+    await cleanupE2eExamSittings()
+    const scoped = (table: string, method: string) =>
+      calls.some(
+        (c) =>
+          c.table === table &&
+          c.method === 'eq' &&
+          c.args[0] === 'organization_id' &&
+          c.args[1] === 'org-1',
+      ) && calls.some((c) => c.table === table && c.method === method)
+    expect(scoped('users', 'like')).toBe(true)
+    expect(scoped('quiz_sessions', 'in')).toBe(true)
+    expect(scoped('internal_exam_codes', 'delete')).toBe(true)
+  })
+
+  it('pages the seeded users by id keyset and deletes every page', async () => {
+    const page2 = Array.from({ length: 30 }, (_, i) => ({ id: `u${ID_CHUNK + i}` }))
+    const ok = { data: [], error: null }
+    const { calls, deleteUser } = withAuth({
+      exam_sittings: [{ data: [], error: null }],
+      // Each user delete takes one `users` entry between the two lookups.
+      users: [
+        { data: seededUsers(ID_CHUNK), error: null },
+        ...Array.from({ length: ID_CHUNK }, () => ok),
+        { data: page2, error: null },
+      ],
+    })
+    await cleanupE2eExamSittings()
+    const gts = calls.filter((c) => c.table === 'users' && c.method === 'gt').map((c) => c.args)
+    expect(gts).toEqual([['id', `u${ID_CHUNK - 1}`]])
+    expect(deleteUser).toHaveBeenCalledTimes(ID_CHUNK + 30)
+  })
+
+  it('skips only the failed users page, advances past it and reports the error', async () => {
+    const { deleteUser, calls } = withAuth({
+      exam_sittings: [{ data: [], error: null }],
+      users: [
+        { data: seededUsers(ID_CHUNK), error: null },
+        { data: [{ id: 'u100' }], error: null },
+      ],
+      quiz_sessions: [{ data: null, error: { message: 'page one sessions boom' } }],
+    })
+    await expect(cleanupE2eExamSittings()).rejects.toThrow(/page one sessions boom/)
+    expect(calls.filter((c) => c.table === 'users' && c.method === 'gt')).toHaveLength(1)
+    expect(deleteUser).toHaveBeenCalledTimes(1)
+    expect(deleteUser).toHaveBeenCalledWith('u100')
   })
 
   it('deletes no user when the sessions step fails, and reports it', async () => {
@@ -832,6 +920,20 @@ describe('cleanupE2eExamSittings (seeded rows in chunks)', () => {
       )
       .map(({ c }) => (c.args[1] as string[]).length)
 
+  /** The id lists themselves, in call order (same selection as `lens`). */
+  const slices = (calls: Call[], table: string, col: string, op: string, payload?: string) =>
+    calls
+      .map((c, i) => ({ c, prev: calls[i - 1] }))
+      .filter(
+        ({ c, prev }) =>
+          c.table === table &&
+          c.method === 'in' &&
+          c.args[0] === col &&
+          prev?.method === op &&
+          (payload === undefined || JSON.stringify(prev.args[0]).includes(payload)),
+      )
+      .map(({ c }) => c.args[1] as string[])
+
   const seededRun = () => {
     const ids = idsOf(250)
     return run({
@@ -852,12 +954,16 @@ describe('cleanupE2eExamSittings (seeded rows in chunks)', () => {
     await cleanupE2eExamSittings()
     expect(lens(calls, 'internal_exam_codes', 'sitting_entry_id', 'select')).toEqual([100, 100, 50])
     expect(lens(calls, 'internal_exam_codes', 'sitting_entry_id', 'delete')).toEqual([100, 100, 50])
+    const expected = split(entries.map((e) => e.id))
+    expect(slices(calls, 'internal_exam_codes', 'sitting_entry_id', 'select')).toEqual(expected)
+    expect(slices(calls, 'internal_exam_codes', 'sitting_entry_id', 'delete')).toEqual(expected)
   })
 
   it('classifies the sessions of 250 codes in lists of 100, 100, 50 and deletes none per sitting', async () => {
     const calls = seededRun()
     await cleanupE2eExamSittings()
     expect(lens(calls, 'quiz_sessions', 'id', 'select')).toEqual([100, 100, 50])
+    expect(slices(calls, 'quiz_sessions', 'id', 'select')).toEqual(split(idsOf(250)))
     expect(calls.some((c) => c.table === 'quiz_sessions' && c.method === 'delete')).toBe(false)
   })
 
@@ -866,6 +972,9 @@ describe('cleanupE2eExamSittings (seeded rows in chunks)', () => {
     await cleanupE2eExamSittings()
     expect(lens(calls, 'quiz_sessions', 'id', 'update', 'deleted_at')).toEqual([100, 100, 50])
     expect(lens(calls, 'quiz_sessions', 'id', 'update', 'ended_at')).toEqual([100, 100, 50])
+    const expected = split(idsOf(250))
+    expect(slices(calls, 'quiz_sessions', 'id', 'update', 'deleted_at')).toEqual(expected)
+    expect(slices(calls, 'quiz_sessions', 'id', 'update', 'ended_at')).toEqual(expected)
     const firstEnd = calls.findIndex(
       (c) => c.method === 'update' && JSON.stringify(c.args[0]).includes('ended_at'),
     )
@@ -884,6 +993,8 @@ describe('cleanupE2eExamSittings (seeded rows in chunks)', () => {
     const firstCodeDelete = calls.findIndex(
       (c) => c.table === 'internal_exam_codes' && c.method === 'delete',
     )
+    expect(lastRetire).toBeGreaterThanOrEqual(0)
+    expect(firstCodeDelete).toBeGreaterThanOrEqual(0)
     expect(lastRetire).toBeLessThan(firstCodeDelete)
   })
 
@@ -898,6 +1009,8 @@ describe('cleanupE2eExamSittings (seeded rows in chunks)', () => {
     await cleanupE2eExamSittings()
     expect(lens(calls, 'quiz_sessions', 'id', 'select')).toEqual([100, 100, 49])
     expect(lens(calls, 'quiz_sessions', 'id', 'update', 'deleted_at')).toEqual([100, 100, 49])
+    expect(slices(calls, 'quiz_sessions', 'id', 'select')).toEqual(split(unique))
+    expect(slices(calls, 'quiz_sessions', 'id', 'update', 'deleted_at')).toEqual(split(unique))
   })
 
   it('classifies a session reported by two chunks once', async () => {
