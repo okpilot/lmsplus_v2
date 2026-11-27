@@ -1,5 +1,5 @@
 /**
- * Red Team Spec: Internal Exams > Attempts filters (Vectors NS, NT, #1777)
+ * Red Team Spec: Internal Exams > Attempts filters (Vectors NS, NT, NU, #1777)
  *
  * NS attack: a cross-org admin loads the Attempts tab with an egmont sitting id, an egmont group id
  * and an egmont student's name as `sitting`, `group` and `q` (listInternalExamAttempts reads via the
@@ -8,6 +8,8 @@
  * NT attack: the egmont admin's `q` carries a PostgREST `or()` breakout
  * (`",full_name.not.is.null,email.ilike."`).
  * NT expected: the value matches literally, so no row.
+ * NU attack: the egmont admin's `q` is a bare LIKE wildcard (`%`, `_`, `\`).
+ * NU expected: the wildcard matches literally, so no row.
  * CONTROL: the egmont admin's same `sitting`, `group` and plain-name `q` each list the row; the
  * cross-org admin's page renders the Attempts table.
  *
@@ -89,7 +91,7 @@ async function softDelete(
   if (error) throw new Error(`${table}: ${error.message}`)
 }
 
-test.describe('Red Team: Attempts tab filters scope (NS, NT)', () => {
+test.describe('Red Team: Attempts tab filters scope (NS, NT, NU)', () => {
   test.setTimeout(240_000)
 
   let admin: Admin
@@ -110,6 +112,15 @@ test.describe('Red Team: Attempts tab filters scope (NS, NT)', () => {
     const studentId = await upsertUser(admin, MY_STUDENT_EMAIL, MY_STUDENT_PASSWORD, egmont.orgId)
     const subjectId = await insertMarkedSubject(admin)
     track.subjectIds.push(subjectId)
+    const cfg = await admin.from('exam_configs').insert({
+      organization_id: egmont.orgId,
+      subject_id: subjectId,
+      enabled: true,
+      total_questions: 10,
+      time_limit_seconds: 3600,
+      pass_mark: 75,
+    })
+    if (cfg.error) throw new Error(`exam_configs: ${cfg.error.message}`)
     sittingId = await insertSittingRow(admin, {
       orgId: egmont.orgId,
       adminId: egmont.adminUserId,
@@ -252,6 +263,26 @@ test.describe('Red Team: Attempts tab filters scope (NS, NT)', () => {
       const html = await attemptsHtml(ctx, { sitting: sittingId, q: MZ_BREAKOUT })
       expect(html).toContain('No attempts match these filters.')
       expect(html).not.toContain(rowLink)
+    } finally {
+      await ctx.close()
+    }
+  })
+
+  test('NU: a LIKE wildcard in search matches literally', async ({ browser }) => {
+    const rowLink = `href="${PAGE}/sittings/${sittingId}"`
+    const ctx = await signIn(browser, {
+      email: ADMIN_EMAIL,
+      password: ADMIN_PASSWORD,
+      userId: egmont.adminUserId,
+    })
+    try {
+      // CONTROL: the plain name matches inside the same sitting filter.
+      expect(await attemptsHtml(ctx, { sitting: sittingId, q: MY_SEARCH })).toContain(rowLink)
+      for (const q of ['%', '_', '\\']) {
+        const html = await attemptsHtml(ctx, { sitting: sittingId, q })
+        expect(html, `q=${q}`).toContain('No attempts match these filters.')
+        expect(html, `q=${q}`).not.toContain(rowLink)
+      }
     } finally {
       await ctx.close()
     }
