@@ -36,10 +36,11 @@ const NK_STUDENT_PASSWORD = 'redteam-nk-student-2026!'
 /** Duplicate count: ~740KB of JSON, well past the 500-element app cap. */
 const DUPES = 20_000
 
-async function liveCandidateCount(admin: Admin, sittingId: string, userId: string) {
+async function liveCandidateCount(admin: Admin, sittingId: string, userId: string, orgId: string) {
   const { count, error } = await admin
     .from('exam_sitting_candidates')
     .select('id', { count: 'exact', head: true })
+    .eq('organization_id', orgId)
     .eq('sitting_id', sittingId)
     .eq('user_id', userId)
     .is('deleted_at', null)
@@ -47,10 +48,11 @@ async function liveCandidateCount(admin: Admin, sittingId: string, userId: strin
   return count ?? -1
 }
 
-async function liveCodeCount(admin: Admin, entryId: string) {
+async function liveCodeCount(admin: Admin, entryId: string, orgId: string) {
   const { count, error } = await admin
     .from('internal_exam_codes')
     .select('id', { count: 'exact', head: true })
+    .eq('organization_id', orgId)
     .eq('sitting_entry_id', entryId)
     .is('voided_at', null)
     .is('deleted_at', null)
@@ -63,6 +65,7 @@ test.describe.configure({ mode: 'serial' })
 test.describe('Red Team: duplicate-inflated sitting id arrays (NK)', () => {
   let admin: Admin
   let egmontAdmin: SupabaseClient
+  let orgId: string
   let studentId: string
   let subjectId: string
   let sittingId: string
@@ -79,6 +82,7 @@ test.describe('Red Team: duplicate-inflated sitting id arrays (NK)', () => {
     admin = getAdminClient()
     skipNearUtcRollover()
     const a = await seedRedTeamAdmin()
+    orgId = a.orgId
     track.adminId = a.adminUserId
     studentId = await upsertUser(admin, NK_STUDENT_EMAIL, NK_STUDENT_PASSWORD, a.orgId)
     const picked = await pickSubjectWithQuestions(admin, { orgId: a.orgId })
@@ -92,13 +96,14 @@ test.describe('Red Team: duplicate-inflated sitting id arrays (NK)', () => {
 
   test.afterAll(async () => {
     const errors: string[] = []
-    // Only when `beforeAll` reached the student seed: `eq('student_id', undefined)` raises 22P02,
-    // and accumulating that would bury the real cause.
-    if (studentId) {
+    // Only when `beforeAll` reached the org and student seeds: `organization_id=eq.undefined`
+    // raises 22P02, and accumulating that would bury the real cause.
+    if (orgId && studentId) {
       try {
         const { error } = await admin
           .from('internal_exam_codes')
           .update({ deleted_at: new Date().toISOString() })
+          .eq('organization_id', orgId)
           .eq('student_id', studentId)
           .is('deleted_at', null)
         if (error) throw new Error(`codes: ${error.message}`)
@@ -115,7 +120,7 @@ test.describe('Red Team: duplicate-inflated sitting id arrays (NK)', () => {
   })
 
   test('NK1: a duplicate-inflated candidate array adds the student exactly once', async () => {
-    expect(await liveCandidateCount(admin, sittingId, studentId)).toBe(0)
+    expect(await liveCandidateCount(admin, sittingId, studentId, orgId)).toBe(0)
 
     const first = await egmontAdmin.rpc('add_exam_sitting_candidates', {
       p_sitting_id: sittingId,
@@ -123,7 +128,7 @@ test.describe('Red Team: duplicate-inflated sitting id arrays (NK)', () => {
     })
     expect(first.error?.message ?? null).toBeNull()
     expect(first.data?.[0]?.added, JSON.stringify(first.data)).toBe(1)
-    expect(await liveCandidateCount(admin, sittingId, studentId)).toBe(1)
+    expect(await liveCandidateCount(admin, sittingId, studentId, orgId)).toBe(1)
 
     // Replay: the partial unique index + ON CONFLICT DO NOTHING must not add a second live row.
     const replay = await egmontAdmin.rpc('add_exam_sitting_candidates', {
@@ -133,7 +138,7 @@ test.describe('Red Team: duplicate-inflated sitting id arrays (NK)', () => {
     expect(replay.error?.message ?? null).toBeNull()
     expect(replay.data?.[0]?.added, JSON.stringify(replay.data)).toBe(0)
     expect(replay.data?.[0]?.skipped_existing, JSON.stringify(replay.data)).toBe(1)
-    expect(await liveCandidateCount(admin, sittingId, studentId)).toBe(1)
+    expect(await liveCandidateCount(admin, sittingId, studentId, orgId)).toBe(1)
   })
 
   test('NK2: a duplicate-inflated issue array issues exactly one code for the entry', async () => {
@@ -147,13 +152,14 @@ test.describe('Red Team: duplicate-inflated sitting id arrays (NK)', () => {
     const { data: entry, error: entryErr } = await admin
       .from('exam_sitting_entries')
       .select('id')
+      .eq('organization_id', orgId)
       .eq('sitting_id', sittingId)
       .eq('user_id', studentId)
       .is('deleted_at', null)
       .single()
     if (entryErr || !entry) throw new Error(`entry: ${entryErr?.message}`)
     entryId = entry.id
-    expect(await liveCodeCount(admin, entryId)).toBe(0)
+    expect(await liveCodeCount(admin, entryId, orgId)).toBe(0)
 
     const iss = await egmontAdmin.rpc('issue_sitting_exam_codes', {
       p_sitting_id: sittingId,
@@ -161,7 +167,7 @@ test.describe('Red Team: duplicate-inflated sitting id arrays (NK)', () => {
     })
     expect(iss.error?.message ?? null).toBeNull()
     expect(iss.data?.[0]?.issued, JSON.stringify(iss.data)).toBe(1)
-    expect(await liveCodeCount(admin, entryId)).toBe(1)
+    expect(await liveCodeCount(admin, entryId, orgId)).toBe(1)
 
     // Replay: one live code per entry, counted as already issued, never a second code.
     const replay = await egmontAdmin.rpc('issue_sitting_exam_codes', {
@@ -171,7 +177,7 @@ test.describe('Red Team: duplicate-inflated sitting id arrays (NK)', () => {
     expect(replay.error?.message ?? null).toBeNull()
     expect(replay.data?.[0]?.issued, JSON.stringify(replay.data)).toBe(0)
     expect(replay.data?.[0]?.skipped_already_issued, JSON.stringify(replay.data)).toBe(1)
-    expect(await liveCodeCount(admin, entryId)).toBe(1)
+    expect(await liveCodeCount(admin, entryId, orgId)).toBe(1)
   })
 
   test('NK3: the distinct cap fires at 501 ids and not at 500 (control)', async () => {
@@ -192,6 +198,6 @@ test.describe('Red Team: duplicate-inflated sitting id arrays (NK)', () => {
     expect(under.error?.message ?? `no error ${JSON.stringify(under.data)}`).toMatch(
       /student_not_found/,
     )
-    expect(await liveCandidateCount(admin, sittingId, studentId)).toBe(1)
+    expect(await liveCandidateCount(admin, sittingId, studentId, orgId)).toBe(1)
   })
 })
