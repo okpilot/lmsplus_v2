@@ -170,10 +170,13 @@ async function openStudentContext(browser: Browser | null) {
 }
 
 async function readStudent() {
+  const orgId = await getAdminOrganizationId()
   const res = await getAdminClient()
     .from('users')
     .select('id, full_name, email')
+    .eq('organization_id', orgId)
     .eq('email', INTERNAL_EXAM_STUDENT_EMAIL)
+    .is('deleted_at', null)
     .single()
   if (res.error || !res.data) throw new Error(`student lookup: ${res.error?.message}`)
   return { id: res.data.id, name: res.data.full_name?.trim() || res.data.email }

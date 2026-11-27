@@ -617,7 +617,6 @@ describe('cleanupE2eExamSittings (seeded groups)', () => {
     const ok = { data: [], error: null }
     const { calls } = withAuth({
       exam_sittings: [{ data: [], error: null }],
-      // Page 1's member and group deletes each take one entry before page 2's lookup.
       student_groups: [{ data: page1, error: null }, ok, { data: page2, error: null }],
     })
     await cleanupE2eExamSittings()
