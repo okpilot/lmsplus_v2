@@ -165,6 +165,20 @@ describe('voidInternalExamCode', () => {
       expect(mockRpc).toHaveBeenCalledTimes(1)
     })
 
+    it('shows the reserved-reason message when the RPC rejects the reason', async () => {
+      mockAdmin()
+      vi.spyOn(console, 'error').mockImplementation(() => {})
+      mockRpc.mockResolvedValue({ data: null, error: { message: 'invalid_input' } })
+
+      const result = await voidInternalExamCode(VALID_INPUT)
+
+      expect(result).toEqual({
+        success: false,
+        error: 'That reason is reserved for the system — type a different one',
+      })
+      expect(mockRevalidatePath).not.toHaveBeenCalled()
+    })
+
     it('shows "Void sitting codes from their sitting" when the code belongs to a sitting', async () => {
       mockAdmin()
       vi.spyOn(console, 'error').mockImplementation(() => {})
