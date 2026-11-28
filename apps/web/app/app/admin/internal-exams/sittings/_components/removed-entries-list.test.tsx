@@ -54,9 +54,9 @@ describe('RemovedEntriesList', () => {
     expect(screen.getByText(/pending/i)).toBeInTheDocument()
   })
 
-  it('labels an unsent entry of an undeliverable student "no notice (deactivated)"', () => {
+  it('labels an unsent entry of an undeliverable student "no notice"', () => {
     render(<RemovedEntriesList rows={[row({ noNotice: true }) as never]} total={1} />)
-    expect(screen.getByText(/no notice \(deactivated\)/)).toBeInTheDocument()
+    expect(screen.getByText(/no notice/)).toBeInTheDocument()
     expect(screen.queryByText(/pending/)).toBeNull()
   })
 

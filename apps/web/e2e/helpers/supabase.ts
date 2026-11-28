@@ -356,7 +356,7 @@ export async function cleanupInternalExamStudentActiveSessions(
   // out to provide. The for-loop is a safe no-op when stale is empty.
   for (const row of stale) {
     if (row.sitting_entry_id) {
-      // void_internal_exam_code refuses sitting codes: end the attempt directly.
+      // End the sitting attempt directly.
       const { error: endError } = await admin
         .from('quiz_sessions')
         .update({ ended_at: new Date().toISOString(), passed: false })

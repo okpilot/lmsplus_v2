@@ -289,7 +289,7 @@ export async function insertLegacyCodeFor(input: {
     issued_by: c.adminId,
     student_id: c.userId,
     subject_id: c.subjectId,
-    // A legacy code is not a sitting code: `issue_internal_exam_code` gives it issued_at + 24h.
+    // A legacy code is not a sitting code: the pre-2e issue RPC gives it issued_at + 24h.
     expires_at: new Date(Date.now() + LEGACY_VALIDITY_MS).toISOString(),
   })
   if (res.error) fail('legacy code', res.error)

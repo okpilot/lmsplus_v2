@@ -14,8 +14,8 @@ const must = <T = Record<string, unknown>>(
   return r.data as T
 }
 
-/** PR 2e: the legacy void RPC refuses sitting codes (sitting_code) and still voids legacy codes. */
-describe('RPC: void_internal_exam_code refuses sitting codes', () => {
+/** PR 2e: the legacy void RPC refuses a sitting code unless its attempt is running (sitting_code) and still voids legacy codes. */
+describe('RPC: void_internal_exam_code refuses a sitting code unless its attempt is running', () => {
   const suffix = fixtureSuffix()
   let org = ''
   let adminId = ''
@@ -130,6 +130,72 @@ describe('RPC: void_internal_exam_code refuses sitting codes', () => {
     expect(r.error?.message).toBe('sitting_code')
     expect((await state(c)).voided_at).toBeNull()
     expect(await audits(c)).toBe(0)
+  })
+
+  async function runningSession(endedAt: string | null): Promise<string> {
+    return must<{ id: string }>(
+      await admin
+        .from('quiz_sessions')
+        .insert({
+          organization_id: org,
+          student_id: studentId,
+          mode: 'internal_exam',
+          subject_id: subjectId,
+          config: { pass_mark: 75, question_ids: [] },
+          total_questions: 0,
+          started_at: new Date(Date.now() - 3_600_000).toISOString(),
+          ended_at: endedAt,
+        })
+        .select('id')
+        .single(),
+      'session',
+    ).id
+  }
+  async function consumeCode(sessionId: string): Promise<string> {
+    const c = await insertCode(await sittingEntry())
+    must(
+      await admin
+        .from('internal_exam_codes')
+        .update({ consumed_at: new Date().toISOString(), consumed_session_id: sessionId })
+        .eq('id', c)
+        .select('id')
+        .single(),
+      'consume',
+    )
+    return c
+  }
+  const auditCount = async (type: string, resourceId: string) =>
+    must<unknown[]>(
+      await admin
+        .from('audit_events')
+        .select('id')
+        .eq('event_type', type)
+        .eq('resource_id', resourceId),
+      'audit count',
+    ).length
+
+  it('voids a consumed sitting code whose attempt is running and ends the session', async () => {
+    const sess = await runningSession(null)
+    const c = await consumeCode(sess)
+    const r = await a1c.rpc('void_internal_exam_code', { p_code_id: c, p_reason: 'running' })
+    expect(r.error).toBeNull()
+    expect((r.data as { session_ended: boolean }[])[0]?.session_ended).toBe(true)
+    const s = must<{ ended_at: string | null }>(
+      await admin.from('quiz_sessions').select('ended_at').eq('id', sess).single(),
+      'session row',
+    )
+    expect(s.ended_at).not.toBeNull()
+    expect((await state(c)).voided_at).not.toBeNull()
+    expect(await auditCount('internal_exam.expired', sess)).toBe(1)
+    expect(await audits(c)).toBe(1)
+  })
+
+  it('rejects a consumed sitting code with a finished attempt as cannot_void_finished_attempt', async () => {
+    const sess = await runningSession(new Date().toISOString())
+    const c = await consumeCode(sess)
+    const r = await a1c.rpc('void_internal_exam_code', { p_code_id: c, p_reason: 'finished' })
+    expect(r.error?.message).toBe('cannot_void_finished_attempt')
+    expect((await state(c)).voided_at).toBeNull()
   })
 
   it('still voids a legacy code (no sitting entry) with one audit row', async () => {

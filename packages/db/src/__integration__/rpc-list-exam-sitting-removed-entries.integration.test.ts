@@ -668,7 +668,7 @@ describe('RPC: list_exam_sitting_removed_entries', () => {
     expectToken(await removed(closed, a2Client), 'not_admin')
   })
 
-  it('no_notice: true only for an unsent entry whose student gets no notice (deactivated); false once sent', async () => {
+  it('no_notice: true only for an unsent entry whose student gets no notice; false once sent', async () => {
     const sit = await w.sitting({ day: 1 })
     const e1 = await w.enter(sit, w.s1, w.subA)
     const e2 = await w.enter(sit, w.s2, w.subA)
