@@ -5,14 +5,12 @@ const mockRevalidatePath = vi.hoisted(() => vi.fn())
 const mockRequireAdmin = vi.hoisted(() => vi.fn())
 const mockRpc = vi.hoisted(() => vi.fn())
 const mockDeliverNotices = vi.hoisted(() => vi.fn())
-const mockGetSitting = vi.hoisted(() => vi.fn())
 const mockChangedCodes = vi.hoisted(() => vi.fn())
 
 vi.mock('next/cache', () => ({ revalidatePath: mockRevalidatePath }))
 vi.mock('@/lib/auth/require-admin', () => ({ requireAdmin: mockRequireAdmin }))
 vi.mock('../_utils/deliver-notices', () => ({ deliverNotices: mockDeliverNotices }))
 vi.mock('../../notice-queries', () => ({
-  getSittingForNotice: mockGetSitting,
   getChangedNoticeCodes: mockChangedCodes,
 }))
 
@@ -20,7 +18,16 @@ import { updateSitting } from './update-sitting'
 
 const SID = '00000000-0000-4000-a000-0000000000a1'
 const INV = '00000000-0000-4000-a000-0000000000b1'
-const OK = { data: [{ changed: true, codes_restamped: 0, notify_code_ids: [] }], error: null }
+const OLD = {
+  old_scheduled_at: '2999-11-24T09:00:00.000Z',
+  old_mode: 'remote',
+  new_scheduled_at: '2999-11-24T09:00:00.000Z',
+  new_mode: 'in_person',
+}
+const OK = {
+  data: [{ changed: true, codes_restamped: 0, notify_code_ids: [], ...OLD }],
+  error: null,
+}
 
 beforeEach(() => {
   vi.resetAllMocks()
@@ -29,22 +36,14 @@ beforeEach(() => {
     organizationId: 'o',
     userId: 'a',
   })
-  mockGetSitting.mockResolvedValue({ scheduledAt: '2999-11-24T09:00:00.000Z', mode: 'remote' })
   mockChangedCodes.mockResolvedValue([])
   mockDeliverNotices.mockResolvedValue({ sent: 0, failed: [], skipped: 0, unrecorded: 0 })
 })
 
 describe('updateSitting', () => {
-  it('rethrows a redirect raised reading the sitting before the update', async () => {
-    mockGetSitting.mockImplementation(() => redirect('/x'))
-    await expect(updateSitting({ sittingId: SID, mode: 'remote' })).rejects.toMatchObject({
-      digest: expect.stringContaining('NEXT_REDIRECT'),
-    })
-  })
-
   it('rethrows a redirect raised by the change-notice reads', async () => {
     mockRpc.mockResolvedValue({
-      data: [{ changed: true, codes_restamped: 0, notify_code_ids: ['c1'] }],
+      data: [{ changed: true, codes_restamped: 0, notify_code_ids: ['c1'], ...OLD }],
       error: null,
     })
     mockChangedCodes.mockImplementation(() => redirect('/x'))
@@ -107,18 +106,50 @@ describe('updateSitting', () => {
     expect(r.success).toBe(true)
   })
 
-  it('reads the old time and mode before the RPC, scoped to the organization', async () => {
-    mockRpc.mockResolvedValue(OK)
+  it('reads no sitting row: the notice values come from the RPC row alone', async () => {
+    mockRpc.mockResolvedValue({
+      data: [{ changed: true, codes_restamped: 1, notify_code_ids: ['c1'], ...OLD }],
+      error: null,
+    })
+    mockChangedCodes.mockResolvedValue([{ codeId: 'c1', userId: 'u1', subjectId: 's1' }])
     await updateSitting({ sittingId: SID, mode: 'in_person' })
-    expect(mockGetSitting).toHaveBeenCalledWith('o', SID)
-    expect(mockGetSitting.mock.invocationCallOrder[0]).toBeLessThan(
+    expect(mockRpc).toHaveBeenCalledTimes(1)
+    expect(mockChangedCodes.mock.invocationCallOrder[0]).toBeGreaterThan(
       mockRpc.mock.invocationCallOrder[0] ?? 0,
     )
   })
 
+  it('takes the notice old and new time and mode from the RPC row', async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          changed: true,
+          codes_restamped: 1,
+          notify_code_ids: ['c1'],
+          old_scheduled_at: '2999-01-01T08:00:00.000Z',
+          old_mode: 'in_person',
+          new_scheduled_at: '2999-02-02T10:00:00.000Z',
+          new_mode: 'remote',
+        },
+      ],
+      error: null,
+    })
+    mockChangedCodes.mockResolvedValue([{ codeId: 'c1', userId: 'u1', subjectId: 's1' }])
+    await updateSitting({ sittingId: SID, mode: 'remote' })
+    expect(mockDeliverNotices).toHaveBeenCalledTimes(1)
+    expect(mockDeliverNotices.mock.calls[0]?.[0]).toMatchObject({
+      sitting: {
+        scheduledAt: '2999-02-02T10:00:00.000Z',
+        mode: 'remote',
+        oldScheduledAt: '2999-01-01T08:00:00.000Z',
+        oldMode: 'in_person',
+      },
+    })
+  })
+
   it('sends a changed notice to the emailed students when time or mode changed', async () => {
     mockRpc.mockResolvedValue({
-      data: [{ changed: true, codes_restamped: 2, notify_code_ids: ['c1', 'c2'] }],
+      data: [{ changed: true, codes_restamped: 2, notify_code_ids: ['c1', 'c2'], ...OLD }],
       error: null,
     })
     const items = [{ codeId: 'c1', userId: 'u1', subjectId: 's1' }]
@@ -140,16 +171,41 @@ describe('updateSitting', () => {
 
   describe('change notice errors', () => {
     const CHANGED = {
-      data: [{ changed: true, codes_restamped: 1, notify_code_ids: ['c1'] }],
+      data: [{ changed: true, codes_restamped: 1, notify_code_ids: ['c1'], ...OLD }],
       error: null,
     }
     const ERR = { sent: 0, failed: [], error: true }
 
-    it('flags error when the old read returns null', async () => {
-      mockRpc.mockResolvedValue(CHANGED)
-      mockGetSitting.mockResolvedValueOnce(null).mockResolvedValue({
-        scheduledAt: '2999-11-24T09:00:00.000Z',
-        mode: 'remote',
+    it('flags error when the RPC row has no old values (old DB)', async () => {
+      mockRpc.mockResolvedValue({
+        data: [
+          {
+            changed: true,
+            codes_restamped: 1,
+            notify_code_ids: ['c1'],
+            new_scheduled_at: OLD.new_scheduled_at,
+            new_mode: OLD.new_mode,
+          },
+        ],
+        error: null,
+      })
+      const r = await updateSitting({ sittingId: SID, mode: 'in_person' })
+      expect(r).toMatchObject({ success: true, notices: ERR })
+      expect(mockDeliverNotices).not.toHaveBeenCalled()
+    })
+
+    it('flags error when the RPC row has no new values', async () => {
+      mockRpc.mockResolvedValue({
+        data: [
+          {
+            changed: true,
+            codes_restamped: 1,
+            notify_code_ids: ['c1'],
+            old_scheduled_at: OLD.old_scheduled_at,
+            old_mode: OLD.old_mode,
+          },
+        ],
+        error: null,
       })
       const r = await updateSitting({ sittingId: SID, mode: 'in_person' })
       expect(r).toMatchObject({ success: true, notices: ERR })

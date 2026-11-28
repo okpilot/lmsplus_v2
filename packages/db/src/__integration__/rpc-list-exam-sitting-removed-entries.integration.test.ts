@@ -523,6 +523,7 @@ type Removed = {
   passed_at: string | null
   removed_at: string
   notice_sent: boolean
+  no_notice: boolean
   total_count: number
 }
 
@@ -665,5 +666,35 @@ describe('RPC: list_exam_sitting_removed_entries', () => {
     expectToken(await removed(closed, w.clients.s1), 'not_admin')
     expectToken(await removed(closed, w.clients.i1), 'not_admin')
     expectToken(await removed(closed, a2Client), 'not_admin')
+  })
+
+  it('no_notice: true only for an unsent entry whose student gets no notice (deactivated); false once sent', async () => {
+    const sit = await w.sitting({ day: 1 })
+    const e1 = await w.enter(sit, w.s1, w.subA)
+    const e2 = await w.enter(sit, w.s2, w.subA)
+    await scored(w, w.s1, w.subA, true)
+    await scored(w, w.s2, w.subA, true)
+    must(await w.clients.a1.rpc('get_exam_sitting_summary', { p_sitting_id: sit }), 'prune')
+    await deactivate(w, w.s2)
+    const rs = rrows(await removed(sit))
+    expect(rs.find((r) => r.entry_id === e1)).toMatchObject({
+      notice_sent: false,
+      no_notice: false,
+    })
+    expect(rs.find((r) => r.entry_id === e2)).toMatchObject({ notice_sent: false, no_notice: true })
+    must(
+      await w.clients.a1.rpc('record_exam_sitting_notice', {
+        p_sitting_id: sit,
+        p_kind: 'entry_auto_removed',
+        p_entry_ids: [e1],
+      }),
+      'notice',
+    )
+    const after = rrows(await removed(sit))
+    expect(after.find((r) => r.entry_id === e1)).toMatchObject({
+      notice_sent: true,
+      no_notice: false,
+    })
+    expect(after.find((r) => r.entry_id === e2)?.no_notice).toBe(true)
   })
 })

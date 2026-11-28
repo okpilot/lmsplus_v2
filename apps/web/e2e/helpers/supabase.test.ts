@@ -644,6 +644,104 @@ describe('cleanupInternalExamStudentActiveSessions', () => {
     )
   })
 
+  it('continues past a failed void and still voids later codes, then throws one combined error', async () => {
+    mockCreateClient.mockReturnValue(
+      buildCleanupMockClient({
+        codes: [
+          { id: 'code-1', consumed_session_id: 'sess-1', quiz_sessions: { ended_at: null } },
+          { id: 'code-2', consumed_session_id: 'sess-2', quiz_sessions: { ended_at: null } },
+        ],
+        discardError: { message: 'discard down' },
+        legacyError: { message: 'legacy down' },
+      }),
+    )
+    const rpcMock = vi
+      .fn()
+      .mockResolvedValueOnce({ error: { message: 'rpc one' } })
+      .mockResolvedValueOnce({ error: { message: 'rpc two' } })
+    const adminAuthedClient = { rpc: rpcMock } as unknown as ReturnType<typeof getAdminClient>
+
+    await expect(cleanupInternalExamStudentActiveSessions(adminAuthedClient)).rejects.toThrow(
+      'cleanupInternalExamStudentActiveSessions void code code-1: rpc one; void code code-2: rpc two; practice: discard down; legacy codes: legacy down',
+    )
+    expect(rpcMock).toHaveBeenCalledTimes(2)
+  })
+
+  describe('sitting codes (session ended directly)', () => {
+    function sittingClient(sessionCalls: unknown[][], sessionResult: unknown) {
+      let codesQueries = 0
+      return {
+        from: (table: string) => {
+          if (table === 'users') return buildChain({ data: { id: 'student-uuid' }, error: null })
+          if (table === 'internal_exam_codes') {
+            codesQueries += 1
+            if (codesQueries === 1) {
+              return buildChain({
+                data: [
+                  {
+                    id: 'code-s',
+                    sitting_entry_id: 'entry-1',
+                    consumed_session_id: 'sess-s',
+                    quiz_sessions: { ended_at: null },
+                  },
+                  {
+                    id: 'code-l',
+                    sitting_entry_id: null,
+                    consumed_session_id: 'sess-l',
+                    quiz_sessions: { ended_at: null },
+                  },
+                ],
+                error: null,
+              })
+            }
+            return buildChain({ data: [], error: null })
+          }
+          if (table === 'quiz_sessions') return buildRecordingChain(sessionResult, sessionCalls)
+          return buildChain({ data: null, error: null })
+        },
+        auth: { admin: {} },
+      }
+    }
+
+    it('ends the session of a sitting code directly and voids only the legacy code via RPC', async () => {
+      const sessionCalls: unknown[][] = []
+      mockCreateClient.mockReturnValue(
+        sittingClient(sessionCalls, { data: [{ id: 'sess-s' }], error: null }),
+      )
+      const rpcMock = vi.fn().mockResolvedValue({ error: null })
+      const adminAuthedClient = { rpc: rpcMock } as unknown as ReturnType<typeof getAdminClient>
+
+      await cleanupInternalExamStudentActiveSessions(adminAuthedClient)
+
+      expect(rpcMock).toHaveBeenCalledTimes(1)
+      expect(rpcMock).toHaveBeenCalledWith('void_internal_exam_code', {
+        p_code_id: 'code-l',
+        p_reason: 'e2e-cleanup',
+      })
+      const update = sessionCalls.find(
+        (c) => c[0] === 'update' && (c[1] as Record<string, unknown>)?.passed === false,
+      )
+      expect(update).toBeDefined()
+      expect(update?.[1]).toMatchObject({ passed: false, ended_at: expect.any(String) })
+      expect(sessionCalls).toContainEqual(['eq', 'id', 'sess-s'])
+      expect(sessionCalls).toContainEqual(['is', 'ended_at', null])
+      expect(sessionCalls).toContainEqual(['select', 'id'])
+    })
+
+    it('throws when ending a sitting-code session fails', async () => {
+      mockCreateClient.mockReturnValue(
+        sittingClient([], { data: null, error: { message: 'session update failed' } }),
+      )
+      const adminAuthedClient = {
+        rpc: vi.fn().mockResolvedValue({ error: null }),
+      } as unknown as ReturnType<typeof getAdminClient>
+
+      await expect(cleanupInternalExamStudentActiveSessions(adminAuthedClient)).rejects.toThrow(
+        /session update failed/,
+      )
+    })
+  })
+
   it('throws when the internal_exam_codes query fails', async () => {
     mockCreateClient.mockReturnValue(
       buildCleanupMockClient({ codesError: { message: 'schema mismatch' } }),

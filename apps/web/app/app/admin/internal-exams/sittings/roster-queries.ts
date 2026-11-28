@@ -171,6 +171,7 @@ export async function getRemoved(
       passedAt: r.passed_at,
       removedAt: r.removed_at,
       noticeSent: r.notice_sent,
+      noNotice: r.no_notice === true,
     })),
     total: Number(rows[0]?.total_count ?? 0),
   }

@@ -552,6 +552,27 @@ describe('RPC: create_exam_sitting and update_exam_sitting', () => {
     expect(await w.audits('exam_sitting.updated', id)).toHaveLength(0)
   })
 
+  it('AC-15b: update returns the locked pre-update time and mode as old_* and the committed time and mode as new_*', async () => {
+    const id = await w.sitting({ day: 2, hour: 9, mode: 'remote', invigilator: w.i1 })
+    const before = await w.sittingRow(id)
+    const changed = rowOf(
+      must(await update(id, { p_scheduled_at: at(3), p_mode: 'in_person' }), 'change'),
+    )
+    expect(changed.changed).toBe(true)
+    expect(changed.old_mode).toBe('remote')
+    expect(changed.new_mode).toBe('in_person')
+    expect(new Date(changed.new_scheduled_at as string).getTime()).toBe(new Date(at(3)).getTime())
+    expect(new Date(changed.old_scheduled_at as string).getTime()).toBe(
+      new Date(before.scheduled_at as string).getTime(),
+    )
+    const noop = rowOf(must(await update(id, { p_mode: 'in_person' }), 'noop'))
+    expect(noop.changed).toBe(false)
+    expect(noop.old_mode).toBe('in_person')
+    expect(noop.new_mode).toBe('in_person')
+    expect(new Date(noop.new_scheduled_at as string).getTime()).toBe(new Date(at(3)).getTime())
+    expect(new Date(noop.old_scheduled_at as string).getTime()).toBe(new Date(at(3)).getTime())
+  })
+
   it('AC-14: on an open sitting time, mode and materials changes are sitting_not_editable', async () => {
     const id = await w.sitting({ day: 0, state: 'open' })
     expectToken(await update(id, { p_scheduled_at: at(1) }), 'sitting_not_editable')

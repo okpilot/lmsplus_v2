@@ -26,6 +26,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   cannot_void_finished_attempt: 'Cannot void a finished attempt — record is final',
   code_not_found: 'Code not found',
   code_voided: 'Code is already voided',
+  sitting_code: 'Void sitting codes from their sitting',
+  invalid_input: 'That reason is reserved for the system — type a different one',
   session_state_changed: 'This session was modified by another action — please refresh and retry',
 }
 

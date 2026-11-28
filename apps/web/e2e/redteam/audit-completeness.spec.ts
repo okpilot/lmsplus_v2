@@ -9,8 +9,7 @@
  *
  * Also asserts user.login_instructions_sent (admin record_login_instructions_sent), Vector FP's positive.
  *
- * internal_exam.code_issued is asserted twice: through issue_sitting_exam_codes and through the
- * legacy issue_internal_exam_code RPC (the legacy test is removed with the RPC in 2e).
+ * internal_exam.code_issued is asserted through issue_sitting_exam_codes.
  *
  * The 5 auth-event tests (student.login + CT record_auth_event) live in
  * audit-auth-events.spec.ts.
@@ -311,31 +310,6 @@ test.describe('Red Team: Audit Event Completeness', () => {
     if (codeErr || !codeRow) throw new Error(`sitting code: ${codeErr?.message}`)
 
     await expectAuditRow(admin, 'internal_exam.code_issued', adminUserId, testStart, codeRow.id)
-  })
-
-  // Retired with issue_internal_exam_code in 2e (the sitting test above then carries the literal alone).
-  test('writes internal_exam.code_issued when admin issues a legacy code (actor=admin)', async () => {
-    const testStart = new Date().toISOString()
-
-    const { data, error } = await adminAuthedClient.rpc('issue_internal_exam_code', {
-      p_subject_id: subjectId,
-      p_student_id: studentUserId,
-    })
-    expect(error, 'issue_internal_exam_code error').toBeNull()
-    const row = (Array.isArray(data) ? data[0] : undefined) as
-      | { code_id?: unknown; code?: unknown; expires_at?: unknown }
-      | undefined
-    if (!row || typeof row.code_id !== 'string') {
-      throw new Error(`unexpected RPC row: ${JSON.stringify(row)}`)
-    }
-    tracker.codes.add(row.code_id)
-    // Alphabet and length come from `issue_internal_exam_code`'s `v_charset`, not from any helper.
-    expect(typeof row.code).toBe('string')
-    expect(String(row.code)).toMatch(/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{8}$/)
-    expect(typeof row.expires_at).toBe('string')
-    expect(Date.parse(String(row.expires_at))).toBeGreaterThan(Date.now())
-
-    await expectAuditRow(admin, 'internal_exam.code_issued', adminUserId, testStart, row.code_id)
   })
 
   test('writes internal_exam.code_voided when admin voids a code (actor=admin)', async () => {

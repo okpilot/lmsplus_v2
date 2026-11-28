@@ -101,7 +101,7 @@ async function insertCode(
       student_id: opts.studentId,
       subject_id: opts.subjectId,
       ...(opts.sittingEntryId ? { sitting_entry_id: opts.sittingEntryId } : {}),
-      // What issue_internal_exam_code gives a legacy code: issued_at + 24h.
+      // What the pre-2e issue RPC gives a legacy code: issued_at + 24h.
       expires_at: new Date(Date.now() + LEGACY_VALIDITY_MS).toISOString(),
     })
     .select('id')

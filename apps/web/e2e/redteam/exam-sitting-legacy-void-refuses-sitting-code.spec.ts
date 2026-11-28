@@ -5,12 +5,10 @@
  * code, bypassing voidInternalExamCode's sitting_entry_id refusal and void_sitting_code's sitting
  * lock and state checks.
  * Expected: refused; the code stays unvoided and no `internal_exam.code_voided` audit row exists.
- * CONTROL: the same RPC voids a legacy code (sitting_entry_id NULL) of another throwaway student.
+ * CONTROL: the same RPC voids a legacy code (sitting_entry_id NULL, service-role insert) of another
+ * throwaway student.
  *
- * Skipped: proven gap; the DB refusal is planned for PR 2e (`.work/invigilation/slice2-plan.md`).
- * Hooks do not run while skipped.
- *
- * Hermetic once un-skipped: throwaway students; sittings carry EXAM_SITTING_E2E_PREFIX; afterAll
+ * Hermetic: throwaway students; sittings carry EXAM_SITTING_E2E_PREFIX; afterAll
  * soft-deletes the created codes, then cleanupSittingFixtures (per-step accumulator).
  */
 
@@ -18,6 +16,7 @@ import { expect, test } from '@playwright/test'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getAdminClient } from '../helpers/supabase'
 import { skipIfSeededDayEnded, skipNearUtcRollover } from '../helpers/utc-rollover'
+import { insertFixtureCode } from './helpers/audit-helpers'
 import {
   cleanupSittingFixtures,
   createSittingRpc,
@@ -111,15 +110,18 @@ test.describe('Red Team: legacy void refuses a sitting code (NJ)', () => {
     if (cErr || codes?.length !== 1) throw new Error(`codes: ${cErr?.message ?? codes?.length}`)
     sittingCodeId = codes[0]?.id as string
 
-    const leg = await egmontAdmin.rpc('issue_internal_exam_code', {
-      p_subject_id: picked.subjectId,
-      p_student_id: legacyStudentId,
-    })
-    const legRow = Array.isArray(leg.data) ? leg.data[0] : null
-    if (leg.error || typeof legRow?.code_id !== 'string') {
-      throw new Error(`legacy issue: ${leg.error?.message ?? 'no row'}`)
-    }
-    legacyCodeId = legRow.code_id
+    legacyCodeId = (
+      await insertFixtureCode(
+        admin,
+        {
+          orgId: a.orgId,
+          subjectId: picked.subjectId,
+          studentId: legacyStudentId,
+          issuedBy: a.adminUserId,
+        },
+        new Set<string>(),
+      )
+    ).codeId
   })
 
   test.afterAll(async () => {
@@ -148,15 +150,14 @@ test.describe('Red Team: legacy void refuses a sitting code (NJ)', () => {
     if (errors.length > 0) throw new Error(`NJ afterAll: ${errors.join('; ')}`)
   })
 
-  // Skipped until `void_internal_exam_code` refuses a `sitting_entry_id` code (#1832).
-  test.skip('NJ: void_internal_exam_code refuses a sitting code', async () => {
+  test('NJ: void_internal_exam_code refuses a sitting code', async () => {
     expect(await codeState(admin, sittingCodeId, orgId)).toEqual({ voided: false, audits: 0 })
 
     const { data, error } = await egmontAdmin.rpc('void_internal_exam_code', {
       p_code_id: sittingCodeId,
       p_reason: NJ_REASON,
     })
-    expect(error?.message ?? `no error ${JSON.stringify(data)}`).toMatch(/sitting|code_not_found/)
+    expect(error?.message ?? `no error ${JSON.stringify(data)}`).toMatch(/sitting_code/)
     expect(await codeState(admin, sittingCodeId, orgId)).toEqual({ voided: false, audits: 0 })
 
     // CONTROL: a legacy code (sitting_entry_id NULL) is voided by the same RPC.

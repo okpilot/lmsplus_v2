@@ -2377,14 +2377,6 @@ export type Database = {
       is_admin: { Args: never; Returns: boolean }
       is_valid_diagram_config: { Args: { p_config: Json }; Returns: boolean }
       is_valid_ordering_items: { Args: { p_items: Json }; Returns: boolean }
-      issue_internal_exam_code: {
-        Args: { p_student_id: string; p_subject_id: string }
-        Returns: {
-          code: string
-          code_id: string
-          expires_at: string
-        }[]
-      }
       issue_sitting_exam_codes: {
         Args: {
           p_entry_ids?: string[]
@@ -2426,6 +2418,7 @@ export type Database = {
         Args: { p_sitting_id: string }
         Returns: {
           entry_id: string
+          no_notice: boolean
           notice_sent: boolean
           passed_at: string
           removed_at: string
@@ -2666,7 +2659,11 @@ export type Database = {
         Returns: {
           changed: boolean
           codes_restamped: number
+          new_mode: string
+          new_scheduled_at: string
           notify_code_ids: string[]
+          old_mode: string
+          old_scheduled_at: string
         }[]
       }
       update_student_group: {
