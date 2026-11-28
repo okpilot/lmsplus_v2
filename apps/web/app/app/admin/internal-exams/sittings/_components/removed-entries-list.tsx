@@ -6,7 +6,7 @@ type Props = { rows: readonly RemovedEntryRow[]; total: number }
 
 function noticeLabel(r: RemovedEntryRow): string {
   if (r.noticeSent) return 'notice sent'
-  return r.noNotice ? 'no notice' : 'notice pending'
+  return r.noNotice ? 'no notice (deactivated)' : 'notice pending'
 }
 
 /** Exams removed automatically because the student passed; hidden when there are none. */

@@ -2659,6 +2659,8 @@ export type Database = {
         Returns: {
           changed: boolean
           codes_restamped: number
+          new_mode: string
+          new_scheduled_at: string
           notify_code_ids: string[]
           old_mode: string
           old_scheduled_at: string

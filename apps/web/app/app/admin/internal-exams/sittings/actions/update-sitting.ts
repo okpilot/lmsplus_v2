@@ -3,7 +3,7 @@
 import { UpdateExamSittingSchema } from '@repo/db/schema'
 import { unstable_rethrow } from 'next/navigation'
 import { requireAdmin } from '@/lib/auth/require-admin'
-import { getChangedNoticeCodes, getSittingForNotice, type UserClient } from '../../notice-queries'
+import { getChangedNoticeCodes, type UserClient } from '../../notice-queries'
 import { deliverNotices, type NoticeResult } from '../_utils/deliver-notices'
 import {
   firstRow,
@@ -18,30 +18,43 @@ const NOTICE_ERROR: Notices = { sent: 0, failed: [], error: true }
 
 type Ctx = { supabase: UserClient; orgId: string; sittingId: string }
 
-type Old = { scheduledAt: string; mode: 'remote' | 'in_person' }
+type Mode = 'remote' | 'in_person'
+type Values = { scheduledAt: string; mode: Mode }
+type Change = { old: Values; new: Values }
 
-/** The locked row's pre-update values, as the RPC returns them; null when absent (old DB). */
-function oldValues(row: Record<string, unknown>): Old | null {
-  const { old_scheduled_at: at, old_mode: mode } = row
-  if (typeof at !== 'string' || (mode !== 'remote' && mode !== 'in_person')) return null
-  return { scheduledAt: at, mode }
+const isMode = (m: unknown): m is Mode => m === 'remote' || m === 'in_person'
+
+/** The locked row's old values and the committed values, as the RPC returns them; null when absent (old DB). */
+function changeValues(row: Record<string, unknown>): Change | null {
+  const {
+    old_scheduled_at: oldAt,
+    old_mode: oldMode,
+    new_scheduled_at: newAt,
+    new_mode: newMode,
+  } = row
+  if (typeof oldAt !== 'string' || typeof newAt !== 'string') return null
+  if (!isMode(oldMode) || !isMode(newMode)) return null
+  return { old: { scheduledAt: oldAt, mode: oldMode }, new: { scheduledAt: newAt, mode: newMode } }
 }
 
-/** Change notice to the emailed students; the old time and mode come from the RPC row. */
+/** Change notice to the emailed students; old and new time and mode come from the RPC row. */
 async function noticeChange(
   ctx: Ctx,
-  old: Old | null,
+  change: Change | null,
   codeIds: readonly string[],
 ): Promise<Notices> {
   try {
-    const sitting = await getSittingForNotice(ctx.orgId, ctx.sittingId)
-    if (!old || !sitting) return NOTICE_ERROR
+    if (!change) return NOTICE_ERROR
     const items = await getChangedNoticeCodes(ctx.orgId, ctx.sittingId, codeIds)
     const { sent, failed, error } = await deliverNotices({
       ...ctx,
       kind: 'changed',
       items,
-      sitting: { ...sitting, oldScheduledAt: old.scheduledAt, oldMode: old.mode },
+      sitting: {
+        ...change.new,
+        oldScheduledAt: change.old.scheduledAt,
+        oldMode: change.old.mode,
+      },
     })
     return error ? { sent, failed, error } : { sent, failed }
   } catch (e) {
@@ -75,7 +88,7 @@ export async function updateSitting(
     ids.length > 0
       ? await noticeChange(
           { supabase, orgId: organizationId, sittingId: v.sittingId },
-          oldValues(row),
+          changeValues(row),
           ids,
         )
       : { sent: 0, failed: [] }

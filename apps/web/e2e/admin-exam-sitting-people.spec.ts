@@ -187,7 +187,7 @@ test('removed list and pending-notices banner appear for an auto-removed entry',
   await expect(page.getByRole('button', { name: 'Send notices' })).toBeVisible()
 })
 
-test('removed list reads "no notice" for a deactivated auto-removed student, survives reload, no banner', async ({
+test('removed list reads "no notice (deactivated)" for a deactivated auto-removed student, survives reload, no banner', async ({
   page,
 }) => {
   const { sittingId } = await seedSitting({
@@ -197,11 +197,13 @@ test('removed list reads "no notice" for a deactivated auto-removed student, sur
   })
   await page.goto(`${BASE}/${sittingId}`)
   await expect(page).toHaveURL(`${BASE}/${sittingId}`)
-  await expect(page.getByText(/E2E Gus Gone · .+ · passed .+ · no notice/)).toBeVisible()
+  await expect(
+    page.getByText(/E2E Gus Gone · .+ · passed .+ · no notice \(deactivated\)/),
+  ).toBeVisible()
   await expect(page.getByText(/notice waiting to be sent/)).toHaveCount(0)
   await page.reload()
   await expect(page).toHaveURL(`${BASE}/${sittingId}`)
-  await expect(page.getByText(/E2E Gus Gone · .+ no notice/)).toBeVisible()
+  await expect(page.getByText(/E2E Gus Gone · .+ no notice \(deactivated\)/)).toBeVisible()
   await expect(page.getByRole('button', { name: 'Send notices' })).toHaveCount(0)
 })
 

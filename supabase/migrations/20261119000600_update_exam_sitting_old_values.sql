@@ -1,5 +1,5 @@
 DROP FUNCTION IF EXISTS public.update_exam_sitting(uuid, timestamptz, text, uuid, text);
--- update_exam_sitting; also returns the locked row's old scheduled_at / mode. NULL = unchanged; materials '' = clear. Past UTC day and day-ended sitting refused.
+-- update_exam_sitting; also returns the locked row's old and the committed scheduled_at / mode. NULL = unchanged; materials '' = clear. Past UTC day and day-ended sitting refused.
 CREATE FUNCTION public.update_exam_sitting(
   p_sitting_id uuid,
   p_scheduled_at timestamptz DEFAULT NULL,
@@ -7,7 +7,7 @@ CREATE FUNCTION public.update_exam_sitting(
   p_invigilator_id uuid DEFAULT NULL,
   p_permitted_materials text DEFAULT NULL
 )
-RETURNS TABLE(changed boolean, codes_restamped int, notify_code_ids uuid[], old_scheduled_at timestamptz, old_mode text)
+RETURNS TABLE(changed boolean, codes_restamped int, notify_code_ids uuid[], old_scheduled_at timestamptz, old_mode text, new_scheduled_at timestamptz, new_mode text)
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, pg_temp
@@ -39,7 +39,7 @@ BEGIN
   v_inv_chg  := p_invigilator_id IS NOT NULL AND p_invigilator_id IS DISTINCT FROM v_s.invigilator_id;
 
   IF NOT (v_time_chg OR v_mode_chg OR v_mat_chg OR v_inv_chg) THEN
-    RETURN QUERY SELECT false, 0, '{}'::uuid[], v_s.scheduled_at, v_s.mode;
+    RETURN QUERY SELECT false, 0, '{}'::uuid[], v_s.scheduled_at, v_s.mode, v_s.scheduled_at, v_s.mode;
     RETURN;
   END IF;
 
@@ -101,7 +101,9 @@ BEGIN
       jsonb_build_object('from', v_s.invigilator_id, 'to', p_invigilator_id));
   END IF;
 
-  RETURN QUERY SELECT true, v_restamped, v_notify, v_s.scheduled_at, v_s.mode;
+  RETURN QUERY SELECT true, v_restamped, v_notify, v_s.scheduled_at, v_s.mode,
+    CASE WHEN v_time_chg THEN p_scheduled_at ELSE v_s.scheduled_at END,
+    CASE WHEN v_mode_chg THEN p_mode ELSE v_s.mode END;
 END;
 $$;
 REVOKE EXECUTE ON FUNCTION public.update_exam_sitting(uuid, timestamptz, text, uuid, text) FROM PUBLIC, anon;

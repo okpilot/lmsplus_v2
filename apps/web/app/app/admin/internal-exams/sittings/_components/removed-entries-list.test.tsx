@@ -54,16 +54,16 @@ describe('RemovedEntriesList', () => {
     expect(screen.getByText(/pending/i)).toBeInTheDocument()
   })
 
-  it('labels an unsent entry of an undeliverable student "no notice"', () => {
+  it('labels an unsent entry of an undeliverable student "no notice (deactivated)"', () => {
     render(<RemovedEntriesList rows={[row({ noNotice: true }) as never]} total={1} />)
-    expect(screen.getByText(/no notice/)).toBeInTheDocument()
+    expect(screen.getByText(/no notice \(deactivated\)/)).toBeInTheDocument()
     expect(screen.queryByText(/pending/)).toBeNull()
   })
 
   it('labels an unsent entry of a deliverable student "notice pending"', () => {
     render(<RemovedEntriesList rows={[row() as never]} total={1} />)
     expect(screen.getByText(/notice pending/)).toBeInTheDocument()
-    expect(screen.queryByText(/no notice/)).toBeNull()
+    expect(screen.queryByText(/no notice \(deactivated\)/)).toBeNull()
   })
 
   it('labels a sent entry "notice sent" even when noNotice is set', () => {
@@ -71,7 +71,7 @@ describe('RemovedEntriesList', () => {
       <RemovedEntriesList rows={[row({ noticeSent: true, noNotice: true }) as never]} total={1} />,
     )
     expect(screen.getByText(/notice sent/)).toBeInTheDocument()
-    expect(screen.queryByText(/no notice/)).toBeNull()
+    expect(screen.queryByText(/no notice \(deactivated\)/)).toBeNull()
   })
 
   it('shows Showing 200 of N beyond 200 rows', () => {
