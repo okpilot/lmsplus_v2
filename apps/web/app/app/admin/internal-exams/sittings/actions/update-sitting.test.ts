@@ -178,7 +178,15 @@ describe('updateSitting', () => {
 
     it('flags error when the RPC row has no old values (old DB)', async () => {
       mockRpc.mockResolvedValue({
-        data: [{ changed: true, codes_restamped: 1, notify_code_ids: ['c1'] }],
+        data: [
+          {
+            changed: true,
+            codes_restamped: 1,
+            notify_code_ids: ['c1'],
+            new_scheduled_at: OLD.new_scheduled_at,
+            new_mode: OLD.new_mode,
+          },
+        ],
         error: null,
       })
       const r = await updateSitting({ sittingId: SID, mode: 'in_person' })

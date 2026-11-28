@@ -354,29 +354,32 @@ export async function cleanupInternalExamStudentActiveSessions(
   // below must always run. Otherwise a leftover non-internal-exam session left
   // by a prior reports-separation run survives, defeating the cleanup #587 set
   // out to provide. The for-loop is a safe no-op when stale is empty.
+  const failures: string[] = []
+  const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
   for (const row of stale) {
     if (row.sitting_entry_id) {
-      // End the sitting attempt directly.
-      const { error: endError } = await admin
-        .from('quiz_sessions')
-        .update({ ended_at: new Date().toISOString(), passed: false })
-        .eq('id', row.consumed_session_id)
-        .is('ended_at', null)
-        .select('id')
-      if (endError)
-        throw new Error(
-          `cleanupInternalExamStudentActiveSessions end session ${row.consumed_session_id}: ${endError.message}`,
-        )
+      try {
+        const { error: endError } = await admin
+          .from('quiz_sessions')
+          .update({ ended_at: new Date().toISOString(), passed: false })
+          .eq('id', row.consumed_session_id)
+          .is('ended_at', null)
+          .select('id')
+        if (endError) failures.push(`end session ${row.consumed_session_id}: ${endError.message}`)
+      } catch (e) {
+        failures.push(`end session ${row.consumed_session_id}: ${errMsg(e)}`)
+      }
       continue
     }
-    const { error } = await adminAuthedClient.rpc('void_internal_exam_code', {
-      p_code_id: row.id,
-      p_reason: 'e2e-cleanup',
-    })
-    if (error)
-      throw new Error(
-        `cleanupInternalExamStudentActiveSessions void code ${row.id}: ${error.message}`,
-      )
+    try {
+      const { error } = await adminAuthedClient.rpc('void_internal_exam_code', {
+        p_code_id: row.id,
+        p_reason: 'e2e-cleanup',
+      })
+      if (error) failures.push(`void code ${row.id}: ${error.message}`)
+    } catch (e) {
+      failures.push(`void code ${row.id}: ${errMsg(e)}`)
+    }
   }
 
   // Also discard any non-internal-exam sessions (practice/study) the student
@@ -404,7 +407,6 @@ export async function cleanupInternalExamStudentActiveSessions(
 
   // The two steps are independent: a practice-discard failure must not skip the legacy-code
   // retirement, or the next spec inherits a live code.
-  const failures: string[] = []
   if (discardError) failures.push(`practice: ${discardError.message}`)
   try {
     await retireLegacyCodes(studentRow.id)

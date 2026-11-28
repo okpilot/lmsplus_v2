@@ -644,6 +644,29 @@ describe('cleanupInternalExamStudentActiveSessions', () => {
     )
   })
 
+  it('continues past a failed void and still voids later codes, then throws one combined error', async () => {
+    mockCreateClient.mockReturnValue(
+      buildCleanupMockClient({
+        codes: [
+          { id: 'code-1', consumed_session_id: 'sess-1', quiz_sessions: { ended_at: null } },
+          { id: 'code-2', consumed_session_id: 'sess-2', quiz_sessions: { ended_at: null } },
+        ],
+        discardError: { message: 'discard down' },
+        legacyError: { message: 'legacy down' },
+      }),
+    )
+    const rpcMock = vi
+      .fn()
+      .mockResolvedValueOnce({ error: { message: 'rpc one' } })
+      .mockResolvedValueOnce({ error: { message: 'rpc two' } })
+    const adminAuthedClient = { rpc: rpcMock } as unknown as ReturnType<typeof getAdminClient>
+
+    await expect(cleanupInternalExamStudentActiveSessions(adminAuthedClient)).rejects.toThrow(
+      'cleanupInternalExamStudentActiveSessions void code code-1: rpc one; void code code-2: rpc two; practice: discard down; legacy codes: legacy down',
+    )
+    expect(rpcMock).toHaveBeenCalledTimes(2)
+  })
+
   describe('sitting codes (session ended directly)', () => {
     function sittingClient(sessionCalls: unknown[][], sessionResult: unknown) {
       let codesQueries = 0

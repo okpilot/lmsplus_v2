@@ -34,12 +34,16 @@ describe('SendNoticesButton', () => {
     expect(m.toastSuccess.mock.calls[0]?.[0]).toBe('Sent 2')
   })
 
-  it('re-enables the button after a failed send without a success toast', async () => {
-    m.send.mockResolvedValue({ success: false, error: 'Not authorized' })
+  it('disables the button while sending and re-enables it after a failed send without a success toast', async () => {
+    let resolveSend: (v: unknown) => void = () => {}
+    m.send.mockReturnValue(new Promise((res) => (resolveSend = res)))
     renderButton()
-    await userEvent.click(screen.getByRole('button', { name: 'Send notices' }))
-    await waitFor(() => expect(m.send).toHaveBeenCalledTimes(1))
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Send notices' })).toBeEnabled())
+    const button = screen.getByRole('button', { name: 'Send notices' })
+    await userEvent.click(button)
+    await waitFor(() => expect(button).toBeDisabled())
+    resolveSend({ success: false, error: 'Not authorized' })
+    await waitFor(() => expect(button).toBeEnabled())
+    expect(m.send).toHaveBeenCalledTimes(1)
     expect(m.toastSuccess).not.toHaveBeenCalled()
   })
 })

@@ -135,7 +135,10 @@ test.describe('Red Team: issue_sitting_exam_codes parallel race (NV)', () => {
     let issued = 0
     for (const r of results) {
       expect(r.error, JSON.stringify(r.error)).toBeNull()
-      issued += Number(r.data?.[0]?.issued ?? 0)
+      const row = r.data?.[0]
+      expect(row, JSON.stringify(r.data)).toBeDefined()
+      expect(typeof row?.issued).toBe('number')
+      issued += row?.issued as number
     }
     expect(issued).toBe(NA_STUDENTS.length)
 

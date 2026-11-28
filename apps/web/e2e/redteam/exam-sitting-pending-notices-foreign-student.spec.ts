@@ -118,13 +118,19 @@ test.describe('Red Team: pending notices skip a student who left the org (NW)', 
     } catch (e) {
       errors.push(e instanceof Error ? e.message : String(e))
     }
-    if (codeIds.length > 0) {
-      const { error } = await admin
-        .from('internal_exam_codes')
-        .update({ deleted_at: new Date().toISOString() })
-        .in('id', codeIds)
-        .is('deleted_at', null)
-      if (error) errors.push(`codes: ${error.message}`)
+    try {
+      if (codeIds.length > 0) {
+        const { error } = await admin
+          .from('internal_exam_codes')
+          .update({ deleted_at: new Date().toISOString() })
+          .in('id', codeIds)
+          .is('deleted_at', null)
+        if (error) errors.push(`codes: ${error.message}`)
+      }
+    } catch (e) {
+      errors.push(`codes: ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      codeIds.length = 0
     }
     try {
       await cleanupSittingFixtures(admin, track)

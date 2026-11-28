@@ -12,6 +12,8 @@ const must = <T = Record<string, unknown>>(
   label: string,
 ): T => {
   expect(r.error, label).toBeNull()
+  expect(r.data, label).toEqual(expect.anything())
+  expect(typeof r.data, label).toBe('object')
   return r.data as T
 }
 
@@ -196,7 +198,9 @@ describe('RPC: void_internal_exam_code refuses a sitting code unless its attempt
     const c = await consumeCode(sess)
     const r = await a1c.rpc('void_internal_exam_code', { p_code_id: c, p_reason: 'running' })
     expect(r.error).toBeNull()
-    expect((r.data as { session_ended: boolean }[])[0]?.session_ended).toBe(true)
+    expect(Array.isArray(r.data)).toBe(true)
+    const first: unknown = Array.isArray(r.data) ? r.data[0] : undefined
+    expect(first).toEqual(expect.objectContaining({ session_ended: true }))
     const s = must<{ ended_at: string | null }>(
       await admin.from('quiz_sessions').select('ended_at').eq('id', sess).single(),
       'session row',
