@@ -1,10 +1,9 @@
 /**
  * Red Team Spec: voidInternalExamCode Server Action — app-side void guard (Vector NF, #1777)
  *
- * `void_internal_exam_code` (mig 20260601000003) validates only a blank or over-long reason and
- * carries no sitting guard (#1820, Vectors NB/NC). The admin codes tab therefore runs
- * `checkSittingCode` (apps/web/app/app/admin/internal-exams/actions/sitting-code-guard.ts) before
- * the RPC, and that Server-Action guard is the SOLE barrier for both states below:
+ * The admin codes tab runs `checkSittingCode`
+ * (apps/web/app/app/admin/internal-exams/actions/sitting-code-guard.ts) before
+ * `void_internal_exam_code`; the RPC refuses both states below too (mig 20261119000200, Vectors NB/NC):
  *
  *  - a reason equal to a reserved system token (`RESERVED_VOID_REASONS`, packages/db/src/schema.ts).
  *    Three notice readers (migs 20261117001000, 20261117001100, 20261117001200) key on
@@ -204,7 +203,6 @@ test.describe('Red Team: codes-tab void Server Action guard (NF)', () => {
     await page.getByRole('button', { name: 'Void code' }).click()
     await expect(page.getByRole('alert')).toHaveText(/reserved for the system/i)
 
-    // The RPC would have written the token straight to void_reason (#1820).
     expect(await codeState(admin, forge.id)).toEqual({
       voided: false,
       reason: null,
@@ -253,8 +251,7 @@ test.describe('Red Team: codes-tab void Server Action guard (NF)', () => {
     await page.getByRole('button', { name: 'Void code' }).click()
     await expect(page.getByRole('alert')).toHaveText(/Manage this sitting code from its sitting/i)
 
-    // The legacy RPC has no sitting guard (#1820), so a bypass here voids a sitting code from the
-    // wrong screen; the first test's control proves this same submit voids a legacy code.
+    // The first test's control proves this same submit voids a legacy code.
     expect(await codeState(admin, flip.id)).toEqual({
       voided: false,
       reason: null,

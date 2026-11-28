@@ -369,8 +369,8 @@
 | MY | void_sitting_code-cross-org-admin-student-instructor-soft-deleted-admin-and-mismatched-sitting | HIGH | exam-sitting-void-code-scope.spec.ts | BLOCKED |  | cross-tenant |
 | MZ | admin-internal-exams-sittings-sittingId-print-plaintext-codes-cross-org-admin-student-soft-deleted-admin | HIGH | exam-sitting-print-codes-idor.spec.ts | BLOCKED |  | idor |
 | NA | void_sitting_code-reserved-system-void-reason-token | MEDIUM | exam-sitting-void-reason-reserved.spec.ts | BLOCKED |  | input-injection |
-| NB | void_internal_exam_code-sitting-code-reserved-void-reason-token-forges-cancellation-notice | MEDIUM | exam-sitting-legacy-void-sitting-code.spec.ts | GAP | #1820 | sibling-guard-gap |
-| NC | void_internal_exam_code-sitting-code-day-ended-sitting-lock-bypass | LOW | exam-sitting-legacy-void-sitting-code.spec.ts | GAP | #1820 | sibling-guard-gap |
+| NB | void_internal_exam_code-sitting-code-reserved-void-reason-token-forges-cancellation-notice | MEDIUM | exam-sitting-legacy-void-sitting-code.spec.ts | BLOCKED | #1820 | sibling-guard-gap |
+| NC | void_internal_exam_code-sitting-code-day-ended-sitting-lock-bypass | LOW | exam-sitting-legacy-void-sitting-code.spec.ts | BLOCKED | #1820 | sibling-guard-gap |
 | ND | add_exam_sitting_candidates-group_add_counts-list_exam_sitting_people-eligibility-same_day-issue_preview-foreign-group-or-student-in-own-sitting | MEDIUM | exam-sitting-foreign-param-injection.spec.ts | BLOCKED |  | cross-tenant |
 | NE | add_exam_sitting_candidates-add_exam_sitting_entries-foreign-user-id-writes-in-own-sitting | MEDIUM | exam-sitting-foreign-user-id-writes.spec.ts | BLOCKED |  | cross-tenant |
 | NF | voidInternalExamCode-codes-tab-reserved-void-reason-and-sitting-attached-code-stale-render | MEDIUM | legacy-void-server-action-guard.spec.ts | BLOCKED |  | sibling-guard-gap |
