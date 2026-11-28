@@ -243,11 +243,10 @@ export const IssueSittingCodesSchema = z.object({
 /**
  * Tokens the sitting RPCs themselves write to `internal_exam_codes.void_reason`; three readers key
  * on `sitting_cancelled`, so free text reaching that column through `void_sitting_code` must not
- * equal one. `void_internal_exam_code` validates only a blank or over-long reason, so it accepts
- * these tokens (#1820); `voidInternalExamCode` refuses an exact match app-side (`checkSittingCode`)
- * before calling it, for every code. A direct RPC call bypasses that guard.
+ * equal one. `void_sitting_code` and `void_internal_exam_code` refuse these tokens with
+ * `invalid_input`; `checkSittingCode` pre-checks them app-side.
  * Derive: grep -rhno "void_reason = '[a-z_]*'" supabase/migrations/*.sql, plus the
- * `private.void_unused_sitting_codes` call sites. Mirrored in the RPC's own check (mig 20261118000300).
+ * `private.void_unused_sitting_codes` call sites. Mirrored in the RPCs' own checks (migs 20261118000300, 20261119000200).
  */
 export const RESERVED_VOID_REASONS = [
   'sitting_closed',

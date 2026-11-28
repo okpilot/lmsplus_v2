@@ -644,7 +644,7 @@ describe('cleanupInternalExamStudentActiveSessions', () => {
     )
   })
 
-  describe('sitting codes (void_internal_exam_code refuses them)', () => {
+  describe('sitting codes (session ended directly)', () => {
     function sittingClient(sessionCalls: unknown[][], sessionResult: unknown) {
       let codesQueries = 0
       return {

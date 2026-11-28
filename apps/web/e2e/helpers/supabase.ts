@@ -293,7 +293,8 @@ export async function ensureInternalExamStudentUser() {
 
 /**
  * Force-end any active internal-exam session that the dedicated student left
- * open from a prior test, by voiding the linked code via the audited admin RPC.
+ * open from a prior test: legacy codes are voided via the audited admin RPC, sitting-code
+ * sessions are ended directly.
  *
  * Why this exists: tests that exercise mid-session behavior (resume, void, etc.)
  * don't always submit before exiting, so quiz_sessions rows survive with
@@ -301,10 +302,9 @@ export async function ensureInternalExamStudentUser() {
  * 'active_session_exists', the modal renders the inline error, and the redirect
  * never fires — see issue #587 for the full repro.
  *
- * Uses `void_internal_exam_code(p_code_id, p_reason)` so cleanup goes through
- * the same SECURITY DEFINER path that the admin "Void" button uses in
- * production: writes the audit event, sets ended_at, marks passed=false, and
- * voids the code.
+ * Legacy codes go through `void_internal_exam_code(p_code_id, p_reason)`, the same
+ * SECURITY DEFINER path the admin "Void" button uses: writes the audit event, sets
+ * ended_at, marks passed=false, and voids the code.
  *
  * Last step: soft-deletes the student's remaining legacy codes
  * (sitting_entry_id IS NULL) so none leaks into the next spec.

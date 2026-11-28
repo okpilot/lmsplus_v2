@@ -1,4 +1,4 @@
--- void_internal_exam_code refuses a sitting code unless its attempt is running (Decision 264); void the rest via void_sitting_code. Body from 20260601000003; adds the guard and pg_temp.
+-- void_internal_exam_code refuses a sitting code unless its attempt is running (Decision 264) and a reserved system void reason. Body from 20260601000003; adds both guards and pg_temp.
 CREATE OR REPLACE FUNCTION public.void_internal_exam_code(
   p_code_id uuid,
   p_reason  text
@@ -39,6 +39,9 @@ BEGIN
   END IF;
   IF length(p_reason) > 500 THEN
     RAISE EXCEPTION 'invalid_reason';
+  END IF;
+  IF btrim(p_reason) IN ('sitting_closed','sitting_cancelled','entry_removed','reissued_after_expiry','passed_elsewhere') THEN
+    RAISE EXCEPTION 'invalid_input';
   END IF;
 
   -- Capture the admin's org AND role once, at authorization time, from a

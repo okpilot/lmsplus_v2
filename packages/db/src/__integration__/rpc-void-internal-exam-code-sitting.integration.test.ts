@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { RESERVED_VOID_REASONS } from '../schema'
 import { cleanupReferenceData, cleanupTestData } from './cleanup'
 import { fixtureSuffix } from './fixture-suffix'
 import { seedReferenceData } from './seed'
@@ -204,5 +205,42 @@ describe('RPC: void_internal_exam_code refuses a sitting code unless its attempt
     expect(r.error).toBeNull()
     expect((await state(c)).voided_at).not.toBeNull()
     expect(await audits(c)).toBe(1)
+  })
+
+  it.each(RESERVED_VOID_REASONS)(
+    'refuses the system token %s on a legacy code with invalid_input',
+    async (reason) => {
+      const c = await insertCode(null)
+      const r = await a1c.rpc('void_internal_exam_code', { p_code_id: c, p_reason: reason })
+      expect(r.error?.message).toBe('invalid_input')
+      expect((await state(c)).voided_at).toBeNull()
+      expect(await audits(c)).toBe(0)
+    },
+  )
+
+  it('refuses a system token on a running consumed sitting code and leaves the session open', async () => {
+    const sess = await runningSession(null)
+    const c = await consumeCode(sess)
+    const r = await a1c.rpc('void_internal_exam_code', {
+      p_code_id: c,
+      p_reason: 'sitting_closed',
+    })
+    expect(r.error?.message).toBe('invalid_input')
+    const s = must<{ ended_at: string | null }>(
+      await admin.from('quiz_sessions').select('ended_at').eq('id', sess).single(),
+      'session row',
+    )
+    expect(s.ended_at).toBeNull()
+    expect((await state(c)).voided_at).toBeNull()
+  })
+
+  it('refuses a system token padded with whitespace', async () => {
+    const c = await insertCode(null)
+    const r = await a1c.rpc('void_internal_exam_code', {
+      p_code_id: c,
+      p_reason: '  sitting_cancelled ',
+    })
+    expect(r.error?.message).toBe('invalid_input')
+    expect((await state(c)).voided_at).toBeNull()
   })
 })

@@ -27,9 +27,9 @@ function refusal(row: CodeRow): string {
 }
 
 /**
- * The reserved-reason check covers EVERY code, legacy ones included: `void_internal_exam_code`
- * writes any reason straight to `void_reason` (#1820), where a system token renders as a system
- * void and the notice readers count it. A free-text reason must never be able to forge one.
+ * App-side pre-check; the RPCs also refuse a reserved reason. It covers EVERY code, legacy ones
+ * included: a system token in `void_reason` renders as a system void and the notice readers count
+ * it, so a free-text reason must never be able to forge one.
  */
 export async function checkSittingCode(
   supabase: SupabaseClient<Database>,
@@ -61,7 +61,7 @@ export async function checkSittingCode(
     console.error('[checkSittingCode] lookup error:', error.message)
     return { ok: false, error: 'Failed to void internal exam code' }
   }
-  // Fail closed: the legacy `void_internal_exam_code` has no sitting guard of its own (#1832).
+  // The RPC reads WHERE deleted_at IS NULL and raises code_not_found, so an absent row is not voidable.
   if (!data) return { ok: false, error: 'Code not found' }
   if (data.sitting_entry_id === null) return { ok: true }
 
