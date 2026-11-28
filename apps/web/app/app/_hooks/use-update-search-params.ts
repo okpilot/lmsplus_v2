@@ -28,7 +28,9 @@ export function useUpdateSearchParams() {
         }
       }
       const qs = params.toString()
-      router.replace(qs ? `${pathname}?${qs}` : pathname)
+      const url = qs ? `${pathname}?${qs}` : pathname
+      window.history.replaceState(window.history.state, '', url)
+      router.replace(url)
     },
     [router, pathname],
   )

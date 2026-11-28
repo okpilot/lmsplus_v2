@@ -5,8 +5,21 @@ vi.mock('@/lib/auth/require-admin', () => ({
   requireAdmin: vi.fn().mockResolvedValue(undefined),
 }))
 vi.mock('./_components/internal-exams-content', () => ({
-  InternalExamsContent: (p: { tab?: string; scope?: string; dlg?: string }) => (
-    <div data-testid="content" data-tab={p.tab} data-scope={p.scope} data-dlg={p.dlg} />
+  InternalExamsContent: (p: {
+    tab?: string
+    scope?: string
+    dlg?: string
+    q?: string
+    sitting?: string
+  }) => (
+    <div
+      data-testid="content"
+      data-tab={p.tab}
+      data-scope={p.scope}
+      data-dlg={p.dlg}
+      data-q={p.q}
+      data-sitting={p.sitting}
+    />
   ),
 }))
 vi.mock('./_components/internal-exams-header-action', () => ({
@@ -58,5 +71,16 @@ describe('InternalExamsPage', () => {
     expect(el).toHaveAttribute('data-tab', 'sittings')
     expect(el).toHaveAttribute('data-scope', 'open')
     expect(el).toHaveAttribute('data-dlg', 'new')
+  })
+
+  it('passes the parsed attempts filters to the content and drops an invalid sitting id', async () => {
+    render(
+      await InternalExamsPage({
+        searchParams: Promise.resolve({ tab: 'attempts', q: ' ann ', sitting: 'not-a-uuid' }),
+      }),
+    )
+    const el = screen.getByTestId('content')
+    expect(el).toHaveAttribute('data-q', 'ann')
+    expect(el).not.toHaveAttribute('data-sitting')
   })
 })

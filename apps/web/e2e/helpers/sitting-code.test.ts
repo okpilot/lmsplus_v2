@@ -112,6 +112,13 @@ describe('seedSittingFor', () => {
     expect(sitting?.rows[0]).not.toHaveProperty('started_at')
   })
 
+  it('schedules the sitting at the given instant', async () => {
+    const inserts = fakeAdmin()
+    await seedSittingFor({ ...STUDENT, scheduledAt: '2031-03-01T07:13:00Z' })
+    const sitting = inserts.find((i) => i.table === 'exam_sittings')
+    expect(sitting?.rows[0]?.scheduled_at).toBe('2031-03-01T07:13:00Z')
+  })
+
   it('withCode:false inserts no code and returns code null', async () => {
     const inserts = fakeAdmin()
     const res = await seedSittingFor({ ...STUDENT, withCode: false })

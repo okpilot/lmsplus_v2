@@ -34,7 +34,7 @@ export function FilterSelect({
       <SelectTrigger className={triggerClassName} aria-label={ariaLabel}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent className="w-auto min-w-(--anchor-width) max-w-(--available-width)">
         {items.map((item) => (
           <SelectItem key={item.value} value={item.value} label={item.label}>
             {item.label}

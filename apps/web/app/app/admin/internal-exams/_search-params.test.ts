@@ -113,3 +113,43 @@ describe('readDlgParam', () => {
     expect(readDlgParam(new URLSearchParams(''))).toBeNull()
   })
 })
+
+describe('parseInternalExamsSearchParams: attempts filters', () => {
+  const ID = '3f2b8c1e-5d4a-4c6b-9e7f-1a2b3c4d5e6f'
+
+  it('keeps q, subject, sitting and group when valid', () => {
+    const r = parseInternalExamsSearchParams({ q: 'alice', subject: ID, sitting: ID, group: ID })
+    expect(r).toMatchObject({ q: 'alice', subject: ID, sitting: ID, group: ID })
+  })
+
+  it('leaves the four filters undefined when absent', () => {
+    const r = parseInternalExamsSearchParams({})
+    expect([r.q, r.subject, r.sitting, r.group]).toEqual([
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    ])
+  })
+
+  it('trims q and treats a blank q as absent', () => {
+    expect(parseInternalExamsSearchParams({ q: '  bob  ' }).q).toBe('bob')
+    expect(parseInternalExamsSearchParams({ q: '   ' }).q).toBeUndefined()
+  })
+
+  it('caps q at 200 characters or drops it', () => {
+    const q = parseInternalExamsSearchParams({ q: 'x'.repeat(300) }).q
+    expect(q === undefined || q.length <= 200).toBe(true)
+  })
+
+  it('ignores a non-uuid subject, sitting or group (invalid = absent)', () => {
+    const r = parseInternalExamsSearchParams({ subject: 'nope', sitting: '123', group: 'x' })
+    expect([r.subject, r.sitting, r.group]).toEqual([undefined, undefined, undefined])
+  })
+
+  it('ignores array-valued filters', () => {
+    const r = parseInternalExamsSearchParams({ sitting: [ID, ID], q: ['a', 'b'] })
+    expect(r.sitting).toBeUndefined()
+    expect(r.q).toBeUndefined()
+  })
+})

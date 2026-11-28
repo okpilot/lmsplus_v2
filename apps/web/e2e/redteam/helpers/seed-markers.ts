@@ -183,3 +183,6 @@ export const E2E_REDTEAM_NL_PROBER_EMAIL = 'redteam-nl-prober@lmsplus.local'
 export const E2E_REDTEAM_NL_PROBER_PASSWORD = 'redteam-nl-prober-2026!'
 export const E2E_REDTEAM_NL_CROSSORG_EMAIL = 'redteam-nl-crossorg-owner@lmsplus.local'
 export const E2E_REDTEAM_NL_CROSSORG_PASSWORD = 'redteam-nl-crossorg-owner-2026!'
+
+/** Name prefix of student groups the Attempts-filter spec (NS) creates. */
+export const E2E_REDTEAM_ATT_GROUP_PREFIX = 'RTATT-'
