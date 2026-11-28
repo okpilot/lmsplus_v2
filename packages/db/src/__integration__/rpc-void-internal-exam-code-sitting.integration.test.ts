@@ -133,6 +133,22 @@ describe('RPC: void_internal_exam_code refuses a sitting code unless its attempt
     expect(await audits(c)).toBe(0)
   })
 
+  it('rejects an already-voided unconsumed sitting code with code_voided', async () => {
+    const c = await insertCode(await sittingEntry())
+    must(
+      await admin
+        .from('internal_exam_codes')
+        .update({ voided_at: new Date().toISOString(), voided_by: adminId, void_reason: 'prior' })
+        .eq('id', c)
+        .select('id')
+        .single(),
+      'void',
+    )
+    const r = await a1c.rpc('void_internal_exam_code', { p_code_id: c, p_reason: 'again' })
+    expect(r.error?.message).toBe('code_voided')
+    expect(await audits(c)).toBe(0)
+  })
+
   async function runningSession(endedAt: string | null): Promise<string> {
     return must<{ id: string }>(
       await admin

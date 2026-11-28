@@ -61,7 +61,6 @@ export async function checkSittingCode(
     console.error('[checkSittingCode] lookup error:', error.message)
     return { ok: false, error: 'Failed to void internal exam code' }
   }
-  // The RPC reads WHERE deleted_at IS NULL and raises code_not_found, so an absent row is not voidable.
   if (!data) return { ok: false, error: 'Code not found' }
   if (data.sitting_entry_id === null) return { ok: true }
 

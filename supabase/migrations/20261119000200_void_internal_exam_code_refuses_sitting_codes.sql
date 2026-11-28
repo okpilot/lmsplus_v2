@@ -71,12 +71,12 @@ BEGIN
     RAISE EXCEPTION 'code_not_found';
   END IF;
 
-  IF v_code_entry IS NOT NULL AND (v_code_consumed IS NULL OR v_code_session_id IS NULL) THEN
-    RAISE EXCEPTION 'sitting_code';
-  END IF;
-
   IF v_code_voided IS NOT NULL THEN
     RAISE EXCEPTION 'code_voided';
+  END IF;
+
+  IF v_code_entry IS NOT NULL AND (v_code_consumed IS NULL OR v_code_session_id IS NULL) THEN
+    RAISE EXCEPTION 'sitting_code';
   END IF;
 
   IF v_code_consumed IS NOT NULL AND v_code_session_id IS NOT NULL THEN
