@@ -67,7 +67,7 @@ jobs:
         # Migrated from the deprecated sonarcloud-github-action. SONAR_TOKEN is
         # inherited from the job-level env; org/project keys live in
         # sonar-project.properties; SONAR_HOST_URL is not needed for SonarQube Cloud.
-        uses: SonarSource/sonarqube-scan-action@e805d875275f728fac1885b413934be6d7c63f65 # v8.4.1
+        uses: SonarSource/sonarqube-scan-action@70bad232163b09d998ea0707ee80c0ec80798c16 # v8.5.1
         env:
           # Forwarded to the Sonar Scanner CLI for PR decoration — keep it.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
